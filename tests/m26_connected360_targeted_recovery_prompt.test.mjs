@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {
   connected360InvitationKey,connected360RecoveryCampaignKey,
   createClientWearableInvitationController,connected360RecoveryMarkup,
+  connected360InvitationDecision,
 } from '../src/m26/onboarding/client-wearable-invitation.js';
 import {clientGuidedWelcomeScopeKey} from '../src/m26/onboarding/client-guided-welcome.js';
 const completed=async()=>{await Promise.resolve();await Promise.resolve();await Promise.resolve();};
@@ -141,4 +142,28 @@ test('OS review is Client owner-scoped and cannot authorize or send health sampl
   const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
   assert.match(app,/reviewProductionHealthPermissions\(\)/u);
   assert.match(connected360RecoveryMarkup({nativeReady:false}),/La web no puede acceder/u);
+});
+
+
+test('Connected360 native invitation requires a real confirmed sync, not a connected label',()=>{
+ const capabilities={nativeReady:true,direct:[{key:'health_connect'}],importReady:false};
+ const target={role:'client',userId:U,guideStatus:'completed',capabilities};
+ const connected={provider:'health_connect',status:'connected',
+   metadata:{mode:'certified_native',automatic:true},
+   syncEnabled:true,scopes:['steps']};
+ assert.equal(connected360InvitationDecision({
+   ...target,connections:[{provider:'health_connect',status:'connected'}],
+ }).show,true,'label alone is not a permission or successful sensor read');
+ assert.equal(connected360InvitationDecision({
+   ...target,connections:[connected],
+ }).show,true,'native permission without sync proof remains pending');
+ assert.equal(connected360InvitationDecision({
+   ...target,connections:[{...connected,lastSyncedAt:'2026-11-04T12:00:00Z'}],
+ }).status,'connected');
+ assert.equal(connected360InvitationDecision({
+   ...target,connections:[{...connected,lastSyncedAt:'not-a-date'}],
+ }).show,true);
+ assert.equal(connected360InvitationDecision({
+   ...target,recorded:{status:'dismissed'},connections:[],
+ }).show,false,'explicit refusal remains respected');
 });

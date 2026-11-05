@@ -14,7 +14,8 @@ async function read(url){return readFile(url,'utf8');}
 test('settings and account controls live in the sidebar footer instead of competing in the topbar',async()=>{
   const [shell,css]=await Promise.all([read(shellUrl),read(settingsSurfaceUrl)]);
   assert.match(shell,/function sidebarAccount\(vm\)[\s\S]*m26-sidebar-footer[\s\S]*\$\{settingsMenu\(vm\)\}[\s\S]*m26-sidebar-logout/u);
-  assert.match(shell,/<div class="m26-topbar-actions">\$\{productivity\.launcher\}\$\{clientSelector\(vm\)\}\$\{operationStatus\(vm\.operations\)\}<\/div>/u);
+  assert.ok(shell.includes('vm.identity.role===\'client\'?\'\':operationStatus(vm.operations)'),
+    'Client topbar is quiet while operational roles retain exact status');
   assert.doesNotMatch(shell,/m26-topbar-actions[^\n]*settingsMenu\(vm\)/u);
   assert.match(css,/\.m26-sidebar-footer \.m26-settings-menu/u);
   assert.doesNotMatch(css,/\.m26-topbar \.m26-settings-menu/u);

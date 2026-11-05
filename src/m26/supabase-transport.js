@@ -48,6 +48,17 @@ const QA_AUTHORIZED_EMAILS=new Set(['iberfit.cl@gmail.com']);
 const QA_RC_EMAIL_PATTERN=/^qa\.rc\d+(?:-\d+)?(?:\.[a-z0-9][a-z0-9-]{0,63})+@iberfit\.cl$/u;
 function isQaAuthorizedEmail(email){const normalized=String(email||'').trim().toLowerCase();const legacyAlias=normalized.startsWith('iberfit.cl+qa.')&&normalized.endsWith('@gmail.com');return QA_RC_EMAIL_PATTERN.test(normalized)||legacyAlias||QA_AUTHORIZED_EMAILS.has(normalized);}
 const MAX_RESPONSE_BYTES=20_000_000;
+const OCCURRENCE_STAGED_RPC='iberfit_occurrence_api_u60_v1';
+const OCCURRENCE_PRIVATE_READ_RPC='iberfit_occurrence_detail_v1';
+const OCCURRENCE_ACTIONS=Object.freeze({
+  OCURRENCIAS_CREAR_LOTE:'CREAR_LOTE',
+  OCURRENCIA_CONFIRMAR:'TRANSICION',
+  OCURRENCIA_INICIAR:'TRANSICION',
+  OCURRENCIA_GUARDAR_PROGRESO:'TRANSICION',
+  OCURRENCIA_COMPLETAR:'TRANSICION',
+  OCURRENCIA_CANCELAR:'CAMBIO',
+  OCURRENCIA_REPROGRAMAR:'CAMBIO',
+});
 const CANONICAL_RPC=Object.freeze({
   bootstrap:'iberfit_bootstrap_v26',
   preflight:'iberfit_command_preflight_v26',
@@ -950,6 +961,76 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
         throw error;
       }
     }
+  }
+
+  // U36 transport is deliberately opt-in: no Client/Coach UI invokes it
+  // until the audited backend explicitly grants EXECUTE after final gates.
+  // Keep it separate from the V26 dispatcher; never downshift a dated
+  // completion to the legacy canonical session command.
+  async function occurrenceGateway(token,action,payload){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    if(!['CALENDARIO','CREAR_LOTE','TRANSICION','CAMBIO'].includes(action))
+      throw new Error('M26_OCCURRENCE_ACTION_INVALID');
+    if(!payload||typeof payload!=='object'||Array.isArray(payload)
+      ||jsonByteLength(payload)>524288)throw new Error('M26_OCCURRENCE_PAYLOAD_INVALID');
+    return request('/rest/v1/rpc/'+OCCURRENCE_STAGED_RPC,{
+      method:'POST',token,body:JSON.stringify({p_action:action,p_payload:payload}),
+    });
+  }
+
+  async function occurrenceCalendar(token,query){
+    if(!query||typeof query!=='object'||Array.isArray(query)
+      ||Object.keys(query).some(key=>![
+        'clientId','startDate','endDate','afterDate','afterId','limit'
+      ].includes(key)))throw new Error('M26_OCCURRENCE_CALENDAR_FILTER_INVALID');
+    const result=await occurrenceGateway(token,'CALENDARIO',query);
+    if(!result||typeof result!=='object'||Array.isArray(result)
+      ||result.kind!=='calendar'||!Array.isArray(result.occurrences)
+      ||result.occurrences.length>100||result.count!==result.occurrences.length
+      ||typeof result.hasMore!=='boolean')
+      throw new Error('M26_OCCURRENCE_CALENDAR_RESPONSE_INVALID');
+    return Object.freeze({...result,occurrences:Object.freeze(result.occurrences)});
+  }
+
+  // U60 opt-in QA only. The SQL detail RPC is CLOSED by default; no legacy
+  // fallback and no automatic JWT write/retry. Owner is enforced by SQL and
+  // verified again after the response in createOccurrencePrivateReader.
+  async function occurrencePrivateRead(token,query){
+    if(!runtime.qaOnly)throw new Error('M26_OCCURRENCE_PRIVATE_READ_NOT_RELEASED');
+    if(!query||typeof query!=='object'||Array.isArray(query)
+      ||Object.keys(query).length!==2
+      ||Object.keys(query).some(key=>!['clientId','occurrenceId'].includes(key))
+      ||!UUID_PATTERN.test(String(query.clientId||''))
+      ||!UUID_PATTERN.test(String(query.occurrenceId||'')))
+      throw new Error('M26_OCCURRENCE_PRIVATE_READ_FILTER_INVALID');
+    const result=await request('/rest/v1/rpc/'+OCCURRENCE_PRIVATE_READ_RPC,{
+      method:'POST',token,
+      body:JSON.stringify({p_client_id:query.clientId,p_occurrence_id:query.occurrenceId}),
+    });
+    if(!result||typeof result!=='object'||Array.isArray(result)
+      ||result.kind!=='private-occurrence'
+      ||String(result.occurrence?.id||'').toLowerCase()!==query.occurrenceId.toLowerCase()
+      ||String(result.occurrence?.clientId||'').toLowerCase()!==query.clientId.toLowerCase())
+      throw new Error('M26_OCCURRENCE_PRIVATE_READ_RESPONSE_INVALID');
+    return result;
+  }
+
+  async function occurrenceCommand(token,command){
+    if(!command||typeof command!=='object'||Array.isArray(command))
+      throw new Error('M26_OCCURRENCE_COMMAND_INVALID');
+    const action=OCCURRENCE_ACTIONS[command.type];
+    if(!action||!Object.hasOwn(OCCURRENCE_ACTIONS,command.type))
+      throw new Error('M26_OCCURRENCE_COMMAND_FORBIDDEN');
+    if(!UUID_PATTERN.test(String(command.operationId||''))
+      ||!UUID_PATTERN.test(String(command.clientId||''))
+      ||!UUID_PATTERN.test(String(command.entityId||''))
+      ||!Number.isSafeInteger(command.baseRevision)||command.baseRevision<0)
+      throw new Error('M26_OCCURRENCE_COMMAND_INVALID');
+    const result=await occurrenceGateway(token,action,command);
+    if(!result||typeof result!=='object'||Array.isArray(result)
+      ||!['ack','conflict','rejected'].includes(result.kind))
+      throw new Error('M26_OCCURRENCE_RESPONSE_INVALID');
+    return Object.freeze(normalizeRpcResponse(result));
   }
 
   // P0 #1209: caller must have a real authenticated QA Client session.
@@ -2008,6 +2089,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     updateExerciseMeasurementProfile,
     commandRegistry,
     readExistingExecution,
+    occurrenceCalendar,
+    occurrencePrivateRead,
+    occurrenceCommand,
     clientOnboardingPreflight,
     createReportDraft,
     createClientDraft,

@@ -11,6 +11,7 @@ import {formatSleepDuration} from '../wearables/duration-format.js';
 import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hub.js';
 import {clientWearableActivation} from '../wearables/activation-experience.js';
 import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
+import {renderClientDayContext} from '../experience/client-day-context.js';
 import {renderPeriodizationBoard} from '../planning/periodization-workbench.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
@@ -20,6 +21,8 @@ import {progressSummaryHasEvolutionEvidence} from '../engagement/progress-engine
 import {renderIberfitIcon} from '../design/icons.js';
 import {renderAthleticClientEvidence} from '../design/athletic-client-evidence.js';
 import {renderPosthogConsentPanel} from '../analytics/posthog-manual.js';
+import {iberfitSurfaceTranslate} from '../ui/i18n-surface.js';
+import {getIberfitLanguage} from '../ui/i18n.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -72,6 +75,29 @@ function operationBanner(operations) {
   if (operations.rejected) parts.push(`${operations.rejected} por revisar`);
   const kind = operations.conflicts ? 'danger' : operations.rejected ? 'warning' : 'pending';
   return `<section class="m26-notice is-${kind}" role="status"><strong>Sincronización protegida</strong><p>${escapeHtml(parts.join(' · '))}. Ningún cambio se muestra como confirmado hasta completar la sincronización segura.</p></section>`;
+}
+
+// A progress/recovery count is diagnostic, never a red alarm on the Client
+// welcome screen. Preserve access to exact pending/rejected counts inside a
+// calm, collapsed disclosure; do not pretend a failed write was confirmed.
+function clientOperationDisclosure(operations={}){
+  const pending=Number.isSafeInteger(operations.pending)?Math.max(0,operations.pending):0;
+  const conflicts=Number.isSafeInteger(operations.conflicts)?Math.max(0,operations.conflicts):0;
+  const rejected=Number.isSafeInteger(operations.rejected)?Math.max(0,operations.rejected):0;
+  if(!pending&&!conflicts&&!rejected)return '';
+  const issues=conflicts+rejected;
+  const tx=value=>iberfitSurfaceTranslate(value,{language:getIberfitLanguage()});
+  const count=(n,singular,plural)=>n+' '+tx(n===1?singular:plural);
+  const parts=[
+    pending?count(pending,'cambio pendiente','cambios pendientes'):null,
+    conflicts?count(conflicts,'conflicto','conflictos'):null,
+    rejected?count(rejected,'cambio por revisar','cambios por revisar'):null,
+  ].filter(Boolean).join(' · ');
+  return '<details class="m26-client-sync-disclosure" data-m26-client-sync-disclosure>'
+    +'<summary>'+escapeHtml(tx(issues?'Revisar cambios pendientes':'Estado de tus cambios'))+'</summary>'
+    +'<div><p>'+escapeHtml(parts)+'. '+escapeHtml(tx('Los cambios todavía no confirmados no aparecen como completados.'))+'</p>'
+    +'<button type="button" data-m26-area="ajustes">'+escapeHtml(tx('Consultar sincronización'))+'</button></div>'
+    +'</details>';
 }
 function appointmentCard(item,{canManage=false,canStartSession=false}={}) {
   const detail=[item.modality,item.location]
@@ -840,8 +866,6 @@ function renderClientHoyRoute(vm) {
     :'';
 
   return `<div class="m26-route m26-hoy-route m26-client-home-v1 m26-client-home-editorial-v3 m26-client-home-stitch-v23" data-client-home-training-state="${!trainingSurface?'without-training':!serviceActive?'paused':runnable||standaloneGuided?'start-ready':projections.length?'published':'preparing'}">
-    ${operationBanner(vm.operations||{})}
-
     <section class="m26-client-home-stage" aria-label="Inicio y actividad de hoy">
     <section class="m26-client-home-feature" aria-label="Tu día en IBERFIT">
       <div class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
@@ -869,6 +893,7 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${trainingSurface?renderAthleticClientEvidence(vm.clientProgressSummary):''}
+    ${renderClientDayContext(vm.clientDayContext)}
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
       ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">
@@ -908,6 +933,7 @@ function renderClientHoyRoute(vm) {
     ${trainingSurface?challengePreviewMarkup:''}
 
     ${nextActionMarkup}
+    ${clientOperationDisclosure(vm.operations||{})}
 
     ${agendaItems.length?`<section class="m26-panel m26-client-home-agenda">
       <div class="m26-panel-heading">

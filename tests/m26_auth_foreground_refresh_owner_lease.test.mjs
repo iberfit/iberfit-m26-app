@@ -83,3 +83,25 @@ test('current owner still gets permanent refresh recovery and stale pre-dispatch
   assert.equal(x.pending.length,1);
   x.coordinator.destroy();
 });
+
+
+test('auth: one Client failure never throttles a different signed-in owner',async()=>{
+ let current=make('A'),clock=0,calls=0;
+ const scope={addEventListener(){},removeEventListener(){}};
+ const svc=createSessionForegroundRefreshCoordinator({
+   scope,documentLike:{...scope,visibilityState:'visible'},
+   getSession:()=>current,
+   now:()=>clock,transientRetryMs:90_000,
+   refreshSession:async()=>{
+     calls++;
+     if(calls===1)throw Error('network-failed-for-A');
+     return true;
+   },
+ });
+ assert.equal(await svc.run('focus'),false);
+ current=make('B');
+ clock=1;
+ assert.equal(await svc.run('focus'),true);
+ assert.equal(calls,2);
+ svc.destroy();
+});

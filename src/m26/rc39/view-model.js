@@ -3,6 +3,7 @@ import {
   buildClientPlanningItems,
   clientSessionProjection,
   appointmentForSession,
+  legacyStartNeedsOccurrence,
 } from './session-policy.js';
 import {isClientVisibleAppointment} from '../domain/appointment.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
@@ -11,6 +12,7 @@ export {deriveCoachSelfLaunchJourney};
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {buildRetentionHealth} from '../engagement/retention-health.js';
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
+import {buildTraining360DecisionPack} from '../intelligence/training360-decision-pack.js';
 
 const field=(record,...keys)=>{
   const body=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};
@@ -235,13 +237,43 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
     }
   }
   const canResume=(id)=>role==='client'&&resumableSessionIds.has(String(id||''));
-  const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:scopedAppointments,now}).map((item)=>Object.freeze({...item,changeRequestAvailable,canClientResume:canResume(item.id)})));
+  // U60: repeated prescriptions require a date-scoped executor; R50 resume
+  // remains tied to the same confirmed execution across canonical collections.
+  const existingOccurrences=state.collections?.trainingOccurrences||
+    state.collections?.sessionOccurrences||[];
+  const awaitingOccurrenceApi=new Set(relevantSessions.filter(session=>
+    legacyStartNeedsOccurrence({
+      appointments:role==='client'?scopedAppointments:relevantAppointments,
+      occurrences:existingOccurrences,
+      sessionId:sessionId(session),clientId:clientId(session),
+    })
+  ).map(session=>sessionId(session)));
+  const recurrenceGuard=(id)=>awaitingOccurrenceApi.has(String(id||''));
+  const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:scopedAppointments,now}).map((item)=>Object.freeze({
+    ...item,changeRequestAvailable,canClientResume:canResume(item.id),
+    canClientStart:recurrenceGuard(item.id)?false:item.canClientStart,
+    recurringAwaitingActivation:recurrenceGuard(item.id),
+  })));
   const operationalAppointments=(role==='client'?scopedAppointments:appointments).map((item)=>compactAppointment(item,now)).sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER));
-  const sessionProjections=relevantSessions.map((session)=>Object.freeze({
-    ...clientSessionProjection(session,appointmentForSession(scopedAppointments,session,now),now),
-    changeRequestAvailable,
-    canClientResume:canResume(sessionId(session)),
-  }));
+  const sessionProjections=relevantSessions.map((session)=>{
+    const base=clientSessionProjection(session,appointmentForSession(scopedAppointments,session,now),now);
+    return Object.freeze({
+      ...base,changeRequestAvailable,
+      canClientResume:canResume(sessionId(session)),
+      canClientStart:recurrenceGuard(base.id)?false:base.canClientStart,
+      recurringAwaitingActivation:recurrenceGuard(base.id),
+    });
+  });
+  // Data already scoped by the server and selected Client. This is a
+  // non-authoritative decision view, not an access grant or an execution path.
+  const decisionRows=Array.isArray(existingOccurrences)?existingOccurrences:[];
+  const training360=routeClientId&&decisionRows.length>0
+    ?buildTraining360DecisionPack({
+      role,clientId:String(routeClientId),sessions:relevantSessions,
+      appointments:scopedAppointments,occurrences:decisionRows,
+      executions:state.collections?.sessionExecutions||[],now,
+    })
+    :null;
   const needsPreparation=sessionProjections.filter((item)=>!item.session?.blocks?.length).length;
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;
@@ -249,7 +281,7 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   const retentionVm=enrichClientsRetention(vm,role,state,now);
   const decisionVm=enrichExpedienteDecision(retentionVm,role);
   const enrichedVm=enrichExpedienteRetention(decisionVm,role,state,routeClientId,now);
-  return Object.freeze({...enrichedVm,rc39:Object.freeze({role,clientId:routeClientId||null,planningItems,appointments:Object.freeze(operationalAppointments),sessionProjections:Object.freeze(sessionProjections),needsPreparation,confirmationOpen,changeRequests,changeRequestAvailable,coachLaunchJourney,generatedAt:new Date(now).toISOString()})});
+  return Object.freeze({...enrichedVm,rc39:Object.freeze({role,clientId:routeClientId||null,planningItems,appointments:Object.freeze(operationalAppointments),sessionProjections:Object.freeze(sessionProjections),needsPreparation,confirmationOpen,changeRequests,changeRequestAvailable,coachLaunchJourney,...(training360?{training360}:{}),generatedAt:new Date(now).toISOString()})});
 }
 export function augmentRc39ShellViewModel(vm,state){
   if(!vm||vm.mode!=='authenticated')return vm;

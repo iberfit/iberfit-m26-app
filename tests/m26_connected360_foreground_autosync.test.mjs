@@ -314,3 +314,71 @@ test('only production native Client heartbeat runs and hidden, offline and owner
   assert.match(c,/nativeForegroundHeartbeat\.stop\(\);\s*foregroundSync\.invalidate\(\)/u);
   assert.doesNotMatch(body,/READ_HEALTH_DATA_IN_BACKGROUND|requestAuthorization\(/u);
 });
+
+
+test('foreground: failed read retries at bounded short backoff, not five minutes',async()=>{
+ let clock=0,calls=0;
+ const sync=createWearableForegroundSync({
+   now:()=>clock,canRun:()=>true,
+   minIntervalMs:WEARABLE_FOREGROUND_MIN_INTERVAL_MS,
+   retryIntervalMs:30_000,
+   run:async()=>{
+     calls++;
+     if(calls===1)throw Error('M26_NETWORK_UNAVAILABLE');
+     return {read:'confirmed'};
+   },
+ });
+ await assert.rejects(sync.trigger(),/M26_NETWORK_UNAVAILABLE/u);
+ clock=29_000;
+ assert.deepEqual(await sync.trigger(),{skipped:'retry-backoff'});
+ assert.equal(calls,1);
+ clock=30_000;
+ assert.deepEqual(await sync.trigger(),{read:'confirmed'});
+ clock=31_000;
+ assert.deepEqual(await sync.trigger(),{skipped:'recently-checked'});
+ sync.invalidate();
+ assert.deepEqual(await sync.trigger(),{read:'confirmed'});
+});
+
+test('foreground: force bypasses retry cooldown but failed account never leaks to next Client',async()=>{
+ let now=100,calls=0;
+ const sync=createWearableForegroundSync({
+   now:()=>now,canRun:()=>true,run:async()=>{
+     calls++;
+     if(calls===1)throw Error('M26_NETWORK_UNAVAILABLE');
+     return {count:calls};
+   },
+ });
+ await assert.rejects(sync.trigger(),/M26_NETWORK_UNAVAILABLE/u);
+ assert.deepEqual(await sync.trigger(),{skipped:'retry-backoff'});
+ assert.deepEqual(await sync.trigger({force:true}),{count:2});
+ sync.invalidate();
+ assert.deepEqual(await sync.trigger(),{count:3});
+});
+
+test('heartbeat: one native read at a time, errors reported and teardown safe',async()=>{
+ const ticks=[],errors=[];
+ let callback,release;
+ const gate=new Promise(resolve=>{release=resolve;});
+ const beat=createNativeForegroundHeartbeat({
+   intervalMs:WEARABLE_NATIVE_FOREGROUND_HEARTBEAT_MS,
+   onTick:()=>{ticks.push('start');return gate;},
+   onError:e=>errors.push(e.message),
+   canRun:()=>true,
+   setTimer:fn=>{callback=fn;return 1;},clearTimer:()=>{},
+ });
+ assert.equal(beat.start(),true);
+ callback();callback();
+ assert.equal(ticks.length,1,'timer may not spawn overlapping syncs');
+ beat.stop();release();await gate;await Promise.resolve();
+ assert.deepEqual(errors,[]);
+ const second=createNativeForegroundHeartbeat({
+   intervalMs:WEARABLE_NATIVE_FOREGROUND_HEARTBEAT_MS,
+   onTick:()=>Promise.reject(Error('native-read-failed')),
+   onError:e=>errors.push(e.message),
+   canRun:()=>true,setTimer:fn=>{callback=fn;return 2;},clearTimer:()=>{},
+ });
+ second.start();callback();await Promise.resolve();await Promise.resolve();
+ assert.deepEqual(errors,['native-read-failed']);
+ second.stop();
+});

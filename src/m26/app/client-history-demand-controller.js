@@ -42,10 +42,15 @@ export function createClientHistoryDemandController({
     if(!node){
       node=doc.createElement('aside');
       node.dataset.m26FreeHistoryStatus='';
-      node.className='m26-panel m26-client-history-load-state';
-      node.setAttribute('role','status');node.setAttribute('aria-live','polite');
-      route.prepend(node);
+      // Place archive requests after today's session instead of showing a
+      // technical recovery banner above the primary training action. Keep a
+      // prepend fallback for older lightweight host fixtures.
+      node.className='m26-client-history-load-state m26-client-history-quiet-disclosure';
+      if(typeof route.append==='function')route.append(node);
+      else route.prepend(node);
     }
+    node.setAttribute('role',status==='loading'?'status':'group');
+    node.setAttribute('aria-live',status==='loading'?'polite':'off');
     node.textContent=status==='idle'
       ?'Los detalles de sesiones antiguas se consultan sólo cuando los solicitas.'
       :status==='loading'

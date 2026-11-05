@@ -226,10 +226,18 @@ test('Cliente conserva flujo limpio, puede sustituir antes de progresar y omitir
   await skipDetails.locator('[data-session-skip-set-reason]').fill('Molestia puntual QA');
   await skipDetails.locator('[data-session-action="skip-set"]').click();
 
-  const skipped=await state(page);
-  expect(skipped.events.some((item)=>item.type==='SET_SKIPPED')).toBe(true);
-  expect(Object.keys(skipped.skippedSets)).toHaveLength(1);
-  expect(skipped.errors).toEqual([]);
+  // WebKit can resolve click before the asynchronous journal is persisted.
+  // This still fails if the real skipped event or count is never committed.
+  await expect.poll(async()=>{
+    const skipped=await state(page);
+    return {
+      event:skipped.events.some((item)=>item.type==='SET_SKIPPED'),
+      count:Object.keys(skipped.skippedSets).length,
+      errors:skipped.errors,
+    };
+  },{timeout:5000,intervals:[50,100,200,400]}).toEqual({
+    event:true,count:1,errors:[],
+  });
 });
 
 test('Cliente usa Comenzar entrenamiento y Guardar y salir sin Leave workout ni perder borrador',async({page})=>{

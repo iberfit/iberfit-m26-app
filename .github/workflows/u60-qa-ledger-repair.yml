@@ -1,0 +1,90 @@
+name: IBERFIT U60 QA Official Ledger Repair (two-attempt fail-closed)
+
+# First push verifies U60's official version alias read-only. Only a deliberate rerun of the same job
+# within 2h, with immutable exact-SHA evidence, may repair seven QA records.
+# Neither attempt touches PROD, client data, SQL DDL or public RPC grants.
+on:
+  push:
+    branches: ['feat/u60-training360-r50-reconciled-20261104']
+    paths:
+      - '.github/workflows/u60-qa-ledger-repair.yml'
+      - 'scripts/u60/qa-ledger-repair.mjs'
+      - 'scripts/u60/qa_readonly_reconciliation.sql'
+      - 'tests/m26_u60_official_qa_ledger_repair.test.mjs'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: iberfit-u60-qa-official-ledger-repair
+  cancel-in-progress: false
+
+jobs:
+  qa-ledger:
+    name: QA-only audited migration-history reconciliation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: m26-canary-readonly
+    env:
+      SUPABASE_PROJECT_ID: gjztkdwfmunnzhtvxrsu
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Reject unexpected repository, branch, or attempt
+        env:
+          ATTEMPT: ${{ github.run_attempt }}
+          TARGET_BRANCH: ${{ github.ref_name }}
+          TARGET_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_REPO" == iberfit/iberfit-m26-app ]] || exit 61
+          [[ "$TARGET_BRANCH" == feat/u60-training360-r50-reconciled-20261104 ]] || exit 62
+          [[ "$ATTEMPT" == 1 || "$ATTEMPT" == 2 ]] || exit 63
+          [[ -n "${SUPABASE_ACCESS_TOKEN:-}" ]] || { echo 'QA_OFFICIAL_TOKEN_UNAVAILABLE'; exit 64; }
+      - name: Checkout exact SHA without writable credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pin official Supabase CLI 3.0.0, never latest
+        uses: supabase/setup-cli@v3
+        with:
+          version: 3.0.0
+      - name: Run QA invariant regression tests
+        run: node --test tests/m26_u60_official_qa_ledger_repair.test.mjs
+      - name: Read-only QA proof of fingerprints, ACLs, FKs, legacy writers, and missing history
+        if: ${{ github.run_attempt == 1 }}
+        run: node scripts/u60/qa-ledger-repair.mjs canonical-preflight
+      - name: Store immutable preflight proof without personal data
+        if: ${{ github.run_attempt == 1 }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-u60-qa-preflight-${{ github.run_id }}
+          path: .tmp/u60-qa-ledger/qa-evidence.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Restore original successful preflight for explicit rerun
+        if: ${{ github.run_attempt == 2 }}
+        uses: actions/download-artifact@v4
+        with:
+          name: iberfit-u60-qa-preflight-${{ github.run_id }}
+          path: .tmp/u60-original
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+      - name: Apply ONLY official QA migration-history repair and verify
+        if: ${{ github.run_attempt == 2 }}
+        run: node scripts/u60/qa-ledger-repair.mjs canonical-apply
+      - name: Preserve post-repair metadata evidence
+        if: ${{ always() && github.run_attempt == 2 }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-u60-qa-after-${{ github.run_id }}
+          path: .tmp/u60-qa-ledger/qa-evidence.json
+          if-no-files-found: warn
+          retention-days: 14

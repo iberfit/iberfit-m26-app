@@ -24,8 +24,11 @@ test('No-data, invalid and partial permissions never fabricate zeros or guessed 
   assert.equal(clientHealthSnapshot({summary:{daysWithData:8,metrics:{steps:999}}}),null);
   assert.match(renderClientTodayHealth(null),/Sin datos todavía/u);
   const invalid=renderClientTodayHealth({summary:{daysWithData:1,metrics:{steps:-5,sleepMinutes:15000,restingHeartRate:NaN}}});
-  assert.equal((invalid.match(/Sin dato/g)||[]).length,3);
-  assert.doesNotMatch(invalid,/15.000|NaN/u);
+  assert.equal(clientHealthSnapshot({summary:{daysWithData:1,metrics:{
+    steps:-5,sleepMinutes:15000,restingHeartRate:NaN,
+  }}}),null);
+  assert.match(invalid,/Sin datos todavía/u);
+  assert.doesNotMatch(invalid,/m26-client-health-metrics|15.000|NaN/u);
 });
 test('Activity describes received daily health truthfully without false disconnected badge',()=>{
   const html=renderClientDeviceHub(wearables);
@@ -51,7 +54,8 @@ test('Hydrated owner-scoped data feeds Hoy and live session without cross-accoun
   const vm=readFileSync('src/m26/modules/route-view-model.js','utf8');
   const app=readFileSync('src/m26/app/application.js','utf8');
   const css=readFileSync('src/m26/design/dark-iberfit-v2.css','utf8');
-  assert.match(vm,/wearables:overview.role==='client'&&clientId&&/u);
+  assert.match(vm,/const clientWearables=overview.role==='client'&&clientId&&/u);
+  assert.match(vm,/buildClientDayContext/u);
   assert.match(vm,/recordsForClient\(state,'wearableDailySummaries',clientId\)/u);
   assert.match(app,/wearableContext:role==='client'&&memoryClientId/u);
   assert.match(app,/identity\?\.clientId/u);
@@ -67,4 +71,35 @@ test('IRI-only client with consented health can still view recorded data; longit
   assert.doesNotMatch(html,/data-engagement-form="checkin"/u);
   const noData=renderActivityRoute({...capability,wearables:{...wearables,summary:{daysWithData:0,metrics:{}}}});
   assert.doesNotMatch(noData,/data-m26-device-hub/u);
+});
+
+
+test('Connected360 Client Today shows verified activity and sport without inventing health interpretation',()=>{
+ const data={summary:{daysWithData:4,days:7,metrics:{
+   steps:8200,sleepMinutes:435,restingHeartRate:59,
+   activeMinutes:47.5,workoutMinutes:32,
+ }}};
+ const vm=clientHealthSnapshot(data);
+ assert.equal(vm.active,47.5);
+ assert.equal(vm.workouts,32);
+ const html=renderClientTodayHealth(data);
+ assert.match(html,/Actividad diaria media<\/span><strong>48 min/u);
+ assert.match(html,/Entrenamiento diario medio<\/span><strong>32 min/u);
+ assert.match(html,/Sueño medio<\/span><strong>7 h 15 min/u);
+ assert.doesNotMatch(html,/riesgo|salud mala|debes entrenar|recovery score/iu);
+ const invalid=renderClientTodayHealth({summary:{daysWithData:2,metrics:{
+   steps:8200,activeMinutes:-3,workoutMinutes:9999,
+ }}});
+ assert.doesNotMatch(invalid,/Actividad diaria media|Entrenamiento diario medio/u);
+});
+
+test('U62 health: valid zero measurement is distinct from unavailable metrics',()=>{
+ const record={summary:{daysWithData:1,metrics:{steps:0}}};
+ const observed=clientHealthSnapshot(record);
+ assert.equal(observed.steps,0);
+ assert.equal(observed.sleep,null);
+ const html=renderClientTodayHealth(record);
+ assert.match(html,/Tu actividad, a la vista/u);
+ assert.match(html,/Pasos medios<\/span><strong>0<\/strong>/u);
+ assert.doesNotMatch(html,/sin dispositivo vinculado/iu);
 });

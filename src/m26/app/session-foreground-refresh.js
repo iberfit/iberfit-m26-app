@@ -37,10 +37,15 @@ export function createSessionForegroundRefreshCoordinator({
   isPermanentFailure=()=>false,
   onPermanentFailure=()=>{},
   onTransientFailure=()=>{},
+  now=()=>Date.now(),
+  transientRetryMs=15_000,
 }={}){
   let destroyed=false;
   let inFlight=null;
   let inFlightLease=null;
+  let lastTransientFailure=null;
+  if(!Number.isFinite(transientRetryMs)||transientRetryMs<0)
+    throw new Error('M26_AUTH_FOREGROUND_RETRY_INTERVAL_INVALID');
 
   const canAttempt=()=>{
     if(destroyed||isBusy?.()===true||!safeVisibility(documentLike))return false;
@@ -54,19 +59,34 @@ export function createSessionForegroundRefreshCoordinator({
     // Coalesce storms for one identity, never block a new account with an
     // obsolete request from the account previously signed in on this device.
     if(inFlight&&stillOwnsSession(getSession?.(),inFlightLease))return inFlight;
+    // Hidden/background/focus storms during an outage must not issue multiple
+    // refresh requests. A genuine browser-online event and any new user/token
+    // bypass the short cooldown for prompt recovery.
+    const ms=now();
+    if(!Number.isFinite(ms))return Promise.resolve(false);
+    if(reason!=='online'&&lastTransientFailure
+      &&stillOwnsSession(getSession?.(),lastTransientFailure.lease)
+      &&ms>=lastTransientFailure.at
+      &&ms-lastTransientFailure.at<transientRetryMs)return Promise.resolve(false);
 
     const pending=Promise.resolve()
       .then(()=>{
         if(destroyed||!stillOwnsSession(getSession?.(),ownerLease))return false;
         return refreshSession();
       })
-      .then((result)=>result!==false)
+      .then((result)=>{
+        if(result!==false)lastTransientFailure=null;
+        return result!==false;
+      })
       .catch(async(error)=>{
         // A late 401 for account A must NEVER log account B out.
         if(destroyed||!stillOwnsSession(getSession?.(),ownerLease))return false;
         if(isPermanentFailure?.(error)===true){
           try{await onPermanentFailure?.(error,reason);}catch{}
         }else{
+          // Preserve exact lease: a failed request from the previous account
+          // must not suppress a fresh Client's own refresh after switching.
+          lastTransientFailure={lease:ownerLease,at:ms};
           try{await onTransientFailure?.(error,reason);}catch{}
         }
         return false;
@@ -100,6 +120,7 @@ export function createSessionForegroundRefreshCoordinator({
   function destroy(){
     if(destroyed)return;
     destroyed=true;
+    lastTransientFailure=null;
     for(const remove of removeListeners)remove();
   }
 

@@ -78,3 +78,15 @@ test('SIGNATURE U104 truthful Client calendar remains localized EN/FR/PT includi
   }
  }
 });
+
+test('U61 calm Client sync and recovery disclosure is localized in all supported languages',()=>{
+  for(const text of [
+    'cambio pendiente','cambios pendientes','cambio por revisar','cambios por revisar',
+    'Revisar cambios pendientes','Estado de tus cambios','Consultar sincronización',
+    'Los cambios todavía no confirmados no aparecen como completados.',
+  ])for(const language of ['en','fr','pt']){
+    const translated=iberfitSurfaceTranslate(text,{language});
+    assert.notEqual(translated,text,language+': '+text);
+    assert.ok(translated.length>2);
+  }
+});

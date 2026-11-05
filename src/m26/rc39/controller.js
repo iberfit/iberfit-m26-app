@@ -49,6 +49,39 @@ export function createRc39Controller({
     if(form)form.hidden=true;
   }
   async function onClick(event){
+    const dayLink=event.target.closest?.('[data-rc39-date-target]');
+    if(dayLink){
+      const key=String(dayLink.getAttribute('data-rc39-date-target')||'');
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(key))return;
+      const day=root.querySelector?.('#m26-plan-day-'+key);
+      if(!day)return;
+      event.preventDefault();
+      const dateGroups=day.closest?.('.m26-rc39-date-groups');
+      // Planning is an editorial single-day view; Sessions must keep every
+      // exercise preview reachable without requiring a second disclosure.
+      if(dateGroups?.getAttribute?.('data-rc39-date-mode')==='single'){
+        for(const sibling of dateGroups.querySelectorAll?.('.m26-rc39-day-group')||[]){
+          if(sibling!==day)sibling.open=false;
+        }
+      }
+      day.open=true;
+      for(const sibling of dateGroups?.querySelectorAll?.('.m26-rc39-day-group')||[]){
+        if(sibling===day)sibling.setAttribute?.('data-rc39-primary-day','true');
+        else sibling.removeAttribute?.('data-rc39-primary-day');
+      }
+      // Keep the selected day visually and accessibly in sync. A future
+      // planned day is the navigation location, not "today".
+      const navigation=dayLink.closest?.('.m26-rc39-date-navigation');
+      for(const link of navigation?.querySelectorAll?.('[data-rc39-date-target]')||[]){
+        if(link===dayLink){
+          link.setAttribute('aria-current',
+            link.getAttribute('data-rc39-today')==='true'?'date':'location');
+        }else link.removeAttribute('aria-current');
+      }
+      day.querySelector?.(':scope > summary')?.focus?.({preventScroll:true});
+      day.scrollIntoView?.({block:'start',behavior:'auto'});
+      return;
+    }
     const button=event.target.closest?.('[data-rc39-action]');
     if(!button)return;
     const action=button.getAttribute('data-rc39-action');
@@ -84,6 +117,23 @@ export function createRc39Controller({
       }finally{busy=false;}
     }
   }
+  // Optional horizontal-calendar keyboard shortcuts: moving focus must NOT
+  // start a training session, open another day, or hijack modified keystrokes.
+  function onKeyDown(event){
+    if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)||
+      event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
+    const link=event.target.closest?.('[data-rc39-date-target]');
+    const strip=link?.closest?.('.m26-rc39-date-links');
+    if(!strip)return;
+    const links=[...strip.querySelectorAll?.('[data-rc39-date-target]')||[]];
+    const index=links.indexOf(link);
+    if(index<0||!links.length)return;
+    const next=event.key==='Home'?0:event.key==='End'?links.length-1:
+      Math.min(links.length-1,Math.max(0,index+(event.key==='ArrowRight'?1:-1)));
+    event.preventDefault();
+    links[next]?.focus?.({preventScroll:true});
+    links[next]?.scrollIntoView?.({block:'nearest',inline:'nearest',behavior:'auto'});
+  }
   async function onSubmit(event){
     const form=event.target.closest?.('[data-rc39-change-form]');
     if(!form)return;
@@ -107,7 +157,17 @@ export function createRc39Controller({
       render();
     }finally{busy=false;}
   }
-  function mount(){agendaCalendar.mount();root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);}
-  function destroy(){agendaCalendar.destroy();root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);}
+  function mount(){
+    agendaCalendar.mount();
+    root.addEventListener('click',onClick);
+    root.addEventListener('keydown',onKeyDown);
+    root.addEventListener('submit',onSubmit);
+  }
+  function destroy(){
+    agendaCalendar.destroy();
+    root.removeEventListener('click',onClick);
+    root.removeEventListener('keydown',onKeyDown);
+    root.removeEventListener('submit',onSubmit);
+  }
   return Object.freeze({mount,destroy});
 }

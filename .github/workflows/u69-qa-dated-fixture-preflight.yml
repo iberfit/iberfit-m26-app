@@ -1,0 +1,50 @@
+name: IBERFIT U69 QA Dated Workout Fixture Read-Only Preflight
+
+on:
+  push:
+    branches: ['feat/u60-training360-r50-reconciled-20261104']
+    paths:
+      - '.github/workflows/u69-qa-dated-fixture-preflight.yml'
+      - 'scripts/remote-gates/qa_u60_dated_fixture_preflight.mjs'
+      - 'tests/m26_u69_qa_dated_fixture_preflight.test.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-u69-qa-fixture-readonly
+  cancel-in-progress: false
+
+jobs:
+  qa-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: m26-canary-readonly
+    env:
+      M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+      M26_QA_ONLY: 'true'
+      M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+      M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+      M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+      M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+      M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+      M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Certify synthetic QA prescriber selection
+        run: node --test tests/m26_u69_qa_dated_fixture_preflight.test.mjs
+      - name: Hosted real Client A/B read-only bootstrap and candidate readiness
+        run: node scripts/remote-gates/qa_u60_dated_fixture_preflight.mjs
+      - name: Preserve PII-free QA fixture readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-u69-qa-fixture-readonly-${{ github.run_id }}
+          path: recovery/u69-qa-fixture/preflight.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {canOfferClientHistory,shouldLoadClientHistory,createClientHistoryDemandController}
   from '../src/m26/app/client-history-demand-controller.js';
 
@@ -114,4 +115,15 @@ test('a failed authenticated archive read never polls: only a second explicit cl
   h.resolve();await tick();
   assert.equal(h.incorporated,1);
   h.ctrl.destroy();
+});
+
+
+test('on-demand Client historical archive never opens with a red top banner',()=>{
+ const source=readFileSync(new URL('../src/m26/app/client-history-demand-controller.js',import.meta.url),'utf8');
+ assert.match(source,/m26-client-history-quiet-disclosure/u);
+ assert.match(source,/typeof route\.append==='function'\)route\.append\(node\)/u);
+ assert.match(source,/status==='loading'\?'status':'group'/u);
+ assert.match(source,/status==='loading'\?'polite':'off'/u);
+ assert.match(source,/if\(explicit!==true\)/u,'lazy history must remain user-driven');
+ assert.doesNotMatch(source,/route\.prepend\(node\);\s*\}\s*node\.textContent/u);
 });

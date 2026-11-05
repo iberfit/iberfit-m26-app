@@ -5,6 +5,17 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // U61 · Calm but actionable Client operation disclosure (all supported locales).
+  ["cambio pendiente","pending change","modification en attente","alteração pendente"],
+  ["cambios pendientes","pending changes","modifications en attente","alterações pendentes"],
+  ["conflicto","conflict","conflit","conflito"],
+  ["conflictos","conflicts","conflits","conflitos"],
+  ["cambio por revisar","change to review","modification à vérifier","alteração a rever"],
+  ["cambios por revisar","changes to review","modifications à vérifier","alterações a rever"],
+  ["Revisar cambios pendientes","Review pending changes","Vérifier les modifications en attente","Rever alterações pendentes"],
+  ["Estado de tus cambios","Status of your changes","État de vos modifications","Estado das tuas alterações"],
+  ["Consultar sincronización","View synchronization","Consulter la synchronisation","Consultar sincronização"],
+  ["Los cambios todavía no confirmados no aparecen como completados.","Unconfirmed changes are not shown as completed.","Les modifications non confirmées ne sont pas présentées comme terminées.","As alterações ainda não confirmadas não são apresentadas como concluídas."],
   // SIGNATURE U104: true local-week status and compact planning CTA, EN/FR/PT parity.
   ["Sin citas confirmadas esta semana","No confirmed appointments this week","Aucun rendez-vous confirmé cette semaine","Sem marcações confirmadas esta semana"],
   ["Citas confirmadas esta semana","Confirmed appointments this week","Rendez-vous confirmés cette semaine","Marcações confirmadas esta semana"],

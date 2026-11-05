@@ -206,3 +206,18 @@ test('navegación móvil prioriza las acciones frecuentes y conserva Más', () =
     ['hoy','planificacion','sesion','progreso']
   );
 });
+
+test('Client topbar never broadcasts internal recovery counts while Coach retains operational status',()=>{
+  const raw=readyState('client',{activeArea:'hoy',
+    pendingOperations:[{operationId:'op-pending'}],
+    conflicts:[{operationId:'op-conflict'}]});
+  const vm=createShellViewModel(raw);
+  const html=renderM26Shell(vm);
+  const top=html.match(/<header class="m26-topbar">([\s\S]*?)<\/header>/u)?.[1]||'';
+  assert.doesNotMatch(top,/m26-operation-status|pendiente|conflicto/u);
+  assert.match(html,/id="m26-main"/u);
+  const coach=renderM26Shell(createShellViewModel(readyState('coach',{
+    pendingOperations:[{operationId:'op-pending'}],
+    conflicts:[{operationId:'op-conflict'}]})));
+  assert.match(coach,/m26-operation-status/u);
+});

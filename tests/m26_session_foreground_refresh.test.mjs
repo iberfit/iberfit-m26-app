@@ -157,3 +157,31 @@ test('foreground session lifecycle is structurally forbidden from rehydrating or
   assert.match(wiring,/onTransientFailure/u);
   assert.doesNotMatch(wiring,/hydrate\(|render\(|store\.reset/u);
 });
+
+
+test('auth: repeated focus after transient outage is bounded; online and session rotation recover immediately',async()=>{
+ const scope=new FakeEventTarget(),doc=new FakeEventTarget();
+ doc.visibilityState='visible';
+ let clock=0,calls=0,session={token:'token-a',user:{id:'A'}};
+ const svc=createSessionForegroundRefreshCoordinator({
+   scope,documentLike:doc,
+   getSession:()=>session,
+   now:()=>clock,transientRetryMs:15_000,
+   refreshSession:async()=>{
+     calls++;
+     if(calls===1)throw Error('network-unavailable');
+     return true;
+   },
+ });
+ assert.equal(await svc.run('focus'),false);
+ clock=500;
+ assert.equal(await svc.run('pageshow'),false);
+ assert.equal(calls,1);
+ assert.equal(await svc.run('online'),true);
+ assert.equal(calls,2);
+ session={token:'token-b',user:{id:'B'}};
+ clock=600;
+ assert.equal(await svc.run('focus'),true);
+ assert.equal(calls,3);
+ svc.destroy();
+});

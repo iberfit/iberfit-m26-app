@@ -1,0 +1,53 @@
+name: IBERFIT U68 QA Hosted JWT Authorized Owner Scope
+
+# Runs only when QA U67 explicit grants are installed; never writes data.
+on:
+  push:
+    branches: ['feat/u60-training360-r50-reconciled-20261104']
+    paths:
+      - '.github/workflows/u68-qa-authorized-jwt.yml'
+      - 'scripts/remote-gates/qa_u60_authorized_jwt_gate.mjs'
+      - 'tests/m26_u68_qa_authorized_jwt_gate.test.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-u68-qa-owner-scope-jwt
+  cancel-in-progress: false
+
+jobs:
+  qa-live-owner-scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: m26-canary-readonly
+    env:
+      M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+      M26_QA_ONLY: 'true'
+      M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+      M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+      M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+      M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+      M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+      M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+      M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+      M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify owner/scope and provenance gate unit contracts
+        run: node --test tests/m26_u68_qa_authorized_jwt_gate.test.mjs
+      - name: Execute live hosted JWT authorized QA calendar and IDOR rejection
+        run: node scripts/remote-gates/qa_u60_authorized_jwt_gate.mjs
+      - name: Preserve redacted identity-free QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-u68-qa-hosted-owner-${{ github.run_id }}
+          path: recovery/u68-qa-jwt/gate.json
+          if-no-files-found: warn
+          retention-days: 14
