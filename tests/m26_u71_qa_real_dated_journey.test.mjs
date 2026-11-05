@@ -27,6 +27,15 @@ test('U71 denial never mistakes HTTP success for forbidden',()=>{
  for(const s of [401,403,404])assert.equal(denied({status:s,body:{}}),true);
  assert.equal(denied({status:200,body:{kind:'rejected',reason:'CLIENT_ACCESS_DENIED'}}),true);
 });
+test('U71 stage-2 reuses immutable originally certified Santiago time and same-day slot',()=>{
+ const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ assert.match(s,/const original=mode==='apply'/);
+ assert.match(s,/async function authenticatedStage\(ctx,certified=null\)/);
+ assert.match(s,/Number\(certified\.localTime\.slice/);
+ assert.match(s,/original\.localTime===plan\.time/);
+ assert.match(s,/old\.localTime===proof\.localTime/);
+ assert.match(s,/APPOINTMENT_CLOCK_DRIFT/);
+});
 test('U71 only QA origin, ordinary JWT, native commands, two-phase write gate',()=>{
  const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
  assert.match(s,/M26_QA_ONLY/);assert.match(s,/gjztkdwfmunnzhtvxrsu/);

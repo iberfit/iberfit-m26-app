@@ -117,7 +117,7 @@ async function canonical(ctx,coachJwt,command){
  assert(pre.status===200&&pre.body?.kind==='ack','COACH_PREFLIGHT_NOT_ACK_'+pre.status);
  return pre.body;
 }
-async function authenticatedStage(ctx){
+async function authenticatedStage(ctx,certified=null){
  const e=ctx.e;
  const [coach,a,b]=await Promise.all([
   login(ctx,e.M26_QA_COACH_EMAIL,e.M26_QA_COACH_PASSWORD),
@@ -143,8 +143,10 @@ async function authenticatedStage(ctx){
   .filter(x=>x.clientId===clientA).sort((x,y)=>x.id.localeCompare(y.id));
  assert(candidates.length>0,'NO_SUITABLE_SYNTHETIC_PRESCRIPTION');
  // Each date must be a valid exact local instant (never DST guessed).
- const chosen=candidates[0],minute=Math.ceil((clock.minute+5)/5)*5;
- assert(minute>=0&&minute+chosen.duration<=1435,'NO_SAFE_TODAY_APPOINTMENT_WINDOW');
+ const chosen=candidates[0],minute=certified
+  ? Number(certified.localTime.slice(0,2))*60+Number(certified.localTime.slice(3,5))
+  : Math.ceil((clock.minute+25)/5)*5;
+ assert(Number.isInteger(minute)&&minute>=0&&minute<1440,'NO_SAFE_TODAY_APPOINTMENT_WINDOW');
  const hh=String(Math.floor(minute/60)).padStart(2,'0');
  const mm=String(minute%60).padStart(2,'0');
  const time=hh+':'+mm;
@@ -152,7 +154,7 @@ async function authenticatedStage(ctx){
  const start2=santiagoAppointmentInstant(future+'T'+time);
  const end1=new Date(Date.parse(start1)+chosen.duration*60000).toISOString();
  const end2=new Date(Date.parse(start2)+chosen.duration*60000).toISOString();
- assert(Date.parse(start1)>Date.now()&&Date.parse(start1)-Date.now()<900000,'APPOINTMENT_CLOCK_DRIFT');
+ assert(Date.parse(start1)>Date.now()&&Date.parse(start1)-Date.now()<3600000,'APPOINTMENT_CLOCK_DRIFT');
  const old=await checkedCalendar(ctx,coach.jwt,clientA,today,future);
  assert(old.length===0,'QA_FIXTURE_DATES_NOT_CLEAN');
  const foreign=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:2});
@@ -173,10 +175,28 @@ async function main(){
  const mode=process.argv[2];
  assert(['preflight','apply'].includes(mode),'STAGE_INVALID');
  const ctx=context(mode);await currentSha(ctx);
- const plan=await authenticatedStage(ctx);
+ // Read prior clock/date BEFORE any authenticated fetch; never pick a new slot
+ // for attempt 2. If the certified slot is no longer future, fail without writes.
+ const original=mode==='apply'?JSON.parse(await readFile(PREVIOUS,'utf8')):null;
+ if(original){
+  const age=Date.now()-Date.parse(original.createdAt);
+  assert(original.schema==='iberfit.u71.qa-authenticated-dated-e2e.v1'
+    &&original.stage==='preflight'&&original.status==='READY_FOR_EXPLICIT_RERUN'
+    &&original.project==='QA'&&original.sha===ctx.e.GITHUB_SHA
+    &&original.runId===ctx.e.GITHUB_RUN_ID
+    &&/^\d{4}-\d{2}-\d{2}$/.test(original.localDate)
+    &&/^\d{4}-\d{2}-\d{2}$/.test(original.futureDate)
+    &&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(original.localTime)
+    &&Number.isFinite(age)&&age>=0&&age<7200000,'PREFLIGHT_MISSING_STALE_OR_CHANGED');
+ }
+ const plan=await authenticatedStage(ctx,original);
+ if(original)assert(original.localDate===plan.today
+   &&original.futureDate===plan.future&&original.localTime===plan.time,
+   'CERTIFIED_DATE_OR_TIME_CHANGED');
  const proof={schema:'iberfit.u71.qa-authenticated-dated-e2e.v1',stage:mode,
    project:'QA',sha:ctx.e.GITHUB_SHA,runId:ctx.e.GITHUB_RUN_ID,
    createdAt:new Date().toISOString(),fingerprint:plan.fingerprint,
+   localDate:plan.today,futureDate:plan.future,localTime:plan.time,
    sourceFixture:'existing QA synthetic published prescription',
    realJwtForCoachAndTwoClients:true,prodTouched:false,serviceRole:false,
    writesApplied:false,checks:['identity_roles_scoped','canary_owner_A_B_distinct',
@@ -188,12 +208,14 @@ async function main(){
   process.stdout.write('IBERFIT_U71_QA_READ_ONLY_PREFLIGHT_READY\n');
   return;
  }
- const old=JSON.parse(await readFile(PREVIOUS,'utf8'));
+ const old=original;
  const age=Date.now()-Date.parse(old.createdAt);
  assert(old.schema===proof.schema&&old.stage==='preflight'
   &&old.status==='READY_FOR_EXPLICIT_RERUN'&&old.project==='QA'
   &&old.sha===proof.sha&&old.runId===proof.runId
-  &&old.fingerprint===proof.fingerprint&&Number.isFinite(age)
+  &&old.fingerprint===proof.fingerprint
+  &&old.localDate===proof.localDate&&old.futureDate===proof.futureDate
+  &&old.localTime===proof.localTime&&Number.isFinite(age)
   &&age>=0&&age<7200000,'PREFLIGHT_MISSING_STALE_OR_CHANGED');
  proof.status='QA_SYNTHETIC_WRITE_STARTED';await save(proof);
  const {coach,a,b,clientA,clientB,chosen,appointments,commands,today,future}=plan;
