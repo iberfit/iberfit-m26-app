@@ -1,4 +1,5 @@
 // Life & Performance 360: conservative, owner-scoped workout evidence.
+import {exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
 // Only canonical confirmed session executions may call this projector.
 const clean=(x,max=100)=>String(x??'').trim().replace(/\s+/g,' ').slice(0,max);
 const finite=(x,min,max)=>typeof x==='number'&&Number.isFinite(x)&&x>=min&&x<=max?x:null;
@@ -51,12 +52,102 @@ function exerciseRows(record){
   }
   return records;
 }
+// Real M26 executions store observed measurements inside results per set.
+// A planSnapshot is used ONLY to classify the exercise and cannot supply results.
+function classifiedResultRows(source){
+  const snapshot=source?.planSnapshot||source?.plan_snapshot;
+  if(!snapshot||String(snapshot.sessionId||'')!==String(source?.sessionId||'')
+    ||!Array.isArray(snapshot.blocks))return [];
+  const results=source?.results;
+  const observed=Array.isArray(results)?results:
+    results&&typeof results==='object'?Object.values(results):[];
+  const rows=[];
+  for(const row of observed){
+    if(!row||typeof row!=='object'||Array.isArray(row))continue;
+    const exerciseId=clean(row.exerciseId||row.exercise_id,160);
+    if(!exerciseId)continue;
+    const block=snapshot.blocks.find(block=>block?.type==='exercise'
+      &&String(block.exerciseId||'')===exerciseId)
+      ||snapshot.blocks.find(block=>Array.isArray(block?.exerciseIds)
+        &&block.exerciseIds.some(id=>String(id)===exerciseId));
+    if(!block)continue; // no valid prescription/exercise identity
+    const grouped=block?.prescriptions?.[exerciseId]||{};
+    const raw=block.type==='exercise'?block:grouped;
+    const queue=Array.isArray(source.queue)?source.queue.find(x=>
+      String(x?.exerciseId||'')===exerciseId):null;
+    const profile=exerciseMeasurementProfile({
+      id:exerciseId,
+      name_es:raw.name||raw.name_es||raw.exerciseName||block.name||'',
+      measurementProfile:raw.measurementProfile||queue?.prescription?.measurementProfile,
+    });
+    rows.push({row,exerciseId,profile,
+      name:clean(raw.name||raw.exerciseName||block.name||'Ejercicio',65)});
+    if(rows.length>=16)break;
+  }
+  return rows;
+}
+function measuredLoad(row){
+  const direct=finite(val(row,'loadKg','weightKg'),0,1500);
+  if(direct!==null)return direct;
+  const raw=String(row?.load??'').trim();
+  const match=raw.match(/^([0-9]+(?:[.,][0-9]+)?)\s*kg$/iu);
+  if(!match)return null;
+  const amount=Number(match[1].replace(',','.'));
+  return finite(amount,0,1500);
+}
+function verifiedSetEvidence(source){
+  const rows=classifiedResultRows(source);
+  const result=[];
+  for(const {row,exerciseId,profile,name} of rows){
+    const set=Number.isSafeInteger(row.setNumber)&&row.setNumber>0
+      ?' · Serie '+row.setNumber:'';
+    const label=rows.length>1?name+set+' · ':'';
+    const duration=finite(row.seconds,0,86400);
+    if(profile.sport==='running'){
+      const km=finite(row.distanceKm,0,1000);
+      if(km!==null&&km>0)
+        result.push(item(label+'Distancia realizada',km+' km'));
+      if(duration!==null&&duration>0)
+        result.push(item(label+'Duración registrada',durationText(duration)));
+      if(km!==null&&km>0&&duration!==null&&duration>0){
+        const pace=paceText(duration,km);
+        if(pace)result.push(item(label+'Ritmo observado',pace+' min/km'));
+      }
+    }else if(profile.sport==='swimming'){
+      const metres=finite(row.distanceM,0,100000);
+      if(metres!==null&&metres>0)
+        result.push(item(label+'Distancia acuática realizada',metres+' m'));
+      if(duration!==null&&duration>0)
+        result.push(item(label+'Duración registrada',durationText(duration)));
+      if(metres!==null&&metres>0&&duration!==null&&duration>0){
+        const pace=paceText(duration,metres/100);
+        if(pace)result.push(item(label+'Tiempo observado por 100 m',
+          pace+' min/100 m (puede incluir pausas)'));
+      }
+    }else if(!profile.cardio&&profile.kind!=='carry'){
+      const reps=finite(row.reps,0,500);
+      const kg=measuredLoad(row);
+      const rpe=finite(row.rpe,0,10);
+      const pieces=[];
+      if(reps!==null)pieces.push(reps+' rep');
+      if(kg!==null)pieces.push(kg+' kg (base por implemento no especificada)');
+      if(rpe!==null)pieces.push('RPE '+rpe+'/10');
+      if(pieces.length)result.push(item(name+set,pieces.join(' · ')));
+    }
+    if(result.length>=8)break;
+  }
+  return Object.freeze(result.slice(0,8));
+}
 /** Returns only recorded measurements of this verified owner, never prescribed targets. */
 export function buildPostSessionSportEvidence(record,{clientId}={}){
   const id=clean(clientId,160);
   const source=bodyOf(record);
   const owner=clean(val(source,'clientId','client_id','clienteId','cliente_id'),160);
   if(!id||owner!==id)return Object.freeze([]);
+  const canonicalSetRows=verifiedSetEvidence(source);
+  if(canonicalSetRows.length)return canonicalSetRows;
+  // Legacy completed summaries with explicitly recorded top-level measurements.
+  // Never substitute planned targets if the observed set is absent.
   const sport=sportOf(source);
   const metrics=source?.metrics&&typeof source.metrics==='object'&&!Array.isArray(source.metrics)
     ?source.metrics:{};
