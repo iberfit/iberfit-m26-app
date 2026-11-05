@@ -38,3 +38,12 @@ test('U80 fails closed in normal roles, retains 20 MB cap and requires explicit 
   assert.match(validator,/const MAX_BOOTSTRAP_BYTES=20_000_000/u);
   assert.doesNotMatch(source,/service_role|serviceRoleKey/u);
 });
+
+test('U80 Coach initial IRI remains independent of training history, while longitudinal decisions remain gated',()=>{
+  const app=fs.readFileSync('src/m26/app/application.js','utf8');
+  assert.match(app,/if\(!\['clientes','ajustes','iri'\]\.includes\(area\)\)/u);
+  assert.match(app,/if\(isQaCoach&&!historyReady&&\['clientes','ajustes'\]\.includes/u);
+  assert.match(app,/return '<div class="m26-route">'\+gate\+'<\/div>'/u);
+  assert.match(app,/M26_COACH_HISTORY_SCOPE_FORBIDDEN/u);
+  assert.doesNotMatch(app,/if\(!\['clientes','ajustes'\]\.includes\(area\)\)/u);
+});

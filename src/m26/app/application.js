@@ -974,10 +974,15 @@ export async function createM26Application({root=document.querySelector('#app'),
         ?qaCoachHistory.status:'idle';
       const gate=renderQaCoachHistoryGate(status);
       const area=String(shellVm?.activeArea||'');
-      if(!['clientes','ajustes'].includes(area))
+      // An initial IRI is a baseline evaluation available in the verified
+      // core, NOT a longitudinal training-history conclusion. Keep the full
+      // IRI assessment and its private photo consent controls operational
+      // without making the Coach download an unrelated >20 MB archive.
+      if(!['clientes','ajustes','iri'].includes(area))
         return '<div class="m26-route">'+gate+'</div>';
-      // Client directory and account settings remain usable, while all
-      // historical decisions require the confirmed, selected-client archive.
+      // Directory and settings remain usable with a partial-history notice.
+      // IRI is separate: show the actual baseline form without that notice.
+      // All historical training decisions still require the verified archive.
     }
 
     const memoryClientId=String(
