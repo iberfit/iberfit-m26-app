@@ -10,6 +10,8 @@ import {
   isQaPrivateAvatarRead,
   isQaMissingPrivateAvatarResponse,
   unexpectedQaResourceErrors,
+  isQaPrivilegedAssuranceResponse,
+  isQaProvenRecoveredFutureIat,
 } from './secure-current-source-auth.mjs';
 
 const OUT_DIR='recovery/p0-authenticated-interaction';
@@ -152,6 +154,8 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   const consoleErrors=[];
   const avatarChecks=[],missingAvatar=[];
   const failedAllowedResponses=[];
+  // Responses remain in memory only: never persist headers, JWTs or bodies.
+  const assuranceResponses=[];
   const pageErrors=[];
   await installCurrentSourceQaNetworkPolicy(context,{
     readOnlyRpcs:READ_ONLY_RPCS,
@@ -174,6 +178,10 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
   // A 4xx/5xx response on an allowlisted read is always a real failure, even if Chromium shows a generic console resource warning.
   page.on('response',(response)=>{
+    const assurance=isQaPrivilegedAssuranceResponse(response);
+    if(assurance&&(response.status()===200||response.status()===401)){
+      assuranceResponses.push(response);
+    }
     if(response.status()>=400){
       const label=qaRequestLabel(response.request());
       if(isQaPrivateAvatarRead(response.request())){
@@ -181,6 +189,9 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
           if(ok)missingAvatar.push(true);
           else failedAllowedResponses.push('QA_AVATAR_UNEXPECTED_HTTP_'+response.status());
         }));
+      }else if(assurance&&response.status()===401){
+        // Do not classify yet: validate the exact failure and a later
+        // successful read with the identical JWT before accepting recovery.
       }else if(label.includes('qa-supabase'))failedAllowedResponses.push(label+' HTTP_'+response.status());
     }
   });
@@ -399,6 +410,28 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
 
   await page.waitForTimeout(500);
   await Promise.all(avatarChecks);
+  let provenFutureIatRecoveries=0;
+  // A transient HTTP 401 is not a successful read. It is acceptable as a
+  // *recovered* backend clock-skew event only after the exact PGRST303 error
+  // and a subsequent 200 response are proven using the same JWT. Generic
+  // 401/403, revoked or expired JWTs, failed recovery and role mismatches
+  // remain release-blocking.
+  for(let i=0;i<assuranceResponses.length;i++){
+    const failure=assuranceResponses[i];
+    if(failure.status()!==401)continue;
+    let proven=false;
+    for(let j=i+1;j<assuranceResponses.length;j++){
+      const success=assuranceResponses[j];
+      if(success.status()!==200)continue;
+      if(await isQaProvenRecoveredFutureIat({failure,success})){
+        proven=true;
+        break;
+      }
+    }
+    if(proven)provenFutureIatRecoveries++;
+    else failedAllowedResponses.push('QA_ASSURANCE_UNPROVEN_HTTP_401');
+  }
+  expect(provenFutureIatRecoveries,'Bounded assurance clock-skew recovery must remain exceptional').toBeLessThanOrEqual(3);
   const blockedPreferenceSyncAttempts=blocked.filter((label)=>label===BLOCKED_NOTIFICATION_PREFERENCE_UPSERT);
   const unexpectedBlocked=blocked.filter((label)=>label!==BLOCKED_NOTIFICATION_PREFERENCE_UPSERT);
   const blockedPreferenceSyncConsoleErrors=consoleErrors.filter((message)=>message===BLOCKED_RESOURCE_CONSOLE_ERROR);
@@ -411,7 +444,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   expect(failedAllowedResponses,'All allowlisted QA reads must succeed').toEqual([]);
   expect(unexpectedBlocked,'Authenticated interaction attempted a business mutation or foreign request').toEqual([]);
   expect(unexpectedFailures).toEqual([]);
-  expect(unexpectedQaResourceErrors(unexpectedConsoleErrors,missingAvatar.length)).toEqual([]);
+  expect(unexpectedQaResourceErrors(unexpectedConsoleErrors,missingAvatar.length,provenFutureIatRecoveries)).toEqual([]);
   expect(pageErrors).toEqual([]);
 
   await mkdir(OUT_DIR,{recursive:true});
@@ -423,6 +456,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     account:'client_b',
     role:'client',
     authenticated:true,
+    provenFutureIatRecoveries,
     privilegedMfaRequired:false,
     applicationChoiceRequired:false,
     mutationsPerformed:false,
