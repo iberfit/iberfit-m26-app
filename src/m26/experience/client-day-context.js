@@ -101,11 +101,19 @@ function esc(text){return String(text??'').replaceAll('&','&amp;')
 function dateLabel(date){return civilDate(date)?date.slice(8,10)+'/'+date.slice(5,7)+'/'+date.slice(0,4):'Fecha no disponible';}
 function metric(label,display){return '<div class="m26-client-day-metric"><dt>'+esc(label)
   +'</dt><dd>'+esc(display)+'</dd></div>';}
+export function deriveClientDayNextAction(snapshot){
+  if(!snapshot||!['today','recent'].includes(snapshot.wellbeing?.status))
+    return Object.freeze({area:'actividad',label:'Registrar cómo estoy',
+      detail:'Tu registro de bienestar es voluntario y aporta contexto.'});
+  return Object.freeze({area:'progreso',label:'Ver mi evolución',
+    detail:'Tu bienestar confirmado es contexto, no un diagnóstico automático.'});
+}
 export function renderClientDayContext(snapshot){
   if(!snapshot)return '';
   const wellbeing=snapshot.wellbeing||{};
   const movement=snapshot.movement||{};
   const training=snapshot.training||{};
+  const next=deriveClientDayNextAction(snapshot);
   const feelingData=CHECKIN_FIELDS.filter(([key])=>value(wellbeing.metrics?.[key],0,10)!==null);
   const activityData=ACTIVITY_FIELDS.filter(([key,,min,max])=>value(movement.metrics?.[key],min,max)!==null);
   const wellbeingCopy=wellbeing.status==='today'?'Tu registro de hoy'
@@ -149,6 +157,7 @@ export function renderClientDayContext(snapshot){
     +(trainingMetrics||trend?'<dl class="m26-client-day-metrics">'+trainingMetrics+trend+'</dl>'
       :'<p class="m26-client-day-empty">Tu evolución aparecerá con entrenamientos confirmados.</p>')+'</article>'
     +'</div><footer class="m26-client-day-footer"><span>Bienestar percibido, actividad y entrenamiento son fuentes distintas; no cambian tu plan por sí solas.</span>'
-    +'<nav aria-label="Explorar tu día"><button type="button" data-m26-area="actividad">Mi bienestar y actividad</button>'
-    +'<button type="button" data-m26-area="progreso">Ver evolución</button></nav></footer></section>';
+    +'<p class="m26-client-day-next">'+esc(next.detail)+'</p>'
+    +'<nav aria-label="Explorar tu día"><button type="button" class="m26-primary-action" data-m26-area="'+esc(next.area)+'">'+esc(next.label)+'</button>'
+    +'<button type="button" data-m26-area="'+(next.area==='progreso'?'actividad':'progreso')+'">'+(next.area==='progreso'?'Mi bienestar y actividad':'Ver evolución')+'</button></nav></footer></section>';
 }
