@@ -978,7 +978,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       // core, NOT a longitudinal training-history conclusion. Keep the full
       // IRI assessment and its private photo consent controls operational
       // without making the Coach download an unrelated >20 MB archive.
-      if(!['clientes','ajustes','iri'].includes(area))
+      if(!['clientes','ajustes','iri','informes'].includes(area))
         return '<div class="m26-route">'+gate+'</div>';
       // Directory and settings remain usable with a partial-history notice.
       // IRI is separate: show the actual baseline form without that notice.
@@ -1062,6 +1062,16 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-route-vm-start');
     const routeVm=createRouteViewModel(shellVm,state,new Date(),{catalog:catalog?.list?.()||[],mediaMap});
     qaStage('rc64-route-vm-ready');
+    // A confirmed initial IRI is independent of the training archive.
+    // Render only its verified documents until history is loaded; no
+    // longitudinal totals, approval editor, or inferred empty states.
+    if(isQaCoach&&!historyReady&&String(shellVm?.activeArea||'')==='informes'){
+      const status=qaCoachHistory.clientId===selected
+        &&['loading','error'].includes(qaCoachHistory.status)
+        ?qaCoachHistory.status:'idle';
+      return renderRouteView(Object.freeze({...routeVm,initialIriOnly:true}))
+        +renderQaCoachHistoryGate(status);
+    }
     const markup=renderRouteView(routeVm);
     qaStage('rc64-route-html-ready');
     if(isQaCoach&&!historyReady&&['clientes','ajustes'].includes(String(shellVm?.activeArea||''))){
