@@ -48,3 +48,11 @@ test('U71 only QA origin, ordinary JWT, native commands, two-phase write gate',(
  assert.match(s,/GITHUB_RUN_ATTEMPT==='2'/);
  assert.match(s,/COACH_EXECUTION_DETAIL_NOT_COMMITTED/);
 });
+
+test('U71 future dated appointment is rejected by start window, not un-timed date guard',()=>{
+ const sql=readFileSync(new URL('../supabase/migrations/20261025194000_signature_u31_private_occurrence_executor_v1.sql',import.meta.url),'utf8');
+ const js=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ assert.match(sql,/v_occ\.starts_at IS NOT NULL AND \(/);
+ assert.match(sql,/'START_WINDOW_INVALID'/);
+ assert.match(js,/futureAttempt\.body\?\.reason==='START_WINDOW_INVALID'/);
+});

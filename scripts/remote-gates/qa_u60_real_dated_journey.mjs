@@ -292,7 +292,7 @@ async function main(){
   clientId:clientA,entityId:occ[1],baseRevision:1,
   payload:{executionId:derivedUuid(ctx.e.GITHUB_RUN_ID,'future-execution')}});
  assert(futureAttempt.status===200&&futureAttempt.body?.kind==='rejected'
-  &&futureAttempt.body?.reason==='FUTURE_DATE','FUTURE_DATE_STARTED');
+  &&futureAttempt.body?.reason==='START_WINDOW_INVALID','FUTURE_DATE_STARTED');
  proof.checks.push('future_date_cannot_start_and_ack_idempotent');
  const block=detail.body.prescriptionSnapshot.blocks?.[0];
  const exerciseId=String(block?.exerciseId||'');
