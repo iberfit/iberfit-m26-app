@@ -943,7 +943,13 @@ export async function createM26Application({root=document.querySelector('#app'),
     const lease=hydrationLeaseFor(session);
     qaCoachHistory={status:'loading',clientId};
     render();
-    try{await hydrate({reason:'coach-history-demand'});}
+    try{
+      await hydrate({reason:'coach-history-demand'});
+      // The scoped request already committed atomically. Reflect readiness
+      // without waiting for an unrelated state change or another navigation.
+      if(hydrationLeaseFor(session)===lease
+        &&store.getState().selectedClientId===clientId)render();
+    }
     catch(error){
       if(hydrationLeaseFor(session)===lease
         &&store.getState().selectedClientId===clientId){

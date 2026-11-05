@@ -8,7 +8,7 @@ const b='22222222-2222-4222-8222-222222222222';
 const core=()=>({
   environment:'QA',user:{role:'coach',id:'safe-owner'},
   data:{clients:[{id:a},{id:b}],m26Entities:[],domainEvents:[],sessionExecutions:[]},
-  remoteRevisions:{'session:'+a:3},
+  remoteRevisions:{['session:'+a]:3},
 });
 
 test('U80 Coach selected history keeps the full core untouched but restricts page jobs to one authorized client',()=>{
