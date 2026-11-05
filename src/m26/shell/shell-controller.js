@@ -893,7 +893,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
           reconcileRouteRender(decision.area);
           focusMain();
         },
-        {documentLike,windowLike},
+        {documentLike,windowLike,forceSync:String(current.identity?.role||'')==='coach'},
       );
       // A touch-initiated click must finish dispatching before the shell can
       // replace its own navigation button. A microtask render during click

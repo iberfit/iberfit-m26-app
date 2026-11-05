@@ -42,9 +42,11 @@ function boundViewTransition(transition,{windowLike=globalThis.window,maxDuratio
   return transition;
 }
 
-export function runRouteViewTransition(update,{documentLike=globalThis.document,windowLike=documentLike?.defaultView||globalThis.window,maxDurationMs=450}={}){
+export function runRouteViewTransition(update,{documentLike=globalThis.document,windowLike=documentLike?.defaultView||globalThis.window,maxDurationMs=450,forceSync=false}={}){
   if(typeof update!=='function')throw new TypeError('M26_ROUTE_VIEW_TRANSITION_UPDATE_REQUIRED');
-  const enabled=routeViewTransitionsEnabled({documentLike,windowLike});
+  // Coach operation takes priority over optional animation: never defer a
+  // real route commit behind an unsettled native ViewTransition callback.
+  const enabled=forceSync!==true&&routeViewTransitionsEnabled({documentLike,windowLike});
   routeTransitionQa('entry',{
     enabled,
     touchPoints:Number(windowLike?.navigator?.maxTouchPoints||0),
