@@ -50,7 +50,7 @@ test('U80 Coach navigation changes must trigger trusted real WebAuthn on Canary 
     assert.equal(workflow.split(path).length-1,2,
       path+' must be covered by both PR and protected Canary push triggers');
   }
-  assert.match(workflow,/live-coach-webauthn:[\\s\\S]*if: github\\.event_name != 'pull_request'/u,
+  assert.match(workflow,/live-coach-webauthn:[\s\S]*if: github\.event_name != 'pull_request'/u,
     'Real credential ceremonies remain forbidden on untrusted PRs');
 });
 
