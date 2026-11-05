@@ -323,7 +323,7 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     latest:rows[0]||null,
     sessions:Object.freeze(rows),
     summary:comparedSessions
-      ?`${comparedSessions} sesión${comparedSessions===1?'':'es'} comparable${comparedSessions===1?'':'s'} · ${totals.plannedSets} series previstas · ${totals.recordedSets} registradas · ${totals.skippedSets} omitidas · ${totals.explicitAdjustments} ajustes explícitos`
+      ?`${comparedSessions} ${comparedSessions===1?'sesión comparable':'sesiones comparables'} · ${totals.plannedSets} ${totals.plannedSets===1?'serie prevista':'series previstas'} · ${totals.recordedSets} ${totals.recordedSets===1?'serie registrada':'series registradas'} · ${totals.skippedSets} ${totals.skippedSets===1?'serie omitida':'series omitidas'} · ${totals.explicitAdjustments} ${totals.explicitAdjustments===1?'ajuste explícito':'ajustes explícitos'}`
       :'Sin sesiones con una planificación publicada comparable en la ventana.',
     semantics:Object.freeze({
       neutral:'Describe diferencias entre la planificación publicada y la ejecución confirmada; no las clasifica como mejores o peores.',

@@ -62,7 +62,8 @@ test('U104 Client weekly calendar tells the truth about empty/confirmed dates',a
  const clock=new Date('2026-11-01T12:00:00Z');
  const empty=renderClientWeekRail([],clock);
  assert.match(empty,/data-week-confirmed-count="0"/);
- assert.match(empty,/Sin citas confirmadas esta semana/);
+ assert.match(empty,/No se muestran próximas citas confirmadas esta semana/);
+ assert.doesNotMatch(empty,/Sin citas confirmadas esta semana/);
  assert.doesNotMatch(empty,/Citas confirmadas próximas/);
  assert.equal((empty.match(/<li class="m26-client-week-day/g)||[]).length,7);
  assert.match(empty,/aria-label="Ver planificación semanal"/);
@@ -77,6 +78,6 @@ test('U104 Client weekly calendar tells the truth about empty/confirmed dates',a
  assert.equal((withConfirmed.match(/data-date-status="confirmed"/g)||[]).length,2);
  const futureOnly=renderClientWeekRail([{date:'2026-11-09T13:00:00Z',statusRaw:'confirmed'}],clock);
  assert.match(futureOnly,/data-week-confirmed-count="0"/);
- assert.match(futureOnly,/Sin citas confirmadas esta semana/);
+ assert.match(futureOnly,/No se muestran próximas citas confirmadas esta semana/);
  assert.doesNotMatch(withConfirmed,/4\s*\/\s*5|Sesiones cumplidas|start-published-session/i);
 });

@@ -12,7 +12,7 @@ import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hu
 import {clientWearableActivation} from '../wearables/activation-experience.js';
 import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
 import {renderClientDayContext} from '../experience/client-day-context.js';
-import {renderPeriodizationBoard} from '../planning/periodization-workbench.js';
+import {renderPeriodizationBoard,renderClientCycleGoal} from '../planning/periodization-workbench.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
@@ -503,7 +503,7 @@ function renderCoachHoyRoute(vm) {
 // The IRI assessment is an initial diagnosis, not a longitudinal KPI.
  // Training states below use only publication and execution evidence already
  // authorized for this Client. This strip is orientation, never a permission gate.
-function renderClientTrainingJourney({planReady=false,projections=[],serviceActive=false,runnable=null,standaloneGuided=null}={}){
+function renderClientTrainingJourney({planReady=false,projections=[],serviceActive=false,runnable=null,standaloneGuided=null,first28=null}={}){
   const published=Array.isArray(projections)&&projections.length>0;
   const executable=serviceActive&&Boolean(runnable||standaloneGuided);
   const planState=planReady?'available':'pending';
@@ -513,21 +513,38 @@ function renderClientTrainingJourney({planReady=false,projections=[],serviceActi
     :executable?'Hay una sesión lista para empezar'
     :published?'Tienes sesiones para consultar'
     :'Aparecerán aquí cuando estén publicadas';
+  const followUp=first28?.actionsAreNavigationOnly===true&&first28?.days===28
+    &&Number.isSafeInteger(first28.day)&&first28.day>=1&&first28.day<=28?first28:null;
+  const hasConfirmedSession=Number.isSafeInteger(followUp?.confirmedSessions)
+    &&followUp.confirmedSessions>0;
+  const hasConfirmedCheckin=Number.isSafeInteger(followUp?.confirmedCheckins)
+    &&followUp.confirmedCheckins>0;
   const steps=[
     {title:'Planificación',detail:planDetail,state:planState},
     {title:'Sesiones',detail:sessionDetail,state:sessionState},
-    {title:'Seguimiento',detail:'Evolución basada en registros reales',state:'reference'},
+    {title:'Seguimiento',detail:hasConfirmedSession?'Entrenamiento confirmado en el historial reciente'
+      :hasConfirmedCheckin?'Bienestar registrado como contexto'
+      :'Evolución basada en registros reales',state:hasConfirmedSession||hasConfirmedCheckin?'available':'reference'},
   ];
+  const first28Copy=followUp?'<p class="m26-client-first28" data-m26-first28="'+followUp.day
+    +'" aria-label="Primeros 28 días desde el alta">'
+    +'<span>Primeros 28 días</span> · <span>Día</span> <strong>'+followUp.day
+    +'</strong> <span>de 28 desde tu alta</span></p>':'';
+  const first28Action=followUp&&['sesion','actividad','progreso','planificacion'].includes(followUp.next?.area)
+    ?'<button type="button" class="m26-text-action" data-m26-area="'+escapeHtml(followUp.next.area)+'">'
+      +escapeHtml(followUp.next.label)+'</button>':'';
   return `<section class="m26-client-home-journey" data-m26-client-training-journey aria-labelledby="m26-client-journey-title">
     <div class="m26-client-home-journey-heading">
       <div><span class="m26-client-home-journey-kicker">El método IBERFIT</span>
       <h3 id="m26-client-journey-title">Tu proceso de entrenamiento</h3></div>
       <p>Planificar, entrenar y evaluar. Cada etapa con criterio.</p>
     </div>
+    ${first28Copy}
     <ol class="m26-client-home-journey-steps">${steps.map((step,index)=>`<li data-journey-state="${step.state}">
       <span class="m26-client-home-journey-number" aria-hidden="true">${String(index+1).padStart(2,'0')}</span>
       <div><strong>${escapeHtml(step.title)}</strong><small>${escapeHtml(step.detail)}</small></div>
     </li>`).join('')}</ol>
+    ${first28Action}
   </section>`;
 }
 
@@ -572,7 +589,7 @@ export function renderClientWeekRail(upcoming,now=new Date()){
   return `<section class="m26-client-week-rail" data-client-week-rail data-week-confirmed-count="${confirmedDays}" aria-labelledby="m26-client-week-heading">
     <header class="m26-client-week-head"><div><p class="m26-eyebrow">TU SEMANA · AGENDA</p><h2 id="m26-client-week-heading">Semana del ${escapeHtml(title)}</h2></div><button type="button" data-m26-area="planificacion" aria-label="Ver planificación semanal">Ver mi plan<span aria-hidden="true">↗</span></button></header>
     <ol class="m26-client-week-days" aria-label="Semana de lunes a domingo">${cells}</ol>
-    <div class="m26-client-week-note"><span>${confirmedDays?`<i aria-hidden="true"></i>Citas confirmadas esta semana`:'Sin citas confirmadas esta semana'}</span><small>La planificación completa está en tu plan.</small></div>
+    <div class="m26-client-week-note"><span>${confirmedDays?`<i aria-hidden="true"></i>Citas confirmadas esta semana`:'No se muestran próximas citas confirmadas esta semana'}</span><small>La planificación completa está en tu plan.</small></div>
   </section>`;
 }
 
@@ -915,7 +932,7 @@ function renderClientHoyRoute(vm) {
 
     ${renderClientTodayHealth(vm.wearables)}
     ${healthActivationMarkup}
-    ${trainingSurface?`<details class="m26-client-home-method-disclosure"><summary>Tu proceso de entrenamiento</summary>${renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided})}</details>`:''}
+    ${trainingSurface?`<details class="m26-client-home-method-disclosure"><summary>Tu proceso de entrenamiento</summary>${renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided,first28:vm.clientFirst28})}</details>`:''}
 
     <details class="m26-client-home-secondary-disclosure">
       <summary data-m26-client-guide="secondary-actions">
@@ -3854,6 +3871,7 @@ export function renderProgressRoute(vm){
     return `<div class="m26-route m26-client-progress-route">
       <section class="m26-route-intro${stage.noHistory?' is-empty':''}"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Progreso y adherencia</p><h2>Tu evolución</h2><p>${stage.noHistory?'Tus avances confirmados irán apareciendo aquí, paso a paso.':'Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.'}</p></div>${stage.noHistory?'':badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
       ${stageMarkup}
+      ${renderClientCycleGoal(vm.periodization)}
       ${primaryEvidence}
       ${detailed}
     </div>`;
@@ -3889,6 +3907,23 @@ function lastCheckinSummary(last){
   const body=last.body||{};
   return `<div class="m26-wellbeing-grid m26-wellbeing-grid-compact">${wellbeingMeter('Energía',body.energy,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',body.sleep,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',body.stress,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',body.pain,'0 ninguno · 10 máximo')}${wellbeingMeter('Fatiga',body.fatigue,'0 ninguna · 10 máxima')}${wellbeingMeter('Motivación',body.motivation,'0 ninguna · 10 máxima')}</div>`;
 }
+// Life360: priority is a presentation choice; no confirmed record is discarded.
+// Archives are never actionable. Preserve legacy >3 active habits under disclosure.
+export function projectHabitFocus(habits=[],maxVisible=3){
+  const rows=Array.isArray(habits)?habits.filter(item=>item&&typeof item==='object'):[];
+  const archived=rows.filter(item=>/^(archiv|archived|inactive|inactiv|anulad|cancelad|deleted|eliminad)/iu
+    .test(String(item.statusRaw||item.status||'').trim()));
+  const inactive=new Set(archived);
+  const active=rows.filter(item=>!inactive.has(item));
+  const count=Math.max(1,Math.min(3,Number.isInteger(maxVisible)?maxVisible:3));
+  return Object.freeze({
+    featured:Object.freeze(active.slice(0,count)),
+    additional:Object.freeze(active.slice(count)),
+    archived:Object.freeze(archived),
+    activeCount:active.length,
+    totalCount:rows.length,
+  });
+}
 export function renderActivityRoute(vm){
   if(lacksTrainingSurface(vm.serviceKind)){
     // A client who independently authorized health reading can view/revoke
@@ -3910,8 +3945,25 @@ export function renderActivityRoute(vm){
       <section class="m26-panel m26-panel-soft"><p>La información necesaria para interpretar la evaluación se registra dentro del propio IRI. No se crean obligaciones de seguimiento por contratar únicamente la evaluación.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Volver al IRI</button><button type="button" data-m26-area="informes">Abrir informes</button></div></section>
     </div>`;
   }
-  const last=vm.checkins[0];const wearable=vm.wearables||{summary:{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'},connections:[],providers:[],canControl:false};const wearableSummary=wearable.summary;
-  const habits=vm.habits.length?vm.habits.map((item)=>`<article class="m26-list-card"><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.status)} · ${escapeHtml(item.dateLabel)}</p></div><div class="m26-inline-actions">${badge(item.status,'neutral')}<button type="button" data-engagement-action="log-habit" data-habit-id="${escapeHtml(item.id)}" aria-label="Registrar hoy: ${escapeHtml(item.title)}"${vm.capabilities.habits.ready?'':' disabled aria-disabled="true"'}>Registrar hoy</button></div></article>`).join(''):emptyState('Sin hábitos publicados',vm.capabilities.habits.ready?'Define el primer hábito para iniciar su seguimiento.':'La publicación de hábitos todavía no está disponible; el borrador puede prepararse sin mostrarlo como confirmado.');
+  // The newest confirmed wellbeing check-in, not transport array order.
+  // Invalid or missing timestamps stay after dated records.
+  const latestCheckins=Array.isArray(vm.checkins)?[...vm.checkins].sort((a,b)=>{
+    const x=Date.parse(String(a?.date||'')),y=Date.parse(String(b?.date||''));
+    return (Number.isFinite(y)?y:-Infinity)-(Number.isFinite(x)?x:-Infinity);
+  }):[];
+  const last=latestCheckins[0]||null;const wearable=vm.wearables||{summary:{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'},connections:[],providers:[],canControl:false};const wearableSummary=wearable.summary;
+  const habitFocus=projectHabitFocus(vm.habits);
+  const habitCard=(item,{archived=false}={})=>`<article class="m26-list-card"><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.status)} · ${escapeHtml(item.dateLabel)}</p></div><div class="m26-inline-actions">${badge(item.status,'neutral')}${archived?'':`<button type="button" data-engagement-action="log-habit" data-habit-id="${escapeHtml(item.id)}" aria-label="Registrar hoy: ${escapeHtml(item.title)}"${vm.capabilities.habits.ready?'':' disabled aria-disabled="true"'}>Registrar hoy</button>`}</div></article>`;
+  const primaryHabits=habitFocus.featured.length
+    ?habitFocus.featured.map(item=>habitCard(item)).join('')
+    :emptyState('Sin hábitos publicados',vm.capabilities.habits.ready
+      ?'Acuerda con tu entrenador el primer hábito que quieres trabajar.'
+      :'La publicación de hábitos todavía no está disponible; el borrador puede prepararse sin mostrarlo como confirmado.');
+  const overflowHabits=habitFocus.additional.length
+    ?`<details class="m26-habit-history"><summary>Otros hábitos en seguimiento (${habitFocus.additional.length})</summary><div class="m26-stack">${habitFocus.additional.map(item=>habitCard(item)).join('')}</div></details>`:'';
+  const archivedHabits=habitFocus.archived.length
+    ?`<details class="m26-habit-history"><summary>Historial de hábitos archivados (${habitFocus.archived.length})</summary><div class="m26-stack">${habitFocus.archived.map(item=>habitCard(item,{archived:true})).join('')}</div></details>`:'';
+  const habits=primaryHabits+overflowHabits+archivedHabits;
   const manager=vm.canManageHabits?`<form class="m26-panel m26-panel-soft" data-engagement-form="habit-definition" data-guided-required-form><div class="m26-panel-heading"><div><p class="m26-eyebrow">Entrenador</p><h2>Definir hábito</h2></div></div><div class="m26-field-grid"><label>Nombre<input name="title" maxlength="120" required></label><label>Objetivo<input name="target" type="number" min="1" step="1" required></label><label>Unidad<input name="unit" maxlength="40" placeholder="Ej. veces, minutos, días"></label><label>Frecuencia<select name="frequency" required><option value="">Seleccionar frecuencia</option><option value="diario">Diario</option><option value="semanal">Semanal</option><option value="dias_especificos">Días específicos</option></select></label><label class="m26-wide">Descripción<textarea name="description" maxlength="500"></textarea></label></div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><div class="m26-action-grid"><button type="button" data-engagement-action="save-habit-draft">Guardar borrador</button><button type="submit" class="m26-primary-action" data-engagement-action="define-habit"${vm.capabilities.habits.ready?'':' disabled aria-disabled="true"'}>Publicar hábito</button></div><p class="m26-form-status" data-engagement-status="habit" role="status" aria-live="polite"></p></form>`:'';
   const importer=wearable.canControl?`<form class="m26-panel m26-panel-soft" data-wearable-import aria-describedby="wearable-import-help"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Privacidad primero</p><h2>Revisar una exportación</h2></div>${badge('Solo vista previa local · gratuito','success')}</div><p id="wearable-import-help">La importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.</p><div class="m26-field-grid"><label>Origen del archivo<select name="wearableProvider" required><option value="normalized_file">Archivo normalizado IBERFIT</option><option value="health_connect">Exportación Health Connect</option><option value="samsung_health">Exportación Samsung Health</option><option value="strava">Exportación Strava</option><option value="apple_health">Exportación Apple Health</option><option value="fitbit">Exportación Google Health API / Fitbit</option><option value="oura">Exportación Oura</option><option value="garmin_connect">Exportación Garmin</option></select></label><label>Archivo JSON o CSV<input type="file" name="wearableFile" accept=".json,.csv,.tsv,application/json,text/csv,text/tab-separated-values" required></label></div><div class="m26-action-grid"><button type="button" data-wearable-action="download-template">Descargar plantilla</button><button type="submit" class="m26-primary-action">Analizar archivo</button><button type="button" data-wearable-action="clear-preview">Limpiar vista previa</button></div><p class="m26-form-status" data-wearable-status role="status" aria-live="polite" aria-atomic="true"></p><section class="m26-wearable-preview" data-wearable-preview hidden aria-live="polite"></section></form>`:`<aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Control del cliente</p><h2>Conexiones de dispositivos</h2><p>El cliente decide qué fuentes comparte, puede pausar la sincronización y conserva el control de sus permisos. El entrenador recibe únicamente resúmenes confirmados.</p></aside>`;
   const connectionCopy=wearable.connections.length?wearable.connections.map((item)=>`${item.label}: ${castilianStatusLabel(item.status)}`).join(' · '):'No hay conexiones remotas confirmadas.';
@@ -3950,7 +4002,7 @@ export function renderActivityRoute(vm){
     </section>
     ${capabilityNotice(vm.capabilities.habits,'La publicación de hábitos')}
     ${manager}
-    <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Hábitos activos</h2></div>${badge(countLabel(vm.habits.length,'hábito','hábitos'),'neutral')}</div><div class="m26-stack">${habits}</div><p class="m26-form-status" data-engagement-status="habit-log" role="status" aria-live="polite"></p></section>
+    <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Hábitos activos</h2><p>Hasta tres hábitos en primer plano. Los demás y el historial siguen disponibles sin generar nuevas obligaciones.</p></div>${badge(countLabel(habitFocus.activeCount,'hábito','hábitos'),'neutral')}</div><div class="m26-stack">${habits}</div><p class="m26-form-status" data-engagement-status="habit-log" role="status" aria-live="polite"></p></section>
     ${wearable.canControl?'':`<details class="m26-panel m26-optional-section"><summary>Actividad confirmada de dispositivos</summary><div class="m26-optional-section-body"><p>El cliente decide qué datos autoriza. El entrenador recibe únicamente resúmenes confirmados.</p>${deviceSummary}${dailyRecords}${wearableCoveragePanel(wearable)}</div></details>`}
   </div>`;
 }
@@ -4538,6 +4590,26 @@ function exactVisiblePublishedSession(sessions,sessionId){
     &&item?.publication?.status==='published'
     &&item?.publication?.visibleToClient!==false);
 }
+export function renderCoachSinceLastReview(review){
+  if(review?.available!==true)return '';
+  const value=Number.isSafeInteger(review.confirmedSessions)
+    &&review.confirmedSessions>=0?review.confirmedSessions:null;
+  const message=value===null
+    ?'No hay evidencia suficiente para contar sesiones tras la revisión.'
+    :value===0
+      ?'No constan nuevas ejecuciones fechadas y confirmadas en el historial cargado.'
+      :value+' '+(value===1?'sesión confirmada':'sesiones confirmadas')
+        +' desde el día siguiente de la última revisión.';
+  return '<section class="m26-coach-review-delta" data-m26-coach-review-delta aria-label="Cambios desde la última revisión del Coach">'
+    +'<div><span class="m26-eyebrow">Seguimiento profesional</span>'
+    +'<h3>Desde la última revisión</h3>'
+    +'<p>'+escapeHtml(message)+'</p>'
+    +'<small>Revisión registrada: '+escapeHtml(review.reviewedAt)
+    +(review.latestSessionAt?' · Última sesión: '+escapeHtml(review.latestSessionAt):'')
+    +'</small></div>'
+    +'<p class="m26-data-footnote">Solo ejecuciones confirmadas con fecha real dentro de este expediente. El IRI inicial permanece separado. No se atribuye causalidad ni se ajusta el plan automáticamente.</p>'
+    +'</section>';
+}
 function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',publishedSessions=[]}={}){
   if(!prep)return '';
   const appointment=prep.appointment;
@@ -4597,6 +4669,7 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
         <small>${escapeHtml(nextSessionPrepDate(prep.progress.lastExecutionAt))}</small>
       </article>
     </div>
+    ${renderCoachSinceLastReview(prep.sinceLastReview)}
     ${reasons.length?`<div class="m26-next-session-review"><strong>Antes de iniciar, revisa</strong><ul>${reasons.map((item)=>`<li>${escapeHtml(item.label)}</li>`).join('')}</ul></div>`:''}
     <div class="m26-next-session-grid">
       <article class="m26-next-session-card">

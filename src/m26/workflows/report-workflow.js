@@ -3,6 +3,8 @@ import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId} from '../domain/session-execution-truth.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND} from './iri-2-longitudinal.js';
+import {buildPostSessionSportEvidence} from './report-sport-evidence.js';
+import {buildPlanExecutionSummary} from '../engagement/progress-engine.js';
 
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const DAY_MS=86_400_000;
@@ -118,24 +120,32 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   const iriReady=Boolean(latestIri&&latestIriDate&&coverage>0);
   const iriReport=reportModel({id:'iri',label:'Diagnóstico IRI',ready:iriReady,reason:'Se necesita una evaluación IRI inicial confirmada con alguna medición objetiva registrada para generar este documento.',periodStart:latestIriDate,periodEnd:latestIriDate,assessmentId,assessmentRevision,sourceType:'iri_assessment',sourceId:assessmentId||null,title:'Diagnóstico IRI',summary:iriReady?`Evaluación IRI confirmada el ${latestIriDate}, con evidencia objetiva registrada en ${coverage} de 3 dominios.`:'',conclusions:iriReady?'El informe conserva únicamente los dominios medidos y mantiene como no evaluado cualquier dominio sin evidencia confirmada.':'',recommendations:iriReady?'Revisar el diagnóstico IRI confirmado y definir los próximos pasos de entrenamiento según los resultados registrados.':'',evidence:iriReady?[evidence('Cobertura objetiva',`${coverage} de 3 dominios registrados`,'iriAssessments')]:[]});
   const postReady=Boolean(latestExecution&&latestSessionDate&&sessionExecutionId(latestExecution));
-  const postReport=reportModel({id:'post-session',label:'Informe post-sesión',ready:postReady,reason:'Se necesita al menos una ejecución de sesión confirmada e identificable.',periodStart:latestSessionDate,periodEnd:latestSessionDate,sourceType:'session_execution',sourceId:latestExecution?sessionExecutionId(latestExecution):null,title:latestExecution?`Post-sesión · ${sessionLabel(latestExecution)}`:'Informe post-sesión',summary:postReady?`Sesión confirmada el ${latestSessionDate}: ${sessionLabel(latestExecution)}. El documento se limita a la evidencia registrada en la ejecución.`:'',conclusions:postReady?'La sesión consta como ejecutada en el historial canónico del cliente; no se añaden métricas que no estén registradas.':'',recommendations:postReady?'Añadir la interpretación profesional del coach y utilizarla para orientar la siguiente sesión sin modificar automáticamente la planificación.':'',evidence:postReady?[evidence('Sesión confirmada',`${sessionLabel(latestExecution)} · ${latestSessionDate}`,'sessionExecutions')]:[]});
+  const postMetrics=postReady?buildPostSessionSportEvidence(latestExecution,{clientId}):[];
+  const postReport=reportModel({id:'post-session',label:'Informe post-sesión',ready:postReady,reason:'Se necesita al menos una ejecución de sesión confirmada e identificable.',periodStart:latestSessionDate,periodEnd:latestSessionDate,sourceType:'session_execution',sourceId:latestExecution?sessionExecutionId(latestExecution):null,title:latestExecution?`Post-sesión · ${sessionLabel(latestExecution)}`:'Informe post-sesión',summary:postReady?`Sesión confirmada el ${latestSessionDate}: ${sessionLabel(latestExecution)}. El documento se limita a la evidencia registrada en la ejecución.${postMetrics.length?' Datos realizados: '+postMetrics.slice(0,3).map(row=>`${row.label}: ${row.text}`).join('; ')+'.':''}`:'',conclusions:postReady?'La sesión consta como ejecutada en el historial canónico del cliente; no se añaden métricas que no estén registradas.':'',recommendations:postReady?'Añadir la interpretación profesional del coach y utilizarla para orientar la siguiente sesión sin modificar automáticamente la planificación.':'',evidence:postReady?[evidence('Sesión confirmada',`${sessionLabel(latestExecution)} · ${latestSessionDate}`,'sessionExecutions'),...postMetrics]:[]});
 
   // An observed Health Connect activity is never a confirmed IBERFIT execution.
   // The weekly summary deliberately uses only canonical completed sessions.
   const weeklyDays=new Set(weeklySessions.map(executionDate).filter(Boolean)).size;
   const weeklyReady=weeklySessions.length>0;
+  // Compare only verified plans explicitly owned by this client.
+  const weeklyPlan=weeklyReady?buildPlanExecutionSummary({
+    ...state,collections:{...state.collections,
+      sessions:recordsForClient(state,'sessions',clientId)},
+  },clientId,{now,days:7}):null;
+  const comparableWeeklyPlan=weeklyPlan?.comparedSessions>0?weeklyPlan:null;
   const weeklyReport=reportModel({
     id:'weekly',label:'Resumen semanal de entrenamiento',ready:weeklyReady,
     reason:'Se necesita al menos una sesión IBERFIT finalizada y confirmada durante los últimos 7 días.',
     periodStart:weeklyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:weeklyReady?confirmedActivitySeries(weeklySessions,weeklyStart,end,1):[],
     title:'Resumen semanal de entrenamiento',
-    summary:weeklyReady?`En los últimos 7 días se han confirmado ${weeklySessions.length} ${weeklySessions.length===1?'sesión':'sesiones'} de entrenamiento en ${weeklyDays} día${weeklyDays===1?'':'s'}.`:'',
+    summary:weeklyReady?`En los últimos 7 días se han confirmado ${weeklySessions.length} ${weeklySessions.length===1?'sesión':'sesiones'} de entrenamiento en ${weeklyDays} día${weeklyDays===1?'':'s'}.${comparableWeeklyPlan?' Plan frente a ejecución: '+comparableWeeklyPlan.summary+'.':''}`:'',
     conclusions:weeklyReady?'Este resumen refleja únicamente sesiones IBERFIT realmente finalizadas; las actividades detectadas por un dispositivo no se consideran sesiones confirmadas.':'',
     recommendations:weeklyReady?'Revisar los resultados y el esfuerzo registrados en cada sesión y acordar con el coach la planificación de la siguiente semana.':'',
     evidence:weeklyReady?[
       evidence('Sesiones confirmadas',String(weeklySessions.length),'sessionExecutions'),
       evidence('Días con entrenamiento confirmado',String(weeklyDays),'sessionExecutions'),
       evidence('Última sesión confirmada',`${sessionLabel(weeklySessions[0])} · ${executionDate(weeklySessions[0])}`,'sessionExecutions'),
+      ...(comparableWeeklyPlan?[evidence('Plan frente a ejecución',comparableWeeklyPlan.summary,'sessionExecutions',comparableWeeklyPlan.quality)]:[]),
     ]:[],
   });
   const monthlyReady=Boolean(monthlySessions.length>0&&progressEvidence.length>0);

@@ -35,6 +35,8 @@ function sortedAlerts(alerts=[]){
 }
 
 function confidenceFor(summary={},evidenceCount=0){
+  // Qualitative cache flags alone do not establish actual evidence.
+  if(evidenceCount<=0)return CONFIDENCE.LIMITED;
   const quality=String(summary?.dataQuality||'')
     .trim()
     .toLowerCase();
@@ -50,9 +52,18 @@ function confidenceFor(summary={},evidenceCount=0){
       :CONFIDENCE.LIMITED;
 }
 
+function recentCompletedDate(value,{now,days}){
+  if(typeof value!=='string'||!value.trim())return false;
+  const date=new Date(value),end=now instanceof Date?now:new Date(now);
+  if(!Number.isFinite(date.getTime())||!Number.isFinite(end.getTime()))return false;
+  const age=end.getTime()-date.getTime();
+  const span=Number.isInteger(days)&&days>=1&&days<=365?days:28;
+  return age>=0&&age<=span*86400000;
+}
 export function buildIberfitDecisionBrief({
   summary=null,
   alerts=[],
+  now=new Date(),
 }={}){
   const safeSummary=
     summary&&typeof summary==='object'
@@ -105,11 +116,11 @@ export function buildIberfitDecisionBrief({
     );
   }
 
-  if(safeSummary.lastExecutionAt){
+  const recentExecution=recentCompletedDate(safeSummary.lastExecutionAt,{now,days:safeSummary.days});
+  if(recentExecution){
     signals.push(
       'Existe una sesión confirmada reciente para contextualizar la siguiente decisión.'
     );
-
     evidenceCount+=1;
   }
 
@@ -156,6 +167,13 @@ export function buildIberfitDecisionBrief({
   if(unconfirmed>0){
     limitations.push(
       `${unconfirmed} ejecución${unconfirmed===1?'':'es'} queda${unconfirmed===1?'':'n'} fuera del análisis por no estar confirmada${unconfirmed===1?'':'s'}.`
+    );
+  }
+  // Do not displace higher-priority missing check-in or device evidence in
+  // the Coach cockpit; the old date still remains an explicit limitation.
+  if(safeSummary.lastExecutionAt&&!recentExecution){
+    limitations.push(
+      'La última ejecución conocida no acredita una sesión reciente.'
     );
   }
 

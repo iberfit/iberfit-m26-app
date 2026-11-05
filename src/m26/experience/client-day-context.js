@@ -63,10 +63,19 @@ export function buildClientDayContext({clientId,progress=null,wearables=null,now
   const records=(Array.isArray(wearables?.dailyRecords)?wearables.dailyRecords:[])
     .filter(row=>row&&String(row.clientId||'')===id&&civilDate(row.date)===row.date)
     .filter(row=>{const days=ageDays(row.date,today);return days!==null&&days>=0&&days<=6;});
-  const lastDay=records.reduce((date,row)=>row.date>date?row.date:date,'')||null;
-  const day=lastDay?metricRows(records,lastDay):{metrics:Object.fromEntries(
+  // A newer, validly dated but empty sync row must not erase earlier measured
+  // evidence. Never average conflicting providers or turn missing values into 0.
+  const dates=[...new Set(records.map(row=>row.date))].sort((a,b)=>b.localeCompare(a));
+  const dated=dates.map(date=>({date,...metricRows(records,date)}));
+  const newest=dated[0]||null;
+  const lastValid=dated.find(row=>Object.values(row.metrics).some(item=>item!==null))||null;
+  const lastDay=lastValid?.date||newest?.date||null;
+  const day=lastValid||newest||{metrics:Object.fromEntries(
     ACTIVITY_FIELDS.map(([key])=>[key,null])),ambiguous:false};
-  const observed=Object.values(day.metrics).some(item=>item!==null);
+  const observed=Boolean(lastValid);
+  // Keep the newest day's disagreement visible even if the latest usable
+  // measurement came from an earlier day.
+  const ambiguous=Boolean(newest?.ambiguous||day.ambiguous);
   const historical=(Array.isArray(wearables?.historicalRecords)?wearables.historicalRecords:[])
     .filter(row=>row&&String(row.clientId||'')===id&&civilDate(row.date)===row.date)
     .filter(row=>{const days=ageDays(row.date,today);return days!==null&&days>=7;})
@@ -86,7 +95,7 @@ export function buildClientDayContext({clientId,progress=null,wearables=null,now
     movement:Object.freeze({
       date:lastDay||historical,
       status:observed?(lastDay===today?'today':'recent'):'missing',
-      metrics:day.metrics,ambiguous:day.ambiguous,
+      metrics:day.metrics,ambiguous,
     }),
     training:Object.freeze({
       completed28:confirmedSessions,
@@ -101,11 +110,19 @@ function esc(text){return String(text??'').replaceAll('&','&amp;')
 function dateLabel(date){return civilDate(date)?date.slice(8,10)+'/'+date.slice(5,7)+'/'+date.slice(0,4):'Fecha no disponible';}
 function metric(label,display){return '<div class="m26-client-day-metric"><dt>'+esc(label)
   +'</dt><dd>'+esc(display)+'</dd></div>';}
+export function deriveClientDayNextAction(snapshot){
+  if(!snapshot||!['today','recent'].includes(snapshot.wellbeing?.status))
+    return Object.freeze({area:'actividad',label:'Registrar cómo estoy',
+      detail:'Tu registro de bienestar es voluntario y aporta contexto.'});
+  return Object.freeze({area:'progreso',label:'Ver mi evolución',
+    detail:'Tu bienestar confirmado es contexto, no un diagnóstico automático.'});
+}
 export function renderClientDayContext(snapshot){
   if(!snapshot)return '';
   const wellbeing=snapshot.wellbeing||{};
   const movement=snapshot.movement||{};
   const training=snapshot.training||{};
+  const next=deriveClientDayNextAction(snapshot);
   const feelingData=CHECKIN_FIELDS.filter(([key])=>value(wellbeing.metrics?.[key],0,10)!==null);
   const activityData=ACTIVITY_FIELDS.filter(([key,,min,max])=>value(movement.metrics?.[key],min,max)!==null);
   const wellbeingCopy=wellbeing.status==='today'?'Tu registro de hoy'
@@ -149,6 +166,7 @@ export function renderClientDayContext(snapshot){
     +(trainingMetrics||trend?'<dl class="m26-client-day-metrics">'+trainingMetrics+trend+'</dl>'
       :'<p class="m26-client-day-empty">Tu evolución aparecerá con entrenamientos confirmados.</p>')+'</article>'
     +'</div><footer class="m26-client-day-footer"><span>Bienestar percibido, actividad y entrenamiento son fuentes distintas; no cambian tu plan por sí solas.</span>'
-    +'<nav aria-label="Explorar tu día"><button type="button" data-m26-area="actividad">Mi bienestar y actividad</button>'
-    +'<button type="button" data-m26-area="progreso">Ver evolución</button></nav></footer></section>';
+    +'<p class="m26-client-day-next">'+esc(next.detail)+'</p>'
+    +'<nav aria-label="Explorar tu día"><button type="button" class="m26-primary-action" data-m26-area="'+esc(next.area)+'">'+esc(next.label)+'</button>'
+    +'<button type="button" data-m26-area="'+(next.area==='progreso'?'actividad':'progreso')+'">'+(next.area==='progreso'?'Mi bienestar y actividad':'Ver evolución')+'</button></nav></footer></section>';
 }
