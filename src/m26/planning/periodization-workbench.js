@@ -90,6 +90,21 @@ export function buildPeriodizationSnapshot(state,clientId,{cycle,now=new Date()}
     evidence:'confirmed-only',chartMetric:'completedExecutions',
   });
 }
+/** A client goal is a confirmed coaching intention, never a calculated achievement. */
+export function renderClientCycleGoal(snapshot){
+  if(!snapshot||typeof snapshot!=='object')return '';
+  const title=String(snapshot.goal||'').trim();
+  if(!title||!snapshot.clientId)return '';
+  const week=Number.isInteger(snapshot.currentWeek)&&snapshot.currentWeek>0
+    ?'Semana '+snapshot.currentWeek+' de '+snapshot.weeks.length
+    :'Periodo del ciclo: '+snapshot.start+' — '+snapshot.end;
+  return '<section class="m26-panel m26-client-cycle-goal" data-m26-client-cycle-goal aria-label="Objetivo acordado del ciclo">'
+    +'<div class="m26-panel-heading"><div><p class="m26-eyebrow">Tu objetivo actual</p><h2>'+escape(title)+'</h2></div></div>'
+    +'<p>'+escape(snapshot.cycleName)+' · '+escape(week)+'</p>'
+    +'<small>Objetivo acordado con tu entrenador. El progreso se evalúa con sesiones y mediciones confirmadas; no se supone alcanzado por el paso del tiempo.</small>'
+    +'<div class="m26-inline-actions"><button type="button" data-m26-area="planificacion">Ver mi planificación</button></div>'
+    +'</section>';
+}
 export function renderPeriodizationBoard(snapshot,{role='coach',compact=false}={}){
   if(!snapshot)return '';
   const coach=['coach','admin'].includes(String(role||'').trim().toLowerCase());
@@ -115,6 +130,7 @@ export function renderPeriodizationBoard(snapshot,{role='coach',compact=false}={
   return '<section class="m26-panel m28-periodization" data-m28-periodization aria-label="Periodización del ciclo">'
     +'<div class="m26-panel-heading"><div><p class="m26-eyebrow">Planificación por bloques</p><h2>'+escape(snapshot.cycleName)+'</h2>'
     +'<p>'+escape(snapshot.start)+' — '+escape(snapshot.end)+' · '+selected+'</p></div></div>'
+    +(snapshot.goal?'<p class="m28-cycle-goal"><strong>Objetivo acordado:</strong> '+escape(snapshot.goal)+'</p>':'')
     +totals+'<div class="m28-week-chart" role="img" aria-label="Sesiones terminadas y confirmadas por semana">'
     +bars+'</div><p class="m26-data-footnote">Cada bloque contiene hasta cuatro semanas desde el inicio del ciclo. Barras: sesiones ejecutadas y confirmadas, no carga fisiológica. Citas y ejecuciones son conteos independientes; no se equiparan sin vínculo verificado.</p>'
     +overview+detailed+actions+'</section>';

@@ -12,7 +12,7 @@ import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hu
 import {clientWearableActivation} from '../wearables/activation-experience.js';
 import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
 import {renderClientDayContext} from '../experience/client-day-context.js';
-import {renderPeriodizationBoard} from '../planning/periodization-workbench.js';
+import {renderPeriodizationBoard,renderClientCycleGoal} from '../planning/periodization-workbench.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
@@ -3854,6 +3854,7 @@ export function renderProgressRoute(vm){
     return `<div class="m26-route m26-client-progress-route">
       <section class="m26-route-intro${stage.noHistory?' is-empty':''}"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Progreso y adherencia</p><h2>Tu evolución</h2><p>${stage.noHistory?'Tus avances confirmados irán apareciendo aquí, paso a paso.':'Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.'}</p></div>${stage.noHistory?'':badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
       ${stageMarkup}
+      ${renderClientCycleGoal(vm.periodization)}
       ${primaryEvidence}
       ${detailed}
     </div>`;
