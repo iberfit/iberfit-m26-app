@@ -1,7 +1,7 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
-import {confirmedSessionExecutionsForClient,sessionExecutionDate} from '../domain/session-execution-truth.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -246,6 +246,65 @@ function reviewReasons({progress,outcomes,feedback,session,wellbeingTrend}={}){
   return Object.freeze(reasons);
 }
 
+// Life360 professional review is longitudinal follow-up, never a second IRI.
+const REVIEW_DAY_FORMAT=new Intl.DateTimeFormat('en-US',{
+  timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit',
+});
+function reviewCivilDay(value){
+  const date=safeDate(value);
+  if(!date)return null;
+  const parts=Object.fromEntries(REVIEW_DAY_FORMAT.formatToParts(date)
+    .filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
+  return parts.year+'-'+parts.month+'-'+parts.day;
+}
+function confirmedExecutionDay(record){
+  // createdAt, planned appointments and server ACK are NOT execution dates.
+  return reviewCivilDay(field(record,
+    'completedAt','completed_at','localClosedAt','local_closed_at',
+    'endedAt','ended_at','executedAt','executed_at'));
+}
+export function buildTrainingSinceLastCoachReview(state,clientId,{now=new Date(),outcomes=null}={}){
+  const owner=String(clientId||'').trim(),today=reviewCivilDay(now);
+  const missing=(reason)=>Object.freeze({available:false,reason,clientId:owner,
+    reviewedAt:null,confirmedSessions:null,latestSessionAt:null,
+    semantics:'coach-review-followup-not-initial-iri'});
+  if(!owner||!today)return missing('invalid-context');
+  // The caller's object is not an authorization grant: re-check owner and
+  // canonical closed status even if it is supplied by a trusted preparer.
+  const decisions=outcomes?.closed||summarizeActionOutcomes(
+    state?.collections?.m26Entities||[],owner,{now}).closed;
+  const reviewed=[...decisions].filter(item=>
+    item?.clientId===owner&&item.status==='cerrado'
+    &&typeof item.reviewedAt==='string'
+    &&/^\d{4}-\d{2}-\d{2}$/.test(item.reviewedAt)
+    &&item.reviewedAt<=today)
+    .sort((a,b)=>b.reviewedAt.localeCompare(a.reviewedAt));
+  const latestReview=reviewed[0]||null;
+  if(!latestReview)return missing('no-closed-review');
+  const elapsed=(Date.parse(today+'T12:00:00Z')
+    -Date.parse(latestReview.reviewedAt+'T12:00:00Z'))/86400000;
+  if(!Number.isInteger(elapsed)||elapsed<0||elapsed>365)
+    return missing('review-out-of-range');
+  const seen=new Set();
+  let confirmedSessions=0,latestSessionAt=null;
+  for(const execution of confirmedSessionExecutionsForClient(state,owner,{
+    requireCompleted:true,requireDate:true,
+  })){
+    const id=sessionExecutionId(execution),day=confirmedExecutionDay(execution);
+    if(!id||seen.has(id)||!day||day<=latestReview.reviewedAt||day>today)continue;
+    seen.add(id);
+    confirmedSessions++;
+    if(!latestSessionAt||day>latestSessionAt)latestSessionAt=day;
+  }
+  return Object.freeze({
+    available:true,reason:'verified-loaded-history',clientId:owner,
+    reviewedAt:latestReview.reviewedAt,confirmedSessions,latestSessionAt,
+    reviewId:latestReview.id,
+    semantics:'coach-review-followup-not-initial-iri',
+    caveat:'Se cuentan solo ejecuciones confirmadas y fechadas a partir del día siguiente de la última revisión registrada, dentro del historial cargado. No se atribuye causalidad.',
+  });
+}
+
 export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null}={}){
   const safeClientId=String(clientId||'').trim();
   if(!safeClientId)return null;
@@ -255,6 +314,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   const execution=latestExecution(state,safeClientId);
   const feedback=feedbackOf(execution);
   const outcomes=summarizeActionOutcomes(state?.collections?.m26Entities||[],safeClientId,{now});
+  const sinceLastReview=buildTrainingSinceLastCoachReview(state,safeClientId,{now,outcomes});
   const memories=recentExerciseMemory(state,safeClientId,exerciseName);
   const iri=iriContext(state,safeClientId,progress);
   const wellbeingTrend=wellbeingShift(state,safeClientId,{now});
@@ -297,6 +357,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
     }):null,
     iri,
     wellbeingShift:wellbeingTrend,
+    sinceLastReview,
     deviceContext,
     progress:Object.freeze({
       plannedSessions:Number(progress?.plannedSessions||0),

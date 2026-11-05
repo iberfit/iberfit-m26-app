@@ -4573,6 +4573,26 @@ function exactVisiblePublishedSession(sessions,sessionId){
     &&item?.publication?.status==='published'
     &&item?.publication?.visibleToClient!==false);
 }
+export function renderCoachSinceLastReview(review){
+  if(review?.available!==true)return '';
+  const value=Number.isSafeInteger(review.confirmedSessions)
+    &&review.confirmedSessions>=0?review.confirmedSessions:null;
+  const message=value===null
+    ?'No hay evidencia suficiente para contar sesiones tras la revisión.'
+    :value===0
+      ?'No constan nuevas ejecuciones fechadas y confirmadas en el historial cargado.'
+      :value+' '+(value===1?'sesión confirmada':'sesiones confirmadas')
+        +' desde el día siguiente de la última revisión.';
+  return '<section class="m26-coach-review-delta" data-m26-coach-review-delta aria-label="Cambios desde la última revisión del Coach">'
+    +'<div><span class="m26-eyebrow">Seguimiento profesional</span>'
+    +'<h3>Desde la última revisión</h3>'
+    +'<p>'+escapeHtml(message)+'</p>'
+    +'<small>Revisión registrada: '+escapeHtml(review.reviewedAt)
+    +(review.latestSessionAt?' · Última sesión: '+escapeHtml(review.latestSessionAt):'')
+    +'</small></div>'
+    +'<p class="m26-data-footnote">Solo ejecuciones confirmadas con fecha real dentro de este expediente. El IRI inicial permanece separado. No se atribuye causalidad ni se ajusta el plan automáticamente.</p>'
+    +'</section>';
+}
 function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',publishedSessions=[]}={}){
   if(!prep)return '';
   const appointment=prep.appointment;
@@ -4632,6 +4652,7 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
         <small>${escapeHtml(nextSessionPrepDate(prep.progress.lastExecutionAt))}</small>
       </article>
     </div>
+    ${renderCoachSinceLastReview(prep.sinceLastReview)}
     ${reasons.length?`<div class="m26-next-session-review"><strong>Antes de iniciar, revisa</strong><ul>${reasons.map((item)=>`<li>${escapeHtml(item.label)}</li>`).join('')}</ul></div>`:''}
     <div class="m26-next-session-grid">
       <article class="m26-next-session-card">
