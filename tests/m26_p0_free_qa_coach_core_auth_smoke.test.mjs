@@ -57,20 +57,24 @@ test('PROD, stale ownership, missing token and unprivileged core fail closed',as
  const other=makeTransport({payload:{...validCore(),user:{role:'client'}}});
  await assert.rejects(other.t.bootstrapQaCoachCoreAuthSmoke('synthetic-token'),/CONTEXT_INVALID/u);
 });
-test('original complete U39 history remains default and post-write readback stays full',()=>{
+test('U80 QA Coach initial authentication is core only, historical decisions are explicitly client-scoped',()=>{
  const app=readFileSync('src/m26/app/application.js','utf8');
  const tr=readFileSync('src/m26/supabase-transport.js','utf8');
  assert.match(app,/qaAtomicCoach&&canUseQaCoachCoreAuthSmoke/u);
- assert.match(app,/:transport\.bootstrapQaCoachWithHistory\(currentToken\(\),\{assertOwner:requireOwner,signal\}\)/u);
+ assert.match(app,/coachHistoryDemand&&!qaCoreAuthSmoke/u);
+ assert.match(app,/bootstrapQaCoachWithHistory\(currentToken\(\),\{[\s\S]*clientId:requestedHistoryClient/u);
+ assert.match(app,/bootstrapQaCoachCoreAuthSmoke\(currentToken\(\),\{[\s\S]*assertOwner:requireOwner/u);
+ assert.match(app,/const coachHistoryDemand=reason==='coach-history-demand'/u);
+ assert.match(app,/M26_COACH_HISTORY_SCOPE_FORBIDDEN/u);
  assert.match(app,/:transport\.bootstrap\(currentToken\(\),\{signal\}\)/u);
  assert.match(tr,/iberfit_privileged_history_page_u38_qa/u);
  assert.match(tr,/U39_HISTORY_NOT_COMPLETE/u);
 });
 
 
-// Integration contract: enable the core-only path just for the FIRST
-// WebAuthn registration login. All functional tests retain U39 history.
-test('auth-only probe is wired only into Coach recurring first login; second remains full',()=>{
+// Integration contract: original smoke first login stays explicitly gated;
+// U80 also opens the second login with core before selected-client demand.
+test('U80 WebAuthn recurring isolates the first smoke and requires an explicit second-login historical readback',()=>{
  const fs=requireSource('qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs');
  const workflow=requireSource('.github/workflows/coach-webauthn-recurring.yml');
  const build=requireSource('qa/rc64/build-authenticated-surface.mjs');
@@ -84,7 +88,10 @@ test('auth-only probe is wired only into Coach recurring first login; second rem
  const second=fs.indexOf("await loginAndCompleteWebAuthn(page,process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD)",restored);
  assert.ok(trigger>=0&&first>trigger&&restored>first&&second>restored);
  assert.match(fs,/First WebAuthn registration must not prefetch U38/u);
- assert.match(fs,/Second Coach MFA must restore full U38 history/u);
+ assert.match(fs,/Second MFA must not preload all Coach archives/u);
+ assert.match(fs,/Explicit Coach history must use real U38 RLS reads/u);
+ assert.match(fs,/data-m26-coach-history-gate/u);
+ assert.match(fs,/data-m26-qa-coach-history-load/u);
  assert.match(fs,/auditAuthenticatedProfessionalRoutes/u);
  assert.ok(fs.includes("expect(allCards,entity+': no historical Coach publication removed')"));
  assert.doesNotMatch(fs,/addInitScript\(\(\)=>\{globalThis\.__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__/u);

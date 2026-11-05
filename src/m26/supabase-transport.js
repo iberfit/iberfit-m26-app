@@ -133,6 +133,21 @@ const TELEMETRY_BATCH_MAX_BYTES=192_000;
 const TELEMETRY_SAFE_ID_PATTERN=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const UUID_PATTERN=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// U80: narrow a real, server-authorized QA Coach core to the one client
+// explicitly requested. The full client roster is restored to the readback
+// only AFTER every history page passes the existing owner/revision checks.
+export function scopeQaCoachHistoryCore(core,clientId=null){
+  if(core?.environment!=='QA'||core?.user?.role!=='coach'
+     ||!Array.isArray(core?.data?.clients))
+    throw new Error('U80_COACH_HISTORY_CORE_INVALID');
+  if(clientId===null)return core;
+  const id=String(clientId||'').trim();
+  if(!UUID_PATTERN.test(id))throw new Error('U80_COACH_HISTORY_CLIENT_INVALID');
+  const clients=core.data.clients.filter(client=>String(client?.id||'')===id);
+  if(clients.length!==1)throw new Error('U80_COACH_HISTORY_SCOPE_FORBIDDEN');
+  return {...core,data:{...core.data,clients}};
+}
+
 function expectedRemoteProject(qaOnly){
   return qaOnly===true
     ?Object.freeze({projectRef:M26_QA_PROJECT_REF,origin:M26_QA_SUPABASE_ORIGIN,environment:'qa'})
@@ -845,7 +860,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   // Never expose or persist a partially hydrated snapshot. This is only
   // selected by the QA Coach test identity; PostgreSQL independently verifies
   // auth.uid(), role, scope and the genuine WebAuthn assurance on every RPC.
-  async function bootstrapQaCoachWithHistory(token,{assertOwner=()=>{},signal}={}){
+  async function bootstrapQaCoachWithHistory(token,{assertOwner=()=>{},signal,clientId=null}={}){
     if(!runtime.qaOnly)throw new Error('U39_QA_ONLY');
     if(!token||typeof assertOwner!=='function')throw new Error('U39_AUTH_OR_OWNER_INVALID');
     assertOwner();
@@ -856,11 +871,14 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     if(core?.environment!=='QA'||core?.user?.role!=='coach'
       ||!Array.isArray(core?.data?.clients))
       throw new Error('U39_COACH_CORE_CONTEXT_INVALID');
+    // No implicit all-client history on the authentication critical path.
+    // Only an explicit, independently scoped user request supplies clientId.
+    const scopedCore=scopeQaCoachHistoryCore(core,clientId);
     const owner={};
-    const assembler=createPrivilegedHistoryAssembler(core,{owner,profile:'u38-qa-adaptive'});
+    const assembler=createPrivilegedHistoryAssembler(scopedCore,{owner,profile:'u38-qa-adaptive'});
     const limits=__u36HistoryInternals.U38_QA_PAGE_LIMITS;
     const sections=__u36HistoryInternals.SECTIONS;
-    const jobs=core.data.clients.flatMap(client=>sections.map(section=>({
+    const jobs=scopedCore.data.clients.flatMap(client=>sections.map(section=>({
       clientId:client.id,section,
     })));
     let cursor=0;
@@ -936,7 +954,13 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     // Privileged U38 history includes exact copies of each execution summary
     // in legacy sessionExecutions and canonical entity.body. Reference only
     // verified duplicates; retain full lossless reconstruction and 20MB cap.
-    return compactQaCanonicalExecutionSummaries(assembler.finish({owner}));
+    const complete=assembler.finish({owner});
+    // Keep all authorized clients selectable. Historical sections contain
+    // only the selected client's complete, verified record set.
+    const projected=clientId===null?complete:{
+      ...complete,data:{...complete.data,clients:core.data.clients},
+    };
+    return compactQaCanonicalExecutionSummaries(projected);
   }
 
   async function bootstrapWithBoundedStatementTimeoutRecovery(token,{signal}={}){

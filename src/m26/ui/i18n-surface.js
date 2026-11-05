@@ -29,6 +29,14 @@ const ROWS=Object.freeze([
   ["El historial antiguo requiere conexión. Tus sesiones disponibles permanecen visibles.","Older training history requires an internet connection. Your available sessions remain visible.","L'ancien historique nécessite une connexion. Vos séances disponibles restent visibles.","O histórico antigo requer ligação à Internet. As sessões disponíveis continuam visíveis."],
   ["No se ha podido recuperar el historial completo. No se ha perdido ningún registro.","Unable to retrieve the complete history. No records have been lost.","Impossible de récupérer l'historique complet. Aucun enregistrement n'a été perdu.","Não foi possível recuperar o histórico completo. Nenhum registo foi perdido."],
   ["Reintentar historial","Retry history","Réessayer l'historique","Tentar novamente o histórico"],
+  // U80 · Coach progressive archive: no false zero, clear loading/error/retry.
+  ["Expediente del cliente","Client record","Dossier du client","Registo do cliente"],
+  ["Historial bajo demanda","History on demand","Historique à la demande","Histórico a pedido"],
+  ["Consultar expediente completo","Load full client record","Consulter le dossier complet","Consultar o registo completo"],
+  ["El historial de este cliente aún no se ha consultado. Para mostrar resultados fiables, carga el expediente confirmado.","This client's history has not been retrieved. Load the confirmed record to see reliable results.","L'historique de ce client n'a pas été consulté. Chargez le dossier confirmé pour voir des résultats fiables.","O histórico deste cliente ainda não foi consultado. Carrega o registo confirmado para ver resultados fiáveis."],
+  ["Consultando el expediente completo del cliente seleccionado. La navegación seguirá disponible al terminar.","Retrieving the selected client's complete record. Navigation will remain available after loading.","Consultation du dossier complet du client sélectionné. La navigation restera disponible après le chargement.","A consultar o registo completo do cliente selecionado. A navegação continuará disponível após o carregamento."],
+  ["El expediente no pudo verificarse completamente. Ningún registro se ha eliminado. Reintenta la consulta.","The record could not be fully verified. No records were deleted. Try again.","Le dossier n'a pas pu être entièrement vérifié. Aucun enregistrement n'a été supprimé. Réessayez.","Não foi possível verificar integralmente o registo. Nenhum dado foi eliminado. Tenta novamente."],
+  ["Verificando historial y revisiones…","Verifying history and revisions…","Vérification de l'historique et des révisions…","A verificar histórico e revisões…"],
   // SIGNATURE R48 · Client training targets without unexplained RPE/RIR codes.
   ["Objetivos de tu entrenamiento","Your workout targets","Objectifs de votre entraînement","Objetivos do seu treino"],
   ["Esfuerzo orientativo","Suggested effort","Effort conseillé","Esforço orientativo"],

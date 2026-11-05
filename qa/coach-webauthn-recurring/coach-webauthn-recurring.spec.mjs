@@ -584,7 +584,15 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     if(coreSmokeEnabled){
       // The real Coach planning/archival test starts ONLY after a complete
       // second WebAuthn login. This check must fail if mode leaked across logout.
-      expect(u38HistoryRequests,'Second Coach MFA must restore full U38 history').toBeGreaterThan(0);
+      // The second WebAuthn ceremony must open the Coach core before a
+      // single history page is requested. Explicit selected-client demand
+      // then certifies the complete scoped U38 readback without fake zeros.
+      expect(u38HistoryRequests,'Second MFA must not preload all Coach archives').toBe(0);
+      const gate=page.locator('[data-m26-coach-history-gate]').first();
+      await expect(gate,'Unloaded history must have a visible recovery action').toBeVisible();
+      await gate.locator('[data-m26-qa-coach-history-load]').click();
+      await expect(gate,'Selected archive must finish or fail explicitly').toHaveCount(0,{timeout:60_000});
+      expect(u38HistoryRequests,'Explicit Coach history must use real U38 RLS reads').toBeGreaterThan(0);
       evidence.secondWebAuthnFullHistoryPages=u38HistoryRequests;
     }
     const secondActions=evidence.webauthnActions.slice(secondStart);

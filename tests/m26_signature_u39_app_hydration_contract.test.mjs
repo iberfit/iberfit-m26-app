@@ -14,7 +14,10 @@ const other=[
 
 test('U39 production, QA Admin and QA Client continue on the unchanged bootstrap method',()=>{
  assert.match(app,/const qaAtomicCoach=runtime\.qaOnly===true[\s\S]*qa\.rc74\.coach@iberfit\.cl/u);
- assert.match(app,/transport\.bootstrapQaCoachWithHistory\(currentToken\(\),\{assertOwner:requireOwner,signal\}\)/u);
+ assert.match(app,/bootstrapQaCoachWithHistory\(currentToken\(\),\{/u);
+ assert.match(app,/assertOwner:assertHistoryLease,signal,clientId:requestedHistoryClient/u);
+ assert.match(app,/bootstrapQaCoachCoreAuthSmoke\(currentToken\(\),\{/u);
+ assert.match(app,/const coachHistoryDemand=reason==='coach-history-demand'/u);
  assert.match(app,/:transport\.bootstrap\(currentToken\(\),\{signal\}\)/u);
  assert.match(app,/requireOwner\(\); \/\/ Never interpret A's snapshot under B's active role\/token/u);
  const start=app.indexOf('const qaAtomicCoach=');
@@ -28,7 +31,9 @@ test('U39 uses exactly two versioned read-only APIs and does not relax auth or r
  assert.match(transport,/if\(!runtime\.qaOnly\)throw new Error\('U39_QA_ONLY'\)/u);
  assert.match(transport,/iberfit_bootstrap_v26_core_u37_qa/u);
  assert.match(transport,/iberfit_privileged_history_page_u38_qa/u);
- assert.match(transport,/createPrivilegedHistoryAssembler\(core,\{owner,profile:'u38-qa-adaptive'\}\)/u);
+ assert.match(transport,/createPrivilegedHistoryAssembler\(scopedCore,\{owner,profile:'u38-qa-adaptive'\}\)/u);
+ assert.match(transport,/scopeQaCoachHistoryCore\(core,clientId\)/u);
+ assert.match(transport,/assertOwner\(\)/u);
  assert.match(transport,/U39_HISTORY_NOT_COMPLETE/u);
  assert.match(transport,/Promise\.allSettled\(workers\)/u);
  assert.match(transport,/error\?\.body\?\.code\|\|''\)!=='54000'/u);
