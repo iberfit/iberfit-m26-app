@@ -19,7 +19,7 @@ test('U74: original U60 migration still pins all four legacy writers and exact A
  for(const item of [
  '8a4800de487ef9f0babc51662e152fa0318cd56dd341e5b376fccda99ab5bea7',
  '5a157b889f720157223b625c7bb1314278ce506fff7cb4d06d29e88db17f1bd8',
- '78bf27593b1e6f4277c73bacf04329eb21a0354f40557249d630df6a3da8bd9e9',
+ '78bf27593b1e6f4277c73bacf04329eb21a0354f40557249d630df6a3da8bd9e',
  pin
  ])assert.ok(sql.includes(item));
  assert.ok(sql.includes(String.raw`WHERE encode(sha256(convert_to(replace(p.prosrc,E'\r\n',E'\n'),'UTF8')),'hex')`));

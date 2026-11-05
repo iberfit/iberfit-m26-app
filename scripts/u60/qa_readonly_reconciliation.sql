@@ -86,7 +86,12 @@ WITH expected(schema_name,function_name,body_sha256,definer,volatility) AS (
          'd436dd82a48644ce8701aa797b1323ebafe9b2b1dbde36872cd83c170374a9e9',false)
       ) req(signature,body_sha256,auth_exec)
       JOIN pg_proc p ON p.oid=to_regprocedure(req.signature)
-      WHERE encode(sha256(convert_to(p.prosrc,'UTF8')),'hex')=req.body_sha256
+      -- QA uses LF; the audited PROD rc29 function contains exactly the
+      -- same source with CRLF (92 lines). Canonicalize only newline encoding.
+      -- Stray CR, any code change, owner, SECURITY DEFINER or role ACL fail.
+      WHERE encode(sha256(convert_to(replace(p.prosrc,E'\r\n',E'\n'),'UTF8')),'hex')
+          =req.body_sha256
+        AND position(E'\r' IN replace(p.prosrc,E'\r\n',''))=0
         AND pg_get_userbyid(p.proowner)='postgres'
         AND p.prosecdef
         AND p.proconfig @> ARRAY['search_path=""']::text[]
