@@ -5,6 +5,13 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // Life360 Coach follow-up is separate from the original IRI; four-language parity.
+  ["Cambios desde la última revisión del Coach","Changes since the Coach’s last review","Changements depuis la dernière révision du coach","Alterações desde a última revisão do treinador"],
+  ["Seguimiento profesional","Professional follow-up","Suivi professionnel","Acompanhamento profissional"],
+  ["Desde la última revisión","Since the last review","Depuis la dernière révision","Desde a última revisão"],
+  ["No hay evidencia suficiente para contar sesiones tras la revisión.","Not enough evidence to count sessions after the review.","Données insuffisantes pour compter les séances après la révision.","Não há evidência suficiente para contar sessões após a revisão."],
+  ["No constan nuevas ejecuciones fechadas y confirmadas en el historial cargado.","No new dated, confirmed workouts appear in the loaded history.","Aucune nouvelle séance datée et confirmée ne figure dans l’historique chargé.","Não constam novas sessões datadas e confirmadas no histórico carregado."],
+  ["Solo ejecuciones confirmadas con fecha real dentro de este expediente. El IRI inicial permanece separado. No se atribuye causalidad ni se ajusta el plan automáticamente.","Only confirmed workouts with actual dates in this record. The initial IRI remains separate. No causality is implied, and the plan is not changed automatically.","Uniquement les séances confirmées et datées dans ce dossier. L’IRI initial reste distinct. Aucune causalité n’est déduite et le programme n’est pas modifié automatiquement.","Apenas sessões confirmadas e datadas neste registo. O IRI inicial permanece separado. Não se atribui causalidade nem se altera o plano automaticamente."],
   // U61 · Calm but actionable Client operation disclosure (all supported locales).
   ["cambio pendiente","pending change","modification en attente","alteração pendente"],
   ["cambios pendientes","pending changes","modifications en attente","alterações pendentes"],

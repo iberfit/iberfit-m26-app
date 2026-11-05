@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildTrainingSinceLastCoachReview} from '../src/m26/intelligence/next-session-prep.js';
 import {renderCoachSinceLastReview} from '../src/m26/modules/route-render.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const NOW=new Date('2026-11-05T16:00:00Z');
 function decision(clientId,reviewedAt,id='review1'){
@@ -60,4 +61,20 @@ test('Life360 escapes untrusted dates in the professional review surface',()=>{
   assert.doesNotMatch(html,/<svg/u);
   assert.match(html,/&lt;svg/u);
   assert.match(html,/1 sesión confirmada/u);
+});
+
+test('Life360 review labels and dynamic summaries translate in EN/FR/PT',()=>{
+  for(const language of ['en','fr','pt']){
+    for(const value of [
+      'Cambios desde la última revisión del Coach',
+      'Seguimiento profesional','Desde la última revisión',
+      'No constan nuevas ejecuciones fechadas y confirmadas en el historial cargado.',
+      '2 sesiones confirmadas desde el día siguiente de la última revisión.',
+      '1 sesión confirmada desde el día siguiente de la última revisión.',
+      'Revisión registrada: 2026-11-01 · Última sesión: 2026-11-04',
+    ]){
+      const translated=iberfitSurfaceTranslate(value,{language});
+      assert.notEqual(translated,value,language+' '+value);
+    }
+  }
 });

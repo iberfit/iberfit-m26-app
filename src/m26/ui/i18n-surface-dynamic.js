@@ -162,6 +162,20 @@ function applyRules(value,language,translatePart){
   if((m=value.match(/^(.+) · activación operativa por verificar$/u)))return pick(language,`${m[1]} · operational activation to verify`,`${m[1]} · activation opérationnelle à vérifier`,`${m[1]} · ativação operacional por verificar`);
   if((m=value.match(/^(.+) · sesión en este dispositivo$/u)))return pick(language,`${m[1]} · session on this device`,`${m[1]} · session sur cet appareil`,`${m[1]} · sessão neste dispositivo`);
   if((m=value.match(/^(.+) · última sincronización (.+)\. Solo se usan datos confirmados como contexto\.$/u)))return pick(language,`${m[1]} · latest sync ${m[2]}. Only confirmed data is used as context.`,`${m[1]} · dernière synchronisation ${m[2]}. Seules les données confirmées sont utilisées comme contexte.`,`${m[1]} · última sincronização ${m[2]}. Apenas dados confirmados são usados como contexto.`);
+  // Life360: actual confirmed workouts after a closed Coach review, not IRI.
+  if((m=value.match(/^(\d+) (?:sesión confirmada|sesiones confirmadas) desde el día siguiente de la última revisión\.$/u))){
+    const one=m[1]==='1';
+    return pick(language,
+      m[1]+(one?' confirmed session':' confirmed sessions')+' since the day after the last review.',
+      m[1]+(one?' séance confirmée':' séances confirmées')+' depuis le lendemain de la dernière révision.',
+      m[1]+(one?' sessão confirmada':' sessões confirmadas')+' desde o dia seguinte à última revisão.');
+  }
+  if((m=value.match(/^Revisión registrada: (\d{4}-\d{2}-\d{2})(?: · Última sesión: (\d{4}-\d{2}-\d{2}))?$/u))){
+    return pick(language,
+      'Recorded review: '+m[1]+(m[2]?' · Last workout: '+m[2]:''),
+      'Révision enregistrée : '+m[1]+(m[2]?' · Dernière séance : '+m[2]:''),
+      'Revisão registada: '+m[1]+(m[2]?' · Última sessão: '+m[2]:''));
+  }
   return value;
 }
 
