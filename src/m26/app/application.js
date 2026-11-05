@@ -532,6 +532,9 @@ export async function createM26Application({root=document.querySelector('#app'),
   let progressiveControllerMountGeneration=0;
   let progressiveControllerMountPromise=null;
   let roleSwitchBusy=false;
+  // QA-only U80: history is NOT silently empty. A selected client archive is
+  // explicitly not-loaded/loading/ready/error, never a substitute for RLS.
+  let qaCoachHistory={status:'idle',clientId:null};
   const workspaceEntryGate=createWorkspaceEntryGate({getScope:()=>{
     const state=store.getState()||{},identity=state.identity||{};
     return [session?.user?.id||'',identity.id||'',identity.role||'',
@@ -756,6 +759,13 @@ export async function createM26Application({root=document.querySelector('#app'),
       if(hydrationLeaseFor(session)!==requestedOwner)
         throw new Error('M26_HYDRATION_STALE_SESSION');
     };
+    const coachHistoryDemand=reason==='coach-history-demand';
+    const requestedHistoryClient=coachHistoryDemand
+      ?String(store.getState().selectedClientId||'').trim():null;
+    const revisionLease=coachHistoryDemand
+      ?JSON.stringify(store.getState().remoteRevisions||{}):null;
+    const ackLease=coachHistoryDemand
+      ?JSON.stringify(store.getState().lastAck??null):null;
     store.setHydration('loading');
     try{
       // QA-only Coach rollout. Never infer authorization from this account
@@ -770,10 +780,24 @@ export async function createM26Application({root=document.querySelector('#app'),
         runtime,runtimeConfig,email:session?.user?.email,reason,
         probe:globalThis.__IBERFIT_QA_AUTH_ONLY_CORE_PROBE__===true,
       });
+      // U80 only in the exact QA Coach fixture: authenticated core first.
+      // All roles on PROD and all other QA accounts retain existing behavior.
+      if(coachHistoryDemand&&(!qaAtomicCoach||!requestedHistoryClient||
+        !store.getState().collections.clients.some(client=>String(client.id)===requestedHistoryClient)))
+        throw new Error('M26_COACH_HISTORY_SCOPE_FORBIDDEN');
+      const assertHistoryLease=()=>{
+        requireOwner();
+        if(coachHistoryDemand&&String(store.getState().selectedClientId||'')!==requestedHistoryClient)
+          throw new Error('M26_COACH_HISTORY_SELECTION_CHANGED');
+      };
       const primarySnapshot=qaAtomicCoach
-        ?qaCoreAuthSmoke
-          ?transport.bootstrapQaCoachCoreAuthSmoke(currentToken(),{assertOwner:requireOwner,signal})
-          :transport.bootstrapQaCoachWithHistory(currentToken(),{assertOwner:requireOwner,signal})
+        ?coachHistoryDemand&&!qaCoreAuthSmoke
+          ?transport.bootstrapQaCoachWithHistory(currentToken(),{
+            assertOwner:assertHistoryLease,signal,clientId:requestedHistoryClient,
+          })
+          :transport.bootstrapQaCoachCoreAuthSmoke(currentToken(),{
+            assertOwner:requireOwner,signal,
+          })
         :transport.bootstrap(currentToken(),{signal});
       const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
         primarySnapshot,
@@ -852,25 +876,103 @@ export async function createM26Application({root=document.querySelector('#app'),
           clientId:String(scopedSnapshot?.user?.clientId||scopedSnapshot?.user?.client_id||''),
         }):wearableV44.dailySummaries||[],wearableConsents:wearableV44.consents||[]},environment:{...normalizedEnvironment,commandRegistry:installed,reason,backendV43,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},wearableV44:{ready:wearableV44.ready===true,version:wearableV44.version||'RC44'},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
       requireOwner(); // No stale account may write to the shared canonical store.
+      if(coachHistoryDemand){
+        assertHistoryLease();
+        const latest=store.getState();
+        if(JSON.stringify(latest.remoteRevisions||{})!==revisionLease
+          ||JSON.stringify(latest.lastAck??null)!==ackLease)
+          throw new Error('M26_COACH_HISTORY_CONCURRENT_CHANGE');
+      }
       qaStage('rc64-hydrate-store-start');
       store.hydrate(enriched);
+      if(qaAtomicCoach)qaCoachHistory={
+        status:coachHistoryDemand?'ready':'idle',
+        clientId:coachHistoryDemand?requestedHistoryClient:null,
+      };
       if(roleChoiceConfirmed)writePreferredApplicationRole(session?.user?.id,activeRole);
       qaStage('rc64-hydrate-store-ready');
       qaStage('rc64-hydrate-ready');
       return {snapshot:enriched,installed,runtimeRegistry};
     }catch(error){
-      // A previous owner's failure cannot turn the new owner's workspace red.
-      if(hydrationLeaseFor(session)===requestedOwner)store.setHydration('error',error);
+      // A selected client's optional archive must never evict an already
+      // authenticated core or force a new password/passkey ceremony.
+      if(hydrationLeaseFor(session)===requestedOwner){
+        if(coachHistoryDemand)store.setHydration('ready');
+        else store.setHydration('error',error);
+      }
       throw error;
     }
   }
   const hydrationCoordinator=createHydrationCoordinator(hydratePass,{getOwner:()=>hydrationLeaseFor(session)});
+  // Selection changes cancel the active private read. No old client's pages
+  // may be committed after a different client is selected.
+  const stopQaCoachHistorySelectionGuard=store.subscribe(state=>{
+    if(qaCoachHistory.status==='loading'&&
+      String(state?.selectedClientId||'')!==qaCoachHistory.clientId){
+      hydrationCoordinator.cancel();
+      qaCoachHistory={status:'idle',clientId:null};
+    }
+  });
   function hydrate(options={}){
     return hydrationCoordinator.request(options);
+  }
+  function renderQaCoachHistoryGate(status){
+    const loading=status==='loading',failed=status==='error';
+    const message=loading
+      ?'Consultando el expediente completo del cliente seleccionado. La navegación seguirá disponible al terminar.'
+      :failed
+        ?'El expediente no pudo verificarse completamente. Ningún registro se ha eliminado. Reintenta la consulta.'
+        :'El historial de este cliente aún no se ha consultado. Para mostrar resultados fiables, carga el expediente confirmado.';
+    const action=loading
+      ?'<p role="status" aria-live="polite">Verificando historial y revisiones…</p>'
+      :'<button type="button" class="m26-primary-action" data-m26-qa-coach-history-load>Consultar expediente completo</button>';
+    return '<section class="m26-panel" data-m26-coach-history-gate data-status="'+status+'">'+
+      '<div class="m26-panel-heading"><div><p class="m26-eyebrow">Expediente del cliente</p>'+
+      '<h2>Historial bajo demanda</h2><p>'+message+'</p></div></div>'+action+'</section>';
+  }
+  async function onQaCoachHistoryClick(event){
+    const target=event?.target?.closest?.('[data-m26-qa-coach-history-load]');
+    if(!target)return;
+    event.preventDefault();
+    const state=store.getState();
+    const clientId=String(state.selectedClientId||'');
+    if(!session?.token||runtime.qaOnly!==true||state.identity?.role!=='coach'
+      ||String(session?.user?.email||'').trim().toLowerCase()!=='qa.rc74.coach@iberfit.cl'
+      ||!state.collections.clients.some(client=>String(client.id)===clientId)
+      ||(qaCoachHistory.status==='loading'&&qaCoachHistory.clientId===clientId))return;
+    const lease=hydrationLeaseFor(session);
+    qaCoachHistory={status:'loading',clientId};
+    render();
+    try{await hydrate({reason:'coach-history-demand'});}
+    catch(error){
+      if(hydrationLeaseFor(session)===lease
+        &&store.getState().selectedClientId===clientId){
+        qaCoachHistory={status:'error',clientId};
+        render();
+      }
+    }
   }
   function renderRoute(shellVm,state){
     qaStage('rc64-route-start');
     const role=shellVm?.identity?.role||state?.identity?.role||'client';
+    // Only the QA Coach is progressive; all other roles retain the full UI.
+    // Never present missing archived data as zero activity or a clean report.
+    const isQaCoach=role==='coach'&&runtime.qaOnly===true
+      &&String(session?.user?.email||'').trim().toLowerCase()==='qa.rc74.coach@iberfit.cl';
+    const selected=String(state?.selectedClientId||'');
+    const historyReady=isQaCoach&&qaCoachHistory.status==='ready'
+      &&qaCoachHistory.clientId===selected;
+    if(isQaCoach&&!historyReady&&!sessionUi?.draft&&!sessionUi?.execution){
+      const status=qaCoachHistory.clientId===selected
+        &&['loading','error'].includes(qaCoachHistory.status)
+        ?qaCoachHistory.status:'idle';
+      const gate=renderQaCoachHistoryGate(status);
+      const area=String(shellVm?.activeArea||'');
+      if(!['clientes','ajustes'].includes(area))
+        return '<div class="m26-route">'+gate+'</div>';
+      // Client directory and account settings remain usable, while all
+      // historical decisions require the confirmed, selected-client archive.
+    }
 
     const memoryClientId=String(
       sessionUi?.draft?.clientId||
@@ -951,6 +1053,12 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-route-vm-ready');
     const markup=renderRouteView(routeVm);
     qaStage('rc64-route-html-ready');
+    if(isQaCoach&&!historyReady&&['clientes','ajustes'].includes(String(shellVm?.activeArea||''))){
+      const status=qaCoachHistory.clientId===selected
+        &&['loading','error'].includes(qaCoachHistory.status)
+        ?qaCoachHistory.status:'idle';
+      return renderQaCoachHistoryGate(status)+markup;
+    }
     return markup;
   }
   function render(){shell?.render?.();}
@@ -2483,6 +2591,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   root.addEventListener('submit', onSubmit);
   root.addEventListener('click', guardPendingSessionEntry, true);
   root.addEventListener('click', onAuthClick);
+  root.addEventListener('click', onQaCoachHistoryClick);
 
   const recovery = inspectPasswordRecoveryHash(
     locationLike?.hash || ''
@@ -2556,6 +2665,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   root.removeEventListener('submit', onSubmit);
   root.removeEventListener('click', guardPendingSessionEntry, true);
   root.removeEventListener('click', onAuthClick);
+  root.removeEventListener('click', onQaCoachHistoryClick);
+  stopQaCoachHistorySelectionGuard();
   void transport?.logout?.(recoveryToken,{scope:'local'}).catch(() => {});
 }
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
