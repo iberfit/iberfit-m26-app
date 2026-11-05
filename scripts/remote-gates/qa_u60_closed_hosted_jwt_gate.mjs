@@ -68,7 +68,7 @@ async function rpc(key,token,name,payload){
 }
 async function allowed(key,token,name,payload){
   const res=await rpc(key,token,name,payload);
-  assert(res.status===200,'IDENTITY_RPC_FAILED');
+  assert(res.status===200,'IDENTITY_RPC_FAILED_'+name.toUpperCase()+'_HTTP_'+res.status);
   return res.body;
 }
 async function run(){
