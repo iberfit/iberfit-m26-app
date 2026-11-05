@@ -503,7 +503,7 @@ function renderCoachHoyRoute(vm) {
 // The IRI assessment is an initial diagnosis, not a longitudinal KPI.
  // Training states below use only publication and execution evidence already
  // authorized for this Client. This strip is orientation, never a permission gate.
-function renderClientTrainingJourney({planReady=false,projections=[],serviceActive=false,runnable=null,standaloneGuided=null}={}){
+function renderClientTrainingJourney({planReady=false,projections=[],serviceActive=false,runnable=null,standaloneGuided=null,first28=null}={}){
   const published=Array.isArray(projections)&&projections.length>0;
   const executable=serviceActive&&Boolean(runnable||standaloneGuided);
   const planState=planReady?'available':'pending';
@@ -513,21 +513,38 @@ function renderClientTrainingJourney({planReady=false,projections=[],serviceActi
     :executable?'Hay una sesión lista para empezar'
     :published?'Tienes sesiones para consultar'
     :'Aparecerán aquí cuando estén publicadas';
+  const followUp=first28?.actionsAreNavigationOnly===true&&first28?.days===28
+    &&Number.isSafeInteger(first28.day)&&first28.day>=1&&first28.day<=28?first28:null;
+  const hasConfirmedSession=Number.isSafeInteger(followUp?.confirmedSessions)
+    &&followUp.confirmedSessions>0;
+  const hasConfirmedCheckin=Number.isSafeInteger(followUp?.confirmedCheckins)
+    &&followUp.confirmedCheckins>0;
   const steps=[
     {title:'Planificación',detail:planDetail,state:planState},
     {title:'Sesiones',detail:sessionDetail,state:sessionState},
-    {title:'Seguimiento',detail:'Evolución basada en registros reales',state:'reference'},
+    {title:'Seguimiento',detail:hasConfirmedSession?'Entrenamiento confirmado en el historial reciente'
+      :hasConfirmedCheckin?'Bienestar registrado como contexto'
+      :'Evolución basada en registros reales',state:hasConfirmedSession||hasConfirmedCheckin?'available':'reference'},
   ];
+  const first28Copy=followUp?'<p class="m26-client-first28" data-m26-first28="'+followUp.day
+    +'" aria-label="Primeros 28 días desde el alta">'
+    +'<span>Primeros 28 días</span> · <span>Día</span> <strong>'+followUp.day
+    +'</strong> <span>de 28 desde tu alta</span></p>':'';
+  const first28Action=followUp&&['sesion','actividad','progreso','planificacion'].includes(followUp.next?.area)
+    ?'<button type="button" class="m26-text-action" data-m26-area="'+escapeHtml(followUp.next.area)+'">'
+      +escapeHtml(followUp.next.label)+'</button>':'';
   return `<section class="m26-client-home-journey" data-m26-client-training-journey aria-labelledby="m26-client-journey-title">
     <div class="m26-client-home-journey-heading">
       <div><span class="m26-client-home-journey-kicker">El método IBERFIT</span>
       <h3 id="m26-client-journey-title">Tu proceso de entrenamiento</h3></div>
       <p>Planificar, entrenar y evaluar. Cada etapa con criterio.</p>
     </div>
+    ${first28Copy}
     <ol class="m26-client-home-journey-steps">${steps.map((step,index)=>`<li data-journey-state="${step.state}">
       <span class="m26-client-home-journey-number" aria-hidden="true">${String(index+1).padStart(2,'0')}</span>
       <div><strong>${escapeHtml(step.title)}</strong><small>${escapeHtml(step.detail)}</small></div>
     </li>`).join('')}</ol>
+    ${first28Action}
   </section>`;
 }
 
@@ -915,7 +932,7 @@ function renderClientHoyRoute(vm) {
 
     ${renderClientTodayHealth(vm.wearables)}
     ${healthActivationMarkup}
-    ${trainingSurface?`<details class="m26-client-home-method-disclosure"><summary>Tu proceso de entrenamiento</summary>${renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided})}</details>`:''}
+    ${trainingSurface?`<details class="m26-client-home-method-disclosure"><summary>Tu proceso de entrenamiento</summary>${renderClientTrainingJourney({planReady,projections,serviceActive,runnable,standaloneGuided,first28:vm.clientFirst28})}</details>`:''}
 
     <details class="m26-client-home-secondary-disclosure">
       <summary data-m26-client-guide="secondary-actions">

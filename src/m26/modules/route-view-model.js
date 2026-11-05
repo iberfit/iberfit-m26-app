@@ -33,6 +33,7 @@ import { buildAdaptiveSessionContext } from '../intelligence/adaptive-context.js
 import { deriveAdaptiveExperience } from '../experience/adaptive-experience.js';
 import { buildWearableViewModel } from '../wearables/view-model.js';
 import {buildClientDayContext} from '../experience/client-day-context.js';
+import {buildClientFirst28Activation} from '../experience/first28-activation.js';
 import {
   IBERFIT_UI_LOCALE,
   castilianStatusLabel,
@@ -582,6 +583,12 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     const clientDayContext=overview.role==='client'&&clientId
       ?buildClientDayContext({clientId,progress:clientProgressSummary,
         wearables:clientWearables,now}):null;
+    const clientFirst28=overview.role==='client'&&clientId
+      ?buildClientFirst28Activation({
+        clientId,client:clientRecord(state,clientId),
+        experience:clients.find(item=>item?.id===clientId)?.experience||null,
+        progress:clientProgressSummary,now,
+      }):null;
     qaStage('rc64-hoy-ready');
 
     return Object.freeze({
@@ -597,6 +604,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       clientProgressSummary:overview.role==='client'?clientProgressSummary:null,
       wearables:clientWearables,
       clientDayContext,
+      clientFirst28,
       clientGuide,
       operations: Object.freeze(overview.operations),
       alerts: Object.freeze(alerts),
@@ -1046,6 +1054,7 @@ if (area === 'clientes') {
     const decisionBrief=buildIberfitDecisionBrief({
       summary,
       alerts,
+      now,
     });
 
     return Object.freeze({

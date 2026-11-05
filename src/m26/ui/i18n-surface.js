@@ -5,6 +5,14 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // First28 is measured from actual Client enrollment; no invented session data.
+  ["Primeros 28 días","First 28 days","28 premiers jours","Primeiros 28 dias"],
+  ["Día","Day","Jour","Dia"],
+  ["de 28 desde tu alta","of 28 since enrollment","sur 28 depuis votre inscription","de 28 desde a sua inscrição"],
+  ["Primeros 28 días desde el alta","First 28 days since enrollment","28 premiers jours depuis l’inscription","Primeiros 28 dias desde a inscrição"],
+  ["Consultar mi planificación","View my plan","Voir mon programme","Consultar o meu planeamento"],
+  ["Entrenamiento confirmado en el historial reciente","Workout confirmed in recent history","Entraînement confirmé dans l’historique récent","Treino confirmado no histórico recente"],
+  ["Bienestar registrado como contexto","Wellbeing recorded as context","Bien-être enregistré comme contexte","Bem-estar registado como contexto"],
   // Life360: upcoming-only weekly rail is not the full historical calendar.
   ["No se muestran próximas citas confirmadas esta semana","No upcoming confirmed appointments are shown this week","Aucun rendez-vous confirmé à venir n’est affiché cette semaine","Não são mostradas marcações futuras confirmadas nesta semana"],
   // Life360 Coach follow-up is separate from the original IRI; four-language parity.
