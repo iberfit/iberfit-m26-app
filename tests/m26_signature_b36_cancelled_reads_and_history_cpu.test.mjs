@@ -96,5 +96,8 @@ test('B36 cancellation also fences logout, account switch, expiry and app teardo
   assert.match(app,/if\(action==='use-another-account'\)\{\s*hydrationCoordinator\.cancel\(\)/);
   assert.match(app,/function discardSessionAfterFailure\([^\n]+\)\{\s*hydrationCoordinator\.cancel\(\)/);
   assert.match(app,/async function hydratePass\(\{reason='bootstrap',ownerSession,signal\}/);
-  assert.match(app,/bootstrapQaCoachWithHistory\(currentToken\(\),\{assertOwner:requireOwner,signal\}\)/);
+  assert.match(app,/bootstrapQaCoachWithHistory\(currentToken\(\),\{/u);
+  assert.match(app,/assertOwner:assertHistoryLease,signal,clientId:requestedHistoryClient/u);
+  assert.match(app,/hydrationCoordinator\.cancel\(\)/u);
+  assert.match(app,/M26_COACH_HISTORY_SELECTION_CHANGED/u);
 });
