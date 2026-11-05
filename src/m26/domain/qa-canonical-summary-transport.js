@@ -28,6 +28,123 @@ function validLineage(row,e){
    &&Number.isSafeInteger(Number(row.revision))&&Number(row.revision)>=0
    &&Number(row.revision)===Number(e.revision)&&Number(row.revision)===Number(b.revision);
 }
+// U81 QA Coach · compact the immutable U38 historical snapshot without
+// dropping a single entity/event or relaxing the 20 MB hydration wire cap.
+// Tuple encoding removes thousands of repeated JSON property names; optional
+// per-column dictionaries reference exactly the original strings. Every row
+// is reconstructed before canonical reconciliation, reports or UI can read it.
+const HISTORY_PACKS=Object.freeze({
+  m26Entities:'__iberfitQaHistoryEntityTuplesV1',
+  domainEvents:'__iberfitQaHistoryEventTuplesV1',
+});
+const MAX_TUPLE_ROWS=50_000;
+const MAX_TUPLE_COLUMNS=48;
+const MAX_TUPLE_DICTIONARY=16_384;
+const SAFE_COLUMN=/^[a-zA-Z][a-zA-Z0-9_]{0,79}$/u;
+const FORBIDDEN_COLUMN=new Set(['__proto__','constructor','prototype']);
+const bytes=value=>new TextEncoder().encode(JSON.stringify(value)).length;
+function failPack(){throw new Error('U81_QA_HISTORY_TUPLE_INVALID');}
+function packHistorySection(snapshot,section){
+  const rows=snapshot?.data?.[section];
+  if(!qaCoach(snapshot)||!Array.isArray(rows)||rows.length<2||
+     rows.length>MAX_TUPLE_ROWS||!rows.every(object))return rows;
+  const marker=HISTORY_PACKS[section];
+  if(!marker)return rows;
+  const cols=Object.keys(rows[0]);
+  if(cols.length<3||cols.length>MAX_TUPLE_COLUMNS||
+    cols.some(col=>!SAFE_COLUMN.test(col)||FORBIDDEN_COLUMN.has(col))||
+    new Set(cols).size!==cols.length)return rows;
+  const scope=section==='m26Entities'?'clientId':'client_id';
+  const identity=section==='m26Entities'?'entityId':'id';
+  if(!cols.includes(scope)||!cols.includes(identity))return rows;
+  const authorized=new Set((snapshot.data.clients||[]).map(client=>str(client?.id)));
+  if(!rows.every(row=>Object.keys(row).length===cols.length
+    &&cols.every(col=>Object.prototype.hasOwnProperty.call(row,col))
+    &&authorized.has(str(row[scope]))))return rows;
+  const tuples=rows.map(row=>cols.map(col=>row[col]));
+  const dictionaries=Object.create(null);
+  // String columns with many repeated values (Client, actor, operation
+  // type, entity/status) get numeric references; null stays null.
+  for(let col=0;col<cols.length;col++){
+    const values=tuples.map(row=>row[col]);
+    if(!values.every(value=>value===null||typeof value==='string'))continue;
+    const unique=[...new Set(values.filter(value=>typeof value==='string'))];
+    if(!unique.length||unique.length>MAX_TUPLE_DICTIONARY)continue;
+    const indexes=new Map(unique.map((value,index)=>[value,index]));
+    const encoded=values.map(value=>value===null?null:indexes.get(value));
+    if(bytes(values)-bytes(encoded)-bytes(unique)<96)continue;
+    dictionaries[col]=unique;
+    for(let i=0;i<tuples.length;i++)tuples[i][col]=encoded[i];
+  }
+  const packed=[{[marker]:{version:1,columns:cols,dictionaries,rows:tuples}}];
+  return bytes(rows)-bytes(packed)>=256?packed:rows;
+}
+function expandHistorySection(snapshot,section){
+  const rows=snapshot?.data?.[section],marker=HISTORY_PACKS[section];
+  if(!Array.isArray(rows)||!marker)return rows;
+  if(!rows.some(row=>object(row)&&Object.prototype.hasOwnProperty.call(row,marker)))return rows;
+  if(!qaCoach(snapshot)||rows.length!==1||!object(rows[0])||
+    Object.keys(rows[0]).length!==1)failPack();
+  const packet=rows[0][marker];
+  if(!object(packet)||packet.version!==1||
+    Object.keys(packet).length!==4||
+    !Array.isArray(packet.columns)||!Array.isArray(packet.rows)||
+    !object(packet.dictionaries))failPack();
+  const cols=packet.columns,tuples=packet.rows,dict=packet.dictionaries;
+  if(cols.length<3||cols.length>MAX_TUPLE_COLUMNS||
+    tuples.length<1||tuples.length>MAX_TUPLE_ROWS||
+    cols.some(col=>typeof col!=='string'||!SAFE_COLUMN.test(col)||
+      FORBIDDEN_COLUMN.has(col))||
+    new Set(cols).size!==cols.length)failPack();
+  const scope=section==='m26Entities'?'clientId':'client_id';
+  const identity=section==='m26Entities'?'entityId':'id';
+  if(!cols.includes(scope)||!cols.includes(identity))failPack();
+  const dictionaries=new Map();
+  for(const [key,values] of Object.entries(dict)){
+    const index=Number(key);
+    if(!/^(0|[1-9][0-9]*)$/u.test(key)||!Number.isSafeInteger(index)||
+      index>=cols.length||!Array.isArray(values)||
+      !values.length||values.length>MAX_TUPLE_DICTIONARY||
+      !values.every(value=>typeof value==='string')||
+      new Set(values).size!==values.length)failPack();
+    dictionaries.set(index,values);
+  }
+  const authorized=new Set((snapshot.data.clients||[]).map(client=>str(client?.id)));
+  const expanded=tuples.map(tuple=>{
+    if(!Array.isArray(tuple)||tuple.length!==cols.length)failPack();
+    const record={};
+    for(let i=0;i<cols.length;i++){
+      const values=dictionaries.get(i),raw=tuple[i];
+      if(values){
+        if(raw!==null&&(!Number.isSafeInteger(raw)||raw<0||raw>=values.length))failPack();
+        record[cols[i]]=raw===null?null:values[raw];
+      }else record[cols[i]]=raw;
+    }
+    if(!authorized.has(str(record[scope])))failPack();
+    return record;
+  });
+  return expanded;
+}
+function compactQaHistoryTuples(snapshot){
+  if(!qaCoach(snapshot))return snapshot;
+  const data={...snapshot.data};
+  let changed=false;
+  for(const section of Object.keys(HISTORY_PACKS)){
+    const packed=packHistorySection(snapshot,section);
+    if(packed!==snapshot.data[section]){data[section]=packed;changed=true;}
+  }
+  return changed?{...snapshot,data}:snapshot;
+}
+function expandQaHistoryTuples(snapshot){
+  const data={...snapshot?.data};
+  let changed=false;
+  for(const section of Object.keys(HISTORY_PACKS)){
+    const expanded=expandHistorySection(snapshot,section);
+    if(expanded!==snapshot?.data?.[section]){data[section]=expanded;changed=true;}
+  }
+  return changed?{...snapshot,data}:snapshot;
+}
+
 export function compactQaCanonicalExecutionSummaries(snapshot){
  if(!qaCoach(snapshot)||!Array.isArray(snapshot?.data?.sessionExecutions))return snapshot;
  const byId=index(snapshot);let count=0;
@@ -38,9 +155,11 @@ export function compactQaCanonicalExecutionSummaries(snapshot){
   count++;
   return {...row,summary:{[REF]:row.id}};
  });
- return count?{...snapshot,data:{...snapshot.data,sessionExecutions:rows}}:snapshot;
+ const withSummaries=count?{...snapshot,data:{...snapshot.data,sessionExecutions:rows}}:snapshot;
+ return compactQaHistoryTuples(withSummaries);
 }
 export function expandQaCanonicalExecutionSummaries(snapshot){
+ snapshot=expandQaHistoryTuples(snapshot);
  const rows=snapshot?.data?.sessionExecutions;
  if(!Array.isArray(rows))return snapshot;
  let byId=null,count=0;
@@ -58,4 +177,4 @@ export function expandQaCanonicalExecutionSummaries(snapshot){
  });
  return count?{...snapshot,data:{...snapshot.data,sessionExecutions:expanded}}:snapshot;
 }
-export const __qaCanonicalSummaryTransportInternals=Object.freeze({REF});
+export const __qaCanonicalSummaryTransportInternals=Object.freeze({REF,HISTORY_PACKS,MAX_TUPLE_ROWS});
