@@ -1,0 +1,79 @@
+name: IBERFIT U71 Real QA Coach Client Coach Dated E2E
+
+# Attempt 1: READ-ONLY hosted JWT preflight. No writes. Only an explicit
+# re-run of the SAME successful job (attempt 2, same SHA/runId, <=2h) may
+# create bounded synthetic QA appointments and two dated occurrences.
+# NEVER applies to PROD, and cannot use service-role or cross-client grants.
+on:
+  push:
+    branches: ['feat/u60-training360-r50-reconciled-20261104']
+    paths:
+      - '.github/workflows/u71-qa-real-dated-e2e.yml'
+      - 'scripts/remote-gates/qa_u60_real_dated_journey.mjs'
+      - 'tests/m26_u71_qa_real_dated_journey.test.mjs'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: iberfit-qa-shared-auth-readonly
+  cancel-in-progress: false
+
+jobs:
+  real-qa-dated:
+    name: QA dated Coach to Client to Coach, explicit-write replay only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: m26-canary-readonly
+    env:
+      M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+      M26_QA_ONLY: 'true'
+      M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+      M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+      M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+      M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+      M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+      M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+      M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+      M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate ISO date, owner, idempotency and least-privilege contracts
+        run: node --test tests/m26_u71_qa_real_dated_journey.test.mjs
+      - name: READ-ONLY source eligibility, Coach authorization, and signed client scopes
+        if: ${{ github.run_attempt == 1 }}
+        run: node scripts/remote-gates/qa_u60_real_dated_journey.mjs preflight
+      - name: Store proof for exact-SHA explicitly re-run job
+        if: ${{ github.run_attempt == 1 }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-u71-first-${{ github.run_id }}
+          path: recovery/u71-qa-authenticated-workout/evidence.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Load authenticated read-only preflight from original attempt
+        if: ${{ github.run_attempt == 2 }}
+        uses: actions/download-artifact@v4
+        with:
+          name: iberfit-u71-first-${{ github.run_id }}
+          path: .tmp/u71-first
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+      - name: Real QA synthetic appointments, two dates, save, finish, Coach readback
+        if: ${{ github.run_attempt == 2 }}
+        run: node scripts/remote-gates/qa_u60_real_dated_journey.mjs apply
+      - name: Preserve PII-free signed-QA outcome and recovery phase
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-u71-dated-result-${{ github.run_id }}-${{ github.run_attempt }}
+          path: recovery/u71-qa-authenticated-workout/evidence.json
+          if-no-files-found: warn
+          retention-days: 14
