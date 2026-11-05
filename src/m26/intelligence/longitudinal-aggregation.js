@@ -16,6 +16,8 @@ export const LONGITUDINAL_AGGREGATION_SCHEMA_VERSION=
   'iberfit.longitudinal-aggregation.v1';
 
 export const LONGITUDINAL_WINDOWS=Object.freeze([7,28,90]);
+// Chart-only year window; existing progress and adherence use 7/28/90 without extra processing.
+export const LONGITUDINAL_EXPLORER_WINDOWS=Object.freeze([7,28,90,365]);
 export const LONGITUDINAL_BASELINE_DAYS=28;
 export const LONGITUDINAL_TREND_DAYS=90;
 export const LONGITUDINAL_MIN_TREND_DAYS=7;
@@ -430,7 +432,7 @@ export function buildLongitudinalAggregation(
 
   const windows=deepFreeze(
     Object.fromEntries(
-      LONGITUDINAL_WINDOWS.map((days)=>[
+      LONGITUDINAL_EXPLORER_WINDOWS.map((days)=>[
         `d${days}`,
         windowSnapshot(records,endDate,days),
       ])
@@ -515,9 +517,11 @@ export function buildLongitudinalAggregation(
           d7:windows.d7.metrics[key].average,
           d28:windows.d28.metrics[key].average,
           d90:windows.d90.metrics[key].average,
+          d365:windows.d365.metrics[key].average,
           coverage7:windows.d7.metrics[key].coverage,
           coverage28:windows.d28.metrics[key].coverage,
           coverage90:windows.d90.metrics[key].coverage,
+          coverage365:windows.d365.metrics[key].coverage,
           unit:WEARABLE_METRICS[key].unit,
         }),
       ])
@@ -560,6 +564,8 @@ export function buildLongitudinalAggregation(
       vfcComparability:'same_known_method_required',
       missingData:'not_imputed',
       coverageAlwaysReported:true,
+      historicalWindowMaxDays:365,
+      historicalWindowOnlyUsesAuthorizedRecords:true,
     }),
     decisionPolicy:deepFreeze({
       automaticPrescriptionChanges:false,

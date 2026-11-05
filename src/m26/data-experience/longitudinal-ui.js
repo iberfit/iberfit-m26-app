@@ -204,6 +204,21 @@ function fallbackTable(metric,meta){
   return `<details class="m26-data-fallback"><summary>Ver datos del gráfico</summary><div class="m26-data-table-wrap"><table><thead><tr><th>Fecha</th><th>${escapeHtml(meta.label)}</th><th>Calidad</th></tr></thead><tbody>${points.map((point)=>`<tr><td>${escapeHtml(point.date)}</td><td>${escapeHtml(valueText(point.value,meta.unit,1))}</td><td>${escapeHtml(point.quality||'—')}</td></tr>`).join('')}</tbody></table></div></details>`;
 }
 
+const EVOLUTION_PERIOD_DAYS=Object.freeze([7,28,90,365]);
+function periodSeriesForMetric(aggregate,key){
+  const values=Object.fromEntries(EVOLUTION_PERIOD_DAYS.map((days)=>{
+    const metric=aggregate?.windows?.[`d${days}`]?.metrics?.[key];
+    return [days,{
+      points:(metric?.points||[]).map(({date,value,quality})=>({date,value,quality})),
+      daysWithData:metric?.daysWithData??0,
+      coverage:metric?.coverage??null,
+      average:metric?.average??null,
+      startDate:metric?.startDate??null,
+      endDate:metric?.endDate??null,
+    }];
+  }));
+  return escapeHtml(JSON.stringify(values));
+}
 function metricCard(aggregate,key,role){
   const professional=role!=='client';
   const chartWindow=professional
@@ -257,7 +272,8 @@ function metricCard(aggregate,key,role){
     ${trustStrip}
   `;
 
-  return `<article class="m26-panel m26-data-metric-card" data-metric="${escapeHtml(key)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${professional?'Comparativa longitudinal':'Evolución'}</p><div class="m26-guidance-inline"><h3>${escapeHtml(meta.label)}</h3>${metricGuidance}</div></div><span class="m26-chip">${professional?'90 días':'28 días'}</span></div>${professional?coachSummary:clientSummary}<m26-echart class="m26-echart" data-label="${escapeHtml(meta.label)}" data-unit="${escapeHtml(meta.unit)}" data-points="${chartPayload(metric.points)}"${references} aria-label="${escapeHtml(`${meta.label}, evolución de ${professional?'90':'28'} días con media de 28 días${professional&&comparison?.comparable?' y baseline previo':''}`)}"></m26-echart>${fallbackTable(metric,meta)}</article>`;
+  const defaultPeriod=professional?90:28;
+  return `<article class="m26-panel m26-data-metric-card" data-metric="${escapeHtml(key)}" data-m26-period-series="${periodSeriesForMetric(aggregate,key)}" data-m26-current-period="${defaultPeriod}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${professional?'Comparativa longitudinal':'Evolución'}</p><div class="m26-guidance-inline"><h3>${escapeHtml(meta.label)}</h3>${metricGuidance}</div></div><span class="m26-chip">${professional?'90 días':'28 días'}</span></div>${professional?coachSummary:clientSummary}<m26-echart class="m26-echart" data-label="${escapeHtml(meta.label)}" data-unit="${escapeHtml(meta.unit)}" data-points="${chartPayload(metric.points)}"${references} aria-label="${escapeHtml(`${meta.label}, evolución de ${professional?'90':'28'} días con media de 28 días${professional&&comparison?.comparable?' y baseline previo':''}`)}"></m26-echart><p class="m26-data-next-step" data-m26-visible-period-label role="status">Ventana del gráfico: ${defaultPeriod} días · ${escapeHtml(dataDaysText(metric))} días con dato.</p>${fallbackTable(metric,meta)}</article>`;
 }
 
 function adherencePanel(aggregate,role){
@@ -303,6 +319,84 @@ export function applyEvolutionMetricSelection(cards,requested=''){
   return chosen;
 }
 
+function renderSelectedPeriodTable(card,points,label,unit){
+  const doc=card?.ownerDocument||globalThis.document;
+  if(typeof doc?.createElement!=='function')return;
+  const old=card.querySelector?.('.m26-data-fallback,.m26-empty-copy');
+  if(!old)return;
+  if(!points.length){
+    const empty=doc.createElement('p');
+    empty.className='m26-empty-copy';
+    empty.textContent='Sin días con datos en este periodo.';
+    old.replaceWith(empty);
+    return;
+  }
+  const details=doc.createElement('details');
+  details.className='m26-data-fallback';
+  const summary=doc.createElement('summary');
+  summary.textContent='Ver datos del gráfico';
+  details.appendChild(summary);
+  const wrap=doc.createElement('div');
+  wrap.className='m26-data-table-wrap';
+  const table=doc.createElement('table');
+  const thead=doc.createElement('thead');
+  const header=doc.createElement('tr');
+  for(const name of ['Fecha',label,'Calidad']){
+    const th=doc.createElement('th');
+    th.textContent=name;
+    header.appendChild(th);
+  }
+  thead.appendChild(header);
+  table.appendChild(thead);
+  const tbody=doc.createElement('tbody');
+  for(const point of points){
+    const tr=doc.createElement('tr');
+    for(const text of [point.date,valueText(point.value,unit,1),point.quality||'—']){
+      const td=doc.createElement('td');
+      td.textContent=String(text||'');
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  details.appendChild(wrap);
+  old.replaceWith(details);
+}
+export function applyEvolutionPeriodSelection(cards,requested){
+  const days=Number(requested);
+  const chosen=EVOLUTION_PERIOD_DAYS.includes(days)?days:28;
+  for(const card of Array.from(cards||[])){
+    if(card?.dataset?.currentPeriod===String(chosen))continue;
+    let snapshot=null;
+    try{
+      const payload=JSON.parse(card?.getAttribute?.('data-m26-period-series')||'{}');
+      snapshot=payload?.[chosen]||null;
+    }catch{snapshot=null;}
+    if(!snapshot||!Array.isArray(snapshot.points))continue;
+    const chart=card.querySelector?.('m26-echart');
+    if(!chart||typeof chart.cloneNode!=='function')continue;
+    const replacement=chart.cloneNode(false);
+    replacement.setAttribute('data-points',JSON.stringify(snapshot.points));
+    replacement.setAttribute('aria-label',
+      String(chart.getAttribute('data-label')||'Métrica')+
+      ', evolución de '+chosen+' días con datos realmente registrados');
+    chart.replaceWith(replacement);
+    renderSelectedPeriodTable(card,snapshot.points,
+      String(chart.getAttribute('data-label')||'Métrica'),
+      String(chart.getAttribute('data-unit')||''));
+    const status=card.querySelector?.('[data-m26-visible-period-label]');
+    if(status){
+      const total=Number.isInteger(snapshot.daysWithData)?snapshot.daysWithData:0;
+      const coverage=finite(snapshot.coverage);
+      status.textContent='Ventana del gráfico: '+chosen+' días · '+total+
+        ' días con dato'+(coverage===null?'':', '+percent(coverage)+' de cobertura')+'.';
+    }
+    card.dataset.currentPeriod=String(chosen);
+  }
+  return chosen;
+}
+
 function registerEvolutionMetricExplorer(){
   const registry=globalThis.customElements;
   const Base=globalThis.HTMLElement;
@@ -310,7 +404,9 @@ function registerEvolutionMetricExplorer(){
     ||registry.get?.('m26-evolution-explorer'))return false;
   registry.define('m26-evolution-explorer',class extends Base{
     #select=null;
+    #periodSelect=null;
     #change=null;
+    #periodChange=null;
     connectedCallback(){
       this.#select=this.querySelector?.('[data-m26-evolution-metric]')||null;
       if(!this.#select)return;
@@ -324,10 +420,21 @@ function registerEvolutionMetricExplorer(){
           :'Mostrando '+String(this.#select.selectedOptions?.[0]?.textContent||'la métrica seleccionada')+'.';
       };
       this.#select.addEventListener?.('change',this.#change);
+      this.#periodSelect=this.querySelector?.('[data-m26-evolution-period]')||null;
+      this.#periodChange=()=>{
+        const period=applyEvolutionPeriodSelection(cards,this.#periodSelect?.value);
+        if(this.#periodSelect&&String(period)!==this.#periodSelect.value)
+          this.#periodSelect.value=String(period);
+      };
+      this.#periodSelect?.addEventListener?.('change',this.#periodChange);
       this.#change();
+      this.#periodChange();
     }
     disconnectedCallback(){
       if(this.#select&&this.#change)this.#select.removeEventListener?.('change',this.#change);
+      this.#periodSelect?.removeEventListener?.('change',this.#periodChange);
+      this.#periodSelect=null;
+      this.#periodChange=null;
       this.#select=null;
       this.#change=null;
     }
@@ -350,6 +457,11 @@ function renderEvolutionMetricExplorer(aggregate,metrics,role){
     '<label for="m26-evolution-metric-query">Consultar evolución de</label>'+
     '<select id="m26-evolution-metric-query" data-m26-evolution-metric aria-label="Elegir métrica para consultar su evolución">'+
     options+'<option value="all">Todas las métricas</option></select>'+
+    '<label for="m26-evolution-period-query">Periodo del gráfico</label>'+
+    '<select id="m26-evolution-period-query" data-m26-evolution-period aria-label="Periodo de la evolución">'+
+    EVOLUTION_PERIOD_DAYS.map((days)=>'<option value="'+days+'"'+
+      (days===(professional?90:28)?' selected':'')+'>'+days+' días</option>').join('')+
+    '</select>'+
     '<p data-m26-evolution-query-status role="status" aria-live="polite">'+
     'Selecciona una métrica. Para ver el conjunto completo, elige Todas las métricas.</p></div>';
   const grid='<div class="'+(professional
