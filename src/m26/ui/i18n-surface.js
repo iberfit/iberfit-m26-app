@@ -5,6 +5,8 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // Life360: upcoming-only weekly rail is not the full historical calendar.
+  ["No se muestran próximas citas confirmadas esta semana","No upcoming confirmed appointments are shown this week","Aucun rendez-vous confirmé à venir n’est affiché cette semaine","Não são mostradas marcações futuras confirmadas nesta semana"],
   // Life360 Coach follow-up is separate from the original IRI; four-language parity.
   ["Cambios desde la última revisión del Coach","Changes since the Coach’s last review","Changements depuis la dernière révision du coach","Alterações desde a última revisão do treinador"],
   ["Seguimiento profesional","Professional follow-up","Suivi professionnel","Acompanhamento profissional"],

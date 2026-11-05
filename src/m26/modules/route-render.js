@@ -572,7 +572,7 @@ export function renderClientWeekRail(upcoming,now=new Date()){
   return `<section class="m26-client-week-rail" data-client-week-rail data-week-confirmed-count="${confirmedDays}" aria-labelledby="m26-client-week-heading">
     <header class="m26-client-week-head"><div><p class="m26-eyebrow">TU SEMANA · AGENDA</p><h2 id="m26-client-week-heading">Semana del ${escapeHtml(title)}</h2></div><button type="button" data-m26-area="planificacion" aria-label="Ver planificación semanal">Ver mi plan<span aria-hidden="true">↗</span></button></header>
     <ol class="m26-client-week-days" aria-label="Semana de lunes a domingo">${cells}</ol>
-    <div class="m26-client-week-note"><span>${confirmedDays?`<i aria-hidden="true"></i>Citas confirmadas esta semana`:'Sin citas confirmadas esta semana'}</span><small>La planificación completa está en tu plan.</small></div>
+    <div class="m26-client-week-note"><span>${confirmedDays?`<i aria-hidden="true"></i>Citas confirmadas esta semana`:'No se muestran próximas citas confirmadas esta semana'}</span><small>La planificación completa está en tu plan.</small></div>
   </section>`;
 }
 

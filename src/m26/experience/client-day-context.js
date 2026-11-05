@@ -63,10 +63,19 @@ export function buildClientDayContext({clientId,progress=null,wearables=null,now
   const records=(Array.isArray(wearables?.dailyRecords)?wearables.dailyRecords:[])
     .filter(row=>row&&String(row.clientId||'')===id&&civilDate(row.date)===row.date)
     .filter(row=>{const days=ageDays(row.date,today);return days!==null&&days>=0&&days<=6;});
-  const lastDay=records.reduce((date,row)=>row.date>date?row.date:date,'')||null;
-  const day=lastDay?metricRows(records,lastDay):{metrics:Object.fromEntries(
+  // A newer, validly dated but empty sync row must not erase earlier measured
+  // evidence. Never average conflicting providers or turn missing values into 0.
+  const dates=[...new Set(records.map(row=>row.date))].sort((a,b)=>b.localeCompare(a));
+  const dated=dates.map(date=>({date,...metricRows(records,date)}));
+  const newest=dated[0]||null;
+  const lastValid=dated.find(row=>Object.values(row.metrics).some(item=>item!==null))||null;
+  const lastDay=lastValid?.date||newest?.date||null;
+  const day=lastValid||newest||{metrics:Object.fromEntries(
     ACTIVITY_FIELDS.map(([key])=>[key,null])),ambiguous:false};
-  const observed=Object.values(day.metrics).some(item=>item!==null);
+  const observed=Boolean(lastValid);
+  // Keep the newest day's disagreement visible even if the latest usable
+  // measurement came from an earlier day.
+  const ambiguous=Boolean(newest?.ambiguous||day.ambiguous);
   const historical=(Array.isArray(wearables?.historicalRecords)?wearables.historicalRecords:[])
     .filter(row=>row&&String(row.clientId||'')===id&&civilDate(row.date)===row.date)
     .filter(row=>{const days=ageDays(row.date,today);return days!==null&&days>=7;})
@@ -86,7 +95,7 @@ export function buildClientDayContext({clientId,progress=null,wearables=null,now
     movement:Object.freeze({
       date:lastDay||historical,
       status:observed?(lastDay===today?'today':'recent'):'missing',
-      metrics:day.metrics,ambiguous:day.ambiguous,
+      metrics:day.metrics,ambiguous,
     }),
     training:Object.freeze({
       completed28:confirmedSessions,
