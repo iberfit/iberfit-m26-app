@@ -104,8 +104,34 @@ function actionOutcomeTargets(root){
   return targets;
 }
 
+// One in-flight canonical intent per signed-in operator/client/action.
+// The backend command bus remains the authority for CAS, RLS and idempotency.
+export function engagementActionFlightKey({ownerId='',role='',clientId='',action='',targetId=''}={}){
+  return JSON.stringify([String(ownerId),String(role),String(clientId),String(action),String(targetId)]);
+}
+export function createEngagementActionFlightGuard(){
+  const pending=new Map();
+  return Object.freeze({
+    run(key,operation){
+      if(typeof key!=='string'||!key||typeof operation!=='function')
+        throw new Error('M26_ENGAGEMENT_FLIGHT_INVALID');
+      const existing=pending.get(key);
+      if(existing)return existing;
+      const task=Promise.resolve().then(operation);
+      pending.set(key,task);
+      const cleanup=()=>{if(pending.get(key)===task)pending.delete(key);};
+      // Both branches are handled; a rejected operation must be retryable
+      // without generating an unhandled rejection from the cleanup.
+      task.then(cleanup,cleanup);
+      return task;
+    },
+    has(key){return pending.has(key);},
+  });
+}
+
 export function createEngagementController({root,store,draftRepository,service,submitCheckin,savePrivateNote,refreshState}={}){
   if(!root?.addEventListener||!store?.getState||!draftRepository?.save)throw new Error('M26_ENGAGEMENT_CONTROLLER_REQUIRED');let mounted=false;let restoreScheduled=false;let renewalUiScheduled=false;let actionOutcomeUiScheduled=false;let renewalObserver=null;
+  const actionFlights=createEngagementActionFlightGuard();
   function context(){const state=store.getState();const role=String(state.identity?.role||'').toLowerCase();const clientId=['client','cliente'].includes(role)?state.identity?.clientId:state.selectedClientId;return {state,role,clientId};}
   function requireClient(){const {clientId}=context();if(!clientId)throw new Error('M26_CLIENT_CONTEXT_REQUIRED');return clientId;}
   function ensureCommercialRenewalManagers(){
@@ -400,7 +426,20 @@ export function createEngagementController({root,store,draftRepository,service,s
     setStatus(confirmed||root,'action-manager','Resultado confirmado y seguimiento cerrado.','success');
     return result;
   }
+  function flightKeyForAction(action,button){
+    const {state,role,clientId}=context();
+    const form=button?.closest?.('[data-engagement-form]')||null;
+    return engagementActionFlightKey({
+      ownerId:state.identity?.id||'',
+      role,
+      clientId:form?.dataset?.clientId||clientId||'',
+      action,
+      targetId:button?.getAttribute?.('data-habit-id')
+        ||form?.dataset?.trackingId||form?.dataset?.entityId||'',
+    });
+  }
   async function executeAction(action,button){
+    return actionFlights.run(flightKeyForAction(action,button),async()=>{
     const wasDisabled=Boolean(button?.disabled);
     if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
     try{
@@ -424,6 +463,7 @@ export function createEngagementController({root,store,draftRepository,service,s
     }finally{
       if(button){button.disabled=wasDisabled;button.removeAttribute('aria-busy');}
     }
+    });
   }
   async function onClick(event){const button=event.target.closest?.('[data-engagement-action]');if(!button)return;const action=button.getAttribute('data-engagement-action');if(button.closest?.('form')&&['submit-checkin','define-habit','save-commercial-renewal','save-action-tracking','save-action-outcome'].includes(action))return;event.preventDefault?.();await executeAction(action,button);}
   async function onSubmit(event){const form=event.target.closest?.('[data-engagement-form]');if(!form)return;event.preventDefault?.();const scope=form.getAttribute('data-engagement-form');const action=scope==='checkin'?'submit-checkin':scope==='habit-definition'?'define-habit':scope==='commercial-renewal'?'save-commercial-renewal':scope==='action-tracking'?'save-action-tracking':scope==='action-outcome'?'save-action-outcome':null;if(!action)return;const button=event.submitter?.matches?.(`[data-engagement-action="${action}"]`)?event.submitter:form.querySelector?.(`[data-engagement-action="${action}"]`);await executeAction(action,button);}
