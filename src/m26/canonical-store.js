@@ -39,6 +39,41 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     });
   }
 
+  // Route authorization needs only the verified identity, hydration lease,
+  // selected owner, visible client/service scope and Admin media flag.
+  // Keep the full getState() snapshot API for all other consumers; do not
+  // clone the Coach's 38-page U38 history on each physical route click.
+  function getRouteAuthorizationSnapshot() {
+    return {
+      activeArea:String(state.activeArea||''),
+      identity:state.identity?Object.freeze({
+        id:String(state.identity.id||''),
+        role:String(state.identity.role||''),
+        clientId:state.identity.clientId||null,
+      }):null,
+      hydration:Object.freeze({status:String(state.hydration?.status||'')}),
+      selectedClientId:state.selectedClientId||null,
+      collections:Object.freeze({clients:clone(state.collections?.clients||[])}),
+      admin:Object.freeze({
+        available:state.admin?.available===true,
+        organization:Object.freeze({settings:Object.freeze({
+          admin_media_review_enabled:state.admin?.organization?.settings?.admin_media_review_enabled===true,
+        })}),
+      }),
+    };
+  }
+
+  // Internal shell use: the state change and subscribed render are identical
+  // to navigate(), but the unused return value must not clone the whole
+  // authenticated archive a second time.
+  function navigateFast(activeArea) {
+    const next=String(activeArea||'hoy');
+    if(state.activeArea===next)return false;
+    state={...state,activeArea:next};
+    emit();
+    return true;
+  }
+
   function setHydration(status, error = null) {
     const nextError=errorText(error);const current=state.hydration||{};
     const hasAuthenticatedSnapshot=Boolean(state.identity)&&current.status==='ready';
@@ -129,5 +164,5 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return () => listeners.delete(listener);
   }
 
-  return Object.freeze({ getState, getNavigationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, projectOperations, acknowledge, subscribe });
+  return Object.freeze({ getState, getNavigationSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe });
 }

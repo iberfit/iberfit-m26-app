@@ -81,7 +81,29 @@ async function navigateViaActualControl(page,role,area){
   // Locator tap/click sends genuine pointer input, never a synthetic DOM event.
   if(hit.coarse)await choice.tap({noWaitAfter:true,timeout:12000});
   else await choice.click({noWaitAfter:true,timeout:12000});
-  await expect.poll(()=>activeArea(page),{message:'U26 real-pointer route transition '+role+'/'+area,timeout:12000}).toBe(area);
+  try{
+    await expect.poll(()=>activeArea(page),{message:'U26 real-pointer route transition '+role+'/'+area,timeout:12000}).toBe(area);
+  }catch(error){
+    // Keep this a real failure. Only safe route labels, stage durations and
+    // counts are logged, never client content, identities, tokens or payloads.
+    const diagnosis=await Promise.race([
+      page.evaluate(()=>{
+        const app=globalThis.__IBERFIT_M26_APP__;
+        const stateArea=String(app?.getNavigationSnapshot?.()?.activeArea||'');
+        const active=[...document.querySelectorAll('.m26-shell [data-m26-area][aria-current="page"]')]
+          .map(node=>String(node.getAttribute('data-m26-area')||'')).slice(0,12);
+        const phases=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__?.shellRouteTimings;
+        return {stateArea,renderedAreas:active,
+          shellCount:document.querySelectorAll('.m26-shell').length,
+          routeTimings:Array.isArray(phases)
+            ?phases.slice(-16).map(p=>({phase:p.phase,area:p.area,elapsedMs:p.elapsedMs,atMs:p.atMs}))
+            :[]};
+      }).catch(()=>({probe:'unavailable'})),
+      new Promise(resolve=>setTimeout(()=>resolve({probe:'browser-busy'}),1800)),
+    ]);
+    console.log('SIGNATURE_U84_ROUTE_FAILURE_DIAGNOSTIC '+role+'/'+area+' '+JSON.stringify(diagnosis));
+    throw error;
+  }
   console.log('SIGNATURE_U26_REAL_POINTER_ROUTE '+role+'/'+area+' '+(Date.now()-pointerStart)+'ms');
   await closeMore(page);
   return true;
