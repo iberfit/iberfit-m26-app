@@ -53,7 +53,8 @@ test('Login mounts all critical session actions before interactive without forci
   assert.match(mount,/if\(active\?\.draft\|\|active\?\.execution\)/u);
   assert.ok(mount.indexOf('mounted=true')<mount.indexOf('if(active?.draft||active?.execution)'));
   const rendered=session.slice(session.indexOf('function onShellRendered()'),session.indexOf('function focusSessionRecoveryField',session.indexOf('function onShellRendered()')));
-  for(const token of ['bindSessionStickyTop()','hydrateActiveSetDraft(getContext())','syncLiveAddExerciseControl(getContext())','syncFinishControl(getContext())','ensureSessionClockTicker(getContext())'])assert.ok(rendered.includes(token),token);
+  assert.ok(rendered.includes('const context=getContext()'),'single consistent context for every shell event');
+  for(const token of ['bindSessionStickyTop()','hydrateActiveSetDraft(context)','syncLiveAddExerciseControl(context)','syncFinishControl(context)','ensureSessionClockTicker(context)'])assert.ok(rendered.includes(token),token);
   const app=readFileSync('src/m26/app/application.js','utf8');
   assert.ok(app.indexOf('sessionController.mount()')<app.indexOf("root.dataset.m26SessionEntryReady='ready'"));
   assert.ok(app.indexOf("root.dataset.m26SessionEntryReady='ready'")<app.indexOf("root.dataset.m26Interactive='ready'"));

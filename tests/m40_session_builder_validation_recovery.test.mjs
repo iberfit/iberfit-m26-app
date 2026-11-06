@@ -51,7 +51,7 @@ test('M40 review is a local validation action, not a forced remote/local-storage
   assert.ok(controller.includes("else if(outcome.ok&&['preview','edit-preview'].includes(action))"));
   assert.ok(controller.includes("Revisión disponible, pero el borrador aún no se pudo guardar."));
   assert.ok(controller.includes("draft:context?.draft,catalog:context?.catalog"));
-  assert.ok(app.includes("sessionCommandFailureOutcome(error,{role:store.getState().identity?.role,draft:sessionUi.draft,catalog})"));
+  assert.ok(app.includes("sessionCommandFailureOutcome(error,{role:store.getSessionActorSnapshot().identity?.role,draft:sessionUi.draft,catalog})"));
 });
 
 test('M40 publish action still enforces the review and domain validation',()=>{
