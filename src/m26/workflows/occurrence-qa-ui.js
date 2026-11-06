@@ -9,7 +9,7 @@ import {createAtomicOccurrenceIndexedDbStore} from './occurrence-indexeddb-store
 import {buildOccurrenceScopedCommand} from '../domain/occurrence-commands.js';
 import {resolveSantiagoLocalInstant} from '../domain/dated-training-occurrences.js';
 
-const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const ZONE='America/Santiago';
 const escape=value=>String(value??'').replaceAll('&','&amp;')
   .replaceAll('<','&lt;').replaceAll('>','&gt;')
