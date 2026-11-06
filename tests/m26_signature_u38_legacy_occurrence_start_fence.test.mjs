@@ -68,3 +68,20 @@ test('U38 workflow entry checks current state before emitting m26:start-session'
   assert.ok(fragment.indexOf('legacyStartNeedsOccurrence(')<fragment.indexOf("emit(root,'m26:start-session'"));
   assert.match(fragment,/state\.collections\?\.appointments\|\|\[\]/u);
 });
+
+test('U38 UNIVERSAL direct workspace event enforces the same multi-date fence before creating an execution',()=>{
+  const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  assert.match(app,/normalizePublishedSessionForExecution,legacyStartNeedsOccurrence/u);
+  const start=app.indexOf('async function onStartSession(event){');
+  const end=app.indexOf('function surfaceRoleSwitchError(',start);
+  assert.ok(start>=0&&end>start);
+  const fragment=app.slice(start,end);
+  const fence=fragment.indexOf('if(legacyStartNeedsOccurrence({');
+  const creation=fragment.indexOf('execution:createExecution({');
+  assert.ok(fence>=0&&creation>fence,'No new shared execution before dated-occurrence validation');
+  assert.match(fragment,/appointments:entryState\.collections\?\.appointments\|\|\[\]/u);
+  assert.match(fragment,/entryState\.collections\?\.trainingOccurrences/u);
+  assert.match(fragment,/M26_OCCURRENCE_EXECUTOR_REQUIRED/u);
+  assert.ok(fragment.indexOf('if(recovered){')<fence,'A proven recovery remains available');
+  assert.ok(fragment.indexOf('if(String(currentCandidate?.status')<fence,'An authenticated active recovery remains available');
+});

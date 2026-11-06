@@ -8,7 +8,7 @@ import {createAdminController} from '../admin/controller.js';
 import {normalizeApplicationContextExtension,filterSnapshotForAssignmentScope} from '../shared/integration-context.js';
 import {createRc39Transport,mergeRc39ChangeRequests} from '../rc39/transport.js';
 import {createRc39Controller} from '../rc39/controller.js';
-import {actorCanExecuteSession,sessionRequiresConfirmedAppointment,sessionReadyToStart,normalizePublishedSessionForExecution} from '../rc39/session-policy.js';
+import {actorCanExecuteSession,sessionRequiresConfirmedAppointment,sessionReadyToStart,normalizePublishedSessionForExecution,legacyStartNeedsOccurrence} from '../rc39/session-policy.js';
 import {confirmedAppointmentForSession,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS} from './confirmed-session-appointment.js';
 import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport,isFutureIssuedJwtClockSkew} from '../supabase-transport.js';
@@ -1803,6 +1803,20 @@ export async function createM26Application({root=document.querySelector('#app'),
       const current=resolveCurrentSessionForEntry({state:store.getState(),requested,clientId});
       const normalized=normalizePublishedSession(current);
       if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');
+      // A delegated/direct event cannot bypass the same multi-date fence used
+      // by the visible CTA. Each planned date requires its own occurrence
+      // execution; legacy start must not consume the shared prescription.
+      const entryState=store.getState();
+      if(legacyStartNeedsOccurrence({
+        appointments:entryState.collections?.appointments||[],
+        occurrences:entryState.collections?.trainingOccurrences||
+          entryState.collections?.sessionOccurrences||[],
+        sessionId:normalized.id,clientId,
+      })){
+        const error=new Error('M26_OCCURRENCE_EXECUTOR_REQUIRED');
+        error.userMessage='Este entrenamiento tiene varias fechas independientes. El inicio por fecha todavía no está habilitado; la prescripción original permanece intacta.';
+        throw error;
+      }
       const role=String(store.getState().identity?.role||'');
       if(!normalized.id||!normalized.clientId||!normalized.blocks.length){
         const node=root.querySelector?.('[data-workflow-status="session"]');
