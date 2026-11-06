@@ -605,7 +605,9 @@ export function createProgressiveOnboardingController({
     // Never run Coach onboarding's private-historical decision engine inside
     // the microtask checkpoint BEFORE the user's authenticated route paints.
     scheduleAfterPaint();
-    scheduleTourOpenStateSync();
+    // render() already reconciles guided-tour open state after the genuine
+    // route frame. Avoid a second prepaint microtask on every Coach route.
+    // Explicit user tour click/keyboard paths still sync immediately.
   }
 
   function removeOwned(){
