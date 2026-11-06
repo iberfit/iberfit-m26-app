@@ -495,6 +495,9 @@ export function createShellController({ root, store, renderRoute = () => '', get
     clearClientSwitchBusy();
     markQaShellStage('enhancements-complete',area,Date.now()-shellStartedAt);
     root.dispatchEvent(new CustomEvent('m26:shell-rendered',{bubbles:false,detail:{role:viewModel.identity?.role||'',area:viewModel.activeArea||''}}));
+    // QA-only elapsed timing: distinguish synchronous event-listener load
+    // from deferred microtask/next-frame work, without retaining private data.
+    markQaShellStage('shell-event-dispatched',area,Date.now()-shellStartedAt);
     return true;
   }
 

@@ -44,7 +44,7 @@ async function closeMore(page){
 async function installTrustedRoutePaintProbe(page,role){
   await page.evaluate(expectedRole=>{
     globalThis.__IBERFIT_QA_U26_NAV_PAINT__?.stop?.();
-    let pending=null,last=null,paintQueued=false;
+    let pending=null,last=null,paintQueued=false,firstEligibleMs=null;
     const shellSelector='.m26-shell[data-m26-role="'+expectedRole+'"]';
     function routeIsPaintable(area){
       const shell=document.querySelector(shellSelector);
@@ -62,11 +62,15 @@ async function installTrustedRoutePaintProbe(page,role){
     }
     function check(){
       if(!pending||paintQueued||!routeIsPaintable(pending.area))return;
+      if(firstEligibleMs===null)firstEligibleMs=performance.now();
       paintQueued=true;
       requestAnimationFrame(()=>{
         paintQueued=false;
         if(!pending||!routeIsPaintable(pending.area))return;
-        last={area:pending.area,elapsedMs:performance.now()-pending.at,trusted:true};
+        const paintedAt=performance.now();
+        last={area:pending.area,elapsedMs:performance.now()-pending.at,trusted:true,
+          eligibleElapsedMs:firstEligibleMs-pending.at,
+          frameWaitMs:paintedAt-firstEligibleMs};
         pending=null;
       });
     }
@@ -77,6 +81,7 @@ async function installTrustedRoutePaintProbe(page,role){
       const area=String(nav.getAttribute('data-m26-area')||'');
       if(!area)return;
       pending={area,at:performance.now()};
+      firstEligibleMs=null;
       last=null;
       check();
     }
@@ -186,7 +191,9 @@ async function navigateViaActualControl(page,role,area){
           })):[]};
     }).catch(()=>({probe:'unavailable'}));
     console.log('SIGNATURE_U26_SLOW_REAL_PAINT '+role+'/'+area+' '+
-      Math.round(painted.elapsedMs)+'ms '+JSON.stringify(phases));
+      Math.round(painted.elapsedMs)+'ms '+
+      JSON.stringify({eligibleElapsedMs:Math.round(painted.eligibleElapsedMs),
+        frameWaitMs:Math.round(painted.frameWaitMs),...phases}));
   }
   expect(painted.elapsedMs,area+': trusted touch-to-paint must not exceed 5s')
     .toBeLessThanOrEqual(5_000);
