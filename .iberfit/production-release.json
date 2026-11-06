@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "30ce333aa08fd5c1a2d5d706853a8c97e3333a2a",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "38bd10505387a0fbab4bb84f3747f28308d3b670",
+  "notes": "UNIVERSAL 360 web-first 2026-11-06: Coach P0 verified, Client/Admin, seven exact-source QA gates green; frontend only, no Edge/Auth/DDL; fail closed, restore and rollback."
+}
