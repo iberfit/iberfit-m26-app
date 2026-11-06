@@ -880,7 +880,10 @@ export function createShellController({ root, store, renderRoute = () => '', get
         clientBottomMore.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded','false');
       }
       const rawNextArea = areaButton.getAttribute('data-m26-area');
-      const current=store.getState();
+      // Fail-closed role/service/owner checks still run through the exact
+      // route guard, but they must not clone all U38 history just to read
+      // identity and a two-client directory.
+      const current=store.getRouteAuthorizationSnapshot?.()??store.getState();
       const nextArea=roleScopedArea(current,rawNextArea);
       const decision = resolveM26Route(current, nextArea);
       if(String(current.activeArea||'')===String(decision.area||'')){
@@ -896,7 +899,10 @@ export function createShellController({ root, store, renderRoute = () => '', get
       const commitRoute=()=>runRouteViewTransition(
         ()=>{
           markQaShellStage('route-commit',decision.area);
-          store.navigate(decision.area);
+          // Canonical navigation still emits the same subscribed render.
+          // Avoid the unused full-history clone returned by navigate().
+          if(typeof store.navigateFast==='function')store.navigateFast(decision.area);
+          else store.navigate(decision.area);
           reconcileRouteRender(decision.area);
           focusMain();
         },
