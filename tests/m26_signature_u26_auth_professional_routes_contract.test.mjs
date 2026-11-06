@@ -44,6 +44,15 @@ test('U26 audits actual navigation after real privileged WebAuthn in trusted pus
   assert.match(coach,/toBeLessThanOrEqual\(420_000\)/u);
   assert.match(coach,/offlineAuthoringMs=Date\.now\(\)-offlineAuthoringStartedAt/u);
   assert.match(coach,/toBeLessThanOrEqual\(240_000\)/u);
+  // Browser-local monotonic clock is a strict trust-aware user-facing SLA:
+  // never accept CDP round-trip latency as the same thing as route paint.
+  assert.match(helper,/SIGNATURE_U26_BROWSER_PAINT/u);
+  assert.match(helper,/event\.isTrusted!==true/u);
+  assert.match(helper,/new MutationObserver\(check\)/u);
+  assert.match(helper,/performance\.now\(\)-pending\.at/u);
+  assert.match(helper,/\.toBeLessThanOrEqual\(5_000\)/u);
+  assert.match(helper,/page\.waitForFunction/u);
+  assert.doesNotMatch(helper,/expect\.poll\(\(\)=>activeArea\(page\)/u);
   assert.match(helper,/SIGNATURE_U26_ROUTE_START/u);
   assert.match(helper,/SIGNATURE_U26_ROUTE_PASS/u);
   assert.match(helper,/timeout:12000/u);

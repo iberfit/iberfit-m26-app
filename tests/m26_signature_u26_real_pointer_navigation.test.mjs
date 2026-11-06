@@ -10,7 +10,14 @@ test('U26 enforces real physical pointer + hit test + route confirmation for eve
  assert.match(route,/expect\(hit\.disabled/u);
  assert.ok(route.includes('choice.tap({noWaitAfter:true,timeout:12000})'));
  assert.ok(route.includes('choice.click({noWaitAfter:true,timeout:12000})'));
- assert.match(route,/expect\.poll\(\(\)=>activeArea\(page\)/u);
+ assert.match(route,/page\.waitForFunction/u);
+ assert.match(route,/event\.isTrusted!==true/u);
+ assert.match(route,/new MutationObserver\(check\)/u);
+ assert.match(route,/requestAnimationFrame\(\(\)=>/u);
+ assert.match(route,/performance\.now\(\)-pending\.at/u);
+ assert.match(route,/\.toBeLessThanOrEqual\(5_000\)/u);
+ assert.match(route,/SIGNATURE_U26_BROWSER_PAINT/u);
+ assert.doesNotMatch(route,/expect\.poll\(\(\)=>activeArea\(page\)/u);
  assert.match(route,/must not cross role boundary/u);
  assert.match(route,/horizontal document overflow/u);
  assert.doesNotMatch(route,/choice\.click\(\)/u);
