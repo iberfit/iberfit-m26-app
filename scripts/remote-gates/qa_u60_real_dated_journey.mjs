@@ -167,7 +167,13 @@ async function authenticatedStage(ctx,certified=null){
  const end2=new Date(Date.parse(start2)+chosen.duration*60000).toISOString();
  assert(Date.parse(start1)>Date.now()&&Date.parse(start1)-Date.now()<3600000,'APPOINTMENT_CLOCK_DRIFT');
  const old=await checkedCalendar(ctx,coach.jwt,clientA,today,future);
- assert(old.length===0,'QA_FIXTURE_DATES_NOT_CLEAN');
+ // A real QA portfolio legitimately contains prior dates from other plans.
+ // Never erase them or require an empty calendar. Reserve only the TWO
+ // intended dates for the chosen prescription, and never start if an
+ // unrelated workout is already active for this Client.
+ assert(!old.some(row=>row.status==='en_curso'),'QA_CLIENT_ACTIVE_EXECUTION');
+ assert(!old.some(row=>row.sessionId===chosen.id&&
+   [today,future].includes(row.localDate)),'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
  const foreign=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:2});
  assert(denied(foreign),'CROSS_CLIENT_SCOPE_BROKEN');
  const appointments=[{date:today,startAt:start1,endAt:end1},{date:future,startAt:start2,endAt:end2}];
@@ -264,7 +270,8 @@ async function main(){
    'BATCH_IDEMPOTENT_REPLAY');
  proof.checks.push('batch_idempotency');
  const before=await checkedCalendar(ctx,a.jwt,clientA,today,future);
- assert(before.length===0,'UNCONFIRMED_DATE_VISIBLE_TO_CLIENT');
+ assert(!before.some(row=>occ.includes(row.id)),
+   'UNCONFIRMED_DATE_VISIBLE_TO_CLIENT');
  for(let i=0;i<occ.length;i++){
   const command={type:'OCURRENCIA_CONFIRMAR',operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'occ-confirm-'+i),
    clientId:clientA,entityId:occ[i],baseRevision:0};
@@ -274,7 +281,8 @@ async function main(){
   proof.checks.push('occurrence_confirmed_'+i);await save(proof);
  }
  const visible=await checkedCalendar(ctx,a.jwt,clientA,today,future);
- assert(visible.length===2&&occ.every(id=>visible.some(x=>x.id===id&&x.status==='confirmada')),
+ const ownVisible=visible.filter(row=>occ.includes(row.id));
+ assert(ownVisible.length===2&&occ.every(id=>ownVisible.some(x=>x.id===id&&x.status==='confirmada')),
    'CLIENT_DATES_NOT_VISIBLE');
  proof.checks.push('client_two_independent_confirmed_dates');
  const forbidden=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:10});
@@ -327,9 +335,10 @@ async function main(){
    'CLIENT_DATED_EXECUTION_NOT_COMPLETED');
  proof.checks.push('first_execution_completed_and_confirmed');await save(proof);
  const coachCalendar=await checkedCalendar(ctx,coach.jwt,clientA,today,future);
- assert(coachCalendar.length===2
-  &&coachCalendar.some(x=>x.id===occ[0]&&x.status==='completada')
-  &&coachCalendar.some(x=>x.id===occ[1]&&x.status==='confirmada'),
+ const ownCoachDates=coachCalendar.filter(row=>occ.includes(row.id));
+ assert(ownCoachDates.length===2
+  &&ownCoachDates.some(x=>x.id===occ[0]&&x.status==='completada')
+  &&ownCoachDates.some(x=>x.id===occ[1]&&x.status==='confirmada'),
     'COACH_READBACK_NOT_INDEPENDENT');
  const coachDetail=await rpc(ctx,coach.jwt,'iberfit_occurrence_detail_v1',{
   p_client_id:clientA,p_occurrence_id:occ[0]});

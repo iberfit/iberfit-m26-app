@@ -63,3 +63,15 @@ test('U71 future dated appointment is rejected by start window, not un-timed dat
  assert.match(sql,/'START_WINDOW_INVALID'/);
  assert.match(js,/futureAttempt\.body\?\.reason==='START_WINDOW_INVALID'/);
 });
+
+test('UNIVERSAL U71 QA preserves unrelated prior appointments and dates during two-date proof',()=>{
+ const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ assert.doesNotMatch(s,/assert\(old\.length===0/);
+ assert.doesNotMatch(s,/assert\(visible\.length===2/);
+ assert.doesNotMatch(s,/assert\(coachCalendar\.length===2/);
+ assert.match(s,/QA_FIXTURE_SOURCE_DATES_NOT_CLEAN/);
+ assert.match(s,/QA_CLIENT_ACTIVE_EXECUTION/);
+ assert.match(s,/before\.some\(row=>occ\.includes\(row\.id\)\)/);
+ assert.match(s,/const ownVisible=visible\.filter\(row=>occ\.includes\(row\.id\)\)/);
+ assert.match(s,/const ownCoachDates=coachCalendar\.filter\(row=>occ\.includes\(row\.id\)\)/);
+});
