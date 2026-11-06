@@ -16,11 +16,14 @@ test('U71 date math is day-based and Santiago timezone is explicit',()=>{
  assert.equal(today.day,'2026-11-04');
 });
 test('U71 calendar shape denies foreign private content and wrong client scope',()=>{
- const valid={status:200,body:{kind:'calendar',occurrences:[{clientId:'client-a',id:'one',status:'confirmada'}]}};
+ const valid={status:200,body:{kind:'calendar',count:1,hasMore:false,occurrences:[{clientId:'client-a',id:'one',status:'confirmada'}]}};
  assert.equal(sameClientCalendar(valid,'client-a'),true);
  assert.equal(sameClientCalendar(valid,'client-b'),false);
  assert.equal(sameClientCalendar({...valid,body:{kind:'calendar',occurrences:[{clientId:'client-a',publishedSnapshot:{}}]}},'client-a'),false);
  assert.equal(sameClientCalendar({status:403,body:valid.body},'client-a'),false);
+ assert.equal(sameClientCalendar({status:200,body:{...valid.body,count:2}},'client-a'),false);
+ assert.equal(sameClientCalendar({status:200,body:{...valid.body,hasMore:true}},'client-a'),false);
+ assert.equal(sameClientCalendar({status:200,body:{...valid.body,count:null}},'client-a'),false);
 });
 test('U71 denial never mistakes HTTP success for forbidden',()=>{
  for(const s of [200,201,202,429,500])assert.equal(denied({status:s,body:{kind:'calendar'}}),false);

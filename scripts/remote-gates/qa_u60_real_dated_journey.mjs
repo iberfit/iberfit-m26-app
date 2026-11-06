@@ -45,9 +45,14 @@ export function dayOffset(day,n){
  return dt.toISOString().slice(0,10);
 }
 export function sameClientCalendar(response,owner){
- return response.status===200&&response.body?.kind==='calendar'
-  &&Array.isArray(response.body.occurrences)
-  &&response.body.occurrences.every(o=>o.clientId===owner
+ // Never certify a supposedly empty calendar from a truncated first page:
+ // the same QA identities legitimately retain training history.
+ const body=response?.body;
+ return response?.status===200&&body?.kind==='calendar'
+  &&body.hasMore!==true
+  &&Number.isSafeInteger(body.count)&&body.count===body.occurrences?.length
+  &&Array.isArray(body.occurrences)
+  &&body.occurrences.every(o=>o.clientId===owner
     &&!/publishedSnapshot|requestHash|coachPrivateNote|prescriptionSnapshot/.test(JSON.stringify(o)));
 }
 export function denied(x){
