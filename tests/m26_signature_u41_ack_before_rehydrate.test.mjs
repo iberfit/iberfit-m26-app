@@ -11,7 +11,10 @@ function deferred(){
  return {promise,resolve,reject};
 }
 const actor={role:'client',id:'qa-synthetic-client',clientId:'client-ack-race'};
-const session={id:'session-ack-race',clientId:actor.clientId,blocks:[{
+// The race belongs to an already authorized autonomous Client session.
+const session={id:'session-ack-race',clientId:actor.clientId,
+  status:'disponible',visibleToClient:true,clientVisibilityLevel:'full',
+  deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',blocks:[{
  id:'block-ack',type:'exercise',exerciseId:'exercise-ack',sets:2,reps:'8',restSeconds:45,
  targetRpe:7,targetRir:2,
 }]};
@@ -119,10 +122,18 @@ test('U41/U42 ACK CAS is never shared with another Client, execution, command bu
     {...active,clientId:'other-client',revision:5},
   ]){
     context.status='awaiting_feedback';
+    if(context.clientId!==actor.clientId){
+      const before=f.calls.length;
+      assert.throws(()=>dispatchSessionAction({session,execution:context,actor,action:'finish',
+        payload:{sessionRpe:7,comment:'Scope test'},commandBus:f.bus,online:true}),
+      /M43_CLIENT_EXECUTION_SCOPE_CONFLICT/u);
+      assert.equal(f.calls.length,before,'foreign Client must never submit a write');
+      continue;
+    }
     const attempt=dispatchSessionAction({session,execution:context,actor,action:'finish',
       payload:{sessionRpe:7,comment:'Scope test'},commandBus:f.bus,online:true});
     await attempt.value;
-    assert.equal(f.calls.at(-1).baseRevision,5,'foreign scope must not borrow the original ACK');
+    assert.equal(f.calls.at(-1).baseRevision,5,'different execution must not borrow the original ACK');
   }
   const secondBus=busWithResponse(()=>({kind:'ack',remoteRevision:6}));
   const detached={...active,revision:5,status:'awaiting_feedback'};
