@@ -68,7 +68,7 @@ async function installTrustedRoutePaintProbe(page,role){
         paintQueued=false;
         if(!pending||!routeIsPaintable(pending.area))return;
         const paintedAt=performance.now();
-        last={area:pending.area,elapsedMs:paintedAt-pending.at,trusted:true,
+        last={area:pending.area,elapsedMs:performance.now()-pending.at,trusted:true,
           eligibleElapsedMs:firstEligibleMs-pending.at,
           frameWaitMs:paintedAt-firstEligibleMs};
         pending=null;
