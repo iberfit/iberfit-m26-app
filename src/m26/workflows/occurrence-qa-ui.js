@@ -81,11 +81,14 @@ export function createDatedOccurrenceQaUi({
   if(enabled!==true)return Object.freeze({
     enabled:false,mount:()=>{},destroy:()=>{},renderPanel:()=>'',hasBlockingWorkout:()=>false,
   });
-  if(!root?.addEventListener||!root?.removeEventListener
-    ||!UUID.test(String(ownerId||''))||
-    !transport||typeof getAuthContext!=='function'
-    ||typeof getState!=='function'||typeof onRender!=='function')
-    fail('DEPENDENCIES_REQUIRED');
+  // Distinct machine-readable validation errors prevent masking a broken
+  // DOM harness as a backend permission problem. Never report user IDs.
+  if(typeof root?.addEventListener!=='function'||
+    typeof root?.removeEventListener!=='function')fail('ROOT_REQUIRED');
+  if(!UUID.test(String(ownerId||'')))fail('OWNER_ID_REQUIRED');
+  if(!transport||typeof getAuthContext!=='function')fail('TRANSPORT_AUTH_REQUIRED');
+  if(typeof getState!=='function')fail('STATE_REQUIRED');
+  if(typeof onRender!=='function')fail('RENDER_REQUIRED');
   const owner=uid(ownerId);
   const vault=createOccurrenceOwnerKeyVault({ownerId:owner,projectRef,cryptoImpl});
   const persistence=createAtomicOccurrenceIndexedDbStore();

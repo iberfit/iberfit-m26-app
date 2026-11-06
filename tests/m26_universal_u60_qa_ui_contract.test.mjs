@@ -6,6 +6,7 @@ import {
   createDatedOccurrenceQaUi,qaDatedCalendarRange,formatDatedElapsed,
 } from '../src/m26/workflows/occurrence-qa-ui.js';
 import {M26_ACTION_REGISTRY} from '../src/m26/ui/interactive-audit.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const OWNER='10000000-0000-4000-8000-000000000001';
 const CLIENT='20000000-0000-4000-8000-000000000001';
@@ -135,4 +136,21 @@ test('UNIVERSAL U60 live player does not accidentally re-enable legacy dated sta
   const service=readFileSync(new URL('../src/m26/workflows/occurrence-workout-service.js',import.meta.url),'utf8');
   assert.match(service,/executionStatus:current\?\.execution\?\.status/u);
   assert.match(service,/startedAt:current\?\.execution\?\.startedAt/u);
+});
+
+test('UNIVERSAL U60 dates, secure recovery and calendar copy are localized in EN FR PT',()=>{
+  for(const label of [
+    'Entrenamiento por fechas independientes',
+    'Consultar fechas confirmadas',
+    'Desbloquear recuperación cifrada',
+    'Series registradas. Añade el feedback antes de finalizar.',
+    'Esta operación no está autorizada para tu cuenta, cliente o modalidad.',
+    'Inicio confirmado por el servidor.',
+  ]){
+    for(const language of ['en','fr','pt']){
+      const translation=iberfitSurfaceTranslate(label,{language});
+      assert.notEqual(translation,label,language+': '+label);
+      assert.ok(translation.length>=3);
+    }
+  }
 });

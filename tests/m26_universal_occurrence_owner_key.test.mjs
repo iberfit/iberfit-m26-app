@@ -31,8 +31,9 @@ test('UNIVERSAL U60 never unlocks another owner with the same phrase',async()=>{
   const iv=webcrypto.getRandomValues(new Uint8Array(12));
   const cipher=await webcrypto.subtle.encrypt({name:'AES-GCM',iv},
     await a.getKey(),new Uint8Array([1,2,3]));
+  const foreignKey=await b.getKey();
   await assert.rejects(()=>webcrypto.subtle.decrypt({name:'AES-GCM',iv},
-    await b.getKey(),cipher));
+    foreignKey,cipher));
   a.destroy();b.destroy();
 });
 test('UNIVERSAL U60 recovery unlock fails closed on bad phrases, destroyed vault or scope',async()=>{

@@ -1905,8 +1905,14 @@ export async function createM26Application({root=document.querySelector('#app'),
       return false;
     }
     const initialChoice=applicationAccess.roleChoiceConfirmed!==true;
-    if((sessionUi||datedUi?.hasBlockingWorkout())&&!initialChoice){
+    // Preserve the certified legacy role-chooser contract exactly; a
+    // separate U60 date has the same no-exit guarantee after role selection.
+    if(sessionUi&&!initialChoice){
       try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message:'Finaliza o cierra la sesión antes de cambiar de aplicación.'}}));}catch{}
+      return false;
+    }
+    if(datedUi?.hasBlockingWorkout()&&!initialChoice){
+      try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message:'Termina o recupera el entrenamiento de esta fecha antes de cambiar de aplicación.'}}));}catch{}
       return false;
     }
     // An obsolete pre-choice auto-recovery is a disposable UI projection:
