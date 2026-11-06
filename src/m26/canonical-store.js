@@ -14,9 +14,25 @@ function authorizationFailure(error){
 export function createCanonicalStore(initial = createProductionState(),{onListenerError=()=>{}}={}) {
   let state = clone(initial);
   const listeners = new Set();
+  // A shell repaint is an invalidation signal, not permission to copy or
+  // mutate the whole authenticated archive. Legacy full-state subscriptions
+  // retain their separate defensive structuredClone contracts unchanged.
+  const invalidationListeners = new Set();
+  const selectionListeners = new Set();
+  let notifiedClientId=String(state.selectedClientId||'');
 
   function emit() {
-    for (const listener of [...listeners]) {
+    const selectedClientId=String(state.selectedClientId||'');
+    if(selectedClientId!==notifiedClientId){
+      notifiedClientId=selectedClientId;
+      for(const listener of [...selectionListeners]){
+        try{listener(selectedClientId);}catch(error){try{onListenerError(error);}catch{}}
+      }
+    }
+    for(const listener of [...invalidationListeners]){
+      try{listener();}catch(error){try{onListenerError(error);}catch{}}
+    }
+    for(const listener of [...listeners]){
       try{listener(getState());}catch(error){try{onListenerError(error);}catch{}}
     }
   }
@@ -159,10 +175,22 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
   }
 
   function subscribe(listener) {
-    if (typeof listener !== 'function') throw new TypeError('listener must be a function');
+    if(typeof listener!=='function')throw new TypeError('listener must be a function');
     listeners.add(listener);
-    return () => listeners.delete(listener);
+    return ()=>listeners.delete(listener);
   }
 
-  return Object.freeze({ getState, getNavigationSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe });
+  function subscribeInvalidation(listener){
+    if(typeof listener!=='function')throw new TypeError('listener must be a function');
+    invalidationListeners.add(listener);
+    return ()=>invalidationListeners.delete(listener);
+  }
+
+  function subscribeSelection(listener){
+    if(typeof listener!=='function')throw new TypeError('listener must be a function');
+    selectionListeners.add(listener);
+    return ()=>selectionListeners.delete(listener);
+  }
+
+  return Object.freeze({ getState, getNavigationSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection });
 }

@@ -164,6 +164,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
   let unsubscribe = null;
   let renderQueued=false;
   let queuedState=null;
+  let needsFreshState=false;
   let generation=0;
   let touchRouteTicket=0;
   let lastMarkup='';
@@ -378,6 +379,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
     const snapshot=captureControlContinuity(control);
     releasePointerInteraction({deferRender:false});
     queuedState=null;
+    needsFreshState=false;
     lastMarkup='';
     const rendered=renderNow(store.getState(),{force:true});
     if(snapshot?.kind==='locale'||snapshot?.kind==='language'){
@@ -497,8 +499,9 @@ export function createShellController({ root, store, renderRoute = () => '', get
   }
 
   function flushDeferredRender(){
-    if(renderQueued||!queuedState||shellInteractionActive())return false;
-    const next=queuedState;
+    if(renderQueued||(!queuedState&&!needsFreshState)||shellInteractionActive())return false;
+    // The latest canonical state wins over a stale captured snapshot.
+    const next=needsFreshState?undefined:queuedState;
     queuedState=null;
     interactionPointerTarget=null;
     scheduleRender(next);
@@ -511,11 +514,19 @@ export function createShellController({ root, store, renderRoute = () => '', get
       return false;
     }
     queuedState=null;
+    needsFreshState=false;
     return renderNow(state);
   }
 
-  function scheduleRender(state=store.getState()){
-    queuedState=state;
+  function scheduleRender(state){
+    // Invalidation carries no massive historical payload. Clone once only
+    // when actually drawing a frame; discard intermediate obsolete updates.
+    if(state===undefined){
+      needsFreshState=true;
+      queuedState=null;
+    }else if(!needsFreshState){
+      queuedState=state;
+    }
     if(shellInteractionActive())return;
     if(renderQueued)return;
     renderQueued=true;
@@ -524,7 +535,8 @@ export function createShellController({ root, store, renderRoute = () => '', get
       renderQueued=false;
       if(token!==generation)return;
       if(shellInteractionActive())return;
-      const next=queuedState;
+      const next=needsFreshState?store.getState():queuedState;
+      needsFreshState=false;
       queuedState=null;
       renderNow(next);
     });
@@ -627,6 +639,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
       const state=store.getState();
       if(String(state.activeArea||'')!==expected)return;
       queuedState=null;
+      needsFreshState=false;
       lastMarkup='';
       renderNow(state,{force:true});
     });
@@ -1048,7 +1061,11 @@ export function createShellController({ root, store, renderRoute = () => '', get
     root.addEventListener('focusout',onFocusOut,true);
     adaptiveWindow?.addEventListener?.('resize',syncAdaptiveLayout,{passive:true});
     adaptiveWindow?.addEventListener?.('orientationchange',syncAdaptiveLayout,{passive:true});
-    unsubscribe = store.subscribe(scheduleRender);
+    // Canonical invalidations avoid eagerly cloning the archived Coach
+    // dataset on pointer events. Legacy mock stores retain the same API.
+    unsubscribe = typeof store.subscribeInvalidation==='function'
+      ?store.subscribeInvalidation(scheduleRender)
+      :store.subscribe(scheduleRender);
     syncAdaptiveLayout();
     const state=store.getState();
     const authenticated=createShellViewModel(state).mode==='authenticated';
@@ -1065,6 +1082,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
     generation+=1;
     renderQueued=false;
     queuedState=null;
+    needsFreshState=false;
     pendingI18nContinuitySnapshot=null;
     clearInteractionReleaseTimer();
     interactionPointerTarget=null;

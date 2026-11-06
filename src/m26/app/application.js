@@ -924,9 +924,12 @@ export async function createM26Application({root=document.querySelector('#app'),
   const hydrationCoordinator=createHydrationCoordinator(hydratePass,{getOwner:()=>hydrationLeaseFor(session)});
   // Selection changes cancel the active private read. No old client's pages
   // may be committed after a different client is selected.
-  const stopQaCoachHistorySelectionGuard=store.subscribe(state=>{
+  // A Coach navigation must not clone a multi-MB private history merely to
+  // check a primitive client selection. Selection changes (including hydrate,
+  // reset and account switches) still cancel the old owner's lease immediately.
+  const stopQaCoachHistorySelectionGuard=store.subscribeSelection(selectedClientId=>{
     if(qaCoachHistory.status==='loading'&&
-      String(state?.selectedClientId||'')!==qaCoachHistory.clientId){
+      String(selectedClientId||'')!==qaCoachHistory.clientId){
       hydrationCoordinator.cancel();
       qaCoachHistory={status:'idle',clientId:null};
     }
