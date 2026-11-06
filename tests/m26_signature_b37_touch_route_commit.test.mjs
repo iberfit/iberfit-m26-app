@@ -19,7 +19,7 @@ test('B37: real Client touch click finishes before any navigation-induced shell 
   assert.match(block,/const clientTouch=String\(current\.identity\?\.role\|\|''\)==='client'/u);
   assert.match(block,/maxTouchPoints/u);
   assert.match(block,/pointer: coarse/u);
-  assert.match(block,/if\(clientTouch&&typeof windowLike\?\.setTimeout==='function'\)/u);
+  assert.match(block,/if\(\(clientTouch\|\|coachPointer\)&&typeof windowLike\?\.setTimeout==='function'\)/u);
   assert.match(block,/windowLike\.setTimeout\(\(\)=>\{/u);
   assert.match(block,/\},0\);\s*\}else commitRoute\(\);/u);
   assert.ok(block.indexOf('runRouteViewTransition(')>block.indexOf('releaseFormInteraction('));
@@ -31,7 +31,7 @@ test('B37: delayed touch commits fail closed on newer navigation, logout or acco
   assert.match(block,/const ticket=\+\+touchRouteTicket/u);
   assert.match(block,/ticket!==touchRouteTicket\|\|version!==generation\|\|!unsubscribe/u);
   assert.match(block,/String\(latest\.identity\?\.id\|\|''\)!==ownerId/u);
-  assert.match(block,/String\(latest\.identity\?\.role\|\|''\)!=='client'/u);
+  assert.match(block,/String\(latest\.identity\?\.role\|\|''\)!==expectedRole/u);
   assert.match(block,/String\(latest\.activeArea\|\|''\)!==previousArea/u);
   assert.match(block,/commitRoute\(\);/u);
   assert.match(source,/function destroy\(\)\s*\{[^]*?generation\+=1;/u);

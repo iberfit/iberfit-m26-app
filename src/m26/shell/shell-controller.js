@@ -94,11 +94,14 @@ function enhanceCoachPriorityCard(card,item){
   }
 }
 
-export function enhanceCoachActionCenter({root,shellVm,state}={}){
-  const routeVm=coachTodayViewModel(shellVm,state);
-  if(!routeVm?.coachCockpit)return false;
-
-  const cockpit=routeVm.coachCockpit;
+export function enhanceCoachActionCenter({root,shellVm,state,coachCockpit}={}){
+  // The application supplies the cockpit built while rendering this SAME frame.
+  // Fallback remains for standalone consumers of this helper; never rebuild
+  // a 20MB history-derived view model when the already-verified cockpit exists.
+  const cockpit=coachCockpit===undefined
+    ?coachTodayViewModel(shellVm,state)?.coachCockpit
+    :coachCockpit;
+  if(!cockpit)return false;
   const panel=coachPriorityPanel(root);
   if(!panel)return false;
 
@@ -154,7 +157,7 @@ export function resolveAdaptiveLayout({width = 1440,coarsePointer = false,touchP
   return 'expanded-pointer';
 }
 
-export function createShellController({ root, store, renderRoute = () => '' }) {
+export function createShellController({ root, store, renderRoute = () => '', getCoachCockpit = () => undefined }) {
   if (!root?.addEventListener) throw new Error('M26_SHELL_ROOT_REQUIRED');
   if (!store?.getState || !store?.subscribe || !store?.navigate || !store?.selectClient) throw new Error('M26_SHELL_STORE_REQUIRED');
 
@@ -479,7 +482,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     restoreDisclosureContinuity(disclosureSnapshot);
     markQaShellStage('dom-committed',area,Date.now()-shellStartedAt);
     syncAdaptiveLayout();
-    enhanceCoachActionCenter({root,shellVm:viewModel,state});
+    enhanceCoachActionCenter({root,shellVm:viewModel,state,coachCockpit:getCoachCockpit()});
     enhanceNativeWorkspace({root,viewModel});
     enhanceCliente360({root,viewModel,state});
     enhanceProgressContinuity({root,viewModel,state});
@@ -902,7 +905,14 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
         Number(windowLike?.navigator?.maxTouchPoints||0)>0
         ||windowLike?.matchMedia?.('(pointer: coarse)')?.matches===true
       );
-      if(clientTouch&&typeof windowLike?.setTimeout==='function'){
+      // Authenticated Coach can carry many thousands of verified records.
+      // Never rebuild that route synchronously inside the trusted pointer
+      // dispatch: it can freeze the browser before native click completes.
+      // The queued commit still enforces the same current account/role/route
+      // and controller generation, and remains immediate on the next task.
+      const coachPointer=String(current.identity?.role||'')==='coach';
+      const expectedRole=String(current.identity?.role||'');
+      if((clientTouch||coachPointer)&&typeof windowLike?.setTimeout==='function'){
         const ticket=++touchRouteTicket;
         const version=generation;
         const ownerId=String(current.identity?.id||'');
@@ -911,7 +921,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
           if(ticket!==touchRouteTicket||version!==generation||!unsubscribe)return;
           const latest=store.getState();
           if(String(latest.identity?.id||'')!==ownerId
-            ||String(latest.identity?.role||'')!=='client'
+            ||String(latest.identity?.role||'')!==expectedRole
             ||String(latest.activeArea||'')!==previousArea)return;
           commitRoute();
         },0);
