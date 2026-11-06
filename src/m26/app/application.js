@@ -58,6 +58,7 @@ import {createExecution} from '../workflows/session-execution.js';
 import {renderSessionBuilder,renderGuidedExecution} from '../workflows/session-ui.js';
 import {buildExercisePerformanceMemory} from '../engagement/exercise-performance-engine.js';
 import {createSessionController} from '../workflows/session-controller.js';
+import {createDatedOccurrenceQaUi} from '../workflows/occurrence-qa-ui.js';
 import {sessionCommandFailureOutcome} from '../workflows/session-sync-recovery-ui.js';
 import {createActionState} from '../ui/action-state.js';
 import {createExecutionRecoveryStore,createExecutionRecoveryCoordinator} from '../workflows/session-recovery.js';
@@ -528,7 +529,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,clientHistoryDemand=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,avatarController=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,evolutionReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,clientHistoryDemand=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,avatarController=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,evolutionReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,datedUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let progressiveControllerMountGeneration=0;
   let progressiveControllerMountPromise=null;
   let roleSwitchBusy=false;
@@ -982,6 +983,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       // core, NOT a longitudinal training-history conclusion. Keep the full
       // IRI assessment and its private photo consent controls operational
       // without making the Coach download an unrelated >20 MB archive.
+      if(area==='sesion'&&datedUi?.enabled)
+        return '<div class="m26-route">'+datedUi.renderPanel()+gate+'</div>';
       if(!['clientes','ajustes','iri','informes'].includes(area))
         return '<div class="m26-route">'+gate+'</div>';
       // Directory and settings remain usable with a partial-history notice.
@@ -1086,7 +1089,11 @@ export async function createM26Application({root=document.querySelector('#app'),
         ?qaCoachHistory.status:'idle';
       return renderQaCoachHistoryGate(status)+markup;
     }
-    return markup;
+    // The U60 date workspace is isolated from the legacy session builder.
+    // Canary only; no fallback from dated CAS to SESION_INICIAR.
+    return markup+(runtime.qaOnly===true&&
+      String(shellVm?.activeArea||'')==='sesion'&&datedUi?.enabled
+      ?datedUi.renderPanel():'');
   }
   function render(){shell?.render?.();}
   function draftOnline(){return globalThis.navigator?.onLine!==false;}
@@ -1508,6 +1515,31 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-setup-catalog-ready');
 
     const ownerId=session.user.id;
+    // U60 rollout remains QA-only until PROD has versioned migrations,
+    // restored offsite data and an exact-SHA hardware/authenticated gate.
+    // No network call, unlock or calendar read is performed on login.
+    if(runtime.qaOnly===true&&runtime.canary===true
+      &&runtime.projectRef==='gjztkdwfmunnzhtvxrsu'){
+      try{
+        datedUi=createDatedOccurrenceQaUi({
+          enabled:true,root,ownerId,projectRef:runtime.projectRef,transport,
+          getState:()=>store.getState(),onRender:render,
+          getAuthContext:async()=>{
+            await refreshSessionIfNeeded();
+            const identity=store.getState().identity||{};
+            if(!session?.user?.id||String(session.user.id)!==String(ownerId))
+              throw new Error('M26_U60_AUTH_IDENTITY_CHANGED');
+            return {userId:ownerId,role:String(identity.role||'').toLowerCase(),
+              clientId:String(identity.clientId||''),
+              accessToken:currentToken()};
+          },
+        });
+        datedUi.mount();
+      }catch(error){
+        datedUi?.destroy?.();datedUi=null;
+        reportSoftDiagnostic('u60-qa-closed-unavailable',error);
+      }
+    }
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});sessionTemplateRepository=createSessionTemplateRepository({ownerId});telemetryOutbox=createTelemetryDurableOutbox({ownerId});
     qaStage('rc64-setup-repositories-ready');
     telemetryRemoteSync=createTelemetryRemoteSync({transport,outbox:telemetryOutbox,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false,onDiagnostic:(code,error)=>reportDiagnostic(code,error)});
@@ -1687,7 +1719,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(notice){notice.textContent=message;notice.dataset.status='pending';}
     try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
   }
-  function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
+  function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion')return;if(datedUi?.hasBlockingWorkout()){event.preventDefault();event.stopImmediatePropagation?.();try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:'Guarda o recupera el entrenamiento de esta fecha y vuelve al calendario antes de salir.'}}));}catch{}return;}if(!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
   async function onOpenBuilder(event){
     const clientId=String(event?.detail?.clientId||'');
@@ -1702,7 +1734,8 @@ export async function createM26Application({root=document.querySelector('#app'),
         throw new Error('M26_SESSION_BUILDER_ROLE_FORBIDDEN');
       if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))
         throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');
-      if(sessionUi?.execution||sessionUi?.draft)throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
+      if(sessionUi?.execution||sessionUi?.draft||datedUi?.hasBlockingWorkout())
+        throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
       let saved=sourceSession?null:await loadSessionDraft(clientId);
       if(!isCurrent())return false;
       const savedId=String(saved?.value?.id||'').trim();
@@ -1741,6 +1774,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       const state=store.getState(),visible=new Set((state.collections.clients||[]).map(item=>item.id));
       if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))
         throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');
+      if(datedUi?.hasBlockingWorkout())throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
       if(sessionUi?.execution||sessionUi?.draft){
         if(sessionUi?.session?.id===sessionId&&sessionUi?.execution){
           store.navigate('sesion');render();return true;
@@ -1871,7 +1905,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       return false;
     }
     const initialChoice=applicationAccess.roleChoiceConfirmed!==true;
-    if(sessionUi&&!initialChoice){
+    if((sessionUi||datedUi?.hasBlockingWorkout())&&!initialChoice){
       try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message:'Finaliza o cierra la sesión antes de cambiar de aplicación.'}}));}catch{}
       return false;
     }
@@ -1970,7 +2004,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers({preserveWorkflowDrafts=true}={}){clientHistoryDemand?.destroy?.();clientHistoryDemand=null;workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset){delete root.dataset.m26Interactive;delete root.dataset.m26SessionEntryReady;}telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers({preserveWorkflowDrafts=true}={}){datedUi?.destroy?.();datedUi=null;clientHistoryDemand?.destroy?.();clientHistoryDemand=null;workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset){delete root.dataset.m26Interactive;delete root.dataset.m26SessionEntryReady;}telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;

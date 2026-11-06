@@ -5,7 +5,7 @@ import {M26_ACTION_REGISTRY} from '../../src/m26/ui/interactive-audit.js';
 
 const ROOT=path.resolve('src/m26');
 const VALID_ROLES=new Set(['admin','coach','client']);
-const ACTION_ATTRIBUTE=/data-(?:session-action|m26-action|engagement-action|verification-action|workflow-action)=["']([A-Za-z0-9_-]+)["']/g;
+const ACTION_ATTRIBUTE=/data-(?:session-action|m26-action|engagement-action|verification-action|workflow-action|iberdates-action)=["']([A-Za-z0-9_-]+)["']/g;
 
 async function walk(dir){
   const out=[];
