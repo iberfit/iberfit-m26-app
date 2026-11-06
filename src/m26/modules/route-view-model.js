@@ -1,3 +1,4 @@
+import {buildFollowUpClientScopeIndex} from './client-followup-scope.js';
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
 import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js';
 import {selectCurrentTrainingCycle} from '../workflows/planning-workflow.js';
@@ -642,11 +643,21 @@ function buildClientFollowUpSummary(summary,state,now){
 
 if (area === 'clientes') {
     const role = String(shellVm.identity?.role || '');
+    const directory=clientsOverview(state,now);
+    // U38 can contain thousands of events. Compute a single client index
+    // before running the existing 7/28/90-day canonical follow-up engines.
+    const scopes=buildFollowUpClientScopeIndex(
+      state,directory.map(item=>item?.client?.id),
+    );
     return Object.freeze({
       kind: 'clientes',
       role,
       canCreate: ['admin', 'coach'].includes(role),
-      clients: Object.freeze(clientsOverview(state, now).map((summary)=>buildClientFollowUpSummary(summary,state,now))),
+      clients: Object.freeze(directory.map((summary)=>
+        buildClientFollowUpSummary(
+          summary,scopes.get(String(summary?.client?.id||''))||state,now,
+        ),
+      )),
       selectedClientId: state.selectedClientId || null,
     });
   }

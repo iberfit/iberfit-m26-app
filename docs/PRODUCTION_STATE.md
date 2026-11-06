@@ -1,3 +1,14 @@
+## UNIVERSAL 360 · único WIP integral · 06/11/2026 — CANDIDATO NO FUSIONADO
+
+- **Canary base de UNIVERSAL:** `357605902afbd4cce4133ff23b26f383c068550f`, PR #1285 U84 ya fusionada; Canary Exact #42154511757 SUCCESS, auditoría/CI/Cliente/Admin/Device SUCCESS. **Coach WebAuthn REAL #42154511721 FAILURE**: segunda autenticación correcta, historia U38 de 38 páginas, Hoy pasó y Clientes excedió 12s pese a estado + controles DOM finalmente correctos. No elevar timeout ni certificar Coach antes de un recorrido real íntegro.
+- **Única entrega UNIVERSAL:** consolida U1–U84 ya integradas y resta de capacidades funcionales sin reintroducir commits anteriores; una rama, una PR principal, una certificación Canary exact-SHA y una promoción PROD protegida. No abrir sucesivas U85/U86/… .
+- **Primer conjunto de cambios preparado EN LA MISMA RAMA:** eliminar escaneos globales repetidos del historial Coach en 7/28/90 días mediante proyección por cliente, preservando exactitud, IRI inicial y evidencias; incorporar V47 own-history read con ventana de 30 días y 7 filas estrictas como **migración staged, nunca aplicada automáticamente**. Las 22 capacidades requieren pruebas individuales y no se consideran completadas solo por esta preparación.
+- **SQL real:** QA `gjztkdwfmunnzhtvxrsu`: 8/8 migraciones U30–U60 aplicadas; PROD `pjhmrhejsoofmouedavw`: 0/8. Antes de aplicar U30–U60 + V47 en PROD: M44 offsite/restore probado, ACL/RLS/grants, ledger, compatibilidad, backup y rollback. El gateway sigue fail-closed.
+- **Producción:** última versión observada en checkpoint `008d8647356c`; confirmar Live directamente antes de promoción. No hay nuevo SQL en QA/PROD, ni despliegue productivo por este WIP.
+- **Definition of done:** Cliente Coach Admin reales, auth WebAuthn 2º acceso, navegación con historial completo, Coach→sesión→publicar→Cliente inicia/pausa/termina→persistencia→Coach, varios deportes/fechas, informes y permiso wearable, RLS negativa, todas las pantallas 320/390/834/1024/1440, egress Free medido; una PR y release protegida solo con gates verdes. Mapa maestro #1260 y backlog #1259.
+
+---
+
 ## P0 IRI fotografia y optimización Free · WIP seguro · 04/11/2026 (propuesta NO FUSIONADA)
 
 - **Canary LIVE base confirmado**: `c93cccd4e74d9fa2c75fd11a881b612498a2ab26`, Supabase QA `gjztkdwfmunnzhtvxrsu`. **PROD LIVE** `1362e858bfdbba669c5f988d9446084ea22685d5` (Supabase PROD `pjhmrhejsoofmouedavw`); no se ha promovido R50.
