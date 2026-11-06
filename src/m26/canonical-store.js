@@ -1,6 +1,7 @@
 import { createProductionState, stateFromBootstrap } from './production-state.js';
 import { sanitizeOperation } from './command-bus.js';
 import {projectCompletedHistoryForClient} from './domain/client-completed-history-merge.js';
+import {deriveCoachSelfLaunchJourney} from './onboarding/coach-launch-journey.js';
 
 function clone(value) { return value == null ? value : structuredClone(value); }
 function errorText(error){return error?String(error.message||error):null;}
@@ -53,6 +54,21 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
         role:String(state.identity?.role||''),
       }),
     });
+  }
+
+  // Onboarding needs verified role/app-choice only. Never clone multi-MB
+  // Client/Coach histories to inspect these bounded access claims.
+  function getOnboardingAccessSnapshot(){
+    return Object.freeze({
+      identity:Object.freeze({role:String(state.identity?.role||'')}),
+      applicationAccess:clone(state.applicationAccess||{}),
+    });
+  }
+
+  // Only a fully derived, frozen and owner-scope-filtered Coach milestone
+  // projection leaves this store. The raw state/history never does.
+  function getCoachLaunchJourney(){
+    return deriveCoachSelfLaunchJourney({state,identity:state.identity});
   }
 
   // Route authorization needs only the verified identity, hydration lease,
@@ -192,5 +208,5 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return ()=>selectionListeners.delete(listener);
   }
 
-  return Object.freeze({ getState, getNavigationSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection });
+  return Object.freeze({ getState, getNavigationSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection, getOnboardingAccessSnapshot, getCoachLaunchJourney });
 }

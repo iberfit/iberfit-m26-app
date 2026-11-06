@@ -478,6 +478,7 @@ export function createProgressiveOnboardingController({
   root,
   identityProvider=()=>({}),
   stateProvider=()=>null,
+  launchJourneyProvider=null,
   connectNativeHealth=null,
   reviewNativeHealth=null,
   nativeHealthReady=()=>true,
@@ -524,6 +525,9 @@ export function createProgressiveOnboardingController({
   let releaseCompactStyle=null;
   let mounted=false;
   let scheduled=false;
+  let deferUntilPaint=false;
+  let postPaintFrame=null;
+  let postPaintTimer=null;
   let tourOpenSyncScheduled=false;
   let renderedPanel=null;
   let renderedPanelKey=null;
@@ -598,7 +602,9 @@ export function createProgressiveOnboardingController({
 
   function onShellRendered(){
     if(!mounted)return;
-    schedule();
+    // Never run Coach onboarding's private-historical decision engine inside
+    // the microtask checkpoint BEFORE the user's authenticated route paints.
+    scheduleAfterPaint();
     scheduleTourOpenStateSync();
   }
 
@@ -730,16 +736,23 @@ export function createProgressiveOnboardingController({
       visited:state.visited,
     });
 
-    let canonicalState=null;
-    try{
-      canonicalState=stateProvider?.()||null;
-    }catch{
-      canonicalState=null;
+    let launchJourney=null;
+    if(context.role==='coach'){
+      try{
+        if(typeof launchJourneyProvider==='function'){
+          launchJourney=launchJourneyProvider()||null;
+        }else{
+          // Standalone/legacy controllers retain their original verified
+          // derivation and do not infer a milestone when evidence is missing.
+          const canonicalState=stateProvider?.()||null;
+          launchJourney=deriveCoachSelfLaunchJourney({
+            state:canonicalState,identity:canonicalState?.identity,
+          });
+        }
+      }catch{
+        launchJourney=null;
+      }
     }
-
-    const launchJourney=context.role==='coach'
-      ?deriveCoachSelfLaunchJourney({state:canonicalState,identity:canonicalState?.identity})
-      :null;
     const readiness=coachLaunchReadiness({
       role:context.role,
       progress,
@@ -758,7 +771,32 @@ export function createProgressiveOnboardingController({
   function schedule(){
     if(scheduled||!mounted)return;
     scheduled=true;
-    queueMicrotask(render);
+    queueMicrotask(()=>{
+      // A newer shell render takes priority over an obsolete pre-paint update.
+      // Its secondary controls run after the real route's visual frame.
+      if(mounted&&!deferUntilPaint)render();
+    });
+  }
+
+  function scheduleAfterPaint(){
+    const raf=scope?.requestAnimationFrame?.bind(scope);
+    const later=scope?.setTimeout?.bind(scope);
+    if(typeof raf!=='function'||typeof later!=='function'){
+      schedule();
+      return;
+    }
+    deferUntilPaint=true;
+    if(!scheduled)scheduled=true;
+    if(postPaintFrame!==null||postPaintTimer!==null)return;
+    postPaintFrame=raf(()=>{
+      postPaintFrame=null;
+      if(!mounted)return;
+      postPaintTimer=later(()=>{
+        postPaintTimer=null;
+        deferUntilPaint=false;
+        if(mounted)render();
+      },0);
+    });
   }
 
   function onClick(event){
@@ -834,6 +872,11 @@ export function createProgressiveOnboardingController({
     destroy(){
       mounted=false;
       scheduled=false;
+      deferUntilPaint=false;
+      if(postPaintFrame!==null)scope?.cancelAnimationFrame?.(postPaintFrame);
+      if(postPaintTimer!==null)scope?.clearTimeout?.(postPaintTimer);
+      postPaintFrame=null;
+      postPaintTimer=null;
       tourOpenSyncScheduled=false;
       root.removeEventListener('click',onClick);
       root.removeEventListener('input',onFlexibleInput);

@@ -105,10 +105,27 @@ export function deriveCoachLaunchJourney({
 
 function confirmedCompletedSessions(state,clients,coachId){
   const completed=[];
+  // The verified archive can contain thousands of executions. Repeating a
+  // full-array filter per Client freezes the microtask queue before paint.
+  // Group once using EXACT canonical record precedence (top-level then body);
+  // every bucket is still validated by the existing confirmed truth engine.
+  const clientIds=new Set(clients.map(recordClientId).filter(Boolean));
+  const grouped=new Map([...clientIds].map(id=>[id,[]]));
+  for(const execution of list(state?.collections?.sessionExecutions)){
+    const owner=recordId(field(execution,
+      'clientId','client_id','clienteId','cliente_id'));
+    const bucket=grouped.get(owner);
+    if(bucket)bucket.push(execution);
+  }
   for(const client of clients){
     const clientId=recordClientId(client);
     if(!clientId)continue;
-    for(const execution of confirmedSessionExecutionsForClient(state,clientId)){
+    const scoped={...state,collections:{
+      ...(state?.collections||{}),
+      sessionExecutions:grouped.get(clientId)||[],
+    }};
+    // Canonical completion/ack/pending/conflict fences remain authoritative.
+    for(const execution of confirmedSessionExecutionsForClient(scoped,clientId)){
       const startedBy=recordId(execution?.startedBy??execution?.started_by);
       if(startedBy===coachId)completed.push(execution);
     }
