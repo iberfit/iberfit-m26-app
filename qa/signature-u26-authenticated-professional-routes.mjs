@@ -117,6 +117,22 @@ export async function auditAuthenticatedProfessionalRoutes(page,{role,viewport})
   await expect(shell,'U26 requires a genuinely authenticated '+role+' app').toBeVisible();
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1);
   await expect(page.locator('.m26-role-choice[role="dialog"]')).toHaveCount(0);
+  // UNIVERSAL: the actual U84 failure recorded no stage timings because
+  // this QA-only opt-in sink was never initialized. Capture only route labels
+  // and phase durations; never observe user content, tokens or request bodies.
+  if(role==='coach'){
+    await page.evaluate(()=>{
+      const existing=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__;
+      if(existing&&typeof existing==='object'){
+        if(!Array.isArray(existing.appStageTimes))existing.appStageTimes=[];
+        if(!Array.isArray(existing.shellRouteTimings))existing.shellRouteTimings=[];
+      }else{
+        globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__={
+          appStageTimes:[],shellRouteTimings:[],
+        };
+      }
+    });
+  }
   const observed=[],notExposed=[];
   for(const area of config[viewport]){
     // Technical route labels only: no identity, free text, credentials or health data.
