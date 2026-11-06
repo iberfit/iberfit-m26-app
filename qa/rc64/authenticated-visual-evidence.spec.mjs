@@ -154,6 +154,7 @@ async function certifyNonOverlappingClientDock(page,project,route){
     };
   });
   if(route==='Cliente ajustes')console.log('SIGNATURE_CLIENT_SETTINGS_GEOMETRY:'+JSON.stringify(geometry));
+  if(route==='Tus sesiones')console.log('SIGNATURE_CLIENT_SESSIONS_GEOMETRY:'+JSON.stringify(geometry));
   expect(geometry,`${route}: Client needs both the route scroller and a separate bottom dock`).not.toBeNull();
   expect(geometry.documentScrollY,`${route}: document must not scroll behind the Client dock`).toBeLessThanOrEqual(1);
   expect(geometry.mainScrollTop,`${route}: hidden main must not scroll the whole dock with contextual help`).toBeLessThanOrEqual(1);
