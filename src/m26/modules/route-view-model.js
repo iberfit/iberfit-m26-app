@@ -646,7 +646,7 @@ if (area === 'clientes') {
     const directory=clientsOverview(state,now);
     // U38 can contain thousands of events. Compute a single client index
     // before running the existing 7/28/90-day canonical follow-up engines.
-    const scopes=buildFollowUpClientScopeIndex(
+    const scopes=options.clientScopeIndex||buildFollowUpClientScopeIndex(
       state,directory.map(item=>item?.client?.id),
     );
     return Object.freeze({
@@ -1355,11 +1355,22 @@ export function createRouteViewModel(shellVm,state,now=new Date(),options={}){
   const effectiveShellVm=adminContextBase
     ?Object.freeze({...shellVm,activeArea:adminContextBase})
     :shellVm;
+  // A large Coach history must be indexed exactly once per directory
+  // frame. The legacy progress engines still enforce canonical ownership;
+  // scoped state is a read-performance projection, never an ACL.
+  const directoryRole=String(effectiveShellVm?.identity?.role||state?.identity?.role||'');
+  const clientScopeIndex=effectiveShellVm?.activeArea==='clientes'&&
+    ['coach','admin'].includes(directoryRole)
+    ?buildFollowUpClientScopeIndex(state,
+      (state?.collections?.clients||[]).map(item=>item?.id))
+    :null;
   const rc39=augmentRc39ViewModel(
-    createRouteViewModelBase(effectiveShellVm,state,now,options),
+    createRouteViewModelBase(effectiveShellVm,state,now,
+      clientScopeIndex?{...options,clientScopeIndex}:options),
     effectiveShellVm,
     state,
-    now
+    now,
+    {clientScopeIndex},
   );
   const communication=createCommunicationRouteViewModel(rc39,effectiveShellVm,state);
   if(adminContextBase){

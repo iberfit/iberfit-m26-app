@@ -11,6 +11,7 @@ import {deriveCoachSelfLaunchJourney} from '../onboarding/coach-launch-journey.j
 export {deriveCoachSelfLaunchJourney};
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {buildRetentionHealth} from '../engagement/retention-health.js';
+import {buildFollowUpClientScopeIndex} from '../modules/client-followup-scope.js';
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
 import {buildTraining360DecisionPack} from '../intelligence/training360-decision-pack.js';
 
@@ -126,9 +127,14 @@ function enrichClientRetention(client,state,now){
     }),
   });
 }
-function enrichClientsRetention(vm,role,state,now){
+function enrichClientsRetention(vm,role,state,now,clientScopeIndex=null){
   if(vm?.kind!=='clientes'||!['coach','admin'].includes(role))return vm;
-  return Object.freeze({...vm,clients:Object.freeze(list(vm.clients).map((client)=>enrichClientRetention(client,state,now)))});
+  // Direct consumers of this view-model also benefit from a single index.
+  // The usual route path reuses its ALREADY-built follow-up index instead.
+  const scopes=clientScopeIndex||buildFollowUpClientScopeIndex(state,
+    list(vm.clients).map(item=>item?.id));
+  return Object.freeze({...vm,clients:Object.freeze(list(vm.clients).map((client)=>
+    enrichClientRetention(client,scopes.get(String(client?.id||''))||state,now)))});
 }
 function enrichExpedienteDecision(vm,role){
   if(vm?.kind!=='expediente'||(role!=='coach'&&role!=='admin'))return vm;
@@ -195,7 +201,7 @@ function enrichExpedienteRetention(vm,role,state,routeClientId,now){
     coachCockpit:Object.freeze({...cockpit,items:Object.freeze([focus,...items.slice(1)])}),
   });
 }
-export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
+export function augmentRc39ViewModel(vm,shellVm,state,now=new Date(),{clientScopeIndex=null}={}){
   if(!vm||!shellVm||!state)return vm;
   const role=String(shellVm.identity?.role||state.identity?.role||'');
   const sessions=state.collections?.sessions||[];
@@ -278,7 +284,7 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;
   const coachLaunchJourney=role==='coach'?deriveCoachSelfLaunchJourney({state,identity:shellVm.identity||state.identity,now}):null;
-  const retentionVm=enrichClientsRetention(vm,role,state,now);
+  const retentionVm=enrichClientsRetention(vm,role,state,now,clientScopeIndex);
   const decisionVm=enrichExpedienteDecision(retentionVm,role);
   const enrichedVm=enrichExpedienteRetention(decisionVm,role,state,routeClientId,now);
   return Object.freeze({...enrichedVm,rc39:Object.freeze({role,clientId:routeClientId||null,planningItems,appointments:Object.freeze(operationalAppointments),sessionProjections:Object.freeze(sessionProjections),needsPreparation,confirmationOpen,changeRequests,changeRequestAvailable,coachLaunchJourney,...(training360?{training360}:{}),generatedAt:new Date(now).toISOString()})});

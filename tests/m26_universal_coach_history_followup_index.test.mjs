@@ -4,6 +4,9 @@ import {readFileSync} from 'node:fs';
 import {buildFollowUpClientScopeIndex,FOLLOWUP_SCOPE_COLLECTIONS} from '../src/m26/modules/client-followup-scope.js';
 import {computeProgressSummary,buildPlanExecutionSummary} from '../src/m26/engagement/progress-engine.js';
 import {deriveCoachHomeDecisionAlerts} from '../src/m26/experience/coach-cockpit.js';
+import {buildRetentionHealth} from '../src/m26/engagement/retention-health.js';
+import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
+import {augmentRc39ViewModel} from '../src/m26/rc39/view-model.js';
 
 const now=new Date('2026-11-06T12:00:00.000Z');
 function fixture(){
@@ -34,7 +37,8 @@ test('UNIVERSAL: one bounded follow-up index does not truncate or mutate the Coa
   const state=fixture();
   assert.deepEqual(FOLLOWUP_SCOPE_COLLECTIONS,[
     'appointments','sessionExecutions','sessions','checkins',
-    'wearableDailySummaries','iriAssessments','trainingCycles']);
+    'wearableDailySummaries','iriAssessments','trainingCycles',
+    'clientProfiles','m26Entities','domainEvents']);
   const scopes=buildFollowUpClientScopeIndex(state,['alpha','beta','iri-only','alpha']);
   assert.equal(scopes.size,3);
   assert.equal(scopes.get('alpha').collections.sessionExecutions.length,301);
@@ -102,4 +106,58 @@ test('UNIVERSAL: indexed plans retain ownerless shared sessions and never mix ot
     }
   }
   assert.equal(state.collections.sessions.length,4,'original prescription data not mutated');
+});
+
+test('UNIVERSAL retention signals remain identical with 38-page Coach history and commercial activity',()=>{
+  const state=fixture();
+  state.collections.clientProfiles=[
+    {id:'profile-a',clientId:'alpha',updatedAt:'2026-11-01T12:00:00Z',weeklyFrequency:2},
+    {id:'profile-b',clientId:'beta',updatedAt:'2026-11-01T12:00:00Z'},
+  ];
+  state.collections.m26Entities=[
+    {id:'renewal-a',clientId:'alpha',entityType:'commercial',body:{
+      clientId:'alpha',renewalStatus:'upcoming',renewalDate:'2026-11-08'}},
+    {id:'renewal-b',clientId:'beta',entityType:'commercial',body:{
+      clientId:'beta',renewalStatus:'current'}},
+    {id:'conflicting',clientId:'alpha',body:{clientId:'beta',entityType:'commercial'}},
+  ];
+  state.collections.domainEvents=[
+    {id:'event-a',clientId:'alpha',eventName:'renovacion_confirmada',
+      actorRole:'coach',occurredAt:'2026-11-04T10:00:00Z'},
+    {id:'event-b',clientId:'beta',eventName:'renovacion_confirmada',
+      actorRole:'admin',occurredAt:'2026-11-04T10:00:00Z'},
+  ];
+  const original=structuredClone(state);
+  const index=buildFollowUpClientScopeIndex(state,['alpha','beta','iri-only']);
+  for(const clientId of ['alpha','beta','iri-only']){
+    assert.deepEqual(buildRetentionHealth(index.get(clientId),clientId,{now}),
+      buildRetentionHealth(state,clientId,{now}),clientId+' retention parity');
+  }
+  assert.deepEqual(state,original,'owner archive was never mutated');
+  assert.equal(index.get('alpha').collections.domainEvents.length,1);
+  assert.equal(index.get('beta').collections.domainEvents.length,1);
+  assert.equal(index.get('alpha').collections.m26Entities.length,2);
+  assert.equal(index.get('beta').collections.m26Entities.length,2);
+});
+
+test('UNIVERSAL one single directory index feeds follow-up AND retention, no history re-scan per client',()=>{
+  const state=fixture();state.identity.role='coach';
+  const shell={identity:{role:'coach'},activeArea:'clientes'};
+  const source=readFileSync(new URL('../src/m26/modules/route-view-model.js',import.meta.url),'utf8');
+  const wrapper=source.slice(source.indexOf('export function createRouteViewModel('));
+  assert.match(wrapper,/const clientScopeIndex=effectiveShellVm/u);
+  assert.match(wrapper,/\{clientScopeIndex\}/u);
+  const vm=readFileSync(new URL('../src/m26/rc39/view-model.js',import.meta.url),'utf8');
+  assert.match(vm,/enrichClientRetention\(client,scopes\.get\(String\(client\?\.id/u);
+  const result=createRouteViewModel(shell,state,now);
+  assert.equal(result.kind,'clientes');
+  assert.equal(result.clients.length,3);
+  // Direct RC39 consumers must preserve both role and same history semantics.
+  const direct=augmentRc39ViewModel({kind:'clientes',clients:result.clients},shell,state,now);
+  assert.equal(direct.clients.length,3);
+  for(const item of result.clients){
+    const expected=buildRetentionHealth(state,item.id,{now});
+    assert.deepEqual(item.retentionHealth,expected,item.id);
+    assert.deepEqual(direct.clients.find(x=>x.id===item.id).retentionHealth,expected,item.id);
+  }
 });

@@ -4,6 +4,9 @@
 export const FOLLOWUP_SCOPE_COLLECTIONS=Object.freeze([
   'appointments','sessionExecutions','sessions','checkins',
   'wearableDailySummaries','iriAssessments','trainingCycles',
+  // Retention/CRM are rendered on the SAME Coach directory frame. Index their
+  // source collections once rather than scanning the full U38 history N times.
+  'clientProfiles','m26Entities','domainEvents',
 ]);
 const OWNER_FIELDS=Object.freeze(['clientId','client_id','clienteId','cliente_id']);
 function ownerHints(record){
