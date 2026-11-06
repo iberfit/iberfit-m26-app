@@ -1,4 +1,7 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  // UNIVERSAL 360: stale samples are not a confirmed automatic link.
+  ["Datos de salud recibidos · enlace automático no confirmado","Health data received · automatic connection not confirmed","Données de santé reçues · connexion automatique non confirmée","Dados de saúde recebidos · ligação automática não confirmada"],
+  ["· enlace automático no confirmado","· automatic connection not confirmed","· connexion automatique non confirmée","· ligação automática não confirmada"],
   // Connected360 P0 opt-in recovery: the signed Android app is required for OS reads.
   ["Tu salud, actualizada","Your health, up to date","Votre santé, à jour","A sua saúde, atualizada"],
   ["Revisar conexión de actividad","Check activity connection","Vérifier la connexion d’activité","Rever ligação de atividade"],
