@@ -177,3 +177,16 @@ test('UNIVERSAL U60 locally completed encrypted feedback can retry server ACK wi
     for(const lang of ['en','fr','pt'])
       assert.notEqual(iberfitSurfaceTranslate(label,{language:lang}),label);
 });
+
+test('UNIVERSAL U60 Client dates remain inside their independently scrollable route above the mobile dock',()=>{
+  const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  const route=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  const visual=readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  assert.match(app,/role==='client'&&datedPanel\s*\?\{\.\.\.routeVm,qaDatedPanel:datedPanel\}/u,
+    'Client U60 calendar is rendered by the route composer, not a post-dock sibling');
+  assert.match(app,/return role==='client'\?markup:markup\+datedPanel;/u);
+  assert.match(route,/const qaDatedPanel=isClient&&typeof vm\.qaDatedPanel==='string'\?vm\.qaDatedPanel:'';/u);
+  assert.match(route,/\$\{workflowStatus\('session'\)\}\$\{qaDatedPanel\}<\/div>/u,
+    'U60 Client calendar is a descendant of the existing route viewport');
+  assert.match(visual,/datedPanelInScroller/u,'Mobile QA must check U60 is within the route scrollport');
+});

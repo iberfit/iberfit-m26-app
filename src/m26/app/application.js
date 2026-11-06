@@ -1081,7 +1081,16 @@ export async function createM26Application({root=document.querySelector('#app'),
       return renderRouteView(Object.freeze({...routeVm,initialIriOnly:true}))
         +renderQaCoachHistoryGate(status);
     }
-    const markup=renderRouteView(routeVm);
+    // QA U60 dates belong inside the Client route scrollport, BEFORE its
+    // independent bottom dock. Appending after renderClientRouteShell creates
+    // a second main flex sibling, steals the viewport row and strands the dock.
+    // Coach still receives the standalone dated workspace below its route.
+    const datedPanel=runtime.qaOnly===true&&
+      String(shellVm?.activeArea||'')==='sesion'&&datedUi?.enabled
+      ?datedUi.renderPanel():'';
+    const markup=renderRouteView(role==='client'&&datedPanel
+      ?{...routeVm,qaDatedPanel:datedPanel}
+      :routeVm);
     qaStage('rc64-route-html-ready');
     if(isQaCoach&&!historyReady&&['clientes','ajustes'].includes(String(shellVm?.activeArea||''))){
       const status=qaCoachHistory.clientId===selected
@@ -1091,9 +1100,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
     // The U60 date workspace is isolated from the legacy session builder.
     // Canary only; no fallback from dated CAS to SESION_INICIAR.
-    return markup+(runtime.qaOnly===true&&
-      String(shellVm?.activeArea||'')==='sesion'&&datedUi?.enabled
-      ?datedUi.renderPanel():'');
+    return role==='client'?markup:markup+datedPanel;
   }
   function render(){shell?.render?.();}
   function draftOnline(){return globalThis.navigator?.onLine!==false;}

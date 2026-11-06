@@ -4717,12 +4717,16 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
 
 export function renderSessionsRoute(vm){
   const isClient=vm.role==='client';
+  // Only the QA-gated U60 Client calendar is injected here by application.js.
+  // Place it INSIDE the existing route scroller, never after the mobile dock.
+  const qaDatedPanel=isClient&&typeof vm.qaDatedPanel==='string'?vm.qaDatedPanel:'';
   const serviceActive=vm.serviceActive!==false;
   const clientContextBar=!isClient?professionalClientContextBar(vm.clientContext,{activeArea:'sesion'}):'';
   if(lacksTrainingSurface(vm.serviceKind)){
     return `<div class="m26-route" data-service-kind="none">${clientContextBar}
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Sin sesiones de entrenamiento</h2><p>El IRI puede completarse y generar sus informes sin crear, programar ni ejecutar sesiones de entrenamiento.</p></div>${badge('Sin entrenamiento activo','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir / completar IRI</button><button type="button" data-m26-area="informes">Informes IRI</button></div></section>
+      ${qaDatedPanel}
     </div>`;
   }
   const clientSessionGuideAttribute=isClient&&vm.sessions.length
@@ -4760,7 +4764,7 @@ export function renderSessionsRoute(vm){
       <button type="button" data-m26-area="actividad">Ver mis dispositivos</button>
       </section>`
     :'';
-  return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${coachStartReadiness}${deviceSessionContext}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
+  return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${coachStartReadiness}${deviceSessionContext}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}${qaDatedPanel}</div>`;
 }
 export function renderReportsRoute(vm){
   const isClient=vm.role==='client';

@@ -160,6 +160,9 @@ async function certifyNonOverlappingClientDock(page,project,route){
       workspaceDisplay:getComputedStyle(document.querySelector('.m26-workspace')).display,
       workspaceDirection:getComputedStyle(document.querySelector('.m26-workspace')).flexDirection,
       scrollerHeight:scroller.getBoundingClientRect().height,
+      datedPanelInScroller:!document.querySelector('[data-u60-panel]')
+        ||scroller.contains(document.querySelector('[data-u60-panel]')),
+      datedPanelIsDirectMain:document.querySelector('.m26-main > [data-u60-panel]')!==null,
       hitNav:nav.contains(document.elementFromPoint(navBox.left+navBox.width/2,navBox.top+navBox.height/2)),
     };
   });
@@ -171,6 +174,10 @@ async function certifyNonOverlappingClientDock(page,project,route){
   expect(geometry.mainOverflow,`${route}: only the nested route may scroll`).toBe('clip');
   expect(geometry.shellBottom,`${route}: Client shell stays viewport-bound`).toBeGreaterThanOrEqual(geometry.viewportHeight-2);
   expect(geometry.dockPosition,`${route}: dock must occupy its own layout row`).toBe('relative');
+  if(route==='Tus sesiones'){
+    expect(geometry.datedPanelInScroller,'U60 calendar must be reachable inside the Client scrollport').toBe(true);
+    expect(geometry.datedPanelIsDirectMain,'U60 calendar must not push the dock above the viewport').toBe(false);
+  }
   expect(geometry.scrollYStyle,`${route}: content must be independently scrollable`).toBe('auto');
   expect(geometry.contentBottom,`${route}: route must end before navigation starts`).toBeLessThanOrEqual(geometry.dockTop+1);
   expect(geometry.dockBottom,`${route}: dock must remain within the visual viewport`).toBeLessThanOrEqual(geometry.viewportHeight+1);
