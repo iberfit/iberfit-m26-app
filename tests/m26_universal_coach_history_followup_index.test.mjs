@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buildFollowUpClientScopeIndex,FOLLOWUP_SCOPE_COLLECTIONS} from '../src/m26/modules/client-followup-scope.js';
-import {computeProgressSummary} from '../src/m26/engagement/progress-engine.js';
+import {computeProgressSummary,buildPlanExecutionSummary} from '../src/m26/engagement/progress-engine.js';
 import {deriveCoachHomeDecisionAlerts} from '../src/m26/experience/coach-cockpit.js';
 
 const now=new Date('2026-11-06T12:00:00.000Z');
@@ -33,7 +33,7 @@ function fixture(){
 test('UNIVERSAL: one bounded follow-up index does not truncate or mutate the Coach archive',()=>{
   const state=fixture();
   assert.deepEqual(FOLLOWUP_SCOPE_COLLECTIONS,[
-    'appointments','sessionExecutions','checkins',
+    'appointments','sessionExecutions','sessions','checkins',
     'wearableDailySummaries','iriAssessments','trainingCycles']);
   const scopes=buildFollowUpClientScopeIndex(state,['alpha','beta','iri-only','alpha']);
   assert.equal(scopes.size,3);
@@ -76,4 +76,30 @@ test('UNIVERSAL: Clients uses the scope index without new RPC, truncation or fea
   assert.match(clients,/clientsOverview\(state,now\)/u);
   assert.match(clients,/buildClientFollowUpSummary\(/u);
   assert.doesNotMatch(clients,/fetch\(|\.rpc\(|truncate\(/u);
+});
+
+test('UNIVERSAL: indexed plans retain ownerless shared sessions and never mix other owners',()=>{
+  const state=fixture();
+  state.collections.sessions=[
+    {id:'alpha-plan',clientId:'alpha',title:'Plan Alpha',blocks:[{exerciseId:'a',sets:3}]},
+    {id:'beta-plan',clientId:'beta',title:'Plan Beta',blocks:[{exerciseId:'b',sets:2}]},
+    {id:'shared-template',title:'Shared original template',blocks:[{exerciseId:'c',sets:4}]},
+    {id:'contradicting-owner',clientId:'alpha',body:{clientId:'beta'},blocks:[]},
+  ];
+  const index=buildFollowUpClientScopeIndex(state,['alpha','beta','iri-only']);
+  assert.deepEqual(index.get('alpha').collections.sessions.map(x=>x.id),
+    ['alpha-plan','shared-template','contradicting-owner']);
+  assert.deepEqual(index.get('beta').collections.sessions.map(x=>x.id),
+    ['beta-plan','shared-template','contradicting-owner']);
+  assert.deepEqual(index.get('iri-only').collections.sessions.map(x=>x.id),
+    ['shared-template']);
+  for(const owner of ['alpha','beta','iri-only']){
+    for(const days of [7,28,90]){
+      assert.deepEqual(
+        buildPlanExecutionSummary(index.get(owner),owner,{now,days}),
+        buildPlanExecutionSummary(state,owner,{now,days}),
+        owner+'/'+days+' - plan/execution equality');
+    }
+  }
+  assert.equal(state.collections.sessions.length,4,'original prescription data not mutated');
 });

@@ -1,5 +1,10 @@
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 
+# UNIVERSAL 360 2026-11-06: after the single protected merge, request a
+# fresh encrypted PROD DB+Storage archive and isolated PostgreSQL 17 restore
+# using the existing M44 fail-closed jobs. This is a push path trigger ONLY.
+# No job input, permissions, credentials, retention or backup policy is changed.
+
 # IBERFIT U30-U60 PROD release readiness · 2026-11-05.
 # Request one NEW independent encrypted PROD DB+Storage archive and isolated
 # PG17 restore ON PROTECTED CANARY MERGE after Life360 #1279 gates 10/10 GREEN.

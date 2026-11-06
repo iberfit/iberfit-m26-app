@@ -2,7 +2,7 @@
 // This is a read-performance optimization, NEVER an authorization decision.
 // Backend RLS, route guard and each canonical evidence engine remain authoritative.
 export const FOLLOWUP_SCOPE_COLLECTIONS=Object.freeze([
-  'appointments','sessionExecutions','checkins',
+  'appointments','sessionExecutions','sessions','checkins',
   'wearableDailySummaries','iriAssessments','trainingCycles',
 ]);
 const OWNER_FIELDS=Object.freeze(['clientId','client_id','clienteId','cliente_id']);
@@ -32,7 +32,15 @@ export function buildFollowUpClientScopeIndex(state,clientIds=[]){
   if(!scoped.size)return new Map();
   for(const key of FOLLOWUP_SCOPE_COLLECTIONS){
     for(const record of Array.isArray(source[key])?source[key]:[]){
-      for(const id of ownerHints(record)){
+      const owners=ownerHints(record);
+      // The canonical plan/execution engine intentionally accepts shared,
+      // ownerless session templates when reconciling a confirmed execution.
+      // Preserve these for every scoped client; all other records stay owned.
+      if(key==='sessions'&&owners.length===0){
+        for(const bucket of scoped.values())bucket.sessions.push(record);
+        continue;
+      }
+      for(const id of owners){
         const bucket=scoped.get(id);
         if(bucket)bucket[key].push(record);
       }
