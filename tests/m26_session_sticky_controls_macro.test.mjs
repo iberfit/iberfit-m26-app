@@ -16,7 +16,7 @@ test('el controlador mide, observa y revalida la topbar real',()=>{
   assert.match(source,/ResizeObserver/u);
   assert.match(source,/sessionStickyResizeObserver\.observe\(topbar\)/u);
   assert.match(source,/addEventListener\('resize',bindSessionStickyTop/u);
-  assert.match(source,/async function onShellRendered\(\)\{\s*bindSessionStickyTop\(\);/u);
+  assert.match(source,/async function onShellRendered\(\)\{[\s\S]*?const context=getContext\(\);\s*bindSessionStickyTop\(\);/u);
 });
 
 test('landscape o topbar no sticky vuelven al offset mínimo y el destroy limpia observer/listener/variable',()=>{

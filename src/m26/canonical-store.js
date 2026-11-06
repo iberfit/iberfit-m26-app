@@ -56,6 +56,19 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     });
   }
 
+  // Stable authenticated identity claims for the live session controller.
+  // Never clone the Coach's complete execution archive during shell events.
+  // This immutable projection is not an authorization decision: backend/RLS
+  // and the canonical session owner/ACK checks remain the security boundary.
+  function getSessionActorSnapshot(){
+    const identity=state.identity;
+    return Object.freeze({identity:identity?Object.freeze({
+      id:String(identity.id||''),
+      role:String(identity.role||''),
+      clientId:String(identity.clientId||'')||null,
+    }):null});
+  }
+
   // Onboarding needs verified role/app-choice only. Never clone multi-MB
   // Client/Coach histories to inspect these bounded access claims.
   function getOnboardingAccessSnapshot(){
@@ -208,5 +221,5 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return ()=>selectionListeners.delete(listener);
   }
 
-  return Object.freeze({ getState, getNavigationSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection, getOnboardingAccessSnapshot, getCoachLaunchJourney });
+  return Object.freeze({ getState, getNavigationSnapshot, getSessionActorSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection, getOnboardingAccessSnapshot, getCoachLaunchJourney });
 }

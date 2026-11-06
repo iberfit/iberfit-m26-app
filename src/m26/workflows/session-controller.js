@@ -1157,13 +1157,16 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     catch{clearPendingSessionEntry(root);}
   }
   async function onShellRendered(){
-    bindSessionStickyTop();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());
+    // One coherent context per render: prior repeated reads multiplied expensive
+    // archive clones, delaying Coach route paint by seconds.
+    // Keep all session affordances, timers and first-tap authorization checks.
+    const context=getContext();
+    bindSessionStickyTop();hydrateActiveSetDraft(context);hydrateFinalFeedbackDraft(context);syncLiveAddExerciseControl(context);syncFinishControl(context);syncManualSyncControl(context);syncQuickRpeControl();syncRecoveryReviewControl(context);scheduleCoachRestAutoAdvance(context);ensureSessionClockTicker(context);
     // A shell render can still show the previous area, a loading transition or
     // a different session. Do not consume the user's 30-second entry intent
     // until the exact authorized execution has been mounted and revalidated.
     const pending=peekPendingSessionEntry(root);
     if(!pending)return;
-    const context=getContext();
     const actorClientId=String(context?.actor?.clientId||'').trim();
     if(actorClientId&&actorClientId!==pending.clientId){
       clearPendingSessionEntry(root);
