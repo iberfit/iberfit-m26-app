@@ -176,8 +176,10 @@ test('M43 completed run-tagged interactive QA history is archived only by immuta
   // Verify the actual persisted ledger represents historical terminal entries;
   // its fixed fingerprints never match an unmarked or changed live session.
   const ledger=JSON.parse(readFileSync(new URL('../scripts/remote-gates/m43-qa-retained-history-v1.json',import.meta.url),'utf8'));
-  assert.equal(ledger.sha256EntityScopeRevisionAndTitle.length,412);
-  assert.equal(new Set(ledger.sha256EntityScopeRevisionAndTitle).size,412);
+  assert.equal(ledger.sha256EntityScopeRevisionAndTitle.length,477);
+  assert.equal(new Set(ledger.sha256EntityScopeRevisionAndTitle).size,477);
+  assert.equal(ledger.frozenBeforeUtc,'2026-11-06T00:00:00Z');
+  assert.equal(ledger.sourceProject,'gjztkdwfmunnzhtvxrsu');
   assert.equal(ledger.mode,'logical_retention_only_no_database_mutation');
   const snapshot={data:{m26Entities:[record,{...record,status:'en_curso'}]}};
   assert.equal(assessM43SyntheticFixtureBudget(snapshot).total,2);
