@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "38bd10505387a0fbab4bb84f3747f28308d3b670",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "008d8647356c4f5b36dc86500fb19b4324ce26c4",
+  "notes": "IBERFIT UNIVERSAL 360; Canary exact SHA 16/16 GREEN; PROD U30–U60 8/8 + V47 versioned; M44 fresh DB+Storage encrypted restore. Protected frontend-only publish; no Edge/Hosted Auth/DDL in release workflow."
+}
