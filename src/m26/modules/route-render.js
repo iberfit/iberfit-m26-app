@@ -99,7 +99,7 @@ function clientOperationDisclosure(operations={}){
     +'<button type="button" data-m26-area="ajustes">'+escapeHtml(tx('Consultar sincronización'))+'</button></div>'
     +'</details>';
 }
-function appointmentCard(item,{canManage=false,canStartSession=false}={}) {
+function appointmentCard(item,{canManage=false,canStartSession=false,canCancel=false}={}) {
   const detail=[item.modality,item.location]
     .filter(Boolean)
     .filter((value,index,list)=>list.indexOf(value)===index)
@@ -110,11 +110,17 @@ function appointmentCard(item,{canManage=false,canStartSession=false}={}) {
     Boolean(item.sessionId)&&
     String(item.statusRaw||'').toLowerCase()==='confirmada';
 
-  const controls=confirmable
+  const primary=confirmable
     ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="confirm-appointment" data-entity-id="${escapeHtml(item.id)}">Confirmar cita</button><small>Al confirmar será visible para el cliente.</small></div>`
     : startable
       ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.sessionId)}">Comenzar entrenamiento</button><small>Abre la sesión publicada vinculada a esta cita.</small></div>`
       : '';
+  const rawStatus=String(item.statusRaw||'').toLowerCase();
+  const cancellable=canCancel&&['propuesta','pendiente','confirmada','reprogramada'].includes(rawStatus);
+  const cancellation=cancellable
+    ?`<details class="m26-publication-confirm" data-appointment-cancel><summary>Cancelar esta cita</summary><label>Motivo de cancelación<textarea data-appointment-cancel-reason maxlength="1000" minlength="3" required></textarea></label><button type="button" data-workflow-action="cancel-appointment" data-entity-id="${escapeHtml(item.id)}">Confirmar cancelación</button><small>La cancelación no borra el historial. Las fechas independientes se gestionan por su ejecución individual.</small></details>`
+    :'';
+  const controls=primary+cancellation;
   return `<article class="m26-list-card m26-appointment-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(detail||'Modalidad pendiente de definir')}</p></div><div class="m26-appointment-state">${badge(item.status,/confirm|realiz|complet/i.test(item.status)?'success':'neutral')}${controls}</div></article>`;
 }
 function clientIriState(client={}) {
@@ -4522,7 +4528,7 @@ export function renderAgendaRoute(vm) {
   </label>`;
   const form = `<form class="m26-panel m26-panel-soft" data-workflow-form="appointment" data-guided-required-form><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Crear propuesta de cita</h2><p>La propuesta permanece interna hasta que la cita sea confirmada.</p></div></div><div class="m26-field-grid"><label>Cliente<select name="clientId" required>${options}</select></label>${linkedSessionField}<label>Modalidad de esta cita<select name="modality" required aria-describedby="m26-appointment-guidance"><option value="">Seleccionar modalidad</option><option value="presencial">Presencial</option><option value="guiada_en_app">Guiada en la aplicación</option><option value="online" disabled>Online en directo · opción futura</option></select></label><label>Inicio<input type="datetime-local" name="startAt" required></label><label>Fin<input type="datetime-local" name="endAt" required></label><label class="m26-wide">Ubicación<input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help"></label><p id="m26-appointment-guidance" class="m26-field-help m26-wide">IBERFIT propone modalidad y duración cuando el expediente las confirma. Cualquier cambio manual prevalece.</p><p id="m26-location-help" class="m26-field-help m26-wide">La dirección habitual del expediente se propone automáticamente para citas presenciales.</p></div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><button type="submit" class="m26-primary-action" data-workflow-action="create-appointment">Crear propuesta de cita</button>${workflowStatus('appointment')}</form>`;
 
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Citas y propuestas</h2><p>Las propuestas son internas. El cliente solo recibe citas confirmadas.</p></div>${badge(countLabel(vm.appointments.length, 'registro', 'registros'), 'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length ? (vm.role==='coach'?renderCoachProgressiveRecords(vm.appointments,(item)=>appointmentCard(item,{canManage:true}),{visible:6,batch:18,kind:'agenda',label:'Citas y propuestas'}):vm.appointments.map((item)=>appointmentCard(item,{canManage:['admin','coach'].includes(String(vm.role||''))})).join('')) : emptyState('Agenda vacía', 'No hay citas ni propuestas registradas.')}</div></section>${form}</div>`;
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Citas y propuestas</h2><p>Las propuestas son internas. El cliente solo recibe citas confirmadas.</p></div>${badge(countLabel(vm.appointments.length, 'registro', 'registros'), 'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length ? (vm.role==='coach'?renderCoachProgressiveRecords(vm.appointments,(item)=>appointmentCard(item,{canManage:true,canCancel:true}),{visible:6,batch:18,kind:'agenda',label:'Citas y propuestas'}):vm.appointments.map((item)=>appointmentCard(item,{canManage:['admin','coach'].includes(String(vm.role||'')),canCancel:vm.role==='coach'})).join('')) : emptyState('Agenda vacía', 'No hay citas ni propuestas registradas.')}</div></section>${form}</div>`;
 }
 
 function nextSessionPrepDate(value){
