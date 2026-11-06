@@ -844,10 +844,15 @@ function renderClientHoyRoute(vm) {
     :'';
 
   const healthActivation=clientWearableActivation(vm.wearables);
-  const healthActivationMarkup=trainingSurface&&healthActivation.cta
-    ?`<aside class="m26-client-health-activation" data-client-wearable-activation="consent" aria-label="Conectar actividad opcional">
-       <div><p class="m26-eyebrow">Opcional · datos protegidos</p><h3>Tu actividad, sin tener que registrarla dos veces</h3><p>Si ya usas un reloj o una app compatible con Health Connect, elige los datos que quieres compartir una sola vez. Después IBERFIT comprobará las nuevas mediciones al abrir la aplicación.</p></div>
-       <button type="button" data-m26-area="actividad">Elegir qué compartir</button>
+  const nativeHealth=healthActivation.native===true;
+  const healthActivationMarkup=healthActivation.cta
+    ?`<aside class="m26-client-health-activation" data-client-wearable-activation="${escapeHtml(healthActivation.kind)}" aria-label="Conexión de actividad opcional">
+       <div><p class="m26-eyebrow">Opcional · datos protegidos</p>
+       <h3>Tu actividad, sin tener que registrarla dos veces</h3>
+       <p>${nativeHealth
+         ?'IBERFIT ha detectado su aplicación Android. Elige las categorías compatibles que quieres compartir y confirma los permisos oficiales de Health Connect. Los datos se comprobarán al abrir IBERFIT.'
+         :'Esta versión web no puede leer directamente Health Connect ni Salud de Apple. La conexión automática requiere una aplicación móvil compatible. Aquí puedes consultar el estado real de tus fuentes sin introducir contraseñas ni simular una vinculación.'}</p></div>
+       <button type="button" data-m26-area="actividad">${nativeHealth?'Elegir qué compartir':'Ver opciones de conexión'}</button>
      </aside>`:'';
   const nextAction=client?.nextAction||null;
   // A legacy/Coach-only destination must never retain a misleading CTA.

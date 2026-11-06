@@ -43,17 +43,21 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
   const connections=Array.isArray(wearable?.connections)?wearable.connections:[];
   const active=connections.filter(item=>['conectado','connected'].includes(String(item?.status||item?.state||'')));
   // An imported file or an unverified legacy row must never be marketed as an automatically synced wearable.
-  const automatic=active.filter(item=>['certified_native','certified_oauth'].includes(item.mode)
-    &&item.policy?.productionAllowed===true
-    &&providers.some(p=>p.key===item.provider&&p.usableNow===true));
+  // Health Connect uses a signed native channel whose generic provider policy
+  // deliberately stays closed to arbitrary web bridges. Trust the verified
+  // per-owner native receipt, not the generic zero-cost provider flag.
+  const automatic=active.filter(item=>item.certifiedAutomatic===true
+    ||(item.mode==='certified_oauth'&&item.policy?.productionAllowed===true
+      &&Number.isFinite(Date.parse(item.lastSyncedAt||''))
+      &&providers.some(p=>p.key===item.provider&&p.usableNow===true)));
   const importCount=active.length-automatic.length;
   const historicalDate=/^\d{4}-\d{2}-\d{2}$/.test(String(wearable?.lastHistoricalDate||''))
     ?wearable.lastHistoricalDate:null;
   const status=automatic.length
     ?`${automatic.length} fuente${automatic.length===1?'':'s'} vinculada${automatic.length===1?'':'s'}`
     :importCount?'Datos incorporados · sin enlace automático'
-    :Number(summary.daysWithData||0)>0?'Datos de salud recibidos'
-      :historicalDate?'Último dato '+historicalDate:'Sin mediciones confirmadas';
+    :Number(summary.daysWithData||0)>0?'Datos de salud recibidos · enlace automático no confirmado'
+      :historicalDate?'Último dato '+historicalDate+' · enlace automático no confirmado':'Sin mediciones confirmadas';
   const primary=MAIN_SOURCES.map(key=>providers.find(item=>item.key===key)).filter(Boolean).map(item=>item.key==='health_connect'&&wearable?.productionNativeReady===true?{...item,productionNativeReady:true}:item);
   const others=providers.filter(item=>item.key!=='normalized_file'&&!MAIN_SOURCES.includes(item.key));
   const directAvailable=wearable?.productionNativeReady===true||providers.some(item=>item.usableNow&&item.nativeReady);
@@ -69,7 +73,7 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
       ?'<p class="m26-device-hub-empty">Hay mediciones anteriores del '+escapeHtml(historicalDate)+'. No hay datos de los últimos siete días: consulta el historial y revisa la conexión antes de interpretar tu estado actual.</p>'
       :'<p class="m26-device-hub-empty">Aquí verás tus pasos, sueño y recuperación cuando existan datos confirmados. No es obligatorio conectar nada.</p>')}
     ${stats?`<p class="m26-data-footnote">Medias de los últimos siete días · ${escapeHtml(summary.daysWithData||0)} día(s) con datos. El reloj físico no está verificado.</p>`:''}
-    <details class="m26-device-link-picker" data-m26-device-link-picker${wearable?.productionNativeReady===true&&!active.length&&Number(summary.daysWithData||0)===0?' open':''}>
+    <details class="m26-device-link-picker" data-m26-device-link-picker${wearable?.productionNativeReady===true&&automatic.length===0?' open':''}>
       <summary class="m26-device-link-cta">${stats?'Conexión y otras fuentes':'Conectar mi actividad'} <span aria-hidden="true">↗</span></summary>
       <div class="m26-device-hub-body">
         <h3>¿Dónde registras tu actividad?</h3>

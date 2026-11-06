@@ -153,7 +153,7 @@ export function createClientWearableInvitationController({root,identityProvider=
   let mounted=false,scheduled=false,dialog=null,style=null,activeKey=null,activeRecoveryKey=null,busy=false;
   // OS callbacks may arrive before the native request promise resolves, or
   // after WebView pageshow. Neither lifecycle may manufacture a consent.
-  let pendingNativeKey=null,recoverableNativeKey=null,nativeRequestKey=null;
+  let pendingNativeKey=null,recoverableNativeKey=null,nativeRequestKey=null,pendingRecoveryKey=null;
   let earlyNativeOutcome=null,nativePermissionRetry=false;
   function guideStatus(userId){
     const key=clientGuidedWelcomeScopeKey({userId,role:'client'});
@@ -298,19 +298,29 @@ export function createClientWearableInvitationController({root,identityProvider=
     if(typeof reviewNativeHealth!=='function')return;
     const note=dialog?.querySelector?.('.m26-connected360-provider');
     busy=true;btn.disabled=true;
+    nativeRequestKey=ctx.key;earlyNativeOutcome=null;
     try{
       const outcome=await reviewNativeHealth();
       if(outcome?.requested!==true)throw new Error('M26_V46_PROD_PERMISSION_REVIEW_FAILED');
       if(!mounted||identity()?.key!==ctx.key)return;
-      // Records only that an OS settings screen was opened voluntarily.
-      // Never treat this as an actual permission grant or successful upload.
-      write(ticket,'chosen');close();
+      // Opening Android settings is NOT permission acceptance or verified
+      // ingestion. Keep this recovery offer pending until native foreground
+      // reconciliation returns a current owner-scoped outcome.
+      pendingNativeKey=ctx.key;
+      pendingRecoveryKey=ticket;
+      nativePermissionRetry=false;
+      close();
+      if(earlyNativeOutcome!==null)
+        onNativePermissionOutcome({detail:{confirmed:earlyNativeOutcome}});
     }catch{
       if(mounted&&identity()?.key===ctx.key&&note)note.textContent=iberfitSurfaceTranslate(
         'No se pudieron abrir los permisos de Android. Puedes reintentarlo desde Dispositivos.',
         {language:getIberfitLanguage()},
       );
-    }finally{busy=false;btn.disabled=false;}
+    }finally{
+      if(nativeRequestKey===ctx.key){nativeRequestKey=null;earlyNativeOutcome=null;}
+      busy=false;btn.disabled=false;
+    }
   }
   function click(event){
     const btn=event.target?.closest?.('[data-m26-connected360-action]');
@@ -319,7 +329,7 @@ export function createClientWearableInvitationController({root,identityProvider=
     const action=btn.getAttribute?.('data-m26-connected360-action');
     if(busy)return;
     if(action==='later'){
-      pendingNativeKey=null;recoverableNativeKey=null;
+      pendingNativeKey=null;recoverableNativeKey=null;pendingRecoveryKey=null;
       nativeRequestKey=null;earlyNativeOutcome=null;
       write(activeRecoveryKey||ctx.key,'dismissed');close();return;
     }
@@ -340,10 +350,13 @@ export function createClientWearableInvitationController({root,identityProvider=
       }
       return;
     }
-    pendingNativeKey=null;recoverableNativeKey=null;
-    if(!mounted||identity()?.key!==pending||FINAL.has(record(pending)?.status))return;
+    const recoveryTicket=pendingRecoveryKey;
+    pendingNativeKey=null;recoverableNativeKey=null;pendingRecoveryKey=null;
+    if(!mounted||identity()?.key!==pending||FINAL.has(record(pending)?.status)&&!recoveryTicket)return;
     if(event?.detail?.confirmed===true){
-      write(pending,'chosen');close();
+      write(pending,'chosen');
+      if(recoveryTicket)write(recoveryTicket,'chosen');
+      close();
     }else{
       // Declined/unknown permissions retain the original optional offer;
       // never present an unverified Health Connect connection as complete.
@@ -362,7 +375,7 @@ export function createClientWearableInvitationController({root,identityProvider=
   }
   function keydown(event){
     if(event?.key!=='Escape'||!dialog)return;
-    pendingNativeKey=null;recoverableNativeKey=null;
+    pendingNativeKey=null;recoverableNativeKey=null;pendingRecoveryKey=null;
     nativeRequestKey=null;earlyNativeOutcome=null;
     const ctx=identity();if(ctx)write(activeRecoveryKey||ctx.key,'dismissed');close();
   }
@@ -378,7 +391,7 @@ export function createClientWearableInvitationController({root,identityProvider=
     refresh,
     destroy(){
       mounted=false;scheduled=false;busy=false;
-      pendingNativeKey=null;recoverableNativeKey=null;nativeRequestKey=null;
+      pendingNativeKey=null;recoverableNativeKey=null;nativeRequestKey=null;pendingRecoveryKey=null;
       earlyNativeOutcome=null;nativePermissionRetry=false;
       doc?.removeEventListener?.('click',click);doc?.removeEventListener?.('keydown',keydown);
       root.removeEventListener?.('m26:client-guided-welcome-completed',refresh);
