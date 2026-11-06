@@ -4119,7 +4119,7 @@ function publicationCard(item,entity){
   // A published Coach session must have an immediately recognisable safe
   // removal affordance. It withdraws the plan; it never deletes confirmed history.
   const canWithdrawSession=entity==='session'&&actions.some(action=>action.action==='withdraw');
-  const controlsTitle=canWithdrawSession?'Quitar esta sesión de la planificación · conservar historial'
+  const controlsTitle=canWithdrawSession?'Gestionar publicación · Quitar esta sesión de la planificación · conservar historial'
     :`Gestionar publicación${preferredAction?` · ${preferredAction.label}`:''}`;
   const controls=actions.length?`<details class="m26-publication-actions"><summary>${escapeHtml(controlsTitle)}</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
   const issued=entity==='report'&&String(item.statusRaw||'').toLowerCase()==='publicado'
