@@ -7,7 +7,12 @@ const frontend=readFileSync(new URL('../src/m26/wearables/device-hub.js',import.
 const v1=readFileSync(new URL('../supabase/migrations/20261010223000_connected360_block_unverified_native_certification_v1.sql',import.meta.url),'utf8');
 
 test('backend protects all labels the device hub might advertise as automatic',()=>{
-  assert.match(frontend,/\['certified_native','certified_oauth'\]/u);
+  assert.match(frontend,/item\.certifiedAutomatic===true/u);
+  assert.match(frontend,/item\.mode==='certified_oauth'/u);
+  assert.match(frontend,/item\.policy\?\.productionAllowed===true/u);
+  const viewModel=readFileSync(new URL('../src/m26/wearables/view-model.js',import.meta.url),'utf8');
+  assert.match(viewModel,/isCertifiedNativeAutoSyncSource\(item\)/u);
+  assert.match(viewModel,/typeof confirmedAt==='string'&&Number\.isFinite\(Date\.parse\(confirmedAt\)\)/u);
   assert.match(migration,/create or replace function public\.m26_wearable_connection_certification_guard_v1\(\)/u);
   assert.match(migration,/\^\(certified_\|verified_\)/u);
   assert.match(migration,/M26_NATIVE_CERTIFICATION_NOT_VERIFIED/u);

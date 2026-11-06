@@ -69,6 +69,9 @@ test('UNIVERSAL Coach recibe explicacion de borrado logico y Cliente no puede ed
   const src=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   assert.match(src,/Retira la sesión de la planificación activa sin borrar el historial/u);
   assert.match(src,/finaliza o cancela cualquier entrenamiento en curso/u);
+  assert.match(src,/Quitar esta sesión de la planificación · conservar historial/u);
+  assert.match(src,/const canWithdrawSession=entity==='session'&&actions\.some/u);
+  assert.match(src,/escapeHtml\(controlsTitle\)/u,'published Coach action remains escaped and discoverable');
 });
 
 test('UNIVERSAL impide retirar mientras otra ejecucion, fecha o cita sigue abierta',()=>{
@@ -99,4 +102,18 @@ test('UNIVERSAL retirada Coach reconsulta datos actuales antes de construir coma
   assert.ok(manage.indexOf("refreshState({reason:'session-withdraw-preflight'})")<
     manage.indexOf('buildPublicationCommand('));
   assert.match(manage,/M26_SESSION_WITHDRAW_ACTOR_CHANGED/u);
+});
+
+test('UNIVERSAL web permite retirar una sesion disponible tras cancelar su cita, sin borrar ninguna ejecucion',()=>{
+  const available={...source,status:'disponible',revision:7};
+  const appointment={sessionId:available.id,clientId:available.clientId,status:'cancelada'};
+  assert.deepEqual(sessionWithdrawalDependencies({record:available,executions:[],occurrences:[],appointments:[appointment]}),{ok:true,code:null});
+  assert.deepEqual(publicationActionsFor({entity:'session',record:available,role:'coach'}).map(x=>x.action),['withdraw']);
+  const command=buildPublicationCommand({entity:'session',action:'withdraw',record:available,
+    role:'coach',reason:'Ajustar el programa',now});
+  assert.equal(command.type,'SESION_CANCELAR');
+  assert.equal(command.baseRevision,7);
+  assert.equal(command.payload.patch.status,'retirado');
+  assert.equal(command.payload.patch.visibleToClient,false);
+  assert.equal(Object.hasOwn(command.payload.patch,'delete'),false);
 });

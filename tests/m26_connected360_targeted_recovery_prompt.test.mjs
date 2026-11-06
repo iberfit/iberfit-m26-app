@@ -95,9 +95,29 @@ test('previous native selection becomes a single OS-permission review, never ano
   assert.doesNotMatch(f.dialog()?.html||'',/data-m26-connected360-native-scope/u);
   f.click('resume');await completed();
   assert.equal(f.dialogState.reviewed,1);
-  assert.equal(JSON.parse(f.storage.get(K)).status,'chosen');
+  assert.equal(f.storage.get(K),undefined,'OS settings opened, not yet certified');
   assert.equal(JSON.parse(f.storage.get(f.originalKey)).status,'chosen');
+  assert.equal(f.dialog(),null,'do not overlay native OS permission ceremony');
+  f.events.get('root:m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await completed();
+  assert.equal(JSON.parse(f.storage.get(K)).status,'chosen');
   f.controller.refresh();await completed();assert.equal(f.dialog(),null);
+  f.controller.destroy();
+});
+
+test('native permission refusal after review keeps original recovery offer, and only a later confirmed return closes it',async()=>{
+  const f=fixture({native:true,original:'chosen'});
+  f.controller.mount();await completed();
+  f.click('resume');await completed();
+  assert.equal(f.storage.get(K),undefined);
+  f.events.get('root:m26:connected360-native-permission-outcome')?.({detail:{confirmed:false}});
+  await completed();
+  assert.equal(f.storage.get(K),undefined);
+  assert.ok(f.dialog(),'declining Android permissions must not retire the recovery choice');
+  f.click('resume');await completed();
+  f.events.get('root:m26:connected360-native-permission-outcome')?.({detail:{confirmed:true}});
+  await completed();
+  assert.equal(JSON.parse(f.storage.get(K)).status,'chosen');
   f.controller.destroy();
 });
 

@@ -1,3 +1,4 @@
+import {createPublishedSessionEntryReplay} from '../rc39/published-session-entry-intent.js';
 import {normalizeAuthorizedRoles,resolveActiveRole,canSwitchApplication,readPreferredApplicationRole,writePreferredApplicationRole,clearPreferredApplicationRole} from '../rc39/multi-role.js';
 import {createCommunicationTransport} from '../communication/transport.js';
 import {createCommunicationService} from '../communication/service.js';
@@ -541,6 +542,22 @@ export async function createM26Application({root=document.querySelector('#app'),
     return [session?.user?.id||'',identity.id||'',identity.role||'',
       identity.clientId||'',state.selectedClientId||'',activeApplicationRole||''].join('|');
   }});
+  // A published-session tap during progressive authenticated setup is an intent,
+  // not a workout command. Replay once only if the owner, role, client and route
+  // are unchanged. Actual start still requires the server-authorized ACK.
+  const firstSessionEntryReplay=createPublishedSessionEntryReplay({
+    readScope:()=>{
+      const state=store.getState()||{}, identity=state.identity||{};
+      return {
+        owner:session,
+        role:identity.role,
+        clientId:identity.clientId,
+        selectedClientId:state.selectedClientId,
+        area:state.activeArea,
+      };
+    },
+    findButtons:()=>root.querySelectorAll?.('[data-workflow-action="start-published-session"]')||[],
+  });
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
   let currentAuthAttemptId=null;
   const authWatchdog=createAuthBusyWatchdog({
@@ -1630,6 +1647,8 @@ export async function createM26Application({root=document.querySelector('#app'),
     workflow.mount();
     sessionController.mount();
     if(root?.dataset)root.dataset.m26SessionEntryReady='ready';
+    // Event listeners are now mounted; do not force a second tap after fast login.
+    queueMicrotask(()=>firstSessionEntryReplay.release());
     qaStage('rc64-session-entry-controller-ready');
     if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
     if(root?.dataset)root.dataset.m26Interactive='ready';
@@ -1728,7 +1747,11 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(!button||root?.dataset?.m26SessionEntryReady==='ready')return;
     event.preventDefault?.();
     event.stopImmediatePropagation?.();
-    const message='IBERFIT está preparando los controles del entrenamiento. Vuelve a pulsar cuando termine de cargar.';
+    const retained=button.getAttribute?.('data-workflow-action')==='start-published-session'
+      &&firstSessionEntryReplay.capture(button);
+    const message=retained
+      ?'Preparando los controles del entrenamiento… Conservamos tu selección mientras termina de cargar.'
+      :'IBERFIT está preparando los controles del entrenamiento. Vuelve a pulsar cuando termine de cargar.';
     const notice=button.closest?.('[data-rc39-session]')?.querySelector?.('[data-workflow-status="session"]');
     if(notice){notice.textContent=message;notice.dataset.status='pending';}
     try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
@@ -2024,7 +2047,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers({preserveWorkflowDrafts=true}={}){datedUi?.destroy?.();datedUi=null;clientHistoryDemand?.destroy?.();clientHistoryDemand=null;workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset){delete root.dataset.m26Interactive;delete root.dataset.m26SessionEntryReady;}telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers({preserveWorkflowDrafts=true}={}){firstSessionEntryReplay.cancel();datedUi?.destroy?.();datedUi=null;clientHistoryDemand?.destroy?.();clientHistoryDemand=null;workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset){delete root.dataset.m26Interactive;delete root.dataset.m26SessionEntryReady;}telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;

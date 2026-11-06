@@ -28,15 +28,17 @@ test('B20 first access invites one explicit consent route, never grants it impli
  const ready=clientWearableActivation({productionNativeReady:true,summary:{daysWithData:0},connections:[]});
  assert.equal(ready.kind,'consent');assert.equal(ready.cta,true);
  assert.equal(ready.label,undefined,'copy belongs to the translated render surface');
- assert.equal(clientWearableActivation({productionNativeReady:false}).cta,false);
+ const browserOffer=clientWearableActivation({productionNativeReady:false});
+ assert.equal(browserOffer.cta,true);
+ assert.equal(browserOffer.kind,'compatible-app-required');
 });
-test('B20 no repeated prompt after confirmed data, certified grant or revocation',()=>{
+test('B20 old data never suppresses reconnection; only verified automatic sync or opt-out does',()=>{
  assert.equal(clientWearableActivation({
  productionNativeReady:true,summary:{daysWithData:3},connections:[],
- }).kind,'observed');
+ }).kind,'reconnect');
  assert.equal(clientWearableActivation({
  productionNativeReady:true,summary:{daysWithData:0},connections:[
- {status:'conectado',provider:'health_connect',mode:'certified_native',policy:{productionAllowed:true}}],
+ {status:'conectado',provider:'health_connect',mode:'certified_native',certifiedAutomatic:true}],
  }).kind,'linked');
  assert.equal(clientWearableActivation({
  productionNativeReady:true,summary:{daysWithData:0},connections:[

@@ -1,5 +1,6 @@
 import {providerReadiness,wearableProviderDefinition} from './contracts.js';
 import {isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
+import {isCertifiedNativeAutoSyncSource} from './foreground-sync.js';
 import {zeroCostProviderReadiness,wearableZeroCostPolicy} from './free-policy.js';
 import {createWearableConnectionState,wearableConnectionHealth} from './connection-state.js';
 import {summarizeWearableData} from './normalization.js';
@@ -24,13 +25,32 @@ export function buildWearableViewModel({records=[],connections=[],role='client',
       // entire Client/Coach health view on a future provider or legacy row.
       return Object.freeze({
         id:item?.id||null,provider:null,label:'Fuente desconocida',
-        status:'pendiente',state:'unavailable',mode:null,lastSyncedAt:null,
+        status:'pendiente',state:'unavailable',mode:null,lastSyncedAt:null,certifiedAutomatic:false,
         scopes:Object.freeze([]),health:Object.freeze({
           state:'unavailable',ageHours:null,freshness:'sin_datos',actionRequired:true,
         }),policy:null,
       });
     }
-    const legacyStatus=status(item.status);const state=createWearableConnectionState({provider:definition?.key||item.provider||item.source,state:legacyStatus==='conectado'?'connected':legacyStatus==='pausado'?'paused':legacyStatus==='revocado'?'revoked':'available',grantedScopes:Array.isArray(item.scopes)?item.scopes:[],lastSyncedAt:item.lastSyncedAt||item.last_synced_at||null});return Object.freeze({id:item.id||null,provider:state.provider,label:definition?.label||'Fuente desconocida',status:legacyStatus,state:state.state,mode:String(item.metadata?.mode||'').trim()||null,lastSyncedAt:state.lastSyncedAt,scopes:clone(state.grantedScopes),health:wearableConnectionHealth(state,{now}),policy:wearableZeroCostPolicy(state.provider)});});
+    const legacyStatus=status(item.status);
+    const state=createWearableConnectionState({
+      provider:definition?.key||item.provider||item.source,
+      state:legacyStatus==='conectado'?'connected':legacyStatus==='pausado'?'paused':legacyStatus==='revocado'?'revoked':'available',
+      grantedScopes:Array.isArray(item.scopes)?item.scopes:[],
+      lastSyncedAt:item.lastSyncedAt||item.last_synced_at||null,
+    });
+    const confirmedAt=item.lastSyncedAt||item.last_synced_at||item.metadata?.lastConfirmedSyncAt||null;
+    const certifiedAutomatic=state.provider==='health_connect'
+      &&isCertifiedNativeAutoSyncSource(item)
+      &&typeof confirmedAt==='string'&&Number.isFinite(Date.parse(confirmedAt));
+    return Object.freeze({
+      id:item.id||null,provider:state.provider,
+      label:definition?.label||'Fuente desconocida',status:legacyStatus,
+      state:state.state,mode:String(item.metadata?.mode||'').trim()||null,
+      lastSyncedAt:state.lastSyncedAt,certifiedAutomatic,
+      scopes:clone(state.grantedScopes),health:wearableConnectionHealth(state,{now}),
+      policy:wearableZeroCostPolicy(state.provider),
+    });
+  });
   const providers=zeroCostProviderReadiness(providerReadiness(scope));
   const coverage=Object.freeze({fileImport:providers.filter((item)=>item.importReady).length,nativeBridge:providers.filter((item)=>item.nativeReady).length,directBlocked:providers.filter((item)=>item.directBlocked).length,total:providers.length});
   return Object.freeze({summary,dailyRecords:summary.records,
