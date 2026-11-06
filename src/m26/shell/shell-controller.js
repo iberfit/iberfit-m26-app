@@ -620,8 +620,12 @@ export function createShellController({ root, store, renderRoute = () => '', get
   function reconcileRouteRender(area){
     const expected=String(area||'');
     queueMicrotask(()=>{
+      // Skip an expensive, full-history state clone when the route changed
+      // again or its authenticated DOM is already on the intended area.
+      const active=store.getNavigationSnapshot?.()?.activeArea;
+      if((active!==undefined&&String(active)!==expected)||renderedArea()===expected)return;
       const state=store.getState();
-      if(String(state.activeArea||'')!==expected||renderedArea()===expected)return;
+      if(String(state.activeArea||'')!==expected)return;
       queuedState=null;
       lastMarkup='';
       renderNow(state,{force:true});
@@ -919,7 +923,9 @@ export function createShellController({ root, store, renderRoute = () => '', get
         const previousArea=String(current.activeArea||'');
         windowLike.setTimeout(()=>{
           if(ticket!==touchRouteTicket||version!==generation||!unsubscribe)return;
-          const latest=store.getState();
+          // Read only immutable identity + area for CAS; avoid cloning
+          // the whole U38 history just to reject a stale navigation.
+          const latest=store.getNavigationSnapshot?.()??store.getState();
           if(String(latest.identity?.id||'')!==ownerId
             ||String(latest.identity?.role||'')!==expectedRole
             ||String(latest.activeArea||'')!==previousArea)return;

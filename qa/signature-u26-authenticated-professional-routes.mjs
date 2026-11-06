@@ -19,8 +19,14 @@ export const PROFESSIONAL_U26_AREAS=Object.freeze({
 async function activeArea(page){
   return page.evaluate(()=>{
     const app=globalThis.__IBERFIT_M26_APP__;
-    const value=app?.getState?.()?.activeArea;
-    return String(value||document.querySelector('.m26-shell [data-m26-area][aria-current="page"]')?.getAttribute('data-m26-area')||'');
+    // U83: never structuredClone the authenticated U38 archive when polling
+    // a primitive route. Assert store and rendered navigation agree.
+    const stateArea=app?.getNavigationSnapshot?.()?.activeArea
+      ??app?.getState?.()?.activeArea;
+    const renderedArea=document.querySelector('.m26-shell [data-m26-area][aria-current="page"]')
+      ?.getAttribute('data-m26-area')||'';
+    if(stateArea&&renderedArea&&String(stateArea)!==String(renderedArea))return '';
+    return String(stateArea||renderedArea||'');
   });
 }
 

@@ -2696,7 +2696,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   stopQaCoachHistorySelectionGuard();
   void transport?.logout?.(recoveryToken,{scope:'local'}).catch(() => {});
 }
-  return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
+  return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),getNavigationSnapshot:()=>store.getNavigationSnapshot(),runtime});
 }
 
 export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,loginFailureMessage,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,sessionFailureRequiresFreshLogin,recoveryRequestConfirmation,recoveryRedirectForRuntime,recoverExecutionAfterAuthentication,createAuthBusyWatchdog,AUTH_BUSY_WATCHDOG_MS,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});

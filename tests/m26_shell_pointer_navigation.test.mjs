@@ -59,10 +59,24 @@ test('explicit route commits reconcile canonical state with the rendered route',
 
   const helper=source.slice(helperStart,helperEnd);
 
+  // U83 first checks a constant-size current navigation snapshot, so the
+  // expensive full U38 history is never copied when reconciliation is a no-op.
+  // Preserve both historical guarantees independently: newer route wins,
+  // and an already-correct authenticated DOM is never needlessly re-rendered.
   assert.match(
     helper,
-    /String\(state\.activeArea\|\|''\)!==expected\|\|renderedArea\(\)===expected/u,
-    'reconciliation must no-op when canonical state moved on or DOM already matches'
+    /const active=store\.getNavigationSnapshot\?\.\(\)\?\.activeArea;/u,
+    'reconciliation must consult authoritative current route before copying history'
+  );
+  assert.match(
+    helper,
+    /active!==undefined&&String\(active\)!==expected\)\|\|renderedArea\(\)===expected\)return;/u,
+    'reconciliation must no-op when route moved on or rendered DOM already matches'
+  );
+  assert.match(
+    helper,
+    /if\(String\(state\.activeArea\|\|''\)!==expected\)return;/u,
+    'full-state fallback must still reject an obsolete route before forcing DOM replacement'
   );
 
   const clearQueued=helper.indexOf('queuedState=null;');
