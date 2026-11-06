@@ -54,6 +54,11 @@ test('U83: real pointer, authenticated state and DOM route must all agree withou
   assert.match(probe,/app\?\.getNavigationSnapshot\?\.\(\)\?\.activeArea/u);
   assert.match(probe,/String\(stateArea\)!==String\(renderedArea\)/u);
   assert.match(probe,/choice\.click\(\{noWaitAfter:true,timeout:12000\}\)/u);
-  assert.match(probe,/expect\.poll\(\(\)=>activeArea\(page\)/u);
+  assert.match(probe,/page\.waitForFunction/u);
+  assert.match(probe,/event\.isTrusted!==true/u);
+  assert.match(probe,/performance\.now\(\)-pending\.at/u);
+  assert.match(probe,/\.toBeLessThanOrEqual\(5_000\)/u);
+  assert.match(probe,/String\(state\?\.activeArea\|\|''\)===area/u);
+  assert.doesNotMatch(probe,/expect\.poll\(\(\)=>activeArea\(page\)/u);
   assert.doesNotMatch(probe,/dispatchEvent\(|force:true/u);
 });

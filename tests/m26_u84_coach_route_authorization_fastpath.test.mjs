@@ -77,7 +77,12 @@ test('U84: shell retains real route guard, identity/role CAS, and full-state fal
   assert.match(shell,/String\(latest\.identity\?\.id\|\|''\)!==ownerId/u);
   assert.match(shell,/String\(latest\.identity\?\.role\|\|''\)!==expectedRole/u);
   assert.match(qa,/SIGNATURE_U84_ROUTE_FAILURE_DIAGNOSTIC/u);
-  assert.match(qa,/expect\.poll\(\(\)=>activeArea\(page\)/u);
+  assert.match(qa,/page\.waitForFunction/u);
+  assert.match(qa,/event\.isTrusted!==true/u);
+  assert.match(qa,/new MutationObserver\(check\)/u);
+  assert.match(qa,/\.toBeLessThanOrEqual\(5_000\)/u);
+  assert.match(qa,/SIGNATURE_U84_ROUTE_FAILURE_DIAGNOSTIC/u);
+  assert.doesNotMatch(qa,/expect\.poll\(\(\)=>activeArea\(page\)/u);
   assert.match(qa,/throw error;/u);
   assert.doesNotMatch(qa,/dispatchEvent\(|force:true/u);
 });

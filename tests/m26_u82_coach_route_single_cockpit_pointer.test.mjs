@@ -42,6 +42,10 @@ test('U82: Coach physical click returns before a potentially heavy authenticated
   assert.match(nav,/forceSync:String\(current\.identity\?\.role\|\|''\)==='coach'/u);
   const u26=readFileSync(new URL('../qa/signature-u26-authenticated-professional-routes.mjs',import.meta.url),'utf8');
   assert.match(u26,/choice\.click\(\{noWaitAfter:true,timeout:12000\}\)/u);
-  assert.match(u26,/expect\.poll\(\(\)=>activeArea\(page\)/u);
+  assert.match(u26,/page\.waitForFunction/u);
+  assert.match(u26,/event\.isTrusted!==true/u);
+  assert.match(u26,/requestAnimationFrame/u);
+  assert.match(u26,/\.toBeLessThanOrEqual\(5_000\)/u);
+  assert.doesNotMatch(u26,/expect\.poll\(\(\)=>activeArea\(page\)/u);
   assert.doesNotMatch(u26,/dispatchEvent\(|force:true/u);
 });
