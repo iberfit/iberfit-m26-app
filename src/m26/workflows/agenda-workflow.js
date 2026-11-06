@@ -75,19 +75,22 @@ export function appointmentCancellationDecision({
   const status=normalizeAppointmentStatus(field(source,'status','estado'));
   if(!['propuesta','pendiente','confirmada','reprogramada'].includes(status))
     return Object.freeze({ok:false,code:'M26_APPOINTMENT_CANCEL_NOT_PENDING'});
+  // A stale appointment may omit its sessionId even though an independent
+  // occurrence still references it. That cannot authorize legacy cancel.
+  const linked=(Array.isArray(occurrences)?occurrences:[]).some(row=>
+    field(row,'appointmentId','appointment_id')===id&&
+    (!field(row,'clientId','client_id')||field(row,'clientId','client_id')===owner));
+  if(linked)return Object.freeze({ok:false,code:'M26_APPOINTMENT_OCCURRENCE_REQUIRES_TRANSITION'});
   const sessionId=field(source,'sessionId','session_id');
   if(sessionId){
-    const same=(row)=>field(row,'clientId','client_id')===owner&&
-      field(row,'sessionId','session_id')===sessionId;
-    // Never let legacy appointment cancellation silently desynchronize the
-    // multi-date engine. Each occurrence needs its own verified transition.
+    // Owner hints missing on a matching session are not evidence of safety.
+    // Preserve the ambiguous row and block until an authorized review.
+    const same=(row)=>field(row,'sessionId','session_id')===sessionId&&
+      (!field(row,'clientId','client_id')||
+        field(row,'clientId','client_id')===owner);
     const repeats=(Array.isArray(appointments)?appointments:[])
       .filter(row=>same(row)&&field(row,'id','entityId','entity_id')!==id);
     if(repeats.length)return Object.freeze({ok:false,code:'M26_APPOINTMENT_DATED_EXECUTOR_REQUIRED'});
-    const linked=(Array.isArray(occurrences)?occurrences:[]).some(row=>
-      field(row,'appointmentId','appointment_id')===id&&
-      (!field(row,'clientId','client_id')||field(row,'clientId','client_id')===owner));
-    if(linked)return Object.freeze({ok:false,code:'M26_APPOINTMENT_OCCURRENCE_REQUIRES_TRANSITION'});
     const active=(Array.isArray(executions)?executions:[]).some(row=>{
       if(!same(row))return false;
       const state=field(row,'executionStatus','execution_status','status').toLowerCase();

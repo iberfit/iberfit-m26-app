@@ -78,6 +78,9 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'validate-plan':{roles:['admin','coach'],domain:'workflow'},
   'create-appointment':{roles:['admin','coach'],domain:'workflow'},
   'confirm-appointment':{roles:['admin','coach'],domain:'workflow'},
+  // Cancellation is a Coach-only audited action, authorized again by
+  // current JWT scope, appointment status, independent dates and CAS.
+  'cancel-appointment':{roles:['coach'],domain:'workflow'},
   'reuse-session':{roles:['admin','coach'],domain:'workflow'},
   'open-session-builder':{roles:['admin','coach'],domain:'workflow'},
   'start-published-session':{roles:['coach','client'],domain:'workflow'},

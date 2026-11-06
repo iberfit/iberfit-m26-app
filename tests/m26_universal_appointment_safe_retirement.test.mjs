@@ -44,6 +44,10 @@ test('UNIVERSAL nunca cancela un enlace de ocurrencia U60 desde el comando legad
     occurrences:[linked],
   })),{ok:false,code:'M26_APPOINTMENT_OCCURRENCE_REQUIRES_TRANSITION'});
   assert.deepEqual(appointmentCancellationDecision(withRows({
+    appointment:{...appointment,sessionId:null},occurrences:[linked],
+  })),{ok:false,code:'M26_APPOINTMENT_OCCURRENCE_REQUIRES_TRANSITION'},
+  'a missing parent sessionId must never bypass the date-scoped executor');
+  assert.deepEqual(appointmentCancellationDecision(withRows({
     appointments:[appointment,{...appointment,id:'appointment-2'}],
   })),{ok:false,code:'M26_APPOINTMENT_DATED_EXECUTOR_REQUIRED'});
 });
@@ -54,6 +58,9 @@ test('UNIVERSAL protege ejecuciones activas incluso si la Agenda marca confirmad
     ]}));
     assert.deepEqual(d,{ok:false,code:'M26_APPOINTMENT_SESSION_EXECUTION_OPEN'});
   }
+  assert.deepEqual(appointmentCancellationDecision(withRows({executions:[
+    {id:'ambiguous-exec',sessionId,status:'en_curso'},
+  ]})),{ok:false,code:'M26_APPOINTMENT_SESSION_EXECUTION_OPEN'});
   assert.equal(appointmentCancellationDecision(withRows({executions:[
     {id:'exec-1',clientId,sessionId,status:'completed'},
     {id:'exec-other',clientId,sessionId:'other',status:'active'},
@@ -71,6 +78,8 @@ test('UNIVERSAL la UI ofrece cancelacion solo al Coach, con razon y lectura auto
   assert.match(controller,/appointment-cancel-preflight/);
   assert.match(controller,/M26_APPOINTMENT_CANCEL_ACTOR_CHANGED/);
   assert.match(controller,/appointmentCancellationDecision/);
+  const registry=readFileSync(new URL('../src/m26/ui/interactive-audit.js',import.meta.url),'utf8');
+  assert.match(registry,/'cancel-appointment':\{roles:\['coach'\],domain:'workflow'\}/u);
   const fx=controller.slice(controller.indexOf('async function cancelAppointment('),
     controller.indexOf('function reuseSession(',controller.indexOf('async function cancelAppointment(')));
   assert.ok(fx.indexOf("refreshState({reason:'appointment-cancel-preflight'})")<
