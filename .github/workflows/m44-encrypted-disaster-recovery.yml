@@ -3,6 +3,7 @@
 # archive, independent isolated PostgreSQL 17 restore and Storage byte parity.
 # Never treat a completed backup as authorization to bypass release/RLS gates.
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
+# UNIVERSAL 360 06-NOV: refresh verified encrypted DB+Storage isolated restore on postmerge SHA.
 
 # UNIVERSAL 360 2026-11-06: after the single protected merge, request a
 # fresh encrypted PROD DB+Storage archive and isolated PostgreSQL 17 restore

@@ -212,6 +212,18 @@ export function legacyStartNeedsOccurrence({
   return false;
 }
 
+// One pass per frame; canonical owner/date/status gates still check every row.
+export function sessionRowsById(rows=[],getSessionId=appointmentSessionId){
+  const groups=new Map();
+  for(const row of Array.isArray(rows)?rows:[]){
+    const id=String(getSessionId(row)||'').trim();
+    if(!id)continue;
+    const bucket=groups.get(id);
+    if(bucket)bucket.push(row);else groups.set(id,[row]);
+  }
+  return groups;
+}
+
 export function appointmentForSession(appointments=[],session={},now=new Date()){
   const sessionId=sessionIdOf(session);
   const clientId=clientIdOf(session);
