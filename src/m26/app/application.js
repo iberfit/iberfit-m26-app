@@ -1586,7 +1586,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     onboarding=createProgressiveOnboardingController({
       root,
       identityProvider:()=>{
-        const state=store.getState()||{};
+        const state=store.getOnboardingAccessSnapshot?.()??store.getState()||{};
         const identity=state.identity||{};
         const applicationAccess=state.applicationAccess||{};
         const roleChoiceConfirmed=applicationAccess.roleChoiceConfirmed===true||!canSwitchApplication(applicationAccess);
@@ -1596,6 +1596,9 @@ export async function createM26Application({root=document.querySelector('#app'),
         };
       },
       stateProvider:()=>store.getState(),
+      // No clone or per-client full-history traversal during a route paint.
+      // Readiness still comes from canonical, confirmed, owner-scoped truth.
+      launchJourneyProvider:()=>store.getCoachLaunchJourney(),
       nativeHealthReady:()=>wearables?.productionHealthReady?.()===true,
       connectNativeHealth:async(scopes)=>{
         if(!wearables?.startProductionHealthConnection)
