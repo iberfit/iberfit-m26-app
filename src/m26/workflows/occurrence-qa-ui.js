@@ -6,6 +6,7 @@
 import {createTraining360OccurrenceRuntime} from './occurrence-runtime.js';
 import {createOccurrenceOwnerKeyVault} from './occurrence-owner-key.js';
 import {createAtomicOccurrenceIndexedDbStore} from './occurrence-indexeddb-store.js';
+import {assertNoPendingSessionOccurrences} from './occurrence-session-retirement-gate.js';
 import {buildOccurrenceScopedCommand} from '../domain/occurrence-commands.js';
 import {resolveSantiagoLocalInstant} from '../domain/dated-training-occurrences.js';
 
@@ -133,6 +134,21 @@ export function createDatedOccurrenceQaUi({
   }
   function dateRows(scope){
     return loadedFor===scope.clientId?rows:[];
+  }
+  async function verifySessionRetirement({clientId,sessionId}={}){
+    if(disposed)fail('DESTROYED');
+    const auth=await authenticated();
+    if(auth.role!=='coach'||auth.clientId!==uid(clientId))
+      fail('COACH_RETIRE_SCOPE_FORBIDDEN');
+    // This read checks the full published cycle, not a cached/screen-limited
+    // collection. A failed/incomplete scan cannot authorize withdrawal.
+    const verdict=await assertNoPendingSessionOccurrences({
+      state:getState(),clientId,sessionId,
+      readCalendar:range=>runtime.calendar(range),
+    });
+    await authenticated();
+    if(identity().clientId!==auth.clientId)fail('COACH_RETIRE_SCOPE_CHANGED');
+    return verdict;
   }
   function renderPanel(){
     if(disposed)return '';
@@ -568,5 +584,5 @@ export function createDatedOccurrenceQaUi({
     vault.destroy();persistence.close();
     rows=[];preview=null;focus=null;
   }
-  return Object.freeze({enabled:true,mount,destroy,renderPanel,hasBlockingWorkout});
+  return Object.freeze({enabled:true,mount,destroy,renderPanel,hasBlockingWorkout,verifySessionRetirement});
 }

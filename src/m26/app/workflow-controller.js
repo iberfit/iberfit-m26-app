@@ -341,7 +341,8 @@ export function createWorkflowController({
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
   issueIriReport=null,getIriReportHistory=null,openIriIssuedReport=null,withdrawIriIssuedReport=null,
   issueEvolutionReport=null,getLatestEvolutionPdf=null,getEvolutionPdfHistory=null,openEvolutionPdfById=null,downloadEvolutionPdf=null,withdrawEvolutionPdf=null,
-  getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,createReportDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
+  getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,createReportDraft=null,
+  verifySessionDateRetirement=null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
   let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,iriRemoteSaveTimer=null,onboardingSaveTimer=null,reportSaveTimer=null,planSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
@@ -1952,6 +1953,17 @@ export function createWorkflowController({
       if(!decision.ok){
         status(root,'session','Primero finaliza o cancela las ejecuciones, fechas y citas pendientes de esta sesión. Se conserva su historial.','error');
         throw new Error(decision.code);
+      }
+      if(typeof verifySessionDateRetirement==='function'){
+        // Never assume an empty V26 bootstrap collection means there are no
+        // independent U60 dates. Every QA withdrawal reads all cycle dates.
+        await withTimeout(Promise.resolve(verifySessionDateRetirement({
+          clientId:recordClientId(record),sessionId:entityId,
+        })),20_000,'M26_SESSION_DATED_PREFLIGHT_TIMEOUT');
+        const actorAfter=context();
+        if(actorAfter.role!==role||
+          String(actorAfter.clientId||'')!==String(initial.clientId||''))
+          throw new Error('M26_SESSION_WITHDRAW_ACTOR_CHANGED');
       }
     }
     const receiptKey=[entity,entityId,action,Number(record?.revision??record?.body?.revision??0)].join(':');
