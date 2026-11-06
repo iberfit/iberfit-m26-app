@@ -958,7 +958,11 @@ export async function createM26Application({root=document.querySelector('#app'),
       }
     }
   }
+  // The actual route render owns this already-computed, authorized Cockpit.
+  // No second traversal of the (potentially large) Coach U38 history in DOM enhancement.
+  let coachCockpitForCurrentFrame=null;
   function renderRoute(shellVm,state){
+    coachCockpitForCurrentFrame=null;
     qaStage('rc64-route-start');
     const role=shellVm?.identity?.role||state?.identity?.role||'client';
     // Only the QA Coach is progressive; all other roles retain the full UI.
@@ -1061,6 +1065,8 @@ export async function createM26Application({root=document.querySelector('#app'),
     });
     qaStage('rc64-route-vm-start');
     const routeVm=createRouteViewModel(shellVm,state,new Date(),{catalog:catalog?.list?.()||[],mediaMap});
+    if(String(shellVm?.identity?.role||'')==='coach'&&String(shellVm?.activeArea||'')==='hoy')
+      coachCockpitForCurrentFrame=routeVm?.coachCockpit??null;
     qaStage('rc64-route-vm-ready');
     // A confirmed initial IRI is independent of the training archive.
     // Render only its verified documents until history is loaded; no
@@ -1452,7 +1458,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     const {installed,runtimeRegistry}=hydrationResult;
     qaStage('rc64-setup-hydrate-ready');
 
-    shell=createShellController({root,store,renderRoute});
+    shell=createShellController({root,store,renderRoute,getCoachCockpit:()=>coachCockpitForCurrentFrame});
     // New history transport is NEVER issued in the default app path.
     // It requires an explicit QA-only opt-in after SQL/core role contracts,
     // pagination, device history UI and Egress benchmark are certified.
