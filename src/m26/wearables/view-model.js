@@ -50,6 +50,7 @@ export function buildWearableViewModel({records=[],connections=[],role='client',
       scopes:clone(state.grantedScopes),health:wearableConnectionHealth(state,{now}),
       policy:wearableZeroCostPolicy(state.provider),
     });
+  });
   const providers=zeroCostProviderReadiness(providerReadiness(scope));
   const coverage=Object.freeze({fileImport:providers.filter((item)=>item.importReady).length,nativeBridge:providers.filter((item)=>item.nativeReady).length,directBlocked:providers.filter((item)=>item.directBlocked).length,total:providers.length});
   return Object.freeze({summary,dailyRecords:summary.records,
