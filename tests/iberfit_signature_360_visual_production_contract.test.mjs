@@ -569,8 +569,10 @@ test('SIGNATURE immersive Client workout keeps history and recovery reachable by
   const css=fs.readFileSync(new URL('../src/m26/ui/client-bottom-nav.css',import.meta.url),'utf8');
   const source=fs.readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
   const gate=fs.readFileSync(new URL('../qa/device-experience/device-experience.spec.mjs',import.meta.url),'utf8');
-  const scope='.m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context)';
+  const scope='.m26-shell[data-m26-role="client"]:has(> .m26-workspace > .m26-main > .m26-session-live .m26-session-live-secondary-context)';
   assert.ok(css.includes(scope),'Immersive exception must be limited to the active Client session');
+  assert.ok(!css.includes('.m26-shell[data-m26-role="client"]:has(.m26-session-live-secondary-context)'),
+    'Nested Client previews must not unlock native page scroll or move the viewport dock');
   const exception=css.slice(css.indexOf('Immersive Client workout is not'));
   assert.ok(exception.includes('height: auto;')&&exception.includes('overflow: visible;'),
     'Immersive session must restore reachable native scrolling');

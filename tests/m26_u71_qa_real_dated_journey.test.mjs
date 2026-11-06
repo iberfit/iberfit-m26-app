@@ -16,11 +16,14 @@ test('U71 date math is day-based and Santiago timezone is explicit',()=>{
  assert.equal(today.day,'2026-11-04');
 });
 test('U71 calendar shape denies foreign private content and wrong client scope',()=>{
- const valid={status:200,body:{kind:'calendar',occurrences:[{clientId:'client-a',id:'one',status:'confirmada'}]}};
+ const valid={status:200,body:{kind:'calendar',count:1,hasMore:false,occurrences:[{clientId:'client-a',id:'one',status:'confirmada'}]}};
  assert.equal(sameClientCalendar(valid,'client-a'),true);
  assert.equal(sameClientCalendar(valid,'client-b'),false);
  assert.equal(sameClientCalendar({...valid,body:{kind:'calendar',occurrences:[{clientId:'client-a',publishedSnapshot:{}}]}},'client-a'),false);
  assert.equal(sameClientCalendar({status:403,body:valid.body},'client-a'),false);
+ assert.equal(sameClientCalendar({status:200,body:{...valid.body,count:2}},'client-a'),false);
+ assert.equal(sameClientCalendar({status:200,body:{...valid.body,hasMore:true}},'client-a'),false);
+ assert.equal(sameClientCalendar({status:200,body:{...valid.body,count:null}},'client-a'),false);
 });
 test('U71 denial never mistakes HTTP success for forbidden',()=>{
  for(const s of [200,201,202,429,500])assert.equal(denied({status:s,body:{kind:'calendar'}}),false);
@@ -47,6 +50,13 @@ test('U71 only QA origin, ordinary JWT, native commands, two-phase write gate',(
  assert.match(s,/old\.fingerprint===proof\.fingerprint/);
  assert.match(s,/GITHUB_RUN_ATTEMPT==='2'/);
  assert.match(s,/COACH_EXECUTION_DETAIL_NOT_COMMITTED/);
+ assert.match(s,/branchFromRef\(e\.GITHUB_REF\)/);
+ assert.match(s,/BRANCH_NOT_ALLOWLISTED/);
+ assert.match(s,/feat\/iberfit-universal-360-one-release-20261106/);
+ const wf=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ assert.match(wf,/feat\/iberfit-universal-360-one-release-20261106/);
+ assert.match(wf,/github\.run_attempt == 1/);
+ assert.match(wf,/github\.run_attempt == 2/);
 });
 
 test('U71 future dated appointment is rejected by start window, not un-timed date guard',()=>{
@@ -55,4 +65,16 @@ test('U71 future dated appointment is rejected by start window, not un-timed dat
  assert.match(sql,/v_occ\.starts_at IS NOT NULL AND \(/);
  assert.match(sql,/'START_WINDOW_INVALID'/);
  assert.match(js,/futureAttempt\.body\?\.reason==='START_WINDOW_INVALID'/);
+});
+
+test('UNIVERSAL U71 QA preserves unrelated prior appointments and dates during two-date proof',()=>{
+ const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ assert.doesNotMatch(s,/assert\(old\.length===0/);
+ assert.doesNotMatch(s,/assert\(visible\.length===2/);
+ assert.doesNotMatch(s,/assert\(coachCalendar\.length===2/);
+ assert.match(s,/QA_FIXTURE_SOURCE_DATES_NOT_CLEAN/);
+ assert.match(s,/QA_CLIENT_ACTIVE_EXECUTION/);
+ assert.match(s,/before\.some\(row=>occ\.includes\(row\.id\)\)/);
+ assert.match(s,/const ownVisible=visible\.filter\(row=>occ\.includes\(row\.id\)\)/);
+ assert.match(s,/const ownCoachDates=coachCalendar\.filter\(row=>occ\.includes\(row\.id\)\)/);
 });

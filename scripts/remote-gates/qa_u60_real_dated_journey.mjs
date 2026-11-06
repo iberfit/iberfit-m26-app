@@ -12,7 +12,16 @@ import {expandQaClientCanonicalBodyEnvelope} from '../../src/m26/production-stat
 import {buildAppointmentCommand,buildConfirmAppointmentCommand,santiagoAppointmentInstant} from '../../src/m26/workflows/agenda-workflow.js';
 const QA='gjztkdwfmunnzhtvxrsu';
 const BASE='https://'+QA+'.supabase.co';
-const BRANCH='feat/u60-training360-r50-reconciled-20261104';
+const BRANCHES=new Set([
+ 'feat/u60-training360-r50-reconciled-20261104',
+ 'feat/iberfit-universal-360-one-release-20261106',
+]);
+const branchFromRef=ref=>{
+ const prefix='refs/heads/';
+ const branch=String(ref||'').startsWith(prefix)?String(ref).slice(prefix.length):'';
+ assert(BRANCHES.has(branch),'BRANCH_NOT_ALLOWLISTED');
+ return branch;
+};
 const REPO='iberfit/iberfit-m26-app';
 const FILE='recovery/u71-qa-authenticated-workout/evidence.json';
 const PREVIOUS='.tmp/u71-first/evidence.json';
@@ -36,9 +45,14 @@ export function dayOffset(day,n){
  return dt.toISOString().slice(0,10);
 }
 export function sameClientCalendar(response,owner){
- return response.status===200&&response.body?.kind==='calendar'
-  &&Array.isArray(response.body.occurrences)
-  &&response.body.occurrences.every(o=>o.clientId===owner
+ // Never certify a supposedly empty calendar from a truncated first page:
+ // the same QA identities legitimately retain training history.
+ const body=response?.body;
+ return response?.status===200&&body?.kind==='calendar'
+  &&body.hasMore!==true
+  &&Number.isSafeInteger(body.count)&&body.count===body.occurrences?.length
+  &&Array.isArray(body.occurrences)
+  &&body.occurrences.every(o=>o.clientId===owner
     &&!/publishedSnapshot|requestHash|coachPrivateNote|prescriptionSnapshot/.test(JSON.stringify(o)));
 }
 export function denied(x){
@@ -55,17 +69,19 @@ function context(mode){
    assert(e[name],'ENV_MISSING_'+name);
  assert(e.M26_QA_ONLY==='true'&&e.M26_PROJECT_REF===QA
   &&new URL(e.M26_SUPABASE_URL).origin===BASE,'NOT_QA');
- assert(e.GITHUB_REPOSITORY===REPO&&e.GITHUB_REF==='refs/heads/'+BRANCH
+ const branch=branchFromRef(e.GITHUB_REF);
+ assert(e.GITHUB_REPOSITORY===REPO
   &&UUID.test(derivedUuid(e.GITHUB_RUN_ID,'check')),'INVALID_RUN_CONTEXT');
  assert(/^[a-f0-9]{40}$/.test(e.GITHUB_SHA),'INVALID_SHA');
  assert((mode==='preflight'&&e.GITHUB_RUN_ATTEMPT==='1')
    ||(mode==='apply'&&e.GITHUB_RUN_ATTEMPT==='2'),'NON_EXPLICIT_ATTEMPT');
  const key=e.M26_SUPABASE_PUBLISHABLE_KEY;
  assert(key.length>20&&!/service.?role|sb_secret/i.test(key),'PRIVILEGED_KEY_DENIED');
- return {e,key};
+ return {e,key,branch};
 }
 async function currentSha(ctx){
- const res=await fetch('https://api.github.com/repos/'+REPO+'/git/ref/heads/'+BRANCH,{
+ const res=await fetch('https://api.github.com/repos/'+REPO+'/git/ref/heads/'+
+  encodeURIComponent(ctx.branch),{
   headers:{Authorization:'Bearer '+ctx.e.GH_TOKEN,Accept:'application/vnd.github+json'},
   signal:AbortSignal.timeout(10000)});
  assert(res.ok,'HEAD_READ_UNAVAILABLE');
@@ -156,7 +172,13 @@ async function authenticatedStage(ctx,certified=null){
  const end2=new Date(Date.parse(start2)+chosen.duration*60000).toISOString();
  assert(Date.parse(start1)>Date.now()&&Date.parse(start1)-Date.now()<3600000,'APPOINTMENT_CLOCK_DRIFT');
  const old=await checkedCalendar(ctx,coach.jwt,clientA,today,future);
- assert(old.length===0,'QA_FIXTURE_DATES_NOT_CLEAN');
+ // A real QA portfolio legitimately contains prior dates from other plans.
+ // Never erase them or require an empty calendar. Reserve only the TWO
+ // intended dates for the chosen prescription, and never start if an
+ // unrelated workout is already active for this Client.
+ assert(!old.some(row=>row.status==='en_curso'),'QA_CLIENT_ACTIVE_EXECUTION');
+ assert(!old.some(row=>row.sessionId===chosen.id&&
+   [today,future].includes(row.localDate)),'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
  const foreign=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:2});
  assert(denied(foreign),'CROSS_CLIENT_SCOPE_BROKEN');
  const appointments=[{date:today,startAt:start1,endAt:end1},{date:future,startAt:start2,endAt:end2}];
@@ -253,7 +275,8 @@ async function main(){
    'BATCH_IDEMPOTENT_REPLAY');
  proof.checks.push('batch_idempotency');
  const before=await checkedCalendar(ctx,a.jwt,clientA,today,future);
- assert(before.length===0,'UNCONFIRMED_DATE_VISIBLE_TO_CLIENT');
+ assert(!before.some(row=>occ.includes(row.id)),
+   'UNCONFIRMED_DATE_VISIBLE_TO_CLIENT');
  for(let i=0;i<occ.length;i++){
   const command={type:'OCURRENCIA_CONFIRMAR',operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'occ-confirm-'+i),
    clientId:clientA,entityId:occ[i],baseRevision:0};
@@ -263,7 +286,8 @@ async function main(){
   proof.checks.push('occurrence_confirmed_'+i);await save(proof);
  }
  const visible=await checkedCalendar(ctx,a.jwt,clientA,today,future);
- assert(visible.length===2&&occ.every(id=>visible.some(x=>x.id===id&&x.status==='confirmada')),
+ const ownVisible=visible.filter(row=>occ.includes(row.id));
+ assert(ownVisible.length===2&&occ.every(id=>ownVisible.some(x=>x.id===id&&x.status==='confirmada')),
    'CLIENT_DATES_NOT_VISIBLE');
  proof.checks.push('client_two_independent_confirmed_dates');
  const forbidden=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:10});
@@ -316,9 +340,10 @@ async function main(){
    'CLIENT_DATED_EXECUTION_NOT_COMPLETED');
  proof.checks.push('first_execution_completed_and_confirmed');await save(proof);
  const coachCalendar=await checkedCalendar(ctx,coach.jwt,clientA,today,future);
- assert(coachCalendar.length===2
-  &&coachCalendar.some(x=>x.id===occ[0]&&x.status==='completada')
-  &&coachCalendar.some(x=>x.id===occ[1]&&x.status==='confirmada'),
+ const ownCoachDates=coachCalendar.filter(row=>occ.includes(row.id));
+ assert(ownCoachDates.length===2
+  &&ownCoachDates.some(x=>x.id===occ[0]&&x.status==='completada')
+  &&ownCoachDates.some(x=>x.id===occ[1]&&x.status==='confirmada'),
     'COACH_READBACK_NOT_INDEPENDENT');
  const coachDetail=await rpc(ctx,coach.jwt,'iberfit_occurrence_detail_v1',{
   p_client_id:clientA,p_occurrence_id:occ[0]});

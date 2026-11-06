@@ -634,17 +634,26 @@ function renderAgendaStandaloneCard(appointment,role){
     modalityLabel(appointment.modality),
     appointment.location,
   ].filter(Boolean).join(' · ');
-  const controls=confirmable
+  const primary=confirmable
     ?`<div class="m26-rc39-card-actions">
-        <button
-          type="button"
-          class="m26-primary-action"
+        <button type="button" class="m26-primary-action"
           data-workflow-action="confirm-appointment"
-          data-entity-id="${escape(appointment.id)}"
-        >Confirmar cita</button>
+          data-entity-id="${escape(appointment.id)}">Confirmar cita</button>
         <small>Al confirmar será visible para el cliente.</small>
       </div>`
     :'';
+  const cancellable=role==='coach'&&
+    ['propuesta','pendiente','confirmada','reprogramada'].includes(status);
+  const cancellation=cancellable
+    ?`<details class="m26-publication-confirm" data-appointment-cancel>
+      <summary>Cancelar esta cita</summary>
+      <label>Motivo de cancelación<textarea data-appointment-cancel-reason maxlength="1000" minlength="3" required></textarea></label>
+      <button type="button" data-workflow-action="cancel-appointment"
+        data-entity-id="${escape(appointment.id)}">Confirmar cancelación</button>
+      <small>La cancelación conserva el historial y no modifica otras fechas.</small>
+    </details>`
+    :'';
+  const controls=primary+cancellation;
   return `<article
     class="m26-rc39-session-card m30-agenda-appointment-card"
     data-appointment-card="${escape(appointment.id)}"

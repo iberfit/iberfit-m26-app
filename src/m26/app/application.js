@@ -8,7 +8,7 @@ import {createAdminController} from '../admin/controller.js';
 import {normalizeApplicationContextExtension,filterSnapshotForAssignmentScope} from '../shared/integration-context.js';
 import {createRc39Transport,mergeRc39ChangeRequests} from '../rc39/transport.js';
 import {createRc39Controller} from '../rc39/controller.js';
-import {actorCanExecuteSession,sessionRequiresConfirmedAppointment,sessionReadyToStart,normalizePublishedSessionForExecution} from '../rc39/session-policy.js';
+import {actorCanExecuteSession,sessionRequiresConfirmedAppointment,sessionReadyToStart,normalizePublishedSessionForExecution,legacyStartNeedsOccurrence} from '../rc39/session-policy.js';
 import {confirmedAppointmentForSession,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS} from './confirmed-session-appointment.js';
 import {castilianStatusLabel} from '../ui/castellano.js';
 import {resolveM26Runtime,createM26Transport,isFutureIssuedJwtClockSkew} from '../supabase-transport.js';
@@ -58,6 +58,7 @@ import {createExecution} from '../workflows/session-execution.js';
 import {renderSessionBuilder,renderGuidedExecution} from '../workflows/session-ui.js';
 import {buildExercisePerformanceMemory} from '../engagement/exercise-performance-engine.js';
 import {createSessionController} from '../workflows/session-controller.js';
+import {createDatedOccurrenceQaUi} from '../workflows/occurrence-qa-ui.js';
 import {sessionCommandFailureOutcome} from '../workflows/session-sync-recovery-ui.js';
 import {createActionState} from '../ui/action-state.js';
 import {createExecutionRecoveryStore,createExecutionRecoveryCoordinator} from '../workflows/session-recovery.js';
@@ -528,7 +529,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,clientHistoryDemand=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,avatarController=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,evolutionReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,clientHistoryDemand=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,avatarController=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,iriPhotogrammetry=null,iriReportGovernance=null,evolutionReportGovernance=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,templateConnectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,datedUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,refreshInFlightOwnerSession=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let progressiveControllerMountGeneration=0;
   let progressiveControllerMountPromise=null;
   let roleSwitchBusy=false;
@@ -982,6 +983,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       // core, NOT a longitudinal training-history conclusion. Keep the full
       // IRI assessment and its private photo consent controls operational
       // without making the Coach download an unrelated >20 MB archive.
+      if(area==='sesion'&&datedUi?.enabled)
+        return '<div class="m26-route">'+datedUi.renderPanel()+gate+'</div>';
       if(!['clientes','ajustes','iri','informes'].includes(area))
         return '<div class="m26-route">'+gate+'</div>';
       // Directory and settings remain usable with a partial-history notice.
@@ -1078,7 +1081,16 @@ export async function createM26Application({root=document.querySelector('#app'),
       return renderRouteView(Object.freeze({...routeVm,initialIriOnly:true}))
         +renderQaCoachHistoryGate(status);
     }
-    const markup=renderRouteView(routeVm);
+    // QA U60 dates belong inside the Client route scrollport, BEFORE its
+    // independent bottom dock. Appending after renderClientRouteShell creates
+    // a second main flex sibling, steals the viewport row and strands the dock.
+    // Coach still receives the standalone dated workspace below its route.
+    const datedPanel=runtime.qaOnly===true&&
+      String(shellVm?.activeArea||'')==='sesion'&&datedUi?.enabled
+      ?datedUi.renderPanel():'';
+    const markup=renderRouteView(role==='client'&&datedPanel
+      ?{...routeVm,qaDatedPanel:datedPanel}
+      :routeVm);
     qaStage('rc64-route-html-ready');
     if(isQaCoach&&!historyReady&&['clientes','ajustes'].includes(String(shellVm?.activeArea||''))){
       const status=qaCoachHistory.clientId===selected
@@ -1086,7 +1098,9 @@ export async function createM26Application({root=document.querySelector('#app'),
         ?qaCoachHistory.status:'idle';
       return renderQaCoachHistoryGate(status)+markup;
     }
-    return markup;
+    // The U60 date workspace is isolated from the legacy session builder.
+    // Canary only; no fallback from dated CAS to SESION_INICIAR.
+    return role==='client'?markup:markup+datedPanel;
   }
   function render(){shell?.render?.();}
   function draftOnline(){return globalThis.navigator?.onLine!==false;}
@@ -1351,10 +1365,27 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(!selectedDraft||!clientId)throw new Error('M26_SESSION_DRAFT_REQUIRED');
     if(!draftOnline())throw new Error('M26_SESSION_DRAFT_DELETE_REQUIRES_CONNECTION');
 
-    // Fail closed: delete the synchronized copy first. If that fails, the local
-    // recovery copy remains intact and the Coach stays in the builder.
+    // Owner- and workspace-bound lease: hydration may swap identity or the
+    // selected client while this async discard waits for a fresh token.
+    const actorId=String(store.getState().identity?.id||session?.user?.id||'').trim();
+    const assertCurrentDraftScope=()=>{
+      const state=store.getState(),identity=state.identity||{};
+      const latestActorId=String(identity.id||session?.user?.id||'').trim();
+      const role=String(identity.role||'').trim().toLowerCase();
+      if(!actorId||latestActorId!==actorId||
+        !['coach','entrenador','admin','administrador'].includes(role)||
+        sessionUi?.draft!==selectedDraft||
+        String(selectedDraft.clientId||'').trim()!==clientId||
+        !(state.collections?.clients||[]).some(item=>String(item.id||'')===clientId))
+        throw new Error('M26_SESSION_DRAFT_CONTEXT_CHANGED');
+    };
+
+    // Remote first to preserve a recoverable local draft on network failure.
+    assertCurrentDraftScope();
     await refreshSessionIfNeeded();
+    assertCurrentDraftScope();
     await transport.deleteSessionDraft(currentToken(),clientId,SESSION_DRAFT_SCOPE);
+    assertCurrentDraftScope();
 
     try{
       await draftRepository?.remove?.(clientId,SESSION_DRAFT_SCOPE);
@@ -1491,6 +1522,31 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-setup-catalog-ready');
 
     const ownerId=session.user.id;
+    // U60 rollout remains QA-only until PROD has versioned migrations,
+    // restored offsite data and an exact-SHA hardware/authenticated gate.
+    // No network call, unlock or calendar read is performed on login.
+    if(runtime.qaOnly===true&&runtime.canary===true
+      &&runtime.projectRef==='gjztkdwfmunnzhtvxrsu'){
+      try{
+        datedUi=createDatedOccurrenceQaUi({
+          enabled:true,root,ownerId,projectRef:runtime.projectRef,transport,
+          getState:()=>store.getState(),onRender:render,
+          getAuthContext:async()=>{
+            await refreshSessionIfNeeded();
+            const identity=store.getState().identity||{};
+            if(!session?.user?.id||String(session.user.id)!==String(ownerId))
+              throw new Error('M26_U60_AUTH_IDENTITY_CHANGED');
+            return {userId:ownerId,role:String(identity.role||'').toLowerCase(),
+              clientId:String(identity.clientId||''),
+              accessToken:currentToken()};
+          },
+        });
+        datedUi.mount();
+      }catch(error){
+        datedUi?.destroy?.();datedUi=null;
+        reportSoftDiagnostic('u60-qa-closed-unavailable',error);
+      }
+    }
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});sessionTemplateRepository=createSessionTemplateRepository({ownerId});telemetryOutbox=createTelemetryDurableOutbox({ownerId});
     qaStage('rc64-setup-repositories-ready');
     telemetryRemoteSync=createTelemetryRemoteSync({transport,outbox:telemetryOutbox,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false,onDiagnostic:(code,error)=>reportDiagnostic(code,error)});
@@ -1534,7 +1590,14 @@ export async function createM26Application({root=document.querySelector('#app'),
     });
     mediaExperience=createExerciseVideoExperienceController({root});
     avatarController=createClientAvatarController({root,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getIdentity:()=>store.getState().identity||{}});
-    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,refreshState:hydrate,createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},updateExerciseMeasurementProfile:async(payload)=>{await refreshSessionIfNeeded();return transport.updateExerciseMeasurementProfile(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId,{variant='client'}={})=>variant==='coach'?iriExternalReports.coachReportForPdf(assessmentId):iriExternalReports.clientReportForPdf(assessmentId),getIriPhotogrammetryReport:(assessmentId,{variant='client'}={})=>iriPhotogrammetry.clientSnapshotForPdf(assessmentId,{audience:variant==='coach'?'coach':'client'}),ensureIriPhysicalConsent:(payload)=>iriPhotogrammetry.ensurePhysicalConsent(payload),issueEvolutionReport:async(reportId)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.issue(currentToken(),{reportId});},getLatestEvolutionPdf:async(reportId)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.latest(currentToken(),{reportId});},getEvolutionPdfHistory:async(reportId)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.history(currentToken(),{reportId});},openEvolutionPdfById:async(issuanceId)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.open(currentToken(),{issuanceId});},downloadEvolutionPdf:async(issuanceId,sha256)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.download(currentToken(),{issuanceId,sha256});},withdrawEvolutionPdf:async(issuanceId,reason)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.withdraw(currentToken(),{issuanceId,reason});},issueIriReport:async(assessmentId,{variant='client'}={})=>{await refreshSessionIfNeeded();return iriReportGovernance.issue(currentToken(),{assessmentId,audience:variant});},getIriReportHistory:async(assessmentId)=>{await refreshSessionIfNeeded();return iriReportGovernance.history(currentToken(),{assessmentId});},openIriIssuedReport:async(issuanceId)=>{await refreshSessionIfNeeded();return iriReportGovernance.open(currentToken(),{issuanceId});},withdrawIriIssuedReport:async(issuanceId,reason)=>{await refreshSessionIfNeeded();return iriReportGovernance.withdraw(currentToken(),{issuanceId,reason});},createReportDraft:async(payload)=>{await refreshSessionIfNeeded();return transport.createReportDraft(currentToken(),payload);},getRemoteDraft:async(clientId,assessmentId)=>{await refreshSessionIfNeeded();return transport.getIriDraft(currentToken(),clientId,assessmentId);},upsertRemoteDraft:async(payload)=>{await refreshSessionIfNeeded();return transport.upsertIriDraft(currentToken(),payload);},deleteRemoteDraft:async(clientId,assessmentId)=>{await refreshSessionIfNeeded();return transport.deleteIriDraft(currentToken(),clientId,assessmentId);},isOnline:()=>navigator.onLine!==false,createClientDraft:async(payload)=>{await refreshSessionIfNeeded();const token=currentToken();await ensurePrivilegedActionAssurance({transport,token,userId:session?.user?.id,friendlyName:'IBERFIT · confirmar creación de cliente'});await transport.clientOnboardingPreflight(token);const result=await transport.createClientDraft(token,payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(token)});await hydrate({reason:'client-created'});return verified;}});
+    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,refreshState:hydrate,createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},updateExerciseMeasurementProfile:async(payload)=>{await refreshSessionIfNeeded();return transport.updateExerciseMeasurementProfile(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,
+      verifySessionDateRetirement:runtime.qaOnly===true&&runtime.canary===true
+        ?async({clientId,sessionId})=>{
+          if(!datedUi?.enabled||typeof datedUi.verifySessionRetirement!=='function')
+            throw new Error('M26_U60_RETIRE_CALENDAR_NOT_AVAILABLE');
+          return datedUi.verifySessionRetirement({clientId,sessionId});
+        }:null,
+      getIriExternalReport:(assessmentId,{variant='client'}={})=>variant==='coach'?iriExternalReports.coachReportForPdf(assessmentId):iriExternalReports.clientReportForPdf(assessmentId),getIriPhotogrammetryReport:(assessmentId,{variant='client'}={})=>iriPhotogrammetry.clientSnapshotForPdf(assessmentId,{audience:variant==='coach'?'coach':'client'}),ensureIriPhysicalConsent:(payload)=>iriPhotogrammetry.ensurePhysicalConsent(payload),issueEvolutionReport:async(reportId)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.issue(currentToken(),{reportId});},getLatestEvolutionPdf:async(reportId)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.latest(currentToken(),{reportId});},getEvolutionPdfHistory:async(reportId)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.history(currentToken(),{reportId});},openEvolutionPdfById:async(issuanceId)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.open(currentToken(),{issuanceId});},downloadEvolutionPdf:async(issuanceId,sha256)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.download(currentToken(),{issuanceId,sha256});},withdrawEvolutionPdf:async(issuanceId,reason)=>{await refreshSessionIfNeeded();return evolutionReportGovernance.withdraw(currentToken(),{issuanceId,reason});},issueIriReport:async(assessmentId,{variant='client'}={})=>{await refreshSessionIfNeeded();return iriReportGovernance.issue(currentToken(),{assessmentId,audience:variant});},getIriReportHistory:async(assessmentId)=>{await refreshSessionIfNeeded();return iriReportGovernance.history(currentToken(),{assessmentId});},openIriIssuedReport:async(issuanceId)=>{await refreshSessionIfNeeded();return iriReportGovernance.open(currentToken(),{issuanceId});},withdrawIriIssuedReport:async(issuanceId,reason)=>{await refreshSessionIfNeeded();return iriReportGovernance.withdraw(currentToken(),{issuanceId,reason});},createReportDraft:async(payload)=>{await refreshSessionIfNeeded();return transport.createReportDraft(currentToken(),payload);},getRemoteDraft:async(clientId,assessmentId)=>{await refreshSessionIfNeeded();return transport.getIriDraft(currentToken(),clientId,assessmentId);},upsertRemoteDraft:async(payload)=>{await refreshSessionIfNeeded();return transport.upsertIriDraft(currentToken(),payload);},deleteRemoteDraft:async(clientId,assessmentId)=>{await refreshSessionIfNeeded();return transport.deleteIriDraft(currentToken(),clientId,assessmentId);},isOnline:()=>navigator.onLine!==false,createClientDraft:async(payload)=>{await refreshSessionIfNeeded();const token=currentToken();await ensurePrivilegedActionAssurance({transport,token,userId:session?.user?.id,friendlyName:'IBERFIT · confirmar creación de cliente'});await transport.clientOnboardingPreflight(token);const result=await transport.createClientDraft(token,payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(token)});await hydrate({reason:'client-created'});return verified;}});
     engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store,ownerId,transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:({reason}={})=>hydrate({reason:reason||'wearables-refresh'}),isOnline:()=>navigator.onLine!==false});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
@@ -1670,7 +1733,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(notice){notice.textContent=message;notice.dataset.status='pending';}
     try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
   }
-  function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
+  function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion')return;if(datedUi?.hasBlockingWorkout()){event.preventDefault();event.stopImmediatePropagation?.();try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:'Guarda o recupera el entrenamiento de esta fecha y vuelve al calendario antes de salir.'}}));}catch{}return;}if(!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
   async function onOpenBuilder(event){
     const clientId=String(event?.detail?.clientId||'');
@@ -1685,7 +1748,8 @@ export async function createM26Application({root=document.querySelector('#app'),
         throw new Error('M26_SESSION_BUILDER_ROLE_FORBIDDEN');
       if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))
         throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');
-      if(sessionUi?.execution||sessionUi?.draft)throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
+      if(sessionUi?.execution||sessionUi?.draft||datedUi?.hasBlockingWorkout())
+        throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
       let saved=sourceSession?null:await loadSessionDraft(clientId);
       if(!isCurrent())return false;
       const savedId=String(saved?.value?.id||'').trim();
@@ -1724,6 +1788,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       const state=store.getState(),visible=new Set((state.collections.clients||[]).map(item=>item.id));
       if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))
         throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');
+      if(datedUi?.hasBlockingWorkout())throw new Error('M42_WORKSPACE_ALREADY_ACTIVE');
       if(sessionUi?.execution||sessionUi?.draft){
         if(sessionUi?.session?.id===sessionId&&sessionUi?.execution){
           store.navigate('sesion');render();return true;
@@ -1786,6 +1851,20 @@ export async function createM26Application({root=document.querySelector('#app'),
       const current=resolveCurrentSessionForEntry({state:store.getState(),requested,clientId});
       const normalized=normalizePublishedSession(current);
       if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');
+      // A delegated/direct event cannot bypass the same multi-date fence used
+      // by the visible CTA. Each planned date requires its own occurrence
+      // execution; legacy start must not consume the shared prescription.
+      const entryState=store.getState();
+      if(legacyStartNeedsOccurrence({
+        appointments:entryState.collections?.appointments||[],
+        occurrences:entryState.collections?.trainingOccurrences||
+          entryState.collections?.sessionOccurrences||[],
+        sessionId:normalized.id,clientId,
+      })){
+        const error=new Error('M26_OCCURRENCE_EXECUTOR_REQUIRED');
+        error.userMessage='Este entrenamiento tiene varias fechas independientes. El inicio por fecha todavía no está habilitado; la prescripción original permanece intacta.';
+        throw error;
+      }
       const role=String(store.getState().identity?.role||'');
       if(!normalized.id||!normalized.clientId||!normalized.blocks.length){
         const node=root.querySelector?.('[data-workflow-status="session"]');
@@ -1840,8 +1919,14 @@ export async function createM26Application({root=document.querySelector('#app'),
       return false;
     }
     const initialChoice=applicationAccess.roleChoiceConfirmed!==true;
+    // Preserve the certified legacy role-chooser contract exactly; a
+    // separate U60 date has the same no-exit guarantee after role selection.
     if(sessionUi&&!initialChoice){
       try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message:'Finaliza o cierra la sesión antes de cambiar de aplicación.'}}));}catch{}
+      return false;
+    }
+    if(datedUi?.hasBlockingWorkout()&&!initialChoice){
+      try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message:'Termina o recupera el entrenamiento de esta fecha antes de cambiar de aplicación.'}}));}catch{}
       return false;
     }
     // An obsolete pre-choice auto-recovery is a disposable UI projection:
@@ -1939,7 +2024,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers({preserveWorkflowDrafts=true}={}){clientHistoryDemand?.destroy?.();clientHistoryDemand=null;workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset){delete root.dataset.m26Interactive;delete root.dataset.m26SessionEntryReady;}telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers({preserveWorkflowDrafts=true}={}){datedUi?.destroy?.();datedUi=null;clientHistoryDemand?.destroy?.();clientHistoryDemand=null;workspaceEntryGate.cancel();cancelProgressiveControllerMounts();if(preserveWorkflowDrafts)void workflow?.flushLocalDrafts?.();if(root?.dataset){delete root.dataset.m26Interactive;delete root.dataset.m26SessionEntryReady;}telemetrySyncStop?.();telemetrySyncStop=null;templateConnectivityStop?.();templateConnectivityStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();iriPhotogrammetry?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();avatarController?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;iriPhotogrammetry=null;iriReportGovernance=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=avatarController=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;

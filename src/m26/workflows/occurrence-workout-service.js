@@ -47,6 +47,8 @@ export function createOccurrenceWorkoutService({
     sessionId:current?.sessionId??null,
     occurrenceRevision:current?.occurrenceRevision??null,
     executionRevision:current?.executionRevision??null,
+    executionStatus:current?.execution?.status??null,
+    startedAt:current?.execution?.startedAt??null,
     busy,hasUncertain:pending,unsavedWork:dirty,error,
     currentStep:current?.execution?
       structuredClone(currentStep(current.execution,current.session)):null,

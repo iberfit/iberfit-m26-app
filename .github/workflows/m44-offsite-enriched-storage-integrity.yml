@@ -1,0 +1,46 @@
+name: IBERFIT M44 Offsite Enriched Storage Integrity
+
+on:
+  pull_request:
+    branches: ['canary/rc74-4']
+    paths:
+      - 'scripts/ops/m44_offsite_archive_guard.py'
+      - 'tests/m44_offsite_archive_guard.test.mjs'
+      - 'tests/m44_offsite_enriched_compat.test.mjs'
+      - '.github/workflows/m44-offsite-enriched-storage-integrity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m44-offsite-storage-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offsite-archive-synthetic:
+    name: m44-offsite-enriched-blob-integrity-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Python syntax and archive guard regression fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/ops/m44_offsite_archive_guard.py
+          node --test tests/m44_offsite_archive_guard.test.mjs tests/m44_offsite_enriched_compat.test.mjs
+          echo 'IBERFIT_M44_OFFSITE_ENRICHED_STORAGE_SYNTHETIC_CONTRACT_VERIFIED'
+      - name: Confirm no real backup, live credentials or network are required
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${IBERFIT_BACKUP_PASSPHRASE:-}"
+          test -z "${IBERFIT_PROD_DATABASE_URL:-}"
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          echo 'IBERFIT_M44_OFFSITE_SYNTHETIC_ONLY_NO_PRODUCTION_ACCESS'

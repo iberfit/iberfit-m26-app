@@ -146,20 +146,38 @@ async function certifyNonOverlappingClientDock(page,project,route){
       mainScrollTop:document.querySelector('.m26-main')?.scrollTop,
       mainOverflow:getComputedStyle(document.querySelector('.m26-main')).overflow,
       mainDisplay:getComputedStyle(document.querySelector('.m26-main')).display,
+      mainPaddingTop:getComputedStyle(document.querySelector('.m26-main')).paddingTop,
+      mainPaddingBottom:getComputedStyle(document.querySelector('.m26-main')).paddingBottom,
+      mainChildren:Array.from(document.querySelector('.m26-main').children).map(el=>({
+        type:el.tagName.toLowerCase(),className:String(el.className||'').slice(0,100),
+        top:el.getBoundingClientRect().top,bottom:el.getBoundingClientRect().bottom,
+        height:el.getBoundingClientRect().height,order:getComputedStyle(el).order,
+        marginBottom:getComputedStyle(el).marginBottom,display:getComputedStyle(el).display,
+      })),
+      routeShellMarginBottom:getComputedStyle(shell).marginBottom,
+      routeShellTransform:getComputedStyle(shell).transform,
       workspaceHeight:document.querySelector('.m26-workspace')?.getBoundingClientRect()?.height,
       workspaceDisplay:getComputedStyle(document.querySelector('.m26-workspace')).display,
       workspaceDirection:getComputedStyle(document.querySelector('.m26-workspace')).flexDirection,
       scrollerHeight:scroller.getBoundingClientRect().height,
+      datedPanelInScroller:!document.querySelector('[data-u60-panel]')
+        ||scroller.contains(document.querySelector('[data-u60-panel]')),
+      datedPanelIsDirectMain:document.querySelector('.m26-main > [data-u60-panel]')!==null,
       hitNav:nav.contains(document.elementFromPoint(navBox.left+navBox.width/2,navBox.top+navBox.height/2)),
     };
   });
   if(route==='Cliente ajustes')console.log('SIGNATURE_CLIENT_SETTINGS_GEOMETRY:'+JSON.stringify(geometry));
+  if(route==='Tus sesiones')console.log('SIGNATURE_CLIENT_SESSIONS_GEOMETRY:'+JSON.stringify(geometry));
   expect(geometry,`${route}: Client needs both the route scroller and a separate bottom dock`).not.toBeNull();
   expect(geometry.documentScrollY,`${route}: document must not scroll behind the Client dock`).toBeLessThanOrEqual(1);
   expect(geometry.mainScrollTop,`${route}: hidden main must not scroll the whole dock with contextual help`).toBeLessThanOrEqual(1);
   expect(geometry.mainOverflow,`${route}: only the nested route may scroll`).toBe('clip');
   expect(geometry.shellBottom,`${route}: Client shell stays viewport-bound`).toBeGreaterThanOrEqual(geometry.viewportHeight-2);
   expect(geometry.dockPosition,`${route}: dock must occupy its own layout row`).toBe('relative');
+  if(route==='Tus sesiones'){
+    expect(geometry.datedPanelInScroller,'U60 calendar must be reachable inside the Client scrollport').toBe(true);
+    expect(geometry.datedPanelIsDirectMain,'U60 calendar must not push the dock above the viewport').toBe(false);
+  }
   expect(geometry.scrollYStyle,`${route}: content must be independently scrollable`).toBe('auto');
   expect(geometry.contentBottom,`${route}: route must end before navigation starts`).toBeLessThanOrEqual(geometry.dockTop+1);
   expect(geometry.dockBottom,`${route}: dock must remain within the visual viewport`).toBeLessThanOrEqual(geometry.viewportHeight+1);

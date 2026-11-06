@@ -1,3 +1,38 @@
+## UNIVERSAL 360 · Unificación de todas las U + 22 capacidades · 06/11/2026
+
+**Decisión operativa expresa:** ninguna U adicional numerada ni PR de microcorrección. El trabajo funcional pendiente debe permanecer en la misma rama/PR UNIVERSAL, y las U fusionadas constituyen la base real. Estado por funcionalidad = código existente / QA probado / Canary LIVE / PROD LIVE / prueba en hardware; una casilla de código NO significa producto certificado.
+
+| # | Capacidad y reutilización (NO duplicar) | Evidencia obligatoria de cierre |
+|---|---|---|
+| 01 | Inicio Cliente: RC39, sesiones, cronómetro | Primer clic→ACK, pausa/reanuda→finish→readback |
+| 02 | Mi Semana: calendario U30–U60 | Una prescripción, 2 fechas, 2 ejecuciones independientes y RLS |
+| 03 | Gráficas por variable: longitudinal existente | 7/28/90/365 con fuente, unidad y valores ausentes |
+| 04 | Comparar periodos y objetivos: agregación existente | Ventanas comparables, diferencia y límites |
+| 05 | Plan vs realizado: motor de ejecución existente | Running/fuerza/natación/mixta, solo registros confirmados |
+| 06 | Capacidades deportivas por dominio | Ningún score opaco; protocolos comparables y IRI separado |
+| 07 | Recuperación/sueño/bienestar: Connected360 | Fuente, frescura, consentimiento y ausente ≠ cero |
+| 08 | Running/natación: perfiles de medida | Distancia, ritmo y duración reales sin inventar dispositivo |
+| 09 | Fuerza por ejercicio: memoria rendimiento | Series, variantes, mancuernas y unidades correctas |
+| 10 | Check-in rápido: engagement | Menos de 20s móvil, recovery offline, datos privados |
+| 11 | Coach Decision Brief: next-session-prep | Evidencia, intervención humana y override trazable |
+| 12 | Report Studio: report-workflow, sport-evidence | 7 tipos declarados; reevaluación bloqueada sin protocolo longitudinal real |
+| 13 | Cambios desde última revisión: informes | Contexto, dato fechado y siguiente decisión Coach |
+| 14 | Hitos útiles: challenge-metrics | Voluntarios, basados en pruebas, sin rachas coercitivas |
+| 15 | Objetivos ligados al plan: periodización | Revisión del Coach y trazabilidad de cambios |
+| 16 | Hábitos 1–3 por ciclo: comandos | Opt-in, fecha y privacidad, sin autoprescripción |
+| 17 | Alternativas de ejercicio: builder | Equivalencia técnica aprobada, no perder series |
+| 18 | Preparación Coach en 60 s | Navegación rápida tras 2º WebAuthn con historial completo |
+| 19 | Coach Capture: borradores y plantillas | Notas/voz opcionales→borrador, nunca publicación automática |
+| 20 | Centro operativo Coach: cockpit/alertas | Motivo/estado/siguiente acción, sin falsos positivos por errores |
+| 21 | Connected360 real: Android/HealthKit/V47 | Permisos granulares, fuente física, revocación, sin duplicados |
+| 22 | First 28 y comunicaciones: onboarding existente | Activación y recordatorios consentidos, no mensajes coercitivos |
+
+**Reconciliación de PR anteriores:** #1144/#1145/#1146/#1147 representan U30–U60 cuya gran mayoría ya está en Canary; NO volver a fusionar SQL antiguo U33 `20261025222500` frente a vigente `20261025223000`. #1063/#1071/#1076/#1203 han sido total o parcialmente superadas; revisar invariantes antes de incorporar cambios. #908 (natación) y #809 (medios ejercicio) tienen código presente. #1255 tiene migración V47 acotada e incorporada como staged, sin grant nuevo, no desplegada. #955 y #970/#980/#983/#995 M44 necesitan revisión diferencial y recuperación aislada; no declarar restauración certificada por existencia de scripts.
+
+**Salida UNIVERSAL:** ningún cambio SQL productivo hasta 8 migraciones conciliadas, M44 offsite restore, QA/RLS/IDOR/roles y rollback. El WebAuthn del Coach no puede bloquear 12 s; no subir timeout. Hardware Health Connect/HealthKit/Garmin no se acredita sin prueba física/consentimiento o acceso proveedor. Medir Supabase Free por egress facturado, no requests ni bytes JS. Una única PR integradora; una promoción PROD con smoke LIVE, SHA exacto y reversión.
+
+---
+
 ## WIP único · Connected360 C39 · Integridad del día civil, fuentes desconocidas y recuperación sin bloqueo · 28-10-2026
 
 - **Producción certificada:** SIGNATURE B38 + Connected360 C38 SHA `f88bd4aff5a71d40a59d23a5c5afa6bc1654fec9`, [promoción oficial #40626067758](https://github.com/iberfit/iberfit-m26-app/actions/runs/40626067758) SUCCESS intento 1. Supabase PROD/QA aislados; sin migración ni despliegue backend.

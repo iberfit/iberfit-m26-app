@@ -42,7 +42,66 @@ export function buildAppointmentCommand(draft,revision=0){
   const normalized=validation.normalized;
   return {type:normalized.id?'CITA_REPROGRAMAR':'CITA_CREAR',entityType:'appointment',entityId:normalized.id||createM26Id(),clientId:normalized.clientId,baseRevision:revision,reason:normalized.id?(normalized.reason||'Reprogramación solicitada'):null,payload:{appointment:structuredClone(normalized)}};
 }
-export function buildCancelAppointmentCommand({clientId,appointmentId,reason},revision=0){if(!clientId||!appointmentId||!reason)throw new Error('M26_APPOINTMENT_CANCEL_CONTEXT_REQUIRED');return {type:'CITA_CANCELAR',entityType:'appointment',entityId:appointmentId,clientId,baseRevision:revision,reason,payload:{patch:{cancellationReason:reason}}};}
+export function buildCancelAppointmentCommand({clientId,appointmentId,reason},revision=0){
+  const clean=String(reason||'').trim().replace(/\s+/gu,' ').slice(0,1000);
+  if(!clientId||!appointmentId||clean.length<3||
+    !Number.isSafeInteger(revision)||revision<0)
+    throw new Error('M26_APPOINTMENT_CANCEL_CONTEXT_REQUIRED');
+  return {type:'CITA_CANCELAR',entityType:'appointment',entityId:appointmentId,
+    clientId,baseRevision:revision,reason:clean,
+    payload:{patch:{cancellationReason:clean}}};
+}
+
+// The published prescription survives appointment cancellation. Check the
+// latest authorized read before issuing CITA_CANCELAR: a concurrent dated
+// execution or linked U60 occurrence must be closed on its own CAS path.
+export function appointmentCancellationDecision({
+  appointment,clientId,appointments=[],occurrences=[],executions=[],
+}={}){
+  const source=appointment&&typeof appointment==='object'?appointment:null;
+  const field=(row,...keys)=>{
+    const body=row?.body&&typeof row.body==='object'?row.body:{};
+    for(const key of keys){
+      const value=row?.[key]??body[key];
+      if(value!==null&&value!==undefined&&value!=='')return String(value).trim();
+    }
+    return '';
+  };
+  const id=field(source,'id','entityId','entity_id');
+  const owner=field(source,'clientId','client_id','clienteId','cliente_id');
+  const desired=String(clientId||'').trim();
+  if(!id||!owner||!desired||owner!==desired)
+    throw new Error('M26_APPOINTMENT_CANCEL_SCOPE_FORBIDDEN');
+  const status=normalizeAppointmentStatus(field(source,'status','estado'));
+  if(!['propuesta','pendiente','confirmada','reprogramada'].includes(status))
+    return Object.freeze({ok:false,code:'M26_APPOINTMENT_CANCEL_NOT_PENDING'});
+  // A stale appointment may omit its sessionId even though an independent
+  // occurrence still references it. That cannot authorize legacy cancel.
+  const linked=(Array.isArray(occurrences)?occurrences:[]).some(row=>
+    field(row,'appointmentId','appointment_id')===id&&
+    (!field(row,'clientId','client_id')||field(row,'clientId','client_id')===owner));
+  if(linked)return Object.freeze({ok:false,code:'M26_APPOINTMENT_OCCURRENCE_REQUIRES_TRANSITION'});
+  const sessionId=field(source,'sessionId','session_id');
+  if(sessionId){
+    // Owner hints missing on a matching session are not evidence of safety.
+    // Preserve the ambiguous row and block until an authorized review.
+    const same=(row)=>field(row,'sessionId','session_id')===sessionId&&
+      (!field(row,'clientId','client_id')||
+        field(row,'clientId','client_id')===owner);
+    const repeats=(Array.isArray(appointments)?appointments:[])
+      .filter(row=>same(row)&&field(row,'id','entityId','entity_id')!==id);
+    if(repeats.length)return Object.freeze({ok:false,code:'M26_APPOINTMENT_DATED_EXECUTOR_REQUIRED'});
+    const active=(Array.isArray(executions)?executions:[]).some(row=>{
+      if(!same(row))return false;
+      const state=field(row,'executionStatus','execution_status','status').toLowerCase();
+      return !['completed','completada','completado','cancelled','cancelada','cancelado',
+        'realizada','realizado','withdrawn','retirado'].includes(state);
+    });
+    if(active)return Object.freeze({ok:false,code:'M26_APPOINTMENT_SESSION_EXECUTION_OPEN'});
+  }
+  return Object.freeze({ok:true,code:null});
+}
+
 
 export function buildConfirmAppointmentCommand({clientId,appointmentId},revision=0){
   if(!clientId||!appointmentId)throw new Error('M26_APPOINTMENT_CONFIRM_CONTEXT_REQUIRED');

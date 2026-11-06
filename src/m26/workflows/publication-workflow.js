@@ -43,11 +43,60 @@ function idOf(record){return value(record,'id','entityId','entity_id');}
 export function publicationStatus(record){const raw=String(value(record,'status','estado')||'draft').trim().toLowerCase();return STATUS_ALIASES[raw]||'unknown';}
 export function publicationStatusLabel(recordOrStatus){const status=typeof recordOrStatus==='string'?(STATUS_ALIASES[String(recordOrStatus).trim().toLowerCase()]||recordOrStatus):publicationStatus(recordOrStatus);return STATUS_LABELS[status]||STATUS_LABELS.unknown;}
 export function publicationConfig(entity){const normalized=normalizeEntity(entity);return normalized?ENTITY_CONFIG[normalized]:null;}
+// A session withdrawal is a Coach-only publication action, never a physical
+// deletion. An in-progress prescription requires explicit execution closeout.
+function sessionWithdrawalForbidden({entity,action,record,role}={}){
+  if(normalizeEntity(entity)!=='session'||action!=='withdraw')return null;
+  if(normalizeRole(role)!=='coach')return 'M26_PUBLICATION_ROLE_FORBIDDEN';
+  const statuses=[record?.status,record?.estado,record?.body?.status,record?.body?.estado]
+    .map(value=>String(value??'').trim().toLowerCase());
+  if(statuses.some(status=>['en_curso','active','activo'].includes(status)))
+    return 'M26_SESSION_ACTIVE_WITHDRAW_FORBIDDEN';
+  return null;
+}
+
+// A hidden published session is not a deleted prescription. Refuse withdrawal
+// while a linked execution, independent dated occurrence, or appointment still
+// needs an authorized terminal transition. Historical terminal rows survive.
+export function sessionWithdrawalDependencies({record,executions=[],occurrences=[],appointments=[]}={}){
+  const sessionId=String(idOf(record)||'').trim();
+  const clientId=String(clientIdOf(record)||'').trim();
+  if(!sessionId||!clientId)throw new Error('M26_SESSION_WITHDRAW_SCOPE_REQUIRED');
+  const related=row=>{
+    const id=String(value(row,'sessionId','session_id')||'').trim();
+    const owner=String(value(row,'clientId','client_id')||'').trim();
+    // Unknown owner on a matching session is ambiguous: fail closed.
+    return id===sessionId&&(!owner||owner===clientId);
+  };
+  const statuses=row=>[
+    row?.status,row?.estado,row?.executionStatus,row?.execution_status,
+    row?.body?.status,row?.body?.estado,
+    row?.body?.executionStatus,row?.body?.execution_status,
+  ].filter(v=>v!==null&&v!==undefined&&String(v).trim())
+    .map(v=>String(v).trim().toLowerCase());
+  const terminal=new Set([
+    'completed','completada','completado','realizada','realizado',
+    'cancelled','canceled','cancelada','cancelado','anulada','anulado',
+    'retirado','withdrawn',
+  ]);
+  const blocked=(rows)=>Array.isArray(rows)&&rows.some(row=>{
+    if(!related(row))return false;
+    const states=statuses(row);
+    return states.length===0||states.some(status=>!terminal.has(status));
+  });
+  if(blocked(executions))return Object.freeze({ok:false,code:'M26_SESSION_WITHDRAW_EXECUTION_OPEN'});
+  if(blocked(occurrences))return Object.freeze({ok:false,code:'M26_SESSION_WITHDRAW_OCCURRENCE_OPEN'});
+  if(blocked(appointments))return Object.freeze({ok:false,code:'M26_SESSION_WITHDRAW_APPOINTMENT_OPEN'});
+  return Object.freeze({ok:true,code:null});
+}
 export function publicationActionsFor({entity,record,role}={}){
   const config=publicationConfig(entity);if(!config)return Object.freeze([]);
   if(!['admin','coach'].includes(normalizeRole(role)))return Object.freeze([]);
   const status=publicationStatus(record);
-  return Object.freeze(Object.entries(config.actions).filter(([,definition])=>definition.from.includes(status)).map(([action,definition])=>Object.freeze({action,...definition})));
+  return Object.freeze(Object.entries(config.actions).filter(([action,definition])=>
+    definition.from.includes(status)&&
+    !sessionWithdrawalForbidden({entity,action,record,role})
+  ).map(([action,definition])=>Object.freeze({action,...definition})));
 }
 export function publicationSummary({entity,record,role}={}){
   const status=publicationStatus(record);const actions=publicationActionsFor({entity,record,role});
@@ -58,6 +107,8 @@ export function assertPublicationTransition({entity,action,record,role,previewAc
   const config=publicationConfig(entity);if(!config)throw new Error('M26_PUBLICATION_ENTITY_INVALID');
   if(!['admin','coach'].includes(normalizeRole(role)))throw new Error('M26_PUBLICATION_ROLE_FORBIDDEN');
   const definition=config.actions[action];if(!definition)throw new Error('M26_PUBLICATION_ACTION_INVALID');
+  const withdrawalBlock=sessionWithdrawalForbidden({entity,action,record,role});
+  if(withdrawalBlock)throw new Error(withdrawalBlock);
   const status=publicationStatus(record);if(!definition.from.includes(status))throw new Error(`M26_PUBLICATION_TRANSITION_INVALID:${status}:${action}`);
   if(definition.requiresPreview&&previewAccepted!==true)throw new Error('M26_PUBLICATION_PREVIEW_REQUIRED');
   if(definition.requiresReason&&!normalizeReason(reason))throw new Error('M26_PUBLICATION_REASON_REQUIRED');

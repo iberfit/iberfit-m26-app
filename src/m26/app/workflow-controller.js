@@ -5,16 +5,17 @@ import {evolutionPdfActionScope} from '../workflows/evolution-pdf-access.js';
 import {applyIriSetupPreset} from '../workflows/iri-setup-presets.js';
 import {buildCycleCommand} from '../workflows/planning-workflow.js';
 import {planningDraftScope,restorePlanningDraft,listPlanningDrafts,planningFormSignature,finalizeConfirmedPlanningDraft} from '../workflows/planning-draft-safety.js';
-import {buildAppointmentCommand,buildConfirmAppointmentCommand,resolveCoachAppointmentSessionLink,santiagoAppointmentInstant} from '../workflows/agenda-workflow.js';
+import {buildAppointmentCommand,buildConfirmAppointmentCommand,buildCancelAppointmentCommand,appointmentCancellationDecision,resolveCoachAppointmentSessionLink,santiagoAppointmentInstant} from '../workflows/agenda-workflow.js';
 import {applyAdaptiveContext} from '../intelligence/adaptive-context.js';
 import {generateSessionProposal} from '../intelligence/session-engine.js';
 import {createM26Id} from '../platform/id.js';
 import {createExerciseSearchIndex} from '../exercises/search.js';
 import {exerciseDisplayName} from '../exercises/names.js';
 import {normalizeAppointmentModality,normalizeClientModality} from '../domain/modality.js';
+import {normalizeAppointmentStatus} from '../domain/appointment.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {trainingServiceActive} from '../domain/training-service.js';
-import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
+import {buildPublicationCommand,publicationConfig,sessionWithdrawalDependencies} from '../workflows/publication-workflow.js';
 import {mutationFeedback,publicationActionKey} from '../workflows/mutation-feedback.js';
 import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart,legacyStartNeedsOccurrence} from '../rc39/session-policy.js';
 import {buildApproveReportDraftCommand,syncPremiumReportApprovalButton} from '../workflows/report-workflow.js';
@@ -340,7 +341,8 @@ export function createWorkflowController({
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
   issueIriReport=null,getIriReportHistory=null,openIriIssuedReport=null,withdrawIriIssuedReport=null,
   issueEvolutionReport=null,getLatestEvolutionPdf=null,getEvolutionPdfHistory=null,openEvolutionPdfById=null,downloadEvolutionPdf=null,withdrawEvolutionPdf=null,
-  getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,createReportDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
+  getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,createReportDraft=null,
+  verifySessionDateRetirement=null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
   let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,iriRemoteSaveTimer=null,onboardingSaveTimer=null,reportSaveTimer=null,planSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
@@ -1740,6 +1742,76 @@ export function createWorkflowController({
       return {...result,refreshOk:false};
     }
     status(root,'appointment','Cita confirmada y visible para el cliente.','success');onRender();return result;}
+  async function cancelAppointment(button){
+    // This is a deliberate Coach action, not a generic delete endpoint.
+    if(context().role!=='coach')throw new Error('M26_APPOINTMENT_CANCEL_COACH_REQUIRED');
+    if(!isOnline())throw new Error('M26_OFFLINE_APPOINTMENT_CANCEL_NOT_ALLOWED');
+    const appointmentId=String(button?.dataset?.entityId||'').trim();
+    const reason=String(button?.closest?.('[data-appointment-cancel]')?.querySelector?.(
+      '[data-appointment-cancel-reason]')?.value||'').trim().replace(/\s+/gu,' ');
+    if(!appointmentId||reason.length<3||reason.length>1000)
+      throw new Error('M26_APPOINTMENT_CANCEL_REASON_REQUIRED');
+    const before=context();
+    const userId=String(before.state?.identity?.id||'');
+    let record=(before.state?.collections?.appointments||[])
+      .find(item=>recordId(item)===appointmentId);
+    if(!record)throw new Error('M26_APPOINTMENT_NOT_FOUND');
+    const owner=requireVisibleClient(recordClientId(record));
+    status(root,'appointment','Comprobando la cita y las ejecuciones vinculadas…','pending');
+    // Do not rely on a cached Agenda row after another device started a set.
+    await withTimeout(Promise.resolve(refreshState({reason:'appointment-cancel-preflight'})),
+      20_000,'M26_APPOINTMENT_CANCEL_PREFLIGHT_TIMEOUT');
+    const latest=context();
+    if(latest.role!=='coach'||String(latest.state?.identity?.id||'')!==userId||
+      (before.clientId&&String(latest.clientId||'')!==String(before.clientId)))
+      throw new Error('M26_APPOINTMENT_CANCEL_ACTOR_CHANGED');
+    record=(latest.state?.collections?.appointments||[])
+      .find(item=>recordId(item)===appointmentId);
+    if(!record||recordClientId(record)!==owner)
+      throw new Error('M26_APPOINTMENT_CANCEL_SCOPE_CHANGED');
+    requireVisibleClient(owner);
+    const collections=latest.state?.collections||{};
+    const decision=appointmentCancellationDecision({
+      appointment:record,clientId:owner,
+      appointments:collections.appointments||[],
+      occurrences:collections.trainingOccurrences||collections.sessionOccurrences||[],
+      executions:collections.sessionExecutions||[],
+    });
+    if(!decision.ok){
+      const error=new Error(decision.code);
+      error.userMessage=decision.code==='M26_APPOINTMENT_DATED_EXECUTOR_REQUIRED'||
+        decision.code==='M26_APPOINTMENT_OCCURRENCE_REQUIRES_TRANSITION'
+        ?'Esta cita corresponde a una planificación por fechas. Debe cancelarse mediante la ejecución individual, sin alterar las demás fechas.'
+        :'No es posible cancelar esta cita mientras su entrenamiento sigue activo o la cita ya está resuelta.';
+      throw error;
+    }
+    const revision=Number(record.revision??record.body?.revision);
+    if(!Number.isSafeInteger(revision)||revision<0)
+      throw new Error('M26_APPOINTMENT_CANCEL_REVISION_REQUIRED');
+    const command=buildCancelAppointmentCommand({
+      clientId:owner,appointmentId,reason,
+    },revision);
+    status(root,'appointment','Registrando cancelación con el servidor…','pending');
+    const reply=await withTimeout(Promise.resolve(commandBus.execute(command)),
+      20_000,'M26_APPOINTMENT_CANCEL_TIMEOUT');
+    if(reply?.ok!==true){
+      const feedback=mutationFeedback(reply,{subject:'La cita'});
+      status(root,'appointment',feedback.message,feedback.kind);
+      return reply;
+    }
+    // An ACK is authoritative, but an unrefreshed card is not proof the
+    // client-facing Agenda has converged. Never send a duplicate cancel.
+    const current=(store.getState().collections?.appointments||[])
+      .find(item=>recordId(item)===appointmentId&&recordClientId(item)===owner);
+    const settled=normalizeAppointmentStatus(current?.status||current?.body?.status);
+    if(reply.refreshOk===false||settled!=='cancelada'){
+      status(root,'appointment','Cancelación confirmada por el servidor; la Agenda aún debe actualizarse. No vuelvas a enviarla.','pending');
+      return {...reply,refreshPending:true};
+    }
+    status(root,'appointment','Cita cancelada. La sesión y su historial permanecen intactos.','success');
+    onRender();
+    return reply;
+  }
   function reuseSession(button){requireCoach();const sessionId=String(button?.dataset?.entityId||'').trim();if(!sessionId)throw new Error('M26_SESSION_REUSE_ID_REQUIRED');const {clientId,state}=context();requireVisibleClient(clientId);const source=(state.collections.sessions||[]).find((item)=>String(item?.id||item?.body?.id||'')===sessionId&&String(item?.clientId||item?.client_id||item?.body?.clientId||item?.body?.client_id||'')===clientId);if(!source)throw new Error('M26_SESSION_REUSE_NOT_VISIBLE');emit(root,'m26:open-session-builder',{clientId,sourceSession:source});status(root,'session','Sesión cargada como borrador independiente. La original no se modifica.','success');}  function openBuilder(button){requireCoach();const {clientId:activeClientId}=context();const requested=String(button?.dataset?.clientId||activeClientId||'').trim();const clientId=requireVisibleClient(requested);emit(root,'m26:open-session-builder',{clientId});status(root,'session','Constructor abierto.','success');}
   async function startSession(button){
     const {clientId,state,role}=context();
@@ -1855,8 +1927,45 @@ export function createWorkflowController({
     const card=button.closest?.('[data-publication-card]');
     const previewAccepted=Boolean(card?.querySelector?.('[data-publication-preview]')?.checked);
     const reason=String(card?.querySelector?.('[data-publication-reason]')?.value||'');
-    const {role}=context();
-    const record=findPublicationRecord(entity,entityId);
+    const initial=context(),role=initial.role;
+    let record=findPublicationRecord(entity,entityId);
+    if(entity==='session'&&action==='withdraw'){
+      // Server-authoritative read before removal: never trust a cached
+      // publication card after another device started an execution/date.
+      try{
+        await withTimeout(Promise.resolve(refreshState({reason:'session-withdraw-preflight'})),
+          20000,'M26_SESSION_WITHDRAW_PREFLIGHT_TIMEOUT');
+      }catch(error){
+        status(root,'session','No fue posible comprobar las ejecuciones y citas activas. La sesión sigue publicada; reintenta al recuperar la conexión.','error');
+        throw new Error('M26_SESSION_WITHDRAW_PREFLIGHT_UNAVAILABLE',{cause:error});
+      }
+      const latest=context();
+      if(latest.role!==role||String(latest.clientId||'')!==String(initial.clientId||''))
+        throw new Error('M26_SESSION_WITHDRAW_ACTOR_CHANGED');
+      record=findPublicationRecord(entity,entityId);
+      const collections=latest.state?.collections||{};
+      const decision=sessionWithdrawalDependencies({
+        record,
+        executions:collections.sessionExecutions||[],
+        occurrences:collections.trainingOccurrences||collections.sessionOccurrences||[],
+        appointments:collections.appointments||[],
+      });
+      if(!decision.ok){
+        status(root,'session','Primero finaliza o cancela las ejecuciones, fechas y citas pendientes de esta sesión. Se conserva su historial.','error');
+        throw new Error(decision.code);
+      }
+      if(typeof verifySessionDateRetirement==='function'){
+        // Never assume an empty V26 bootstrap collection means there are no
+        // independent U60 dates. Every QA withdrawal reads all cycle dates.
+        await withTimeout(Promise.resolve(verifySessionDateRetirement({
+          clientId:recordClientId(record),sessionId:entityId,
+        })),20_000,'M26_SESSION_DATED_PREFLIGHT_TIMEOUT');
+        const actorAfter=context();
+        if(actorAfter.role!==role||
+          String(actorAfter.clientId||'')!==String(initial.clientId||''))
+          throw new Error('M26_SESSION_WITHDRAW_ACTOR_CHANGED');
+      }
+    }
     const receiptKey=[entity,entityId,action,Number(record?.revision??record?.body?.revision??0)].join(':');
     if(confirmedPublicationReceipts.has(receiptKey)){
       status(root,publicationScope(entity),'El servidor ya confirmó este cambio. Actualiza la vista antes de volver a solicitarlo.','pending');
@@ -2287,7 +2396,7 @@ export function createWorkflowController({
     if(key)inFlightMutations.add(key);
     const wasDisabled=Boolean(button?.disabled);if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
     try{
-      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')await startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else if(action==='open-published-evolution-report')openPublishedEvolutionReport(button);else if(action==='issue-evolution-pdf')await handleIssuedEvolutionPdf(button,{issue:true});else if(action==='open-issued-evolution-pdf')await handleIssuedEvolutionPdf(button);else if(action==='show-issued-evolution-history')await showIssuedEvolutionHistory(button);else if(action==='withdraw-issued-evolution-pdf')await withdrawIssuedEvolutionPdf(button);else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
+      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='cancel-appointment')await cancelAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')await startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else if(action==='open-published-evolution-report')openPublishedEvolutionReport(button);else if(action==='issue-evolution-pdf')await handleIssuedEvolutionPdf(button,{issue:true});else if(action==='open-issued-evolution-pdf')await handleIssuedEvolutionPdf(button);else if(action==='show-issued-evolution-history')await showIssuedEvolutionHistory(button);else if(action==='withdraw-issued-evolution-pdf')await withdrawIssuedEvolutionPdf(button);else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
     }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report','issue-client-iri-report','issue-coach-iri-report','refresh-issued-iri-history','open-issued-iri-report','withdraw-issued-iri-report'].includes(action);const isEvolutionPdf=['issue-evolution-pdf','open-issued-evolution-pdf','show-issued-evolution-history','withdraw-issued-evolution-pdf'].includes(action);const scope=isEvolutionPdf?'report':isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');
       // Some Client routes show a workout CTA without a session-status node.
       // Never let a failed workspace entry become an invisible no-op.

@@ -47,7 +47,11 @@ function harness({finishTimeoutMs=30,commandBus=null,recoveryCoordinator=null,on
     addEventListener(k,fn){if(!listeners.has(k))listeners.set(k,new Set());listeners.get(k).add(fn);},
     removeEventListener(k,fn){listeners.get(k)?.delete(fn);}};
   const execution=awaitingFeedback();
-  const session={id:'session-finish-1',clientId:'client-finish-1',title:'Fuerza A',blocks:[]};
+  // Synthetic Client execution must have the same published, authorized
+  // delivery contract as the real player; publication is not implicit.
+  const session={id:'session-finish-1',clientId:'client-finish-1',title:'Fuerza A',
+    status:'disponible',visibleToClient:true,clientVisibilityLevel:'full',
+    deliveryModality:'guiada_en_app',deliveryOwnership:'guided_in_app',blocks:[]};
   const context={session,execution,catalog:{has:()=>true,get:()=>null,search:()=>[]},actor:{role:'client',clientId:'client-finish-1'},actionState:createActionState(),commandBus,recoveryCoordinator,onExit};
   const errors=[];let renders=0;
   const controller=createSessionController({root,getContext:()=>context,render:()=>{renders+=1;},onError:e=>errors.push(e),finishTimeoutMs,
