@@ -172,6 +172,22 @@ async function navigateViaActualControl(page,role,area){
   expect(painted?.trusted,area+': real trusted physical pointerdown required').toBe(true);
   expect(painted?.area,area+': painted route must match the physical target').toBe(area);
   expect(Number.isFinite(painted?.elapsedMs),area+': finite browser-local paint time').toBe(true);
+  if(painted.elapsedMs>5_000){
+    // Failure diagnostics are timings and route names only. No payload,
+    // account identifier, token, or private training data is logged.
+    const phases=await page.evaluate(()=>{
+      const sink=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__;
+      return {appStages:Array.isArray(sink?.appStageTimes)
+        ?sink.appStageTimes.slice(-18).map(p=>({stage:String(p?.stage||'').slice(0,50),
+          atMs:Number(p?.atMs||0)})):[],
+        shellRoutes:Array.isArray(sink?.shellRouteTimings)
+          ?sink.shellRouteTimings.slice(-28).map(p=>({
+            phase:p.phase,area:p.area,elapsedMs:p.elapsedMs,atMs:p.atMs,
+          })):[]};
+    }).catch(()=>({probe:'unavailable'}));
+    console.log('SIGNATURE_U26_SLOW_REAL_PAINT '+role+'/'+area+' '+
+      Math.round(painted.elapsedMs)+'ms '+JSON.stringify(phases));
+  }
   expect(painted.elapsedMs,area+': trusted touch-to-paint must not exceed 5s')
     .toBeLessThanOrEqual(5_000);
   console.log('SIGNATURE_U26_BROWSER_PAINT '+role+'/'+area+' '+Math.round(painted.elapsedMs)+'ms');
