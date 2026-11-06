@@ -47,6 +47,13 @@ test('U71 only QA origin, ordinary JWT, native commands, two-phase write gate',(
  assert.match(s,/old\.fingerprint===proof\.fingerprint/);
  assert.match(s,/GITHUB_RUN_ATTEMPT==='2'/);
  assert.match(s,/COACH_EXECUTION_DETAIL_NOT_COMMITTED/);
+ assert.match(s,/branchFromRef\(e\.GITHUB_REF\)/);
+ assert.match(s,/BRANCH_NOT_ALLOWLISTED/);
+ assert.match(s,/feat\/iberfit-universal-360-one-release-20261106/);
+ const wf=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ assert.match(wf,/feat\/iberfit-universal-360-one-release-20261106/);
+ assert.match(wf,/github\.run_attempt == 1/);
+ assert.match(wf,/github\.run_attempt == 2/);
 });
 
 test('U71 future dated appointment is rejected by start window, not un-timed date guard',()=>{

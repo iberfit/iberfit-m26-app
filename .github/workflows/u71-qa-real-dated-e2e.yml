@@ -6,11 +6,18 @@ name: IBERFIT U71 Real QA Coach Client Coach Dated E2E
 # NEVER applies to PROD, and cannot use service-role or cross-client grants.
 on:
   push:
-    branches: ['feat/u60-training360-r50-reconciled-20261104']
+    # UNIVERSAL: same existing two-attempt QA proof, zero PROD credentials.
+    # Attempt 1 is read-only; no QA write can execute without an explicit
+    # rerun of the same successful job, SHA and immutable preflight evidence.
+    branches:
+      - 'feat/u60-training360-r50-reconciled-20261104'
+      - 'feat/iberfit-universal-360-one-release-20261106'
     paths:
       - '.github/workflows/u71-qa-real-dated-e2e.yml'
       - 'scripts/remote-gates/qa_u60_real_dated_journey.mjs'
       - 'tests/m26_u71_qa_real_dated_journey.test.mjs'
+      - 'src/m26/workflows/occurrence-qa-ui.js'
+      - 'src/m26/workflows/occurrence-session-retirement-gate.js'
 
 permissions:
   contents: read

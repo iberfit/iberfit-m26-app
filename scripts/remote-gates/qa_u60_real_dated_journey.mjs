@@ -12,7 +12,16 @@ import {expandQaClientCanonicalBodyEnvelope} from '../../src/m26/production-stat
 import {buildAppointmentCommand,buildConfirmAppointmentCommand,santiagoAppointmentInstant} from '../../src/m26/workflows/agenda-workflow.js';
 const QA='gjztkdwfmunnzhtvxrsu';
 const BASE='https://'+QA+'.supabase.co';
-const BRANCH='feat/u60-training360-r50-reconciled-20261104';
+const BRANCHES=new Set([
+ 'feat/u60-training360-r50-reconciled-20261104',
+ 'feat/iberfit-universal-360-one-release-20261106',
+]);
+const branchFromRef=ref=>{
+ const prefix='refs/heads/';
+ const branch=String(ref||'').startsWith(prefix)?String(ref).slice(prefix.length):'';
+ assert(BRANCHES.has(branch),'BRANCH_NOT_ALLOWLISTED');
+ return branch;
+};
 const REPO='iberfit/iberfit-m26-app';
 const FILE='recovery/u71-qa-authenticated-workout/evidence.json';
 const PREVIOUS='.tmp/u71-first/evidence.json';
@@ -55,17 +64,19 @@ function context(mode){
    assert(e[name],'ENV_MISSING_'+name);
  assert(e.M26_QA_ONLY==='true'&&e.M26_PROJECT_REF===QA
   &&new URL(e.M26_SUPABASE_URL).origin===BASE,'NOT_QA');
- assert(e.GITHUB_REPOSITORY===REPO&&e.GITHUB_REF==='refs/heads/'+BRANCH
+ const branch=branchFromRef(e.GITHUB_REF);
+ assert(e.GITHUB_REPOSITORY===REPO
   &&UUID.test(derivedUuid(e.GITHUB_RUN_ID,'check')),'INVALID_RUN_CONTEXT');
  assert(/^[a-f0-9]{40}$/.test(e.GITHUB_SHA),'INVALID_SHA');
  assert((mode==='preflight'&&e.GITHUB_RUN_ATTEMPT==='1')
    ||(mode==='apply'&&e.GITHUB_RUN_ATTEMPT==='2'),'NON_EXPLICIT_ATTEMPT');
  const key=e.M26_SUPABASE_PUBLISHABLE_KEY;
  assert(key.length>20&&!/service.?role|sb_secret/i.test(key),'PRIVILEGED_KEY_DENIED');
- return {e,key};
+ return {e,key,branch};
 }
 async function currentSha(ctx){
- const res=await fetch('https://api.github.com/repos/'+REPO+'/git/ref/heads/'+BRANCH,{
+ const res=await fetch('https://api.github.com/repos/'+REPO+'/git/ref/heads/'+
+  encodeURIComponent(ctx.branch),{
   headers:{Authorization:'Bearer '+ctx.e.GH_TOKEN,Accept:'application/vnd.github+json'},
   signal:AbortSignal.timeout(10000)});
  assert(res.ok,'HEAD_READ_UNAVAILABLE');
