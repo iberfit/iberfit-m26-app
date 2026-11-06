@@ -513,8 +513,11 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     qaStage('rc64-hoy-overview-ready');
     const clientId = routeClientId(shellVm, state);
     const selectedHasTraining=clientId?clientHasTrainingService(state,clientId):false;
+    // No truncation or permissions inference. Reuse the owner-scoped directory
+    // index so per-client 7/28/90 histories no longer rescan the full archive.
+    const ownerState=(id)=>options.clientScopeIndex?.get(String(id||''))||state;
     const alerts = clientId&&selectedHasTraining
-      ? deriveAdherenceAlerts(state, clientId, { now })
+      ? deriveAdherenceAlerts(ownerState(clientId), clientId, { now })
       : [];
 
     qaStage('rc64-hoy-clients-start');
@@ -522,7 +525,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       (summary)=>compactSummary(
         summary,
         overview.role,
-        {state,now}
+        {state:ownerState(summary?.client?.id),now}
       )
     );
     qaStage('rc64-hoy-clients-ready');
@@ -536,7 +539,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
               alerts:client.experience?.serviceKind!=='training'
                 ?[]
                 :deriveAdherenceAlerts(
-                    state,
+                    ownerState(client.id),
                     client.id,
                     {now}
                   ),
@@ -1355,11 +1358,11 @@ export function createRouteViewModel(shellVm,state,now=new Date(),options={}){
   const effectiveShellVm=adminContextBase
     ?Object.freeze({...shellVm,activeArea:adminContextBase})
     :shellVm;
-  // A large Coach history must be indexed exactly once per directory
-  // frame. The legacy progress engines still enforce canonical ownership;
-  // scoped state is a read-performance projection, never an ACL.
+  // Single-pass client evidence index supports Coach Today and Clients.
+  // Client's own independent screen and canonical server-side RLS are unchanged.
   const directoryRole=String(effectiveShellVm?.identity?.role||state?.identity?.role||'');
-  const clientScopeIndex=effectiveShellVm?.activeArea==='clientes'&&
+  const professionalOverview=['clientes','hoy'].includes(effectiveShellVm?.activeArea);
+  const clientScopeIndex=professionalOverview&&
     ['coach','admin'].includes(directoryRole)
     ?buildFollowUpClientScopeIndex(state,
       (state?.collections?.clients||[]).map(item=>item?.id))

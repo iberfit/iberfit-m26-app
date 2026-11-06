@@ -4,6 +4,7 @@ import {
   clientSessionProjection,
   appointmentForSession,
   legacyStartNeedsOccurrence,
+  sessionRowsById,
 } from './session-policy.js';
 import {isClientVisibleAppointment} from '../domain/appointment.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
@@ -214,6 +215,11 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date(),{clientScop
   const scopedAppointments=role==='client'
     ?relevantAppointments.filter(isClientVisibleAppointment)
     :relevantAppointments;
+  // Full prescription history remains available. Narrow the candidate list
+  // before each exact canonical status, owner and date selection.
+  const appointmentsBySession=sessionRowsById(
+    role==='client'?scopedAppointments:relevantAppointments,
+  );
   const changeRequestAvailable=state?.environment?.rc39?.appointmentChangeRequests===true;
   // An in-progress prescription is NOT proof that this authenticated Client
   // owns a resumable execution. Require exactly one matching active row from
@@ -247,10 +253,12 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date(),{clientScop
   // remains tied to the same confirmed execution across canonical collections.
   const existingOccurrences=state.collections?.trainingOccurrences||
     state.collections?.sessionOccurrences||[];
+  const occurrencesBySession=sessionRowsById(existingOccurrences,
+    row=>field(row,'sessionId','session_id'));
   const awaitingOccurrenceApi=new Set(relevantSessions.filter(session=>
     legacyStartNeedsOccurrence({
-      appointments:role==='client'?scopedAppointments:relevantAppointments,
-      occurrences:existingOccurrences,
+      appointments:appointmentsBySession.get(sessionId(session))||[],
+      occurrences:occurrencesBySession.get(sessionId(session))||[],
       sessionId:sessionId(session),clientId:clientId(session),
     })
   ).map(session=>sessionId(session)));
@@ -262,7 +270,8 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date(),{clientScop
   })));
   const operationalAppointments=(role==='client'?scopedAppointments:appointments).map((item)=>compactAppointment(item,now)).sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER));
   const sessionProjections=relevantSessions.map((session)=>{
-    const base=clientSessionProjection(session,appointmentForSession(scopedAppointments,session,now),now);
+    const base=clientSessionProjection(session,
+      appointmentForSession(appointmentsBySession.get(sessionId(session))||[],session,now),now);
     return Object.freeze({
       ...base,changeRequestAvailable,
       canClientResume:canResume(sessionId(session)),

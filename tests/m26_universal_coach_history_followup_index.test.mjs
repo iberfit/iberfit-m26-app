@@ -145,7 +145,8 @@ test('UNIVERSAL one single directory index feeds follow-up AND retention, no his
   const shell={identity:{role:'coach'},activeArea:'clientes'};
   const source=readFileSync(new URL('../src/m26/modules/route-view-model.js',import.meta.url),'utf8');
   const wrapper=source.slice(source.indexOf('export function createRouteViewModel('));
-  assert.match(wrapper,/const clientScopeIndex=effectiveShellVm/u);
+  assert.match(wrapper,/const professionalOverview=\['clientes','hoy'\]/u);
+  assert.match(wrapper,/const clientScopeIndex=professionalOverview&&/u);
   assert.match(wrapper,/\{clientScopeIndex\}/u);
   const vm=readFileSync(new URL('../src/m26/rc39/view-model.js',import.meta.url),'utf8');
   assert.match(vm,/enrichClientRetention\(client,scopes\.get\(String\(client\?\.id/u);

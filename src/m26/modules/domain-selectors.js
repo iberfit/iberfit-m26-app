@@ -5,7 +5,7 @@ import {
   normalizeAppointmentStatus,
 } from '../domain/appointment.js';
 import { parseDateValue } from '../domain/civil-date.js';
-import {appointmentForSession,clientSessionProjection} from '../rc39/session-policy.js';
+import {appointmentForSession,appointmentSessionId,clientSessionProjection,sessionIdOf,sessionRowsById} from '../rc39/session-policy.js';
 
 function clone(value) {
   return value == null ? value : structuredClone(value);
@@ -256,8 +256,11 @@ function indexedUpcomingAppointments(index, clientId, now, limit = 3) {
 }
 
 function executableAutonomousSessionAvailable(sessions, appointments, now) {
+  const bySession=sessionRowsById(appointments,appointmentSessionId);
   return sessions.some((session) =>
-    clientSessionProjection(session, appointmentForSession(appointments, session), now).canClientStart
+    clientSessionProjection(session,
+      appointmentForSession(bySession.get(sessionIdOf(session))||[],session),
+      now).canClientStart
   );
 }
 
