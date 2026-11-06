@@ -1586,7 +1586,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     onboarding=createProgressiveOnboardingController({
       root,
       identityProvider:()=>{
-        const state=store.getOnboardingAccessSnapshot?.()??store.getState()||{};
+        const state=(store.getOnboardingAccessSnapshot?.()??store.getState())||{};
         const identity=state.identity||{};
         const applicationAccess=state.applicationAccess||{};
         const roleChoiceConfirmed=applicationAccess.roleChoiceConfirmed===true||!canSwitchApplication(applicationAccess);
