@@ -1351,10 +1351,27 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(!selectedDraft||!clientId)throw new Error('M26_SESSION_DRAFT_REQUIRED');
     if(!draftOnline())throw new Error('M26_SESSION_DRAFT_DELETE_REQUIRES_CONNECTION');
 
-    // Fail closed: delete the synchronized copy first. If that fails, the local
-    // recovery copy remains intact and the Coach stays in the builder.
+    // Owner- and workspace-bound lease: hydration may swap identity or the
+    // selected client while this async discard waits for a fresh token.
+    const actorId=String(store.getState().identity?.id||session?.user?.id||'').trim();
+    const assertCurrentDraftScope=()=>{
+      const state=store.getState(),identity=state.identity||{};
+      const latestActorId=String(identity.id||session?.user?.id||'').trim();
+      const role=String(identity.role||'').trim().toLowerCase();
+      if(!actorId||latestActorId!==actorId||
+        !['coach','entrenador','admin','administrador'].includes(role)||
+        sessionUi?.draft!==selectedDraft||
+        String(selectedDraft.clientId||'').trim()!==clientId||
+        !(state.collections?.clients||[]).some(item=>String(item.id||'')===clientId))
+        throw new Error('M26_SESSION_DRAFT_CONTEXT_CHANGED');
+    };
+
+    // Remote first to preserve a recoverable local draft on network failure.
+    assertCurrentDraftScope();
     await refreshSessionIfNeeded();
+    assertCurrentDraftScope();
     await transport.deleteSessionDraft(currentToken(),clientId,SESSION_DRAFT_SCOPE);
+    assertCurrentDraftScope();
 
     try{
       await draftRepository?.remove?.(clientId,SESSION_DRAFT_SCOPE);

@@ -4063,7 +4063,11 @@ function publicationVisibilityCopy(item){
 function publicationActionControl(action,entity,item){
   const common=`data-workflow-action="manage-publication" data-publication-entity="${escapeHtml(entity)}" data-publication-action="${escapeHtml(action.action)}" data-entity-id="${escapeHtml(item.id)}"`;
   if(action.requiresPreview)return `<div class="m26-publication-confirm"><label><input type="checkbox" data-publication-preview> He revisado la vista previa y confirmo que este contenido puede mostrarse al cliente.</label><button type="button" class="m26-primary-action" ${common}>${escapeHtml(action.label)}</button></div>`;
-  if(action.requiresReason)return `<div class="m26-publication-confirm"><label>Motivo<textarea data-publication-reason maxlength="1000" required></textarea></label><button type="button" ${common}>${escapeHtml(action.label)}</button></div>`;
+  if(action.requiresReason){
+    const guidance=entity==='session'&&action.action==='withdraw'
+      ?'<p class="m26-field-help">Retira la sesión de la planificación activa sin borrar el historial ni las ejecuciones confirmadas. Antes de retirarla, finaliza o cancela cualquier entrenamiento en curso.</p>':'';
+    return `<div class="m26-publication-confirm">${guidance}<label>Motivo<textarea data-publication-reason maxlength="1000" required></textarea></label><button type="button" ${common}>${escapeHtml(action.label)}</button></div>`;
+  }
   return `<button type="button" class="m26-primary-action" ${common}>${escapeHtml(action.label)}</button>`;
 }
 function clientContentBody(view,{preview=false}={}){
