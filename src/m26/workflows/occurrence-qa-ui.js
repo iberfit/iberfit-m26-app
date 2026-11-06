@@ -204,8 +204,10 @@ export function createDatedOccurrenceQaUi({
             :'';
       const save=phase==='active'&&view.executionStatus==='active'&&view.unsavedWork
         ?'<button type="button" data-iberdates-action="u60-save">Sincronizar progreso pendiente</button>':'';
+      const retryComplete=phase==='active'&&view.executionStatus==='completed'
+        ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-retry-complete">Confirmar finalización pendiente en servidor</button>':'';
       body='<section class="m26-panel" data-u60-workout><h3>Fecha independiente</h3>'+
-        summary+stepMarkup+buttons+recordForm+feedbackForm+save+
+        summary+stepMarkup+buttons+recordForm+feedbackForm+save+retryComplete+
         (view.startedAt?'<p class="m26-field-help">Tiempo transcurrido desde el inicio confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.startedAt)+'">'+escape(formatDatedElapsed(Date.now()-Date.parse(view.startedAt)))+'</strong></p>':'')+
         '<button type="button" data-iberdates-action="u60-close">Volver al calendario</button></section>';
     }else{
@@ -218,6 +220,8 @@ export function createDatedOccurrenceQaUi({
           '</p><h3>'+escape(row.title||'Entrenamiento')+'</h3><p>'+
           escape(row.status)+'</p></div><div class="m26-inline-actions">'+
           (canConfirm?'<button type="button" data-iberdates-action="u60-confirm" data-u60-id="'+escape(row.id)+'">Confirmar fecha</button>':'')+
+          (coach&&['planificada','confirmada'].includes(row.status)
+            ?'<details data-u60-date-cancel><summary>Cancelar esta fecha</summary><button type="button" data-iberdates-action="u60-cancel" data-u60-id="'+escape(row.id)+'">Confirmar cancelación</button></details>':'')+
           (canOpen?'<button type="button" data-iberdates-action="u60-open" data-u60-id="'+escape(row.id)+'">Abrir esta fecha</button>':'')+
           (coach&&vault.isUnlocked()?'<button type="button" data-iberdates-action="u60-retry-date" data-u60-id="'+escape(row.id)+'">Recuperar cambio pendiente</button>':'')+
           '</div></article>';
@@ -408,6 +412,21 @@ export function createDatedOccurrenceQaUi({
       await load(scope);message='Cambio pendiente reconciliado sin duplicar operación.';
       return;
     }
+    if(action==='u60-cancel'){
+      if(scope.role!=='coach')fail('COACH_REQUIRED');
+      const row=verifiedRow(payload.id,scope);
+      if(!['planificada','confirmada'].includes(row.status))
+        fail('DATE_NOT_CANCELLABLE');
+      const receipt=await runtime.recovery.send(buildOccurrenceScopedCommand({
+        type:'OCURRENCIA_CANCELAR',operationId:cryptoImpl.randomUUID(),
+        clientId:scope.clientId,occurrenceId:row.id,baseRevision:row.revision,
+      }));
+      if(receipt.kind!=='ack'||receipt.localRecoveryPending)
+        fail('RECOVERY_REQUIRED');
+      await load(scope);
+      message='Fecha cancelada por el servidor sin borrar el historial.';
+      return;
+    }
     if(action==='u60-open'){
       const row=verifiedRow(payload.id,scope);
       if(!['confirmada','en_curso','completada','cancelada'].includes(row.status))
@@ -459,6 +478,15 @@ export function createDatedOccurrenceQaUi({
       const receipt=await runtime.workout.save();
       if(receipt.hasUncertain||receipt.unsavedWork)fail('RECOVERY_REQUIRED');
       message='Progreso confirmado en servidor.';
+      return;
+    }
+    if(action==='u60-retry-complete'){
+      if(runtime.workout.view().executionStatus!=='completed')
+        fail('FEEDBACK_NOT_SAVED');
+      const reply=await runtime.workout.complete();
+      if(reply.phase!=='completed'||reply.hasUncertain)
+        fail('COMPLETION_NOT_CONFIRMED');
+      message='Entrenamiento de esta fecha finalizado y confirmado.';
       return;
     }
     if(action==='u60-complete'){

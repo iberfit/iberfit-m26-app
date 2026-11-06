@@ -5,6 +5,11 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // UNIVERSAL U60 date cancellation and interrupted closeout recovery.
+  ["Cancelar esta fecha","Cancel this date","Annuler cette date","Cancelar esta data"],
+  ["Confirmar cancelación","Confirm cancellation","Confirmer l’annulation","Confirmar cancelamento"],
+  ["Fecha cancelada por el servidor sin borrar el historial.","Date cancelled by the server without deleting history.","Date annulée par le serveur sans supprimer l’historique.","Data cancelada pelo servidor sem apagar o histórico."],
+  ["Confirmar finalización pendiente en servidor","Confirm pending completion on server","Confirmer la fin en attente sur le serveur","Confirmar conclusão pendente no servidor"],
   // UNIVERSAL U60 Canary player: explicit UI translations in all 4 locales.
   ["Introduce tu clave privada de recuperación (mínimo 16 caracteres). No es la contraseña de tu cuenta.","Enter your private recovery passphrase (at least 16 characters). It is not your account password.","Saisissez votre phrase secrète de récupération (16 caractères minimum). Ce n’est pas le mot de passe de votre compte.","Introduza a sua frase privada de recuperação (pelo menos 16 caracteres). Não é a palavra-passe da conta."],
   ["Esta operación no está autorizada para tu cuenta, cliente o modalidad.","This operation is not authorized for your account, client or session mode.","Cette opération n’est pas autorisée pour votre compte, ce client ou ce mode de séance.","Esta operação não está autorizada para a sua conta, cliente ou modalidade."],

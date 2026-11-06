@@ -154,3 +154,26 @@ test('UNIVERSAL U60 dates, secure recovery and calendar copy are localized in EN
     }
   }
 });
+
+test('UNIVERSAL Coach can cancel only a scheduled U60 date, with U34 CAS and no delete',()=>{
+  const ui=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
+  const sql=readFileSync(new URL('../supabase/migrations/20261025231500_signature_u34_coach_atomic_cancel_reschedule_v1.sql',import.meta.url),'utf8');
+  assert.match(ui,/data-iberdates-action="u60-cancel"/u);
+  assert.match(ui,/type:'OCURRENCIA_CANCELAR'/u);
+  assert.match(ui,/baseRevision:row\.revision/u);
+  assert.deepEqual(M26_ACTION_REGISTRY['u60-cancel'].roles,['coach']);
+  assert.match(sql,/occ\.status NOT IN \('planificada','confirmada'\)/u);
+  assert.match(sql,/occ\.execution_id IS NOT NULL/u);
+  assert.match(sql,/status='cancelada'/u);
+  assert.doesNotMatch(ui,/\.delete\(|DELETE FROM/u);
+});
+test('UNIVERSAL U60 locally completed encrypted feedback can retry server ACK without repeating finish',()=>{
+  const ui=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
+  assert.match(ui,/data-iberdates-action="u60-retry-complete"/u);
+  assert.match(ui,/executionStatus!=='completed'/u);
+  assert.match(ui,/runtime\.workout\.complete\(\)/u);
+  assert.deepEqual(M26_ACTION_REGISTRY['u60-retry-complete'].roles,['coach','client']);
+  for(const label of ['Cancelar esta fecha','Confirmar cancelación','Confirmar finalización pendiente en servidor'])
+    for(const lang of ['en','fr','pt'])
+      assert.notEqual(iberfitSurfaceTranslate(label,{language:lang}),label);
+});
