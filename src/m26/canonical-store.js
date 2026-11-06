@@ -25,6 +25,20 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return clone(state);
   }
 
+  // Read-only, constant-size navigation evidence. The authenticated Coach
+  // archive can contain thousands of events: copying it merely to read the
+  // current route must never block physical input or QA route polling.
+  // The full getState() contract and authorization checks remain unchanged.
+  function getNavigationSnapshot() {
+    return Object.freeze({
+      activeArea:String(state.activeArea||''),
+      identity:Object.freeze({
+        id:String(state.identity?.id||''),
+        role:String(state.identity?.role||''),
+      }),
+    });
+  }
+
   function setHydration(status, error = null) {
     const nextError=errorText(error);const current=state.hydration||{};
     const hasAuthenticatedSnapshot=Boolean(state.identity)&&current.status==='ready';
@@ -115,5 +129,5 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return () => listeners.delete(listener);
   }
 
-  return Object.freeze({ getState, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, projectOperations, acknowledge, subscribe });
+  return Object.freeze({ getState, getNavigationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, projectOperations, acknowledge, subscribe });
 }
