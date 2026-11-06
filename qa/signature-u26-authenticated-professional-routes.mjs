@@ -38,6 +38,59 @@ async function closeMore(page){
   }
 }
 
+// Browser-local QA proof: no CDP polling delay can disguise a slow painted route.
+// This does NOT synthesize user input. Both the source and its post-render
+// receipt must be produced by a genuine trusted browser pointer event.
+async function installTrustedRoutePaintProbe(page,role){
+  await page.evaluate(expectedRole=>{
+    globalThis.__IBERFIT_QA_U26_NAV_PAINT__?.stop?.();
+    let pending=null,last=null,paintQueued=false;
+    const shellSelector='.m26-shell[data-m26-role="'+expectedRole+'"]';
+    function routeIsPaintable(area){
+      const shell=document.querySelector(shellSelector);
+      const nav=Array.from(shell?.querySelectorAll('[data-m26-area][aria-current="page"]')||[])
+        .some(node=>node.getAttribute('data-m26-area')===area);
+      const stateArea=globalThis.__IBERFIT_M26_APP__?.getNavigationSnapshot?.()?.activeArea;
+      const main=shell?.querySelector('#m26-main');
+      if(!nav||String(stateArea||'')!==area||!main||main.hasAttribute('inert')
+        ||main.querySelector('.m26-route-placeholder')
+        ||!main.querySelector('h1,h2,h3')
+        ||String(main.textContent||'').trim().length<=30)return false;
+      const rect=main.getBoundingClientRect();
+      return rect.width>20&&rect.height>20
+        &&getComputedStyle(main).visibility!=='hidden';
+    }
+    function check(){
+      if(!pending||paintQueued||!routeIsPaintable(pending.area))return;
+      paintQueued=true;
+      requestAnimationFrame(()=>{
+        paintQueued=false;
+        if(!pending||!routeIsPaintable(pending.area))return;
+        last={area:pending.area,elapsedMs:performance.now()-pending.at,trusted:true};
+        pending=null;
+      });
+    }
+    function onPointer(event){
+      if(event.isTrusted!==true)return;
+      const nav=event.target?.closest?.('[data-m26-area]');
+      if(!nav?.closest?.(shellSelector))return;
+      const area=String(nav.getAttribute('data-m26-area')||'');
+      if(!area)return;
+      pending={area,at:performance.now()};
+      last=null;
+      check();
+    }
+    document.addEventListener('pointerdown',onPointer,true);
+    const observer=new MutationObserver(check);
+    observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,
+      attributeFilter:['aria-current','class','style','inert']});
+    globalThis.__IBERFIT_QA_U26_NAV_PAINT__={
+      read:()=>last,
+      stop:()=>{pending=null;document.removeEventListener('pointerdown',onPointer,true);observer.disconnect();},
+    };
+  },role);
+}
+
 async function navigateViaActualControl(page,role,area){
   const shell=page.locator('.m26-shell[data-m26-role="'+role+'"]');
   if(await activeArea(page)===area)return true;
@@ -82,7 +135,18 @@ async function navigateViaActualControl(page,role,area){
   if(hit.coarse)await choice.tap({noWaitAfter:true,timeout:12000});
   else await choice.click({noWaitAfter:true,timeout:12000});
   try{
-    await expect.poll(()=>activeArea(page),{message:'U26 real-pointer route transition '+role+'/'+area,timeout:12000}).toBe(area);
+    // One browser-side wait checks the real DOM, owner role, canonical store
+    // and trusted-paint receipt together. Repeated CDP expect.poll can time out
+    // even when the page is already painted (confirmed twice in U84 logs).
+    await page.waitForFunction(({role,area})=>{
+      const shell=document.querySelector('.m26-shell[data-m26-role="'+role+'"]');
+      const proof=globalThis.__IBERFIT_QA_U26_NAV_PAINT__?.read?.();
+      const state=globalThis.__IBERFIT_M26_APP__?.getNavigationSnapshot?.();
+      return proof?.trusted===true&&proof.area===area
+        &&String(state?.activeArea||'')===area
+        &&Array.from(shell?.querySelectorAll('[data-m26-area][aria-current="page"]')||[])
+          .some(node=>node.getAttribute('data-m26-area')===area);
+    },{role,area},{timeout:12000,polling:'raf'});
   }catch(error){
     // Keep this a real failure. Only safe route labels, stage durations and
     // counts are logged, never client content, identities, tokens or payloads.
@@ -104,6 +168,13 @@ async function navigateViaActualControl(page,role,area){
     console.log('SIGNATURE_U84_ROUTE_FAILURE_DIAGNOSTIC '+role+'/'+area+' '+JSON.stringify(diagnosis));
     throw error;
   }
+  const painted=await page.evaluate(()=>globalThis.__IBERFIT_QA_U26_NAV_PAINT__?.read?.()||null);
+  expect(painted?.trusted,area+': real trusted physical pointerdown required').toBe(true);
+  expect(painted?.area,area+': painted route must match the physical target').toBe(area);
+  expect(Number.isFinite(painted?.elapsedMs),area+': finite browser-local paint time').toBe(true);
+  expect(painted.elapsedMs,area+': trusted touch-to-paint must not exceed 5s')
+    .toBeLessThanOrEqual(5_000);
+  console.log('SIGNATURE_U26_BROWSER_PAINT '+role+'/'+area+' '+Math.round(painted.elapsedMs)+'ms');
   console.log('SIGNATURE_U26_REAL_POINTER_ROUTE '+role+'/'+area+' '+(Date.now()-pointerStart)+'ms');
   await closeMore(page);
   return true;
@@ -133,6 +204,7 @@ export async function auditAuthenticatedProfessionalRoutes(page,{role,viewport})
       }
     });
   }
+  await installTrustedRoutePaintProbe(page,role);
   const observed=[],notExposed=[];
   for(const area of config[viewport]){
     // Technical route labels only: no identity, free text, credentials or health data.
@@ -173,6 +245,7 @@ export async function auditAuthenticatedProfessionalRoutes(page,{role,viewport})
   }
   expect(observed.length,role+' '+viewport+': meaningful authentic route coverage')
     .toBeGreaterThanOrEqual(viewport==='desktop'?3:2);
+  await page.evaluate(()=>globalThis.__IBERFIT_QA_U26_NAV_PAINT__?.stop?.());
   return Object.freeze({
     schema:'iberfit.signature.u26.professional-authenticated-readonly.v1',
     role,viewport,authenticated:true,webauthnRequired:true,readOnly:true,
