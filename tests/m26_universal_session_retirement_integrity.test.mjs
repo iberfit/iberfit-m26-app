@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
-  publicationActionsFor,assertPublicationTransition,buildPublicationCommand,
+  publicationActionsFor,assertPublicationTransition,buildPublicationCommand,sessionWithdrawalDependencies,
 } from '../src/m26/workflows/publication-workflow.js';
 
 const source={id:'session-universal-1',clientId:'client-universal-1',
@@ -69,4 +69,34 @@ test('UNIVERSAL Coach recibe explicacion de borrado logico y Cliente no puede ed
   const src=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   assert.match(src,/Retira la sesión de la planificación activa sin borrar el historial/u);
   assert.match(src,/finaliza o cancela cualquier entrenamiento en curso/u);
+});
+
+test('UNIVERSAL impide retirar mientras otra ejecucion, fecha o cita sigue abierta',()=>{
+  const open={sessionId:source.id,clientId:source.clientId,status:'en_curso'};
+  const args={record:source,executions:[],occurrences:[],appointments:[]};
+  assert.deepEqual(sessionWithdrawalDependencies({...args,executions:[open]}),
+    {ok:false,code:'M26_SESSION_WITHDRAW_EXECUTION_OPEN'});
+  assert.deepEqual(sessionWithdrawalDependencies({...args,occurrences:[{...open,status:'confirmada'}]}),
+    {ok:false,code:'M26_SESSION_WITHDRAW_OCCURRENCE_OPEN'});
+  assert.deepEqual(sessionWithdrawalDependencies({...args,appointments:[{...open,status:'confirmada'}]}),
+    {ok:false,code:'M26_SESSION_WITHDRAW_APPOINTMENT_OPEN'});
+  assert.deepEqual(sessionWithdrawalDependencies({...args,executions:[{...open,status:'completada'}],
+    occurrences:[{...open,status:'cancelada'}],appointments:[{...open,status:'realizada'}]}),
+    {ok:true,code:null});
+});
+test('UNIVERSAL nunca bloquea otra persona, pero si datos de propietario ambiguo de la misma sesion',()=>{
+  const row={sessionId:source.id,clientId:'another-client',status:'en_curso'};
+  assert.equal(sessionWithdrawalDependencies({record:source,executions:[row]}).ok,true);
+  assert.equal(sessionWithdrawalDependencies({record:source,executions:[{sessionId:source.id,status:'activo'}]}).ok,false);
+  assert.throws(()=>sessionWithdrawalDependencies({record:{id:source.id}}),/SCOPE_REQUIRED/u);
+});
+test('UNIVERSAL retirada Coach reconsulta datos actuales antes de construir comando',()=>{
+  const code=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
+  const manage=code.slice(code.indexOf('async function managePublication(button){'),
+    code.indexOf('async function availableReportDrafts(',code.indexOf('async function managePublication(button){')));
+  assert.match(manage,/session-withdraw-preflight/u);
+  assert.match(manage,/sessionWithdrawalDependencies/u);
+  assert.ok(manage.indexOf("refreshState({reason:'session-withdraw-preflight'})")<
+    manage.indexOf('buildPublicationCommand('));
+  assert.match(manage,/M26_SESSION_WITHDRAW_ACTOR_CHANGED/u);
 });

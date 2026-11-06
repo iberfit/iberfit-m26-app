@@ -236,7 +236,42 @@ export function liveAddExerciseSelectionState(exerciseId,catalog){
   return Object.freeze({exerciseId:normalizedExerciseId,enabled:Boolean(normalizedExerciseId&&catalog?.has?.(normalizedExerciseId))});
 }
 
+
+// UNIVERSAL P0: A Client can operate ONLY an execution of that Client's
+// explicitly autonomous, still-visible session. Check before any optimistic
+// set mutation, offline enqueue, timer transition or remote command. Backend
+// authorization/RLS remains mandatory; this is an independent UI safety fence.
+const GUARDED_EXECUTION_ACTIONS=new Set([
+  'complete-set','repeat-previous-set','correct-set','add-set',
+  'add-group-round','extra-group-round-now','undo-structure-add',
+  'extra-set-now','skip-set','skip-exercise','add-live-exercise',
+  'previous','next','rest-expired-auto','rest-minus','rest-plus',
+  'substitute','pause','resume','cancel','finish',
+]);
+export function assertSessionExecutionActionBoundary({action,session,execution,actor}={}){
+  if(!GUARDED_EXECUTION_ACTIONS.has(action))return true;
+  const role=String(actor?.role||'').trim().toLowerCase();
+  if(['admin','administrador'].includes(role))
+    throw new Error('M26_ADMIN_SESSION_EXECUTION_FORBIDDEN');
+  if(!['client','cliente'].includes(role))return true;
+  if(!session||!execution
+    ||sessionDeliveryModality(session)!=='guiada_en_app'
+    ||!['client_autonomous','guided_in_app'].includes(sessionDeliveryOwnership(session))
+    ||!actorCanExecuteSession({role:'client',session}))
+    throw new Error('M28_SESSION_COACH_LED_CLIENT_ACTION_FORBIDDEN');
+  const sourceId=String(session?.id||session?.body?.id||'');
+  const sourceOwner=String(session?.clientId||session?.client_id||
+    session?.body?.clientId||session?.body?.client_id||'');
+  const executionId=String(execution?.sessionId||execution?.session_id||'');
+  const executionOwner=String(execution?.clientId||execution?.client_id||'');
+  if(!sourceId||!sourceOwner||!executionId||!executionOwner
+    ||sourceId!==executionId||sourceOwner!==executionOwner
+    ||(actor?.clientId&&String(actor.clientId)!==sourceOwner))
+    throw new Error('M43_CLIENT_EXECUTION_SCOPE_CONFLICT');
+  return true;
+}
 export function dispatchSessionAction({action,draft,execution,session,catalog,payload={},commandBus,appointmentId,sessionRevision=0,online=true,offlinePermit={},actor=null}={}){
+  assertSessionExecutionActionBoundary({action,session,execution,actor});
   switch(action){
     case 'add-exercise': addCatalogExercise(draft,payload.exerciseId,catalog,payload.prescription); return {kind:'draft',value:draft};
     case 'remove-block': {const undo=sessionBlockRemovalSnapshot(draft,payload.blockId);removeSessionBlock(draft,payload.blockId);return {kind:'draft',value:draft,undo};}

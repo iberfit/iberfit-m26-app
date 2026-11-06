@@ -54,6 +54,41 @@ function sessionWithdrawalForbidden({entity,action,record,role}={}){
     return 'M26_SESSION_ACTIVE_WITHDRAW_FORBIDDEN';
   return null;
 }
+
+// A hidden published session is not a deleted prescription. Refuse withdrawal
+// while a linked execution, independent dated occurrence, or appointment still
+// needs an authorized terminal transition. Historical terminal rows survive.
+export function sessionWithdrawalDependencies({record,executions=[],occurrences=[],appointments=[]}={}){
+  const sessionId=String(idOf(record)||'').trim();
+  const clientId=String(clientIdOf(record)||'').trim();
+  if(!sessionId||!clientId)throw new Error('M26_SESSION_WITHDRAW_SCOPE_REQUIRED');
+  const related=row=>{
+    const id=String(value(row,'sessionId','session_id')||'').trim();
+    const owner=String(value(row,'clientId','client_id')||'').trim();
+    // Unknown owner on a matching session is ambiguous: fail closed.
+    return id===sessionId&&(!owner||owner===clientId);
+  };
+  const statuses=row=>[
+    row?.status,row?.estado,row?.executionStatus,row?.execution_status,
+    row?.body?.status,row?.body?.estado,
+    row?.body?.executionStatus,row?.body?.execution_status,
+  ].filter(v=>v!==null&&v!==undefined&&String(v).trim())
+    .map(v=>String(v).trim().toLowerCase());
+  const terminal=new Set([
+    'completed','completada','completado','realizada','realizado',
+    'cancelled','canceled','cancelada','cancelado','anulada','anulado',
+    'retirado','withdrawn',
+  ]);
+  const blocked=(rows)=>Array.isArray(rows)&&rows.some(row=>{
+    if(!related(row))return false;
+    const states=statuses(row);
+    return states.length===0||states.some(status=>!terminal.has(status));
+  });
+  if(blocked(executions))return Object.freeze({ok:false,code:'M26_SESSION_WITHDRAW_EXECUTION_OPEN'});
+  if(blocked(occurrences))return Object.freeze({ok:false,code:'M26_SESSION_WITHDRAW_OCCURRENCE_OPEN'});
+  if(blocked(appointments))return Object.freeze({ok:false,code:'M26_SESSION_WITHDRAW_APPOINTMENT_OPEN'});
+  return Object.freeze({ok:true,code:null});
+}
 export function publicationActionsFor({entity,record,role}={}){
   const config=publicationConfig(entity);if(!config)return Object.freeze([]);
   if(!['admin','coach'].includes(normalizeRole(role)))return Object.freeze([]);

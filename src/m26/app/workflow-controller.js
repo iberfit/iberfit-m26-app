@@ -14,7 +14,7 @@ import {exerciseDisplayName} from '../exercises/names.js';
 import {normalizeAppointmentModality,normalizeClientModality} from '../domain/modality.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {trainingServiceActive} from '../domain/training-service.js';
-import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
+import {buildPublicationCommand,publicationConfig,sessionWithdrawalDependencies} from '../workflows/publication-workflow.js';
 import {mutationFeedback,publicationActionKey} from '../workflows/mutation-feedback.js';
 import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart,legacyStartNeedsOccurrence} from '../rc39/session-policy.js';
 import {buildApproveReportDraftCommand,syncPremiumReportApprovalButton} from '../workflows/report-workflow.js';
@@ -1855,8 +1855,34 @@ export function createWorkflowController({
     const card=button.closest?.('[data-publication-card]');
     const previewAccepted=Boolean(card?.querySelector?.('[data-publication-preview]')?.checked);
     const reason=String(card?.querySelector?.('[data-publication-reason]')?.value||'');
-    const {role}=context();
-    const record=findPublicationRecord(entity,entityId);
+    const initial=context(),role=initial.role;
+    let record=findPublicationRecord(entity,entityId);
+    if(entity==='session'&&action==='withdraw'){
+      // Server-authoritative read before removal: never trust a cached
+      // publication card after another device started an execution/date.
+      try{
+        await withTimeout(Promise.resolve(refreshState({reason:'session-withdraw-preflight'})),
+          20000,'M26_SESSION_WITHDRAW_PREFLIGHT_TIMEOUT');
+      }catch(error){
+        status(root,'session','No fue posible comprobar las ejecuciones y citas activas. La sesión sigue publicada; reintenta al recuperar la conexión.','error');
+        throw new Error('M26_SESSION_WITHDRAW_PREFLIGHT_UNAVAILABLE',{cause:error});
+      }
+      const latest=context();
+      if(latest.role!==role||String(latest.clientId||'')!==String(initial.clientId||''))
+        throw new Error('M26_SESSION_WITHDRAW_ACTOR_CHANGED');
+      record=findPublicationRecord(entity,entityId);
+      const collections=latest.state?.collections||{};
+      const decision=sessionWithdrawalDependencies({
+        record,
+        executions:collections.sessionExecutions||[],
+        occurrences:collections.trainingOccurrences||collections.sessionOccurrences||[],
+        appointments:collections.appointments||[],
+      });
+      if(!decision.ok){
+        status(root,'session','Primero finaliza o cancela las ejecuciones, fechas y citas pendientes de esta sesión. Se conserva su historial.','error');
+        throw new Error(decision.code);
+      }
+    }
     const receiptKey=[entity,entityId,action,Number(record?.revision??record?.body?.revision??0)].join(':');
     if(confirmedPublicationReceipts.has(receiptKey)){
       status(root,publicationScope(entity),'El servidor ya confirmó este cambio. Actualiza la vista antes de volver a solicitarlo.','pending');
