@@ -4116,7 +4116,12 @@ function publicationCard(item,entity){
   const previewLabel=entity==='report'?'Revisar vista previa del informe':'Así lo verá el cliente · ver vista previa';
   const preview=`<details class="m26-publication-preview" data-publication-preview-details><summary>${previewLabel}</summary><div class="m26-publication-preview-content"><p class="m26-eyebrow">Contenido completo que recibirá el cliente</p><h4>${escapeHtml(item.clientContent?.title||item.title||'Contenido IBERFIT')}</h4>${clientContentBody(item.clientContent,{preview:true})}</div></details>`;
   const preferredAction=actions.find((action)=>action.action==='publish')||actions.find((action)=>action.action==='approve')||actions[0]||null;
-  const controls=actions.length?`<details class="m26-publication-actions"><summary>Gestionar publicación${preferredAction?` · ${escapeHtml(preferredAction.label)}`:''}</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
+  // A published Coach session must have an immediately recognisable safe
+  // removal affordance. It withdraws the plan; it never deletes confirmed history.
+  const canWithdrawSession=entity==='session'&&actions.some(action=>action.action==='withdraw');
+  const controlsTitle=canWithdrawSession?'Quitar esta sesión de la planificación · conservar historial'
+    :`Gestionar publicación${preferredAction?` · ${preferredAction.label}`:''}`;
+  const controls=actions.length?`<details class="m26-publication-actions"><summary>${escapeHtml(controlsTitle)}</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
   const issued=entity==='report'&&String(item.statusRaw||'').toLowerCase()==='publicado'
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="issue-evolution-pdf" data-entity-id="${escapeHtml(item.id||'')}">Emitir y archivar PDF para el Cliente</button></div>`
     :'';
