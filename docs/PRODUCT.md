@@ -152,3 +152,12 @@ Una mejora no está terminada por existir en código, PR o Canary.
 El cierre real exige funcionamiento verificado en `https://app.iberfit.cl` cuando la tarea esté destinada a producción.
 
 Ver `docs/DEFINITION_OF_DONE.md` y `docs/RELEASE_POLICY.md`.
+
+
+## Radar · Capture y continuidad con supervisión (07/11/2026)
+
+- Coach Capture interpreta **solo notas textuales introducidas voluntariamente** en el constructor actual. No es OCR, dictado de voz, IA externa, otro planificador ni publicación automática.
+- Cada ejercicio requiere selección explícita del catálogo; las cargas sin especificar total o por mancuerna son ambiguas y bloquean la incorporación. Los parámetros omitidos usan defaults del constructor, que no representan mediciones extraídas y deben revisarse antes de publicación.
+- Las notas son temporales y están aisladas por identidad Coach, cliente y borrador. Incorporación atómica y autoguardado del borrador existente; la aprobación y el ACK servidor de la publicación siguen intactos.
+- La navegación mantiene una acción verdadera principal por pantalla y separa Cliente, Coach y Admin. El diagnóstico IRI inicial y la evolución son productos diferentes.
+- En web, Connected360 debe distinguir datos recientes, obsoletos y estimados sin declarar que existe una conexión nativa automática.

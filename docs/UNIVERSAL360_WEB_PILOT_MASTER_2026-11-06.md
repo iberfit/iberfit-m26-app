@@ -110,3 +110,14 @@ Los estados son **clasificación de entrega**, no porcentajes. `BASE`=módulo pr
 - PR única de continuidad [#1287](https://github.com/iberfit/iberfit-m26-app/pull/1287), estado de merge/promoción a actualizar tras ejecución, nunca supuesto.
 - Incidencias históricas para comprobación diferencial: #919 (inicio), #1078 (Coach–Cliente), #1075 (bootstrap Coach), #1064 (multi-fecha), #944 (wearables), #1209 (Supabase Free), #1262 (IRI). Un issue abierto no invalida por sí solo una corrección demostrada; un test previo no prueba hardware.
 - Mantener aquí la matriz **HECHO / QA / PROD / PENDIENTE**. Evitar PR duplicadas, etiquetas de versión U nuevas y otro módulo que replique funciones ya presentes.
+
+
+## Integración Radar 07/11/2026 · alcance del único macrobloque de evolución
+
+**Funcionalidad candidata hasta que exista CI/QA:** Coach Capture: notas locales → interpretación determinista limitada → ejercicio elegido por Coach → revisión explícita de unidades → incorporación atómica al borrador → preview y publicación tradicional. Se refuerza el mensaje de procedencia/frescura wearable sin activar conectores ni servicios remotos.
+
+**Ya existente, no duplicar:** First28, guía de continuidad por rol, cockpit Coach, plantillas/borradores, reconciliación V45 de fuentes, motor de entrenamiento y documentos de IRI inicial separados del seguimiento. No añadir tarjetas o una nueva fuente de verdad para simular innovación.
+
+**Condicionado a investigación, consentimiento, RLS/SQL o autorización externa; NO publicar en esta PR:** solicitudes de privacidad, exportación de datos sensibles, variantes aprobadas de sesiones con ocurrencias múltiples, OCR/voz, HealthKit/Health Connect directo en PWA, Garmin/Google Health comercial, zonas clínicas, coordinación sanitaria y grupos como servicio. No simular derechos ejecutados ni comenzar migraciones U60 PROD por estética.
+
+**Pilotos de negocio, no claims de producto ni beneficios demostrados:** entrenamiento funcional adultos mayores, fuerza durante control médico de peso y encuentros híbridos; comenzar con evaluación del coach, pertinencia y consentimiento. Evitar diagnósticos automáticos, falsa precisión fisiológica y promesas de eficacia.

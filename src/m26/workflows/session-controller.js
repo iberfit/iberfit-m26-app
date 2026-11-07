@@ -1,4 +1,5 @@
 import { addCatalogExercise, addTrainingGroup, closeTrainingGroup,duplicateSessionBlock,removeSessionBlock,sessionBlockRemovalSnapshot,restoreSessionBlock,moveSessionBlock,updateSessionDraft,updateSessionBlock,acceptSessionPreview,invalidateSessionPreview,applyExerciseMemorySuggestion, buildPublishSessionCommand } from './session-builder.js';
+import {parseCoachCaptureNotes,renderCoachCapturePreview,buildCoachCaptureDraft,captureFeedbackText} from './coach-capture.js';
 import {
   startExecution,pauseExecution,resumeExecution,cancelExecution,recordSet,correctSet,advanceExecution,retreatExecution,
   adjustRest,beginRest,substituteExercise,addExecutionSet,addExecutionGroupRound,addExtraGroupRoundAndAdvance,undoLastExecutionStructureChange,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
@@ -556,6 +557,8 @@ export function isCoachDraftSaveShortcut(event,context={},root){
 export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,progressActionTimeoutMs=4000,liveAddTimeoutMs=20000,finishTimeoutMs=20000,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document,clockTarget=globalThis}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
   if(telemetryRemoteSync!==null&&typeof telemetryRemoteSync?.notifyStaged!=='function')throw new Error('M26_TELEMETRY_REMOTE_SYNC_INVALID');
   let mounted=false,autosaveTimer=null,scheduledContext=null,autosaveChain=Promise.resolve();
+  // Volatile notes, scoped to the exact Coach + client + draft.
+  let captureState=null;
   let executionDraftTimer=null,scheduledExecutionContext=null,executionDraftChain=Promise.resolve();
   let pendingExecutionSyncTimer=null,pendingExecutionSyncRunning=false;
   const safeDelay=Math.max(50,Math.min(2000,Number(autosaveDelayMs)||180));
@@ -969,8 +972,74 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     queueExecutionDraftPersist(context);
     return suggestion;
   }
+  function captureScope(c){
+    return c?.role==='coach'&&c?.actor?.role==='coach'&&
+      String(c?.actor?.userId||'')&&String(c?.draft?.clientId||'')&&String(c?.draft?.id||'')
+      ?[c.actor.userId,c.draft.clientId,c.draft.id].join('|'):null;
+  }
+  function captureSurface(){return root.querySelector?.('[data-session-capture]');}
+  function hydrateCapture(c){
+    const scope=captureScope(c);
+    if(!captureState||!scope||captureState.scope!==scope){captureState=null;return;}
+    const panel=captureSurface();
+    if(!panel){captureState=null;return;}
+    panel.open=captureState.open;
+    const input=panel.querySelector?.('[data-session-capture-input]');
+    if(input)input.value=captureState.source;
+    const status=panel.querySelector?.('[data-session-capture-feedback]');
+    if(status)status.textContent=captureState.message||'';
+    const preview=panel.querySelector?.('[data-session-capture-preview]');
+    if(preview&&captureState.parsed){
+      preview.innerHTML=renderCoachCapturePreview(captureState.parsed,c.catalog);
+      const selects=[...(preview.querySelectorAll?.('[data-session-capture-match]')||[])];
+      for(let i=0;i<selects.length;i++){
+        const value=captureState.matches?.[i];
+        if(value&&[...(selects[i].options||[])].some(opt=>opt.value===value))selects[i].value=value;
+      }
+      const confirmed=preview.querySelector?.('[data-session-capture-confirm]');
+      if(confirmed)confirmed.checked=captureState.reviewed===true;
+    }
+  }
+  function preserveCaptureReview(){
+    const c=getContext(),scope=captureScope(c),panel=captureSurface();
+    if(!captureState||!scope||captureState.scope!==scope||!panel)return;
+    captureState.open=panel.open;
+    captureState.matches=[...(panel.querySelectorAll?.('[data-session-capture-match]')||[])].map(entry=>String(entry.value||''));
+    captureState.reviewed=panel.querySelector?.('[data-session-capture-confirm]')?.checked===true;
+  }
+  // Preserve an open live-workout disclosure only while the exact same set,
+  // execution and rendered state remain active. WebKit may otherwise drop the
+  // open native <details> during an unrelated telemetry repaint, trapping the
+  // "No realizar esta serie" reason input in a hidden form (U360 regression).
+  function liveDisclosureScope(c){
+    const x=c?.execution,section=root.querySelector?.('[data-session-live-entry]');
+    if(!x||!section)return null;
+    const phase=root.querySelector?.('[data-session-live-state]')?.getAttribute?.('data-session-live-state')||'';
+    return String(x.id||'')+'|'+String(x.index??'')+'|'+String(x.setIndex??'')+'|'+
+      String(x.status||'')+'|'+phase;
+  }
+  function captureLiveDisclosure(c){
+    const key=liveDisclosureScope(c);
+    if(!key)return null;
+    const nodes=[...(root.querySelector?.('[data-session-live-entry]')?.querySelectorAll?.('details')||[])];
+    return Object.freeze({key,total:nodes.length,
+      open:Object.freeze(nodes.flatMap((node,index)=>node.open===true?[index]:[]).slice(0,32))});
+  }
+  function restoreLiveDisclosure(snapshot,c){
+    if(!snapshot||snapshot.key!==liveDisclosureScope(c))return 0;
+    const nodes=[...(root.querySelector?.('[data-session-live-entry]')?.querySelectorAll?.('details')||[])];
+    if(nodes.length!==snapshot.total)return 0;
+    let restored=0;
+    for(const index of snapshot.open){
+      if(Number.isInteger(index)&&index>=0&&index<nodes.length){
+        nodes[index].open=true;
+        restored++;
+      }
+    }
+    return restored;
+  }
   const baseRender=render;
-  render=()=>{const draftBefore=getContext()?.draft?.id||null;const disclosure=captureSessionBuilderDisclosureState(root,draftBefore);const focused=captureSessionBuilderFocus(root,draftBefore);baseRender?.();const draftAfter=getContext()?.draft?.id||null;restoreSessionBuilderDisclosureState(root,disclosure,draftAfter);restoreSessionBuilderFocus(root,focused,draftAfter);hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
+  render=()=>{const before=getContext();const draftBefore=before?.draft?.id||null;const disclosure=captureSessionBuilderDisclosureState(root,draftBefore);const focused=captureSessionBuilderFocus(root,draftBefore);const liveDisclosure=captureLiveDisclosure(before);preserveCaptureReview();baseRender?.();const draftAfter=getContext()?.draft?.id||null;restoreSessionBuilderDisclosureState(root,disclosure,draftAfter);restoreSessionBuilderFocus(root,focused,draftAfter);restoreLiveDisclosure(liveDisclosure,getContext());hydrateCapture(getContext());hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
@@ -1265,7 +1334,56 @@ async function click(event){
     }
     return;
   }
-  const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='load-more-library'){
+  const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();
+  if(action==='capture-parse'||action==='capture-confirm'){
+    const panel=captureSurface(),scope=captureScope(context);
+    if(!panel||!scope||context?.draft?.previewAccepted===true)return;
+    const notes=panel.querySelector?.('[data-session-capture-input]');
+    const status=panel.querySelector?.('[data-session-capture-feedback]');
+    const preview=panel.querySelector?.('[data-session-capture-preview]');
+    if(!notes||!status||!preview)return;
+    const source=String(notes.value||'');
+    if(action==='capture-parse'){
+      const parsed=parseCoachCaptureNotes(source);
+      captureState={scope,source,parsed,message:captureFeedbackText(parsed),open:true};
+      status.textContent=captureState.message;
+      preview.innerHTML=renderCoachCapturePreview(parsed,context.catalog);
+      return;
+    }
+    if(!captureState?.parsed?.ok||captureState.scope!==scope||
+      captureState.source!==source||!panel.querySelector?.('[data-session-capture-confirm]')?.checked){
+      status.textContent='Interpreta de nuevo y confirma el texto, las unidades y los ejercicios.';
+      return;
+    }
+    try{
+      const fresh=getContext();
+      if(captureScope(fresh)!==scope||fresh.draft!==context.draft)
+        throw Error('M26_CAPTURE_OWNER_CHANGED');
+      const selects=[...(panel.querySelectorAll?.('[data-session-capture-match]')||[])];
+      const staged=buildCoachCaptureDraft({draft:fresh.draft,parsed:captureState.parsed,
+        selectedIds:selects.map((entry,index)=>
+          entry.getAttribute('data-row-index')===String(index)?entry.value:''),
+        catalog:fresh.catalog});
+      if(captureScope(getContext())!==scope)throw Error('M26_CAPTURE_OWNER_CHANGED');
+      // Atomic draft update; standard Preview -> Publish -> server ACK remains.
+      fresh.draft.blocks=staged.blocks;
+      fresh.draft.previewAccepted=false;
+      fresh.clearTemplateUndo?.();
+      captureState=null;
+      queueAutosave(fresh);
+      if(fresh.actionState){
+        fresh.actionState.status='success';
+        fresh.actionState.message='Ejercicios añadidos al borrador. Revisa los valores predeterminados y la prescripción antes de publicar.';
+      }
+      renderSession();
+      root.querySelector?.('.m26-builder-blocks')?.scrollIntoView?.({block:'nearest',behavior:'auto'});
+    }catch(error){
+      status.textContent='No se añadió ningún ejercicio. Revisa las equivalencias y el cliente activo.';
+      onError(error);
+    }
+    return;
+  }
+  if(action==='load-more-library'){
     if(!context?.draft||!context?.catalog)return;
     const current=Math.max(24,Number(context.libraryVisibleLimit)||24);
     const result=renderSessionLibraryResults({
@@ -1511,7 +1629,20 @@ async function click(event){
           });
         }
       }}}
-  function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){
+  function input(event){const context=getContext();
+    const notes=event.target.closest?.('[data-session-capture-input]');
+    if(notes){
+      const scope=captureScope(context);
+      if(!scope)return;
+      captureState={scope,source:String(notes.value||''),parsed:null,message:'',open:true};
+      const panel=captureSurface();
+      const preview=panel?.querySelector?.('[data-session-capture-preview]');
+      if(preview)preview.textContent='';
+      const status=panel?.querySelector?.('[data-session-capture-feedback]');
+      if(status)status.textContent='';
+      return;
+    }
+    const search=event.target.closest?.('[data-session-search]');if(search){
       context.setQuery?.(search.value);
       context.setLibraryVisibleLimit?.(24);
       const holder=root.querySelector?.('[data-session-search-results]');
@@ -1597,5 +1728,5 @@ async function click(event){
         syncFinishControl(active);syncManualSyncControl(active);
         syncQuickRpeControl();syncRecoveryReviewControl(active);
         scheduleCoachRestAutoAdvance(active);ensureSessionClockTicker(active);
-      }},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;unmountSessionStickyTop();stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
+      }},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);captureState=null;mounted=false;unmountSessionStickyTop();stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
 }

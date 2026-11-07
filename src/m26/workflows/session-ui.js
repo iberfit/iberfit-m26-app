@@ -12,6 +12,7 @@ import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {sessionDeliveryOwnership,sessionDeliveryModality} from '../rc39/session-policy.js';
 import {renderActionState} from '../ui/action-state.js';
+import {renderCoachCaptureSurface} from './coach-capture-ui.js';
 function e(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
 function previousSetSummary(values){
   return [
@@ -964,6 +965,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},libraryV
       <p id="m26-session-delivery-help" class="m26-field-help">Elige el tipo de esta sesión, independientemente de si el plan del Cliente es presencial, híbrido u online. En presencial registra el Coach; en guiada, el Cliente puede iniciar y registrar en IBERFIT.</p>
     </section>
     ${templateControls}
+    ${role==='coach'&&!draft.previewAccepted?renderCoachCaptureSurface():''}
     ${draft.previewAccepted?previewMarkup(draft,catalog,mediaMap,role):`<div class="m26-builder-grid m26-builder-workbench-grid">
       <aside id="m26-session-builder-library" class="m26-panel m26-builder-library" data-session-jump-target="library" tabindex="-1" aria-label="Biblioteca de ejercicios">
         <div class="m26-builder-column-heading"><div><p class="m26-eyebrow">Añadir</p><h3>Biblioteca</h3></div><span data-session-library-result-count aria-live="polite">${e(plural(matchingExercises.length,'resultado','resultados'))}${activeFilterCount?` · ${e(plural(activeFilterCount,'filtro','filtros'))}`:''}</span></div>
