@@ -4,10 +4,16 @@ import {readFileSync} from 'node:fs';
 const route=readFileSync('qa/signature-u26-authenticated-professional-routes.mjs','utf8');
 const coach=readFileSync('qa/coach-webauthn-recurring/coach-webauthn-recurring.spec.mjs','utf8');
 
-test('U26 enforces real physical pointer + hit test + route confirmation for every professional route',()=>{
- assert.match(route,/document\.elementFromPoint\(x,y\)/u);
- assert.match(route,/expect\(hit\.area/u);
- assert.match(route,/expect\(hit\.disabled/u);
+test('U26 enforces live physical pointer actionability and trusted route confirmation',()=>{
+ // Do not re-introduce a stale elementFromPoint geometry snapshot.
+ // Playwright's unforced locator click/tap owns live hit-testing and waits for
+ // actionability; the trusted DOM pointer receipt verifies actual target/paint.
+ assert.doesNotMatch(route,/document\.elementFromPoint\(x,y\)/u);
+ assert.match(route,/expect\(rect\.width\)\.toBeGreaterThan\(0\)/u);
+ assert.match(route,/expect\(rect\.height\)\.toBeGreaterThan\(0\)/u);
+ assert.match(route,/const coarse=await page\.evaluate\(\(\)=>matchMedia/u);
+ assert.match(route,/proof\?\.trusted===true&&proof\.area===area/u);
+ assert.match(route,/pending=\{area,at:performance\.now\(\)\}/u);
  assert.ok(route.includes('choice.tap({noWaitAfter:true,timeout:12000})'));
  assert.ok(route.includes('choice.click({noWaitAfter:true,timeout:12000})'));
  assert.match(route,/page\.waitForFunction/u);
