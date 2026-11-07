@@ -1007,8 +1007,39 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     captureState.matches=[...(panel.querySelectorAll?.('[data-session-capture-match]')||[])].map(entry=>String(entry.value||''));
     captureState.reviewed=panel.querySelector?.('[data-session-capture-confirm]')?.checked===true;
   }
+  // Preserve an open live-workout disclosure only while the exact same set,
+  // execution and rendered state remain active. WebKit may otherwise drop the
+  // open native <details> during an unrelated telemetry repaint, trapping the
+  // "No realizar esta serie" reason input in a hidden form (U360 regression).
+  function liveDisclosureScope(c){
+    const x=c?.execution,section=root.querySelector?.('[data-session-live-entry]');
+    if(!x||!section)return null;
+    const phase=root.querySelector?.('[data-session-live-state]')?.getAttribute?.('data-session-live-state')||'';
+    return String(x.id||'')+'|'+String(x.index??'')+'|'+String(x.setIndex??'')+'|'+
+      String(x.status||'')+'|'+phase;
+  }
+  function captureLiveDisclosure(c){
+    const key=liveDisclosureScope(c);
+    if(!key)return null;
+    const nodes=[...(root.querySelector?.('[data-session-live-entry]')?.querySelectorAll?.('details')||[])];
+    return Object.freeze({key,total:nodes.length,
+      open:Object.freeze(nodes.flatMap((node,index)=>node.open===true?[index]:[]).slice(0,32))});
+  }
+  function restoreLiveDisclosure(snapshot,c){
+    if(!snapshot||snapshot.key!==liveDisclosureScope(c))return 0;
+    const nodes=[...(root.querySelector?.('[data-session-live-entry]')?.querySelectorAll?.('details')||[])];
+    if(nodes.length!==snapshot.total)return 0;
+    let restored=0;
+    for(const index of snapshot.open){
+      if(Number.isInteger(index)&&index>=0&&index<nodes.length){
+        nodes[index].open=true;
+        restored++;
+      }
+    }
+    return restored;
+  }
   const baseRender=render;
-  render=()=>{const draftBefore=getContext()?.draft?.id||null;const disclosure=captureSessionBuilderDisclosureState(root,draftBefore);const focused=captureSessionBuilderFocus(root,draftBefore);preserveCaptureReview();baseRender?.();const draftAfter=getContext()?.draft?.id||null;restoreSessionBuilderDisclosureState(root,disclosure,draftAfter);restoreSessionBuilderFocus(root,focused,draftAfter);hydrateCapture(getContext());hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
+  render=()=>{const before=getContext();const draftBefore=before?.draft?.id||null;const disclosure=captureSessionBuilderDisclosureState(root,draftBefore);const focused=captureSessionBuilderFocus(root,draftBefore);const liveDisclosure=captureLiveDisclosure(before);preserveCaptureReview();baseRender?.();const draftAfter=getContext()?.draft?.id||null;restoreSessionBuilderDisclosureState(root,disclosure,draftAfter);restoreSessionBuilderFocus(root,focused,draftAfter);restoreLiveDisclosure(liveDisclosure,getContext());hydrateCapture(getContext());hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
