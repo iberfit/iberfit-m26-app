@@ -210,15 +210,14 @@ async function verifyClientWorkspace(page,{projectName,browserName,rpcTimings=[]
     else await page.mouse.click(x,y);
     await expect(activeNavigation,'The real pointer action must activate the requested route')
       .toBeVisible({timeout:5_000});
-    // Only WebKit can resolve the real click before the next painted frame.
-    // Preserve Chromium's original measurement path and real 5s hard SLA.
+    // Route DOM can commit before the browser's next paint on any engine.
+    // Await the same real rAF proof on all engines within the existing 5s SLA.
+    // Keep real pointer input, trusted receipt and strict paint latency checks.
     const readVisual=()=>page.evaluate(()=>globalThis.__IBERFIT_QA_NAV_VISUAL_PROBE__?.read?.()||null);
-    if(browserName==='webkit'){
-      await expect.poll(async()=>Boolean((await readVisual())?.visiblePaint),{
-        message:'The target route must paint after the trusted pointerdown',
-        timeout:5_000,intervals:[16,32,64,100,200],
-      }).toBe(true);
-    }
+    await expect.poll(async()=>Boolean((await readVisual())?.visiblePaint),{
+      message:'The target route must paint after the trusted pointerdown',
+      timeout:5_000,intervals:[16,32,64,100,200],
+    }).toBe(true);
     const visual=await readVisual();
     expect(visual?.trustedPointer,'A genuine trusted pointerdown on the target must be observed').toBe(true);
     expect(visual?.visiblePaint,'The target route must paint after the trusted pointerdown').toBe(true);
