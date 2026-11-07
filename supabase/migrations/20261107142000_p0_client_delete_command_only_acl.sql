@@ -21,15 +21,13 @@ SELECT 1 / (
 
 REVOKE DELETE ON TABLE public.clients FROM PUBLIC, anon, authenticated;
 
--- Additive and independent RLS defense: even if someone later grants DELETE
--- accidentally, the restrictive FALSE policy blocks authenticated callers.
--- Keep the historical permissive policy untouched: no DROP POLICY / data risk.
-CREATE POLICY clients_direct_delete_deny_v1
-  ON public.clients AS RESTRICTIVE FOR DELETE
-  TO authenticated USING (false);
+-- Reuse the historical policy identifier, but permanently deny direct DELETE.
+-- ALTER POLICY is a non-destructive, repeatable tightening; no row mutations.
+-- Even if someone accidentally re-grants DELETE, RLS still denies it.
+ALTER POLICY clients_delete_coach ON public.clients USING (false);
 
 -- Fail closed if an inherited role grant reopens SQL DELETE, or if the
--- restrictive policy is missing or has changed. The protected command remains.
+-- existing deny policy is missing or has changed. The protected command remains.
 SELECT 1 / (
   CASE WHEN
     NOT pg_catalog.has_table_privilege('anon','public.clients','DELETE')
@@ -39,8 +37,8 @@ SELECT 1 / (
     AND EXISTS (
       SELECT 1 FROM pg_catalog.pg_policies
       WHERE schemaname='public' AND tablename='clients'
-        AND policyname='clients_direct_delete_deny_v1'
-        AND cmd='DELETE' AND permissive='RESTRICTIVE'
+        AND policyname='clients_delete_coach'
+        AND cmd='DELETE'
         AND btrim(coalesce(qual,'')) IN ('false','(false)')
     )
   THEN 1 ELSE 0 END
