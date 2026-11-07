@@ -1,3 +1,11 @@
+## P0 LIVE client deletion privilege boundary · WIP 07/11/2026 (NOT YET MERGED OR PROD APPLIED)
+
+- **Base exacta:** Canary=PROD `f45fecc1d440ce500501ec05452614fedc1c9935`; QA and PROD currently have DELETE grant on `public.clients` for authenticated and anon, and RLS policy `clients_delete_coach`. Admin has a separate protected RPC `iberfit_admin_delete_client_v26(jsonb,jsonb)` with privileged WebAuthn/confirmation/history checks. The direct SQL path bypasses those checks where FKs permit deletion. This is a real privilege issue, not a demonstrated destructive exploit.
+- **Single remediation branch:** `fix/p0-universal-client-delete-boundary-20261107`. ACL/policy-only migration `20261107142000_p0_client_delete_command_only_acl.sql` removes direct DELETE without touching rows, RLS SELECT/INSERT/UPDATE, Auth, photos, or other tables. Unit regression plus a real QA-only Coach and Client negative HTTP gate (nonexistent synthetic UUID, expected 403/42501) in the existing QA Real Write certification workflow.
+- **Status:** code candidate prepared for PR, QA certification, merge, and separate controlled PROD migration **PENDING**. Do not claim repaired until QA ACL observed, PR green, exact SHA merged and PROD DB ACL verified. Keep Patricia fully intact; Cynthia/Juan Carlos removal is still pending privileged Admin execution, identity/Storage review, and protected history legal constraints. Frontend promotion alone does not deploy SQL.
+
+---
+
 **P0 UNIVERSAL — revisión diferencial (06/11):** se detectó que el seguimiento indexado por Cliente todavía escaneaba colecciones `sessions` en el motor de planificación/realizado. El índice incluye desde ahora sesiones por dueño y plantillas sin dueño, conservando la semántica original de `buildPlanExecutionSummary`. La paridad 7/28/90 se prueba con sesiones compartidas y contradicciones de `body.clientId`. Se preparó en la única rama un disparador de M44 **solo para un push protegido posterior a la fusión**: no constituye respaldo nuevo, no aplica SQL, no elude `PROD_BACKUP_COMPLETED_BACKUP_MISSING` ni `M44_OFFSITE_RUN_TOO_OLD`. No declarar real WebAuthn, físico o PROD sin evidencia.
 
 ## UNIVERSAL 360 · único WIP integral · 06/11/2026 — CANDIDATO NO FUSIONADO
