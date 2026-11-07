@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f45fecc1d440ce500501ec05452614fedc1c9935",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "30ce333aa08fd5c1a2d5d706853a8c97e3333a2a",
+  "notes": "UNIVERSAL RADAR 360 final seven-gate certified release; preserved Patricia, no database/Auth changes; M44 independently restored."
+}
