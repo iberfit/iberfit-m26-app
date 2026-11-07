@@ -73,6 +73,10 @@ export function renderClientDeviceHub(wearable,{importer='',deviceSummary='',dai
       ?'<p class="m26-device-hub-empty">Hay mediciones anteriores del '+escapeHtml(historicalDate)+'. No hay datos de los últimos siete días: consulta el historial y revisa la conexión antes de interpretar tu estado actual.</p>'
       :'<p class="m26-device-hub-empty">Aquí verás tus pasos, sueño y recuperación cuando existan datos confirmados. No es obligatorio conectar nada.</p>')}
     ${stats?`<p class="m26-data-footnote">Medias de los últimos siete días · ${escapeHtml(summary.daysWithData||0)} día(s) con datos. El reloj físico no está verificado.</p>`:''}
+    <p class="m26-data-footnote" data-wearable-data-trust>
+      La fecha de una medición no demuestra conexión actual. ${escapeHtml(summary.freshness==='reciente'?'Hay registros recientes.':summary.freshness==='atrasada'?'La información reciente es limitada.':'No hay información actual suficiente para orientar decisiones.')}
+      Los datos del fabricante pueden ser estimaciones. El Coach comprueba fuente, calidad y contexto; la prescripción no cambia automáticamente.
+    </p>
     <details class="m26-device-link-picker" data-m26-device-link-picker${wearable?.productionNativeReady===true&&automatic.length===0?' open':''}>
       <summary class="m26-device-link-cta">${stats?'Conexión y otras fuentes':'Conectar mi actividad'} <span aria-hidden="true">↗</span></summary>
       <div class="m26-device-hub-body">
