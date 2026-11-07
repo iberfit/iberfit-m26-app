@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "4fb70ab52fab470af22bfe7b81390831728914a4",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "f45fecc1d440ce500501ec05452614fedc1c9935",
+  "notes": "Protected exact-source parity after client direct-DELETE P0; SQL privileges independently verified in PROD. Source changes only QA tests, workflow triggers, documentation and staged SQL; no runtime/Edge/Auth changes. Encrypted DB+Storage M44 isolated PG17 restore run 42386926988. No test-person purge included."
+}
