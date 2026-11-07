@@ -1,0 +1,62 @@
+name: IBERFIT M44 Hosted Auth Configuration Read-only
+
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - 'scripts/ops/m44_hosted_auth_config_readonly.mjs'
+      - 'tests/m44_hosted_auth_config_readonly.test.mjs'
+      - '.github/workflows/m44-hosted-auth-config-readonly.yml'
+  push:
+    branches: [canary/rc74-4]
+    paths:
+      - 'scripts/ops/m44_hosted_auth_config_readonly.mjs'
+      - 'tests/m44_hosted_auth_config_readonly.test.mjs'
+      - '.github/workflows/m44-hosted-auth-config-readonly.yml'
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Read-only Auth metadata; no values persisted; no production changes'
+        type: choice
+        options: [CHECK_HOSTED_AUTH_METADATA]
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m44-hosted-auth-readonly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: m44-hosted-auth-no-secret-logging-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify in-memory secretless Auth projection and failure boundaries
+        run: node --test tests/m44_hosted_auth_config_readonly.test.mjs
+
+  production:
+    name: m44-hosted-auth-readonly-prod-metadata
+    needs: contract
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.confirmation == 'CHECK_HOSTED_AUTH_METADATA')
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Query only PROD Auth configuration; never emit site URL, templates or credentials
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/m44_hosted_auth_config_readonly.mjs
