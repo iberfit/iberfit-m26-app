@@ -18,3 +18,13 @@ test('Client navigation waits for real painted frame on every browser engine',()
   assert.ok(source.includes('if(hasTouch)await page.touchscreen.tap(x,y)'),'Real touch input required');
   assert.ok(source.includes('else await page.mouse.click(x,y)'),'Real mouse input required');
 });
+
+test('WebAuthn source gates also run when the real Client paint contract changes',()=>{
+  for(const filename of ['coach-webauthn-recurring.yml','admin-webauthn-recurring.yml']){
+    const text=readFileSync(new URL('../.github/workflows/'+filename,import.meta.url),'utf8');
+    const exact="      - 'qa/rc64/authenticated-current-contract.spec.mjs'";
+    assert.equal(text.split(exact).length-1,2,filename+' must watch the exact source in PR and protected Canary push');
+    assert.ok(text.includes('  pull_request:'),filename+' must keep its PR gate');
+    assert.ok(text.includes('  push:'),filename+' must keep its real postmerge gate');
+  }
+});
