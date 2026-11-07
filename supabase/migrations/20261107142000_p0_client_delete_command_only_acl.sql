@@ -20,20 +20,28 @@ SELECT 1 / (
 ) AS iberfit_p0_admin_delete_command_prerequisites_missing;
 
 REVOKE DELETE ON TABLE public.clients FROM PUBLIC, anon, authenticated;
-DROP POLICY IF EXISTS clients_delete_coach ON public.clients;
 
--- Fail closed if an inherited role grant or another DELETE/ALL policy reopens it.
--- Privileged SECURITY DEFINER command keeps its own authorization and execution ACL.
+-- Additive and independent RLS defense: even if someone later grants DELETE
+-- accidentally, the restrictive FALSE policy blocks authenticated callers.
+-- Keep the historical permissive policy untouched: no DROP POLICY / data risk.
+CREATE POLICY clients_direct_delete_deny_v1
+  ON public.clients AS RESTRICTIVE FOR DELETE
+  TO authenticated USING (false);
+
+-- Fail closed if an inherited role grant reopens SQL DELETE, or if the
+-- restrictive policy is missing or has changed. The protected command remains.
 SELECT 1 / (
   CASE WHEN
     NOT pg_catalog.has_table_privilege('anon','public.clients','DELETE')
     AND NOT pg_catalog.has_table_privilege('authenticated','public.clients','DELETE')
     AND pg_catalog.has_table_privilege('service_role','public.clients','DELETE')
     AND pg_catalog.has_table_privilege('authenticated','public.clients','SELECT')
-    AND NOT EXISTS (
+    AND EXISTS (
       SELECT 1 FROM pg_catalog.pg_policies
       WHERE schemaname='public' AND tablename='clients'
-        AND cmd IN ('DELETE','ALL')
+        AND policyname='clients_direct_delete_deny_v1'
+        AND cmd='DELETE' AND permissive='RESTRICTIVE'
+        AND btrim(coalesce(qual,'')) IN ('false','(false)')
     )
   THEN 1 ELSE 0 END
 ) AS iberfit_p0_client_direct_delete_boundary_still_open;

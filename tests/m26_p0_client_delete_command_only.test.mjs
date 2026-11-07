@@ -16,12 +16,14 @@ const workflow = await readFile(
 );
 const executable=migration.replace(/--[^\n]*/gu,'').replace(/\s+/gu,' ');
 
-test('P0 closes both grants and the legacy Coach/Admin DELETE policy on clients',()=>{
+test('P0 closes direct DELETE through ACL and adds an independent restrictive deny policy',()=>{
   assert.match(executable,/REVOKE DELETE ON TABLE public\.clients FROM PUBLIC,\s*anon,\s*authenticated/i);
-  assert.match(executable,/DROP POLICY IF EXISTS clients_delete_coach ON public\.clients/i);
+  assert.match(executable,/CREATE POLICY clients_direct_delete_deny_v1\s+ON public\.clients AS RESTRICTIVE FOR DELETE\s+TO authenticated USING \(false\)/i);
+  assert.doesNotMatch(executable,/DROP\s+POLICY/i);
   assert.match(executable,/NOT pg_catalog\.has_table_privilege\('anon','public\.clients','DELETE'\)/i);
   assert.match(executable,/NOT pg_catalog\.has_table_privilege\('authenticated','public\.clients','DELETE'\)/i);
-  assert.match(executable,/cmd IN \('DELETE','ALL'\)/i);
+  assert.match(executable,/permissive='RESTRICTIVE'/i);
+  assert.match(executable,/IN \('false','\(false\)'\)/i);
 });
 
 test('P0 preserves privileged deletion, non-destructive reads and service-role contract',()=>{
