@@ -1,0 +1,125 @@
+name: IBERFIT M44 ACL Sidecar PG17 Synthetic
+
+on:
+  pull_request:
+    branches: ['canary/rc74-4']
+    paths:
+      - 'scripts/ops/m44_access_acl_supplement_v1.sql'
+      - 'scripts/ops/m44_platform_recovery_compare.mjs'
+      - 'tests/m44_platform_recovery_catalog.test.mjs'
+      - '.github/workflows/m44-access-acl-sidecar-synthetic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m44-access-acl-sidecar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  access-acl-fingerprint-pg17:
+    name: m44-access-acl-synthetic-drift-proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate strict catalog comparator and privacy contracts
+        run: node --test tests/m44_platform_recovery_catalog.test.mjs
+      - name: Change each ACL in isolated PostgreSQL 17 and reject category mismatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          scratch="$(mktemp -d)"
+          chmod 700 "$scratch"
+          container="iberfit-m44-acl-sidecar-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cleanup() {
+            docker rm -f "$container" >/dev/null 2>&1 || true
+            rm -rf "$scratch"
+          }
+          trap cleanup EXIT
+          docker run --detach --name "$container" --network none \
+            -e POSTGRES_USER=supabase_admin \
+            -e POSTGRES_PASSWORD=m44-sidecar-synthetic-only \
+            -e POSTGRES_DB=postgres \
+            -v "$PWD/scripts/ops/m44_access_acl_supplement_v1.sql:/acl.sql:ro" \
+            supabase/postgres:17.6.1.147 >/dev/null
+          test "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$container")" = none
+          test -z "$(docker port "$container")"
+          sql() {
+            docker exec -e PGPASSWORD=m44-sidecar-synthetic-only "$container" \
+              psql -X -q -A -t -v ON_ERROR_STOP=1 -h 127.0.0.1 \
+              -U supabase_admin -d "$1" "${@:2}"
+          }
+          ready=false
+          for attempt in $(seq 1 90); do
+            if [[ "$(sql postgres -c 'SELECT 1' 2>/dev/null || true)" == 1 ]]; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          [[ "$ready" == true ]] || { echo 'M44_ACL_SIDECAR_PG17_START_FAILED'; exit 60; }
+          sql postgres -c 'CREATE ROLE iberfit_m44_acl_sidecar_actor NOLOGIN' > /dev/null
+          sql postgres -c 'CREATE DATABASE iberfit_m44_acl_sidecar_fixture' > /dev/null
+          sql postgres -c 'CREATE DATABASE iberfit_m44_acl_sidecar_restored' > /dev/null
+          database=iberfit_m44_acl_sidecar_fixture
+          restored=iberfit_m44_acl_sidecar_restored
+          for target in "$database" "$restored"; do
+            sql "$target" -c 'CREATE TABLE public.m44_acl_sidecar_fixture(id integer PRIMARY KEY, label text NOT NULL)' > /dev/null
+          done
+          capture() {
+            sql "$database" -f /acl.sql > "$1"
+            chmod 600 "$1"
+          }
+          check_change() {
+            node --input-type=module - "$1" "$2" "$3" <<'NODE'
+          import fs from 'node:fs';
+          import {compareAccessCatalog} from './scripts/ops/m44_platform_recovery_compare.mjs';
+          const [source,destination,key]=process.argv.slice(2);
+          const first=JSON.parse(fs.readFileSync(source,'utf8'));
+          const second=JSON.parse(fs.readFileSync(destination,'utf8'));
+          const delta=compareAccessCatalog(first,second);
+          if(delta.aclSupplementParity||delta.mismatchCategories.length!==1||
+             delta.mismatchCategories[0]!==key||
+             delta.platformRecoveryVerified!==false){
+            process.stderr.write('M44_ACL_SIDECAR_PG17_WRONG_DRIFT_CATEGORY\n');
+            process.exitCode=81;
+          }
+          NODE
+          }
+          capture "$scratch/a.json"
+          # An isolated restore normally uses a DIFFERENT database name.
+          # Identical ACL and object structures must match irrespective of it.
+          sql "$restored" -f /acl.sql > "$scratch/renamed.json"
+          chmod 600 "$scratch/renamed.json"
+          node --input-type=module - "$scratch/a.json" "$scratch/renamed.json" <<'NODE'
+          import fs from 'node:fs';
+          import {compareAccessCatalog} from './scripts/ops/m44_platform_recovery_compare.mjs';
+          const original=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const renamed=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+          const result=compareAccessCatalog(original,renamed);
+          if(!result.aclSupplementParity || result.platformRecoveryVerified!==false){
+            process.stderr.write('M44_ACL_SIDECAR_DB_NAME_CHANGED_PARITY_FAILED\n');
+            process.exitCode=82;
+          }
+          NODE
+          echo 'IBERFIT_M44_ACL_SIDECAR_RENAMED_RESTORE_PARITY_VERIFIED'
+          sql "$database" -c 'GRANT USAGE ON SCHEMA public TO iberfit_m44_acl_sidecar_actor' > /dev/null
+          capture "$scratch/b.json"
+          check_change "$scratch/a.json" "$scratch/b.json" schema_acl
+          sql "$database" -c 'GRANT SELECT(label) ON public.m44_acl_sidecar_fixture TO iberfit_m44_acl_sidecar_actor' > /dev/null
+          capture "$scratch/c.json"
+          check_change "$scratch/b.json" "$scratch/c.json" column_acl
+          sql "$database" -c 'GRANT CONNECT ON DATABASE iberfit_m44_acl_sidecar_fixture TO iberfit_m44_acl_sidecar_actor' > /dev/null
+          capture "$scratch/d.json"
+          check_change "$scratch/c.json" "$scratch/d.json" database_acl
+          echo 'IBERFIT_M44_ACL_SIDECAR_PG17_SCHEMA_COLUMN_DATABASE_DRIFT_VERIFIED'
+          echo 'IBERFIT_M44_ACL_SIDECAR_NETWORK_NONE_NO_PORTS'
+          echo 'IBERFIT_M44_PLATFORM_RECOVERY_NOT_CERTIFIED'
