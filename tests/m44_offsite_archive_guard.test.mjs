@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {createHash, randomBytes} from 'node:crypto';
-import {mkdtemp, readFile, rm, stat} from 'node:fs/promises';
+import {mkdtemp, readFile, readdir, readlink, rm, stat, symlink, writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 const guard='scripts/ops/m44_offsite_archive_guard.py';
 const makeFixture=String.raw`
-import io, pathlib, stat, sys, tarfile, zipfile
+import hashlib, io, json, pathlib, stat, sys, tarfile, zipfile
 mode,dest = sys.argv[1:]
 if mode.startswith('zip'):
     payload=b'IBFBAK01'+bytes(range(256))*4
@@ -20,9 +20,23 @@ if mode.startswith('zip'):
         if mode=='zip-extra': f.writestr('extra.sql','not allowed')
 elif mode.startswith('tar'):
     with tarfile.open(dest,'w') as f:
-        for name,body in [('database.pgcustom',b'PGDMP safe synthetic'),
-                          ('storage/manifest.json',b'{}'),
-                          ('storage/files/000000.bin',b'fixture')]:
+        manifest=dict(schema='iberfit.storage.backup.v1',
+          project='pjhmrhejsoofmouedavw',
+          objects=[dict(bucket='private-fixture',name='file.bin',
+            relative='files/000000.bin',bytes=len(b'fixture'),
+            sha256=hashlib.sha256(b'fixture').hexdigest())])
+        parts=[('database.pgcustom',b'PGDMP safe synthetic'),
+          ('storage/manifest.json',json.dumps(manifest).encode()),
+          ('storage/files/000000.bin',b'fixture')]
+        if mode=='tar-tampered-storage':
+            parts[-1]=('storage/files/000000.bin',b'changed')
+        if mode=='tar-missing-storage':
+            parts.pop()
+        if mode=='tar-bad-manifest':
+            parts[1]=('storage/manifest.json',b'{}')
+        if mode=='tar-extra-storage':
+            parts.append(('storage/files/000001.bin',b'extra'))
+        for name,body in parts:
             info=tarfile.TarInfo(name)
             info.size=len(body)
             f.addfile(info,io.BytesIO(body))
@@ -74,7 +88,7 @@ test('Offsite verification rejects checksum mismatch, traversal, extra ZIP files
 });
 test('Restored TAR uses an explicit whitelist; traversal and symlink fail closed',async()=>{
  await sandbox(async dir=>{
-  for(const mode of ['tar-valid','tar-traversal','tar-symlink']){
+  for(const mode of ['tar-valid','tar-traversal','tar-symlink','tar-tampered-storage','tar-missing-storage','tar-bad-manifest','tar-extra-storage']){
    const tar=path.join(dir,mode+'.tar'),out=path.join(dir,mode);
    fixture(mode,tar);
    await import('node:fs/promises').then(fs=>fs.mkdir(out));
@@ -82,9 +96,355 @@ test('Restored TAR uses an explicit whitelist; traversal and symlink fail closed
    if(mode==='tar-valid'){
     assert.equal(result.status,0,result.output);
     assert.match(result.output,/ARCHIVE_STRUCTURE_VERIFIED/);
+    assert.match(result.output,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
+    assert.doesNotMatch(result.output,/ENRICHED_STORAGE_BYTES_SHA256_VERIFIED/);
    }else{
     assert.notEqual(result.status,0,mode);
+    assert.deepEqual(await readdir(out),[],mode+' left partially extracted bytes');
+    assert.doesNotMatch(result.output,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
+    assert.doesNotMatch(result.output,/ARCHIVE_STRUCTURE_VERIFIED/);
    }
   }
+ });
+});
+
+
+test('ZIP unwrap refuses existing files and dangling symlinks without removing them',async()=>{
+ await sandbox(async dir=>{
+  const zip=path.join(dir,'source.zip');
+  fixture('zip-valid',zip);
+  const expected=sha256(await readFile(zip));
+  const existing=path.join(dir,'existing.ibf');
+  await writeFile(existing,'preserve-private-file');
+  const denied=run(guard,'unwrap',zip,expected,existing);
+  assert.notEqual(denied.status,0);
+  assert.equal((await readFile(existing,'utf8')),'preserve-private-file');
+  const missing=path.join(dir,'not-yet-created.ibf');
+  const alias=path.join(dir,'dangling.ibf');
+  await symlink(missing,alias);
+  const linked=run(guard,'unwrap',zip,expected,alias);
+  assert.notEqual(linked.status,0);
+  assert.equal(await readlink(alias),missing);
+  await assert.rejects(stat(missing),{code:'ENOENT'});
+  assert.doesNotMatch(linked.output,/CIPHERTEXT_VERIFIED/);
+ });
+});
+
+
+test('reject TAR size bomb at member header and truncated copy before final publication',async()=>{
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const python=String.raw`
+import importlib.util,sys
+spec=importlib.util.spec_from_file_location('m44_fixture_guard',sys.argv[1])
+guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)
+mode,archive,destination=sys.argv[2:]
+if mode=='storage':guard.MAX_STORAGE_OBJECT_BYTES=4
+elif mode=='manifest':guard.MAX_JSON_BYTES=1
+elif mode=='shortcopy':
+ def one_byte(source,destination,length):destination.write(source.read(1))
+ guard.shutil.copyfileobj=one_byte
+else:sys.exit(13)
+try:guard.unpack_tar(archive,destination)
+except ValueError as e:
+ if str(e) not in ('IBERFIT_OFFSITE_TAR_MEMBER_TOO_LARGE',
+                   'IBERFIT_OFFSITE_TAR_MEMBER_SIZE_MISMATCH'):
+  sys.exit(14)
+ sys.exit(0)
+sys.exit(15)
+`;
+  for(const mode of ['storage','manifest','shortcopy']){
+   const out=path.join(dir,mode);
+   await import('node:fs/promises').then(fs=>fs.mkdir(out));
+   const r=run('-c',python,guard,mode,tar,out);
+   assert.equal(r.status,0,mode+':'+r.output);
+   assert.deepEqual(await readdir(out),[],mode+' left unverified files');
+   assert.doesNotMatch(r.output,/ARCHIVE_STRUCTURE_VERIFIED/);
+  }
+ });
+});
+
+
+test('publish failure after first recovered component rolls back and preserves unrelated files',async()=>{
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'restore');
+  await import('node:fs/promises').then(fs=>fs.mkdir(out));
+  const wrapper=[
+   'import importlib.util,sys',
+   'spec=importlib.util.spec_from_file_location("m44_fixture",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'rename=guard.os.rename',
+   'old_publish=guard.publish_verified_archive',
+   'def use_windows_fallback(stage,destination,existed,**kwargs):',
+   ' return old_publish(stage,destination,existed,supports_replace_directory=False)',
+   'guard.publish_verified_archive=use_windows_fallback',
+   'count=[0]',
+   'def fail_on_second(source,target):',
+   ' count[0]+=1',
+   ' if count[0]==2:raise OSError("synthetic-publish-failure")',
+   ' return rename(source,target)',
+   'guard.os.rename=fail_on_second',
+   'try:guard.unpack_tar(sys.argv[2],sys.argv[3])',
+   'except OSError:sys.exit(0)',
+   'sys.exit(18)'
+  ].join('\n');
+  const rejected=run('-c',wrapper,guard,tar,out);
+  assert.equal(rejected.status,0,rejected.output);
+  assert.deepEqual(await readdir(out),[],'partial publish must rollback');
+  assert.doesNotMatch(rejected.output,/ARCHIVE_STRUCTURE_VERIFIED/);
+  const sentinel=path.join(out,'operator-file.txt');
+  await writeFile(sentinel,'preserve');
+  const preexisting=run(guard,'unpack',tar,out);
+  assert.notEqual(preexisting.status,0);
+  assert.deepEqual(await readdir(out),['operator-file.txt']);
+  assert.equal(await readFile(sentinel,'utf8'),'preserve');
+ });
+});
+
+
+test('atomic publication exposes complete recovered set in one POSIX filesystem rename',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'not-yet-created');
+  const inspect=[
+   'import importlib.util,os,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'replace=guard.os.replace',
+   'def inspect(source,target):',
+   ' source=pathlib.Path(source);target=pathlib.Path(target)',
+   ' assert not target.exists(), "final target exposed before commit"',
+   ' assert source.parent==target.parent, "cross-filesystem staging"',
+   ' assert set(p.name for p in source.iterdir())=={"database.pgcustom","storage"}, "staging incomplete"',
+   ' assert source.stat().st_mode&0o777==0o700, "private staging permission missing"',
+   ' return replace(source,target)',
+   'guard.os.replace=inspect',
+   'guard.unpack_tar(sys.argv[2],sys.argv[3])'
+  ].join('\n');
+  const result=run('-c',inspect,guard,tar,out);
+  assert.equal(result.status,0,result.output);
+  assert.deepEqual((await readdir(out)).sort(),['database.pgcustom','storage']);
+  assert.deepEqual((await readdir(dir)).sort(),['not-yet-created','source.tar'],
+   'staging directory must not survive successful commit');
+  assert.match(result.output,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
+ });
+});
+test('atomic commit failure leaves old output unchanged and removes private sibling staging',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'already-empty');
+  await import('node:fs/promises').then(fs=>fs.mkdir(out));
+  const wrapper=[
+   'import importlib.util,os,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'def fail_replace(source,target):',
+   ' assert pathlib.Path(target).is_dir() and not list(pathlib.Path(target).iterdir())',
+   ' raise OSError("synthetic atomic commit rejected")',
+   'guard.os.replace=fail_replace',
+   'try:guard.unpack_tar(sys.argv[2],sys.argv[3])',
+   'except OSError:sys.exit(0)',
+   'sys.exit(19)'
+  ].join('\n');
+  const r=run('-c',wrapper,guard,tar,out);
+  assert.equal(r.status,0,r.output);
+  assert.deepEqual(await readdir(out),[],'failed commit must not expose recovered files');
+  assert.deepEqual((await readdir(dir)).sort(),['already-empty','source.tar'],
+   'no private plaintext stage should survive a handled commit failure');
+  assert.doesNotMatch(r.output,/ARCHIVE_STRUCTURE_VERIFIED/);
+ });
+});
+test('atomic replace rejects concurrent destination content without deleting operator data',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'restore');
+  await import('node:fs/promises').then(fs=>fs.mkdir(out));
+  const wrapper=[
+   'import importlib.util,os,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'replace=guard.os.replace',
+   'def concurrent_writer(source,target):',
+   ' pathlib.Path(target,"operator.txt").write_text("preserve")',
+   ' return replace(source,target)',
+   'guard.os.replace=concurrent_writer',
+   'try:guard.unpack_tar(sys.argv[2],sys.argv[3])',
+   'except OSError:sys.exit(0)',
+   'sys.exit(18)'
+  ].join('\n');
+  const r=run('-c',wrapper,guard,tar,out);
+  assert.equal(r.status,0,r.output);
+  assert.deepEqual(await readdir(out),['operator.txt']);
+  assert.equal(await readFile(path.join(out,'operator.txt'),'utf8'),'preserve');
+  assert.deepEqual((await readdir(dir)).sort(),['restore','source.tar']);
+  assert.doesNotMatch(r.output,/ARCHIVE_STRUCTURE_VERIFIED/);
+ });
+});
+
+
+test('mounted empty recovery directory stages internally and avoids atomic root replacement',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const tar=path.join(dir,'source.tar');
+  fixture('tar-valid',tar);
+  const out=path.join(dir,'mounted-destination');
+  await import('node:fs/promises').then(fs=>fs.mkdir(out));
+  const code=[
+   'import importlib.util,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'guard.os.path.ismount=lambda x:True',
+   'def no_atomic_replace(source,destination):',
+   ' raise AssertionError("mounted volume root must never be replaced")',
+   'guard.os.replace=no_atomic_replace',
+   'original=guard.publish_verified_archive',
+   'def check_volume(stage,destination,existed,**kwargs):',
+   ' assert existed and stage.parent==destination',
+   ' assert list(destination.iterdir())==[stage]',
+   ' assert kwargs.get("supports_replace_directory") is False',
+   ' return original(stage,destination,existed,**kwargs)',
+   'guard.publish_verified_archive=check_volume',
+   'guard.unpack_tar(sys.argv[2],sys.argv[3])'
+  ].join('\n');
+  const result=run('-c',code,guard,tar,out);
+  assert.equal(result.status,0,result.output);
+  assert.deepEqual((await readdir(out)).sort(),['database.pgcustom','storage']);
+  assert.deepEqual((await readdir(dir)).sort(),['mounted-destination','source.tar'],
+   'must not leave a private staging directory outside mounted destination');
+  assert.match(result.output,/STORAGE_MANIFEST_BYTES_SHA256_VERIFIED/);
+ });
+});
+
+
+test('ZIP ciphertext is published only after complete same-filesystem staging and validation',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const zip=path.join(dir,'original.zip');
+  fixture('zip-valid',zip);
+  const out=path.join(dir,'final.ibf');
+  const expected=sha256(await readFile(zip));
+  const py=[
+   'import importlib.util,os,pathlib,stat,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'link=guard.os.link',
+   'def inspect(source,target):',
+   ' source=pathlib.Path(source);target=pathlib.Path(target)',
+   ' assert source.parent==target.parent and not target.exists()',
+   ' assert source.name.startswith(".m44-cipher-stage-")',
+   ' assert source.read_bytes()[:8]==b"IBFBAK01"',
+   ' assert source.stat().st_mode&0o777==0o600',
+   ' return link(source,target)',
+   'guard.os.link=inspect',
+   'guard.unwrap_zip(sys.argv[2],sys.argv[3],sys.argv[4])'
+  ].join('\n');
+  const r=run('-c',py,guard,zip,expected,out);
+  assert.equal(r.status,0,r.output);
+  assert.match(r.output,/CIPHERTEXT_VERIFIED/);
+  assert.equal((await readFile(out)).subarray(0,8).toString(),'IBFBAK01');
+  assert.deepEqual((await readdir(dir)).sort(),['final.ibf','original.zip']);
+ });
+});
+test('ZIP atomic publication rejects concurrent destination and preserves its bytes',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const zip=path.join(dir,'original.zip');
+  fixture('zip-valid',zip);
+  const out=path.join(dir,'final.ibf');
+  const expected=sha256(await readFile(zip));
+  const py=[
+   'import importlib.util,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'link=guard.os.link',
+   'def concurrent_create(source,target):',
+   ' pathlib.Path(target).write_bytes(b"operator-data")',
+   ' return link(source,target)',
+   'guard.os.link=concurrent_create',
+   'try:guard.unwrap_zip(sys.argv[2],sys.argv[3],sys.argv[4])',
+   'except FileExistsError:sys.exit(0)',
+   'sys.exit(61)'
+  ].join('\n');
+  const r=run('-c',py,guard,zip,expected,out);
+  assert.equal(r.status,0,r.output);
+  assert.equal((await readFile(out)).toString(),'operator-data');
+  assert.deepEqual((await readdir(dir)).sort(),['final.ibf','original.zip'],
+   'an aborted publication must remove only its own staged ciphertext');
+  assert.doesNotMatch(r.output,/CIPHERTEXT_VERIFIED/);
+ });
+});
+test('ZIP failed atomic hardlink publication cannot expose incomplete ciphertext',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const zip=path.join(dir,'original.zip');
+  fixture('zip-valid',zip);
+  const out=path.join(dir,'final.ibf');
+  const expected=sha256(await readFile(zip));
+  const py=[
+   'import importlib.util,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'def failed_link(source,target):raise OSError("synthetic-link-not-supported")',
+   'guard.os.link=failed_link',
+   'try:guard.unwrap_zip(sys.argv[2],sys.argv[3],sys.argv[4])',
+   'except OSError:sys.exit(0)',
+   'sys.exit(62)'
+  ].join('\n');
+  const r=run('-c',py,guard,zip,expected,out);
+  assert.equal(r.status,0,r.output);
+  await assert.rejects(stat(out),{code:'ENOENT'});
+  assert.deepEqual((await readdir(dir)).sort(),['original.zip']);
+  assert.doesNotMatch(r.output,/CIPHERTEXT_VERIFIED/);
+ });
+});
+test('ZIP verification and extraction use the SAME opened source even if path is replaced',async()=>{
+ if(process.platform==='win32')return;
+ await sandbox(async dir=>{
+  const original=path.join(dir,'original.zip');
+  const different=path.join(dir,'different.zip');
+  const moved=path.join(dir,'old-original.zip');
+  const out=path.join(dir,'final.ibf');
+  fixture('zip-valid',original);
+  fixture('zip-badmagic',different);
+  const expected=sha256(await readFile(original));
+  const py=[
+   'import importlib.util,pathlib,sys',
+   'spec=importlib.util.spec_from_file_location("m44_guard",sys.argv[1])',
+   'guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)',
+   'klass=guard.zipfile.ZipFile',
+   'def swapped(file,*args,**kwargs):',
+   ' assert hasattr(file,"fileno"),"ZIP must be read from verified open inode"',
+   ' pathlib.Path(sys.argv[2]).rename(sys.argv[5])',
+   ' pathlib.Path(sys.argv[6]).rename(sys.argv[2])',
+   ' return klass(file,*args,**kwargs)',
+   'guard.zipfile.ZipFile=swapped',
+   'guard.unwrap_zip(sys.argv[2],sys.argv[3],sys.argv[4])'
+  ].join('\n');
+  const r=run('-c',py,guard,original,expected,out,moved,different);
+  assert.equal(r.status,0,r.output);
+  assert.match(r.output,/CIPHERTEXT_VERIFIED/);
+  assert.equal((await readFile(out)).subarray(0,8).toString(),'IBFBAK01');
+  assert.deepEqual((await readdir(dir)).sort(),['final.ibf','old-original.zip','original.zip']);
+ });
+});
+test('ZIP source symlinks are rejected before hashing and no destination is created',async()=>{
+ await sandbox(async dir=>{
+  const real=path.join(dir,'original.zip'),alias=path.join(dir,'alias.zip');
+  fixture('zip-valid',real);
+  await symlink(real,alias);
+  const out=path.join(dir,'final.ibf');
+  const r=run(guard,'unwrap',alias,sha256(await readFile(real)),out);
+  assert.notEqual(r.status,0);
+  await assert.rejects(stat(out),{code:'ENOENT'});
+  assert.deepEqual((await readdir(dir)).sort(),['alias.zip','original.zip']);
  });
 });
