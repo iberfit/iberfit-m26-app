@@ -1000,15 +1000,15 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       if(confirmed)confirmed.checked=captureState.reviewed===true;
     }
   }
+  function preserveCaptureReview(){
+    const c=getContext(),scope=captureScope(c),panel=captureSurface();
+    if(!captureState||!scope||captureState.scope!==scope||!panel)return;
+    captureState.open=panel.open;
+    captureState.matches=[...(panel.querySelectorAll?.('[data-session-capture-match]')||[])].map(entry=>String(entry.value||''));
+    captureState.reviewed=panel.querySelector?.('[data-session-capture-confirm]')?.checked===true;
+  }
   const baseRender=render;
-  render=()=>{
-    const current=getContext(),scope=captureScope(current),panel=captureSurface();
-    if(captureState&&scope===captureState.scope&&panel){
-      captureState.open=panel.open;
-      captureState.matches=[...(panel.querySelectorAll?.('[data-session-capture-match]')||[])].map(select=>String(select.value||''));
-      captureState.reviewed=panel.querySelector?.('[data-session-capture-confirm]')?.checked===true;
-    }
-    const draftBefore=current?.draft?.id||null;const disclosure=captureSessionBuilderDisclosureState(root,draftBefore);const focused=captureSessionBuilderFocus(root,draftBefore);baseRender?.();const after=getContext();const draftAfter=after?.draft?.id||null;restoreSessionBuilderDisclosureState(root,disclosure,draftAfter);restoreSessionBuilderFocus(root,focused,draftAfter);hydrateCapture(after);hydrateActiveSetDraft(after);primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
+  render=()=>{const draftBefore=getContext()?.draft?.id||null;const disclosure=captureSessionBuilderDisclosureState(root,draftBefore);const focused=captureSessionBuilderFocus(root,draftBefore);preserveCaptureReview();baseRender?.();const draftAfter=getContext()?.draft?.id||null;restoreSessionBuilderDisclosureState(root,disclosure,draftAfter);restoreSessionBuilderFocus(root,focused,draftAfter);hydrateCapture(getContext());hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
