@@ -1,3 +1,9 @@
+# IBERFIT 07-NOV-2026 · certified P0 client-ACL postmerge recovery renewal.
+# This is a trigger-only comment: request a fresh genuine encrypted PROD
+# DB + Storage archive with isolated PostgreSQL 17 restore on protected Canary
+# merge. No changes to jobs, credentials, encryption, restore policy, scopes,
+# retention, data writes, release guards or client records. New M44 proof must
+# pass the existing strict <=2h fail-closed check before PROD promotion.
 # IBERFIT UNIVERSAL WEB #1287 · protected M44 renewal after audited release.
 # UNIVERSAL RADAR 360 07-NOV · renew genuine encrypted PROD DB+Storage/PG17 restore on protected exact-source Canary merge; trigger comment ONLY.
 # This comment is a trigger only: unchanged encrypted PROD database+Storage
