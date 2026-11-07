@@ -121,23 +121,16 @@ async function navigateViaActualControl(page,role,area){
   expect(rect,'U26 navigation must be a physical hit target '+role+'/'+area).toBeTruthy();
   expect(rect.width).toBeGreaterThan(0);
   expect(rect.height).toBeGreaterThan(0);
-  const x=rect.x+rect.width/2,y=rect.y+rect.height/2;
-  const hit=await page.evaluate(({x,y})=>{
-    const node=document.elementFromPoint(x,y);
-    return {
-      area:node?.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area')||'',
-      disabled:Boolean(node?.closest?.('[disabled],[aria-disabled="true"]')),
-      coarse:matchMedia('(pointer:coarse)').matches,
-    };
-  },{x,y});
-  expect(hit.area,'U26 pointer must physically target selected route').toBe(area);
-  expect(hit.disabled,'U26 navigation target must remain enabled').toBe(false);
+  // Do not preflight by taking a separate elementFromPoint snapshot. A genuine
+  // Admin/Coach shell re-render can replace the nav or move the sidebar between
+  // boundingBox and the snapshot, creating a false blocker (QA 2026-11-07).
+  // Playwright's live locator click/tap performs real hit-testing, visibility,
+  // stability and pointer-interception checks at action time; it will fail if
+  // an overlay actually blocks the control. The trusted pointerdown receipt
+  // below then proves the selected route got the physical event and painted.
+  const coarse=await page.evaluate(()=>matchMedia('(pointer:coarse)').matches);
   const pointerStart=Date.now();
-  // Re-resolve the *same live control* at press time. The shell can replace
-  // navigation nodes during an authenticated bootstrap refresh after the
-  // geometric hit test; raw coordinates would then target a stale element.
-  // Locator tap/click sends genuine pointer input, never a synthetic DOM event.
-  if(hit.coarse)await choice.tap({noWaitAfter:true,timeout:12000});
+  if(coarse)await choice.tap({noWaitAfter:true,timeout:12000});
   else await choice.click({noWaitAfter:true,timeout:12000});
   try{
     // One browser-side wait checks the real DOM, owner role, canonical store
