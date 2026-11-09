@@ -1058,7 +1058,36 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     return restored;
   }
   const baseRender=render;
-  render=()=>{const before=getContext();const draftBefore=before?.draft?.id||null;const disclosure=captureSessionBuilderDisclosureState(root,draftBefore);const focused=captureSessionBuilderFocus(root,draftBefore);const liveDisclosure=captureLiveDisclosure(before);preserveCaptureReview();baseRender?.();const draftAfter=getContext()?.draft?.id||null;restoreSessionBuilderDisclosureState(root,disclosure,draftAfter);restoreSessionBuilderFocus(root,focused,draftAfter);restoreLiveDisclosure(liveDisclosure,getContext());hydrateCapture(getContext());hydrateActiveSetDraft(getContext());primeCoachSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncFeedbackRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());syncPendingNextControls();};
+  render=()=>{
+    // A state/context lookup may traverse large Coach history.
+    // Capture one snapshot on either side of the shell commit, not one per
+    // control enhancement. This also makes one render internally coherent.
+    const before=getContext();
+    const draftBefore=before?.draft?.id||null;
+    const disclosure=captureSessionBuilderDisclosureState(root,draftBefore);
+    const focused=captureSessionBuilderFocus(root,draftBefore);
+    const liveDisclosure=captureLiveDisclosure(before);
+    preserveCaptureReview();
+    baseRender?.();
+    const after=getContext();
+    const draftAfter=after?.draft?.id||null;
+    restoreSessionBuilderDisclosureState(root,disclosure,draftAfter);
+    restoreSessionBuilderFocus(root,focused,draftAfter);
+    restoreLiveDisclosure(liveDisclosure,after);
+    hydrateCapture(after);
+    hydrateActiveSetDraft(after);
+    primeCoachSetDraft(after);
+    hydrateFinalFeedbackDraft(after);
+    syncLiveAddExerciseControl(after);
+    syncFinishControl(after);
+    syncManualSyncControl(after);
+    syncQuickRpeControl();
+    syncFeedbackRpeControl();
+    syncRecoveryReviewControl(after);
+    scheduleCoachRestAutoAdvance(after);
+    ensureSessionClockTicker(after);
+    syncPendingNextControls();
+  };
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
