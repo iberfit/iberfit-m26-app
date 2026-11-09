@@ -3612,6 +3612,14 @@
   max-inline-size:74rem;
   gap:clamp(1rem,2.2vw,1.7rem);
 }
+/* UHD: the original 74rem reading measure remains at normal desktop sizes.
+ * Above 2560px, the actual master max-inline-size must also expand; changing
+ * max-width alone cannot override a separate max-inline-size constraint. */
+@media(min-width:2560px){
+  .m26-shell[data-m26-role="client"] .m26-route{
+    max-inline-size:min(1640px,100%);
+  }
+}
 .m26-shell[data-m26-role="client"] .m26-main :is(.m26-route-intro,.m26-hero-panel,.m26-profile-hero){
   max-inline-size:100%;
 }
