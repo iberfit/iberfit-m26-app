@@ -25,4 +25,11 @@ test('U360 WebKit: preserves original post-render set validation and all control
    'syncLiveAddExerciseControl(after)','ensureSessionClockTicker(after)'])
    assert.ok(rendered.includes(token),token);
 });
-\ntest('U360 WebKit: skip-set reason disclosure toggles synchronously without native double toggle',()=>{\n const ui=readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');\n assert.ok(ui.includes('data-session-skip-set-disclosure'));\n assert.ok(file.includes("event.target.closest?.('details[data-session-skip-set-disclosure] > summary')"));\n assert.ok(file.includes("if(details?.tagName==='DETAILS')details.open=!details.open"));\n assert.ok(file.includes('event.preventDefault?.()'));\n});\n
+
+test('U360 WebKit: skip-set reason disclosure toggles synchronously without native double toggle',()=>{
+ const ui=readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
+ assert.ok(ui.includes('data-session-skip-set-disclosure'));
+ assert.ok(file.includes("event.target.closest?.('details[data-session-skip-set-disclosure] > summary')"));
+ assert.ok(file.includes("if(details?.tagName==='DETAILS')details.open=!details.open"));
+ assert.ok(file.includes('event.preventDefault?.()'));
+});
