@@ -46,3 +46,7 @@ La evidencia real del Coach muestra 718 ciclos y 640 sesiones históricas con ta
 ## UHD exact-source execution contract
 
 The mandatory Device Experience Gate now runs authenticated Client visual journeys at 3840×2160, 1440, 1024, 390 and 320 CSS px, and the Admin Interaction Matrix exercises the 3840×2160 layout. The Coach WebAuthn real QA navigation matrix also includes the UHD route; this is not proof of physical 4K displays, 2×/3× pixel density, or native hardware. Do not claim visual certification until the exact-SHA CI is successful and the evidence is inspected.
+
+## Inspección visual UHD de la ejecución exacta de CI
+
+Una captura 3840×2160 real reveló que el Cliente mantenía una retícula de lectura de aproximadamente 1180px y el login WebAuthn del Coach quedaba contenido en 72rem; el test previo solo comprobaba que se podía navegar. Se amplió con límites editoriales máximos por rol y con comprobaciones Playwright de ancho real de workspace y ausencia de scroll horizontal. No afecta layouts inferiores a 2560px ni permisos, datos o sesiones. La aceptación exige screenshots renovadas de la ejecución del nuevo SHA.

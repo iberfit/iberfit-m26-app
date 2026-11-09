@@ -73,3 +73,16 @@ test('Client and Admin 4K/320px checks run in the real mandatory CI matrices',()
   assert.match(adminConfig,/name:'admin-uhd-chromium'[^\n]*width:3840,height:2160/);
   assert.match(clientConfig,/name:'authenticated-visual-uhd-chromium'[^\n]*width:3840,height:2160/);
 });
+
+test('UHD 4K layout has bounded, role-specific geometry with no impact below 2560px',()=>{
+  const css=readFileSync(new URL('../src/m26/design/role-surfaces.css',import.meta.url),'utf8');
+  const auth=readFileSync(new URL('../src/m26/design/auth-native.css',import.meta.url),'utf8');
+  const visual=readFileSync(new URL('../qa/rc64/authenticated-visual-evidence.spec.mjs',import.meta.url),'utf8');
+  assert.match(css,/@media \\(min-width:2560px\\)/);
+  assert.match(css,/max-width:min\\(1640px,100%\\)/);
+  assert.match(css,/max-width:min\\(1920px,100%\\)/);
+  assert.match(auth,/width:min\\(106rem,calc\\(100vw - 8rem\\)\\)/);
+  assert.match(auth,/width:min\\(40rem,100%\\)/);
+  assert.match(visual,/UHD Client must use a useful editorial workspace/);
+  assert.match(visual,/UHD Coach authentication must not shrink/);
+});

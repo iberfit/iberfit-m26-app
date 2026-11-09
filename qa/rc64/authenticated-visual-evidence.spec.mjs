@@ -279,6 +279,11 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(page.locator('.m26-shell[data-m26-role="coach"]')).toHaveCount(0,{timeout:10_000});
         await expect(page.locator('#m26-auth-title')).toBeVisible({timeout:10_000});
         await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:5_000});
+        if((projectUse.viewport?.width||0)>=3000){
+          const stage=await page.locator('.m26-auth-stage').boundingBox();
+          expect(stage?.width,'UHD Coach authentication must not shrink to a 1152px island').toBeGreaterThan(1500);
+          expect(stage?.width,'UHD Coach authentication must retain a bounded reading measure').toBeLessThan(2000);
+        }
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'privileged-webauthn-gate'}));
       }else{
         const shell=page.locator('.m26-shell[data-m26-role="client"]');
@@ -287,6 +292,13 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         await expect(page.locator('.m26-role-choice[role="dialog"]')).toHaveCount(0);
         await dismissGuidance(page);
         await expect(page.locator('.m26-route').first()).toBeVisible({timeout:10_000});
+        if((projectUse.viewport?.width||0)>=3000){
+          const route=await page.locator('.m26-shell[data-m26-role="client"] .m26-route').first().boundingBox();
+          expect(route?.width,'UHD Client must use a useful editorial workspace').toBeGreaterThan(1400);
+          expect(route?.width,'UHD Client must not stretch data into a full-screen table').toBeLessThan(1900);
+          const horizontalOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+          expect(horizontalOverflow,'UHD Client must not introduce horizontal scroll').toBeLessThanOrEqual(1);
+        }
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-shell'}));
 
         // SIGNATURE 360: certify Client Hoy in the live authenticated surface.
