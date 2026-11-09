@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install pinned Semgrep Community
-        run: python -m pip install --disable-pip-version-check semgrep==1.184.0
+        run: python -m pip install --disable-pip-version-check --only-binary=:all: semgrep==1.184.0
       - name: Scan source (not live PROD)
         shell: bash
         run: |
@@ -74,12 +74,12 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: ./node_modules/.bin/playwright install --with-deps chromium
       - name: Build QA-only, disabled-runtime local surface
         run: node qa/rc64/build-current-surface.mjs
       - name: Run automated accessibility audit on local browser
-        run: npx playwright test --config playwright.independent-accessibility.config.mjs
+        run: ./node_modules/.bin/playwright test --config playwright.independent-accessibility.config.mjs
       - name: Upload anonymous accessibility rule summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -118,9 +118,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p recovery/independent-security
-          # Local ephemeral artifact dir only: ZAP's non-root container user needs write access.
-          chmod 0777 recovery/independent-security
-          docker run --rm --network host \
+          # ZAP's uid 1000 can write temporary reports; only the runner group can access them.
+          # No world-writable directory and no privileged container execution.
+          sudo chown 1000:"$(id -g)" recovery/independent-security
+          chmod 0770 recovery/independent-security
+          docker run --rm --network host --user "1000:$(id -g)" \
             -v "${PWD}/recovery/independent-security:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t http://127.0.0.1:4184/ -m 1 -I -J zap-local.json -r zap-local.html
