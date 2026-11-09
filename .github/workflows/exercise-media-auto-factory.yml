@@ -1,14 +1,9 @@
 name: IBERFIT Exercise Media Auto Factory Scheduler
 
+# Automatic media generation intentionally paused pending live 114/114 media validation.
+# Manual dispatch remains available; no assets or approvals are removed.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 */2 * * *'
-  push:
-    branches:
-      - prepublicacion/rc29
-    paths:
-      - '.github/workflows/exercise-media-auto-factory.yml'
 
 permissions:
   contents: read
