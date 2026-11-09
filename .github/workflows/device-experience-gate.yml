@@ -177,6 +177,10 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Verify current Canary SHA before shared QA operations
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
       - run: npm ci
       - name: Verify pinned Chromium binary
         run: node --input-type=module -e "import fs from 'node:fs'; import { chromium } from '@playwright/test'; if (!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"

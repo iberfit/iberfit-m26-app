@@ -122,6 +122,10 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Verify current Canary SHA before shared QA operations
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
       - run: npm ci
       - name: Restore Playwright Chromium cache
         id: playwright-cache

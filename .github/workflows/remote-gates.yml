@@ -138,6 +138,10 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+      - name: Verify current Canary SHA before shared QA operations
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
       - name: Install deterministic dependencies in version-matched browser image
         run: npm ci
       - name: Confirm browser binaries before shared credential certification
