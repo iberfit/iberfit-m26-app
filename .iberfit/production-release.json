@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "20f88839490daf996a6fb45db15d4baa12518c8c",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "4fb70ab52fab470af22bfe7b81390831728914a4",
+  "notes": "IBERFIT UNIVERSAL 360 PR #1303; exact-SHA Canary, M43, U71 dated QA, WebAuthn Coach/Admin and M44 restore green; SQL U90 remains staged, not applied by frontend release"
+}
