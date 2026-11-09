@@ -59,6 +59,7 @@ jobs:
           - browser: chromium
             projects: >-
               --project=admin-desktop-chromium
+              --project=admin-uhd-chromium
               --project=admin-tablet-chromium
               --project=admin-tablet-landscape-chromium
               --project=admin-mobile-chromium

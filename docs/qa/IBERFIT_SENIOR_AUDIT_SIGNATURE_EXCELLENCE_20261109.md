@@ -17,7 +17,7 @@ Base verificada de Canary y PROD tras la release universal: `20f88839490daf996a6
 | --- | --- |
 | F01 M44 | Cerrado para release universal: respaldo PostgreSQL+Storage restaurado, control de reintentos fail-closed |
 | F02 DELETE direct | PROD+QA RLS activa; anon/authenticated sin privilegio DELETE; service_role requiere orquestación privilegiada |
-| F03 supresión Auth/Storage/DB | Pendiente de proceso integral de baja; preservar íntegramente a Patricia |
+| F03 supresión Auth/Storage/DB | Pendiente de proceso integral de baja; preservar íntegramente el expediente de diagnóstico inicial protegido |
 | F04 multifecha U71 | E2E protegido de dos fechas aprobado en QA SHA fusionado, intento 2 #42680228605 |
 | F05 WebAuthn y Coach | Coach/Admin QA real aprobado; Coach móvil Hoy 3,86s, Clientes 7,01s, Planificación 7,37s; no extrapolar a PROD |
 | F06 recibos de operación | Contratos existentes U360, mantener y volver a probar bajo latencia y doble toque |
@@ -42,3 +42,7 @@ Base verificada de Canary y PROD tras la release universal: `20f88839490daf996a6
 La evidencia real del Coach muestra 718 ciclos y 640 sesiones históricas con tarjetas DOM dentro de disclosures cerrados. La primera intervención conserva cada elemento y sus acciones, pero mantiene en templates inertes los batches no abiertos; el Coach los activa por teclado o touch y el DOM real se rellena una única vez al abrir el grupo. Los datos, permisos, orden y recibos remotos no cambian. La validación añade visual QA 3840×2160 en superficies autenticadas y test de apertura real de batch.
 
 **No declarar rendimiento mejorado sin comparar tiempos y DOM con una ejecución del mismo escenario.** Objetivo inicial: Coach Hoy <5s; Clientes/Planificación <5s en escenario representativo, QA sin errores HTTP 500/57014, pruebas Cliente/Coach/Admin completas y sin cambios de datos. El plan de siguientes implementaciones permanece en esta misma rama/PR hasta el gate final; el carácter de documento no equivale a funcionamiento certificado.
+
+## UHD exact-source execution contract
+
+The mandatory Device Experience Gate now runs authenticated Client visual journeys at 3840×2160, 1440, 1024, 390 and 320 CSS px, and the Admin Interaction Matrix exercises the 3840×2160 layout. The Coach WebAuthn real QA navigation matrix also includes the UHD route; this is not proof of physical 4K displays, 2×/3× pixel density, or native hardware. Do not claim visual certification until the exact-SHA CI is successful and the evidence is inspected.

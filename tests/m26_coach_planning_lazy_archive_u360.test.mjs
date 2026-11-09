@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {
   renderCoachPlanningSessionsProgressive,
   hydrateCoachPlanningBatchOnToggle,
@@ -57,4 +58,18 @@ test('Coach on-demand history never hydrates non-target details or malformed eve
   }
   assert.throws(()=>renderCoachPlanningSessionsProgressive([],'client'),
     /COACH_PLANNING_ENTITY_INVALID/);
+});
+
+test('Client and Admin 4K/320px checks run in the real mandatory CI matrices',()=>{
+  const workflow=readFileSync(new URL('../.github/workflows/device-experience-gate.yml',import.meta.url),'utf8');
+  const clientConfig=readFileSync(new URL('../playwright.authenticated-visual.config.mjs',import.meta.url),'utf8');
+  const adminWorkflow=readFileSync(new URL('../.github/workflows/admin-interaction-matrix.yml',import.meta.url),'utf8');
+  const adminConfig=readFileSync(new URL('../playwright.admin-interaction.config.mjs',import.meta.url),'utf8');
+  for(const name of ['authenticated-visual-uhd-chromium','authenticated-visual-compact-mobile-chromium']){
+    assert.ok(workflow.includes('--project='+name),name+' missing mandatory current-source workflow');
+    assert.ok(clientConfig.includes("name:'"+name+"'"),name+' missing configured viewport');
+  }
+  assert.ok(adminWorkflow.includes('--project=admin-uhd-chromium'));
+  assert.match(adminConfig,/name:'admin-uhd-chromium'[^\n]*width:3840,height:2160/);
+  assert.match(clientConfig,/name:'authenticated-visual-uhd-chromium'[^\n]*width:3840,height:2160/);
 });

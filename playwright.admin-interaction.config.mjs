@@ -26,6 +26,7 @@ export default defineConfig({
   },
   projects:[
     {name:'admin-desktop-chromium',use:{browserName:'chromium',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false}},
+    {name:'admin-uhd-chromium',use:{browserName:'chromium',viewport:{width:3840,height:2160},deviceScaleFactor:1,hasTouch:false,isMobile:false}},
     {name:'admin-tablet-chromium',use:{browserName:'chromium',viewport:{width:1024,height:1366},hasTouch:true,isMobile:true}},
     {name:'admin-tablet-landscape-chromium',use:{browserName:'chromium',viewport:{width:1366,height:1024},hasTouch:true,isMobile:true}},
     {name:'admin-mobile-chromium',use:{browserName:'chromium',viewport:{width:390,height:844},hasTouch:true,isMobile:true}},
