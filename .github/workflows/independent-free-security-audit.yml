@@ -121,7 +121,7 @@ jobs:
           # ZAP's uid 1000 can write temporary reports; only the runner group can access them.
           # No world-writable directory and no privileged container execution.
           sudo chown 1000:"$(id -g)" recovery/independent-security
-          chmod 0770 recovery/independent-security
+          sudo chmod 0770 recovery/independent-security
           docker run --rm --network host --user "1000:$(id -g)" \
             -v "${PWD}/recovery/independent-security:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
