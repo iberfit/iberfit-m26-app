@@ -1215,7 +1215,9 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       // A confirmed SESION_INICIAR is the source of truth. Local checkpoint
       // persistence can fail (private mode, quota, crash, another tab) but
       // must never relabel an already-committed workout as "failed to start".
-      if(operationResult==='ack')try{void telemetry.start(context.execution);}catch{}
+      // Local/queued execution still needs the on-device timer and telemetry;
+      // only the external operation receipt and success copy require a server ACK.
+      try{void telemetry.start(context.execution);}catch{}
       try{await persistContext(context);}
       catch{localRecoveryWarning=true;}
       if(localRecoveryWarning&&context?.actionState){
