@@ -558,6 +558,13 @@ export function isCoachDraftSaveShortcut(event,context={},root){
 
 // Never infer a server commit from a fulfilled local/queued Promise.
 // The command receipt is the only source of truth for anonymous diagnostics.
+export function pendingSessionOperationFeedback(action,result){
+  if(result==='ack'||!['publish','finish'].includes(action))return null;
+  if(action==='publish')
+    return 'Publicación no confirmada por el servidor. Conservamos el borrador hasta verificar el resultado antes de reintentar.';
+  return 'Finalización pendiente de confirmación del servidor. Conservamos tu registro y evitamos un cierre sin verificar.';
+}
+
 export function classifySessionOperationOutcome({outcome,dispatchKind,execution}={}){
   if(dispatchKind==='queued')return 'pending';
   if(outcome?.error?.code==='M26_SESSION_ACTION_TIMEOUT'
@@ -1666,7 +1673,11 @@ async function click(event){
         actionState.message='Inicio pendiente de confirmación del servidor. Conservamos el progreso local sin presentarlo como confirmado.';
       }
     }
-    if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution,draft:context?.draft,catalog:context?.catalog});onError(outcome.error);if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish'){
+    if(outcome.ok&&actionState&&operationalResult&&['publish','finish'].includes(action)){
+      const feedback=pendingSessionOperationFeedback(action,operationalResult);
+      if(feedback){actionState.status='pending';actionState.message=feedback;}
+    }
+    if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution,draft:context?.draft,catalog:context?.catalog});onError(outcome.error);if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish'&&operationalResult==='ack'){
       const publication=await publicationAckRefreshOutcome(outcome.value,context.onPublished);
       if(!publication.refreshOk){
         // A second click would generate a different operation ID. Preserve the

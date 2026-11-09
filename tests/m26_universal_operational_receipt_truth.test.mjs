@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {classifySessionOperationOutcome} from '../src/m26/workflows/session-controller.js';
+import {classifySessionOperationOutcome,pendingSessionOperationFeedback} from '../src/m26/workflows/session-controller.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const ack={ok:true,kind:'ack',response:{remoteRevision:2}};
@@ -26,5 +26,22 @@ test('Pending server confirmation retains accessible translated status in four s
   const label=iberfitSurfaceTranslate(copy,{language});
   assert.notEqual(label,copy,language);
   assert.ok(label.length>30);
+ }
+});
+
+test('Coach publication and Client finish never claim success without remote receipt',()=>{
+ assert.equal(pendingSessionOperationFeedback('publish','ack'),null);
+ assert.equal(pendingSessionOperationFeedback('finish','ack'),null);
+ assert.equal(pendingSessionOperationFeedback('start','pending'),null);
+ for(const operation of ['publish','finish']){
+   for(const status of ['pending','not_confirmed']){
+     const message=pendingSessionOperationFeedback(operation,status);
+     assert.equal(typeof message,'string');
+     assert.match(message,/confirmad/iu);
+     for(const language of ['en','fr','pt']){
+       const translated=iberfitSurfaceTranslate(message,{language});
+       assert.notEqual(translated,message,language+' '+operation);
+     }
+   }
  }
 });
