@@ -5,6 +5,11 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // UNIVERSAL: never claim a complete erasure from a partial administrative receipt.
+  ["Expediente eliminado. La cuenta de acceso sigue pendiente de baja; no se ha completado la supresión integral.","File deleted. The access account still requires deactivation; complete erasure has not been performed.","Dossier supprimé. Le compte d’accès doit encore être désactivé ; la suppression intégrale n’est pas terminée.","Ficha eliminada. A conta de acesso ainda requer desativação; a eliminação integral não foi concluída."],
+  ["Expediente eliminado. Confirma por separado la baja de acceso y los datos sujetos a retención.","File deleted. Verify access deactivation and legally retained data separately.","Dossier supprimé. Vérifiez séparément la désactivation de l’accès et les données soumises à conservation.","Ficha eliminada. Verifique separadamente a desativação do acesso e os dados sujeitos a retenção."],
+  ["Acceso revocado e identidad Auth desactivada. Pueden conservarse registros sujetos a retención.","Access revoked and Auth identity deactivated. Records subject to retention may remain.","Accès révoqué et identité Auth désactivée. Des données soumises à conservation peuvent subsister.","Acesso revogado e identidade Auth desativada. Podem permanecer registos sujeitos a retenção."],
+  ["Acceso revocado. La baja de identidad Auth aún no está confirmada.","Access revoked. Deactivation of the Auth identity has not yet been confirmed.","Accès révoqué. La désactivation de l’identité Auth n’a pas encore été confirmée.","Acesso revogado. A desativação da identidade Auth ainda não foi confirmada."],
   // UNIVERSAL: server-ACKed training start must have equivalent EN/FR/PT copy.
   ['Entrenamiento iniciado y confirmado por el servidor.','Workout started and confirmed by the server.','Entraînement démarré et confirmé par le serveur.','Treino iniciado e confirmado pelo servidor.'],
   // UNIVERSAL U60 date cancellation and interrupted closeout recovery.
