@@ -20,7 +20,7 @@ function fixture({checkin=null,wrongOwner=false,allowReadState=true,remoteAck=tr
     addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,new Set());listeners.get(type).add(fn);},
     removeEventListener(type,fn){listeners.get(type)?.delete(fn);},
     querySelector(){return null;},querySelectorAll(){return [];},
-    async emit(type){for(const fn of listeners.get(type)||[])await fn({});},
+    async emit(type,event={}){for(const fn of listeners.get(type)||[])await fn(event);},
   };
   const state={identity:{role:'client',clientId:wrongOwner?'other-client':clientId},
     collections:{clients:[],appointments:[],sessionExecutions:[],checkins:checkin?[checkin]:[],
@@ -50,6 +50,10 @@ function fixture({checkin=null,wrongOwner=false,allowReadState=true,remoteAck=tr
 }
 test('Client CTA revalidates current adaptive state and starts exactly once after remote ACK',async()=>{
   const f=fixture();
+  // The real home CTA has no data-session-entry-level attribute. Capture the
+  // user gesture before the route mounts, then validate the hydrated state.
+  const button={getAttribute(name){return name==='data-entity-id'?sessionId:null;}};
+  await f.root.emit('click',{target:{closest(selector){return selector==='[data-workflow-action="start-published-session"]'?button:null;}}});
   await f.root.emit('m26:shell-rendered');
   assert.equal(f.calls.length,1);
   assert.equal(f.calls[0].type,'SESION_INICIAR');

@@ -1226,7 +1226,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     }
   }
   function captureSessionEntryIntent(event){
-    const button=event.target.closest?.('[data-workflow-action="start-published-session"][data-session-entry-level]');
+    const button=event?.target?.closest?.('[data-workflow-action="start-published-session"]');
     if(!button)return;
     const context=getContext();
     const clientId=String(context?.actor?.clientId||'').trim();
