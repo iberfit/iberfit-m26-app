@@ -556,6 +556,21 @@ export function isCoachDraftSaveShortcut(event,context={},root){
  return Boolean(button&&!button.disabled&&button?.getAttribute?.('aria-disabled')!=='true');
 }
 
+// Never infer a server commit from a fulfilled local/queued Promise.
+// The command receipt is the only source of truth for anonymous diagnostics.
+export function classifySessionOperationOutcome({outcome,dispatchKind,execution}={}){
+  if(dispatchKind==='queued')return 'pending';
+  if(outcome?.error?.code==='M26_SESSION_ACTION_TIMEOUT'
+    ||outcome?.error?.message==='M26_SESSION_ACTION_TIMEOUT'
+    ||execution?.syncStatus==='pending')return 'pending';
+  const receipt=outcome?.value;
+  if(outcome?.ok===true&&dispatchKind==='command'
+    &&receipt?.ok===true
+    &&['ack','duplicate'].includes(String(receipt?.kind||'').toLowerCase()))
+    return 'ack';
+  return 'not_confirmed';
+}
+
 export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,progressActionTimeoutMs=4000,liveAddTimeoutMs=20000,finishTimeoutMs=20000,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document,clockTarget=globalThis,getSessionEntryState=null,onOperationResult=()=>{}}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
   if(telemetryRemoteSync!==null&&typeof telemetryRemoteSync?.notifyStaged!=='function')throw new Error('M26_TELEMETRY_REMOTE_SYNC_INVALID');
   // Telemetry is a bounded, privacy-safe acknowledgment only; it must never affect execution.
@@ -1160,7 +1175,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!context?.execution||!context?.session)throw new Error('M26_SESSION_EXECUTION_REQUIRED');
     if(context.execution.status!=='ready')return false;
     startPending=true;
-    let localRecoveryWarning=false;
+    let localRecoveryWarning=false,remoteDispatchKind=null;
     const task=async()=>{
       // The remote start must not depend on a previous local draft write:
       // browser storage may fail even when the session is server-authorized.
@@ -1171,13 +1186,14 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       if(!sameLiveExecutionOwner(context,getContext())||context.execution.status!=='ready')
         throw new Error('M26_SESSION_ACTION_OWNER_CHANGED');
       const result=dispatchSessionAction({...context,action:'start',payload:{appointmentId:context.appointmentId,sessionRevision:context.sessionRevision}});
+      remoteDispatchKind=result.kind;
       return await result.value;
     };
     try{
       const outcome=context.actionState?await runAction(context.actionState,task):{ok:true,value:await task()};
       if(!outcome.ok){
         if(!sameLiveExecutionOwner(context,getContext()))return false;
-        recordOperationalOutcome('training_start','not_confirmed');
+        recordOperationalOutcome('training_start',classifySessionOperationOutcome({outcome,dispatchKind:remoteDispatchKind,execution:context.execution}));
         // Global diagnostics may supply a generic message. The action-specific
         // recovery message must be the last committed UI state, not overwritten.
         onError(outcome.error);
@@ -1188,18 +1204,25 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       // The ACK is authoritative, but no stale continuation may operate on
       // another owner's workspace after an async network round-trip.
       if(!sameLiveExecutionOwner(context,getContext()))return true;
-      recordOperationalOutcome('training_start','ack');
-      if(context?.actionState?.status==='success')
+      const operationResult=classifySessionOperationOutcome({outcome,dispatchKind:remoteDispatchKind,execution:context.execution});
+      recordOperationalOutcome('training_start',operationResult);
+      if(operationResult==='ack'&&context?.actionState?.status==='success')
         context.actionState.message='Entrenamiento iniciado y confirmado por el servidor.';
+      else if(operationResult!=='ack'&&context?.actionState){
+        context.actionState.status='pending';
+        context.actionState.message='Inicio pendiente de confirmación del servidor. Conservamos el progreso local sin presentarlo como confirmado.';
+      }
       // A confirmed SESION_INICIAR is the source of truth. Local checkpoint
       // persistence can fail (private mode, quota, crash, another tab) but
       // must never relabel an already-committed workout as "failed to start".
-      try{void telemetry.start(context.execution);}catch{}
+      if(operationResult==='ack')try{void telemetry.start(context.execution);}catch{}
       try{await persistContext(context);}
       catch{localRecoveryWarning=true;}
       if(localRecoveryWarning&&context?.actionState){
-        context.actionState.status='retry';
-        context.actionState.message='Entrenamiento iniciado y confirmado. No se pudo completar un guardado local en este dispositivo; comprueba la sincronización antes de salir.';
+        context.actionState.status=operationResult==='ack'?'retry':'pending';
+        context.actionState.message=operationResult==='ack'
+          ?'Entrenamiento iniciado y confirmado. No se pudo completar un guardado local en este dispositivo; comprueba la sincronización antes de salir.'
+          :'Inicio pendiente de confirmación del servidor. Conservamos el progreso local sin presentarlo como confirmado.';
       }
       renderSession();
       return true;
@@ -1215,7 +1238,9 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
         return true;
       }
       await persistContext(context).catch(()=>{});
-      recordOperationalOutcome('training_start','not_confirmed');
+      recordOperationalOutcome('training_start',classifySessionOperationOutcome({
+        outcome:{ok:false,error},dispatchKind:remoteDispatchKind,execution:context.execution,
+      }));
       onError(error);
       const mapped=sessionCommandFailureOutcome(error,{action:'start',role:context?.actor?.role,execution:context?.execution});
       if(mapped&&context?.actionState){context.actionState.status=mapped.status;context.actionState.message=mapped.message;}
@@ -1543,7 +1568,7 @@ async function click(event){
     const finishOperationId=action==='finish'?String(context?.execution?.id||''):null;
     let liveAddDispatched=false,liveAddTimedOut=false;
     let finishDispatched=false,finishTimedOut=false;
-    let startRecoveryStorageWarning=false;
+    let startRecoveryStorageWarning=false,operationalDispatchKind=null,operationalResult=null;
     if(action==='add-live-exercise')liveAddPending=true;
     if(action==='finish')finishPending=true;
     const actionState=context.actionState;let failureFocusSelector=null,builderFocusBlockId=null,builderFocusAction=null,builderFocusScroll=false,builderFocusAlways=false;const builderInsertContext=['add-exercise','add-group','duplicate-block'].includes(action)&&context?.draft?{activeGroupId:String(context.draft.activeGroupId||'').trim()||null,blockIds:new Set((context.draft.blocks||[]).map((item)=>item?.id).filter(Boolean))}:null;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
@@ -1569,7 +1594,7 @@ async function click(event){
       payload.position='next';
     }
     if(action==='restore-block'){payload.snapshot=context.builderUndo;if(!payload.snapshot)throw new Error('M26_SESSION_BLOCK_UNDO_UNAVAILABLE');}
-    if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});if(['add-exercise','remove-block','restore-block','duplicate-block','move-up','move-down','reuse-exercise-memory','add-group','close-group','apply-client-duration'].includes(action))context.clearTemplateUndo?.();if(builderInsertContext){if(action==='add-exercise')builderFocusBlockId=builderInsertContext.activeGroupId||(context.draft?.blocks||[]).find((item)=>item?.id&&!builderInsertContext.blockIds.has(item.id))?.id||null;else builderFocusBlockId=(context.draft?.blocks||[]).find((item)=>item?.id&&!builderInsertContext.blockIds.has(item.id))?.id||null;if(builderFocusBlockId)builderFocusScroll=true;}if(['move-up','move-down'].includes(action)&&payload.blockId){builderFocusBlockId=payload.blockId;builderFocusAction=action;}if(action==='restore-block'&&payload.snapshot?.block?.id){builderFocusBlockId=payload.snapshot.block.id;builderFocusScroll=true;}if(action==='edit-preview'&&payload.blockId){builderFocusBlockId=payload.blockId;builderFocusAlways=true;}if(action==='remove-block'&&result.undo)context.setBuilderUndo?.(result.undo);if(action==='restore-block')context.setBuilderUndo?.(null);if(action==='add-live-exercise')liveAddDispatched=true;if(action==='finish')finishDispatched=true;
+    if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});if(['start','finish','publish'].includes(action))operationalDispatchKind=result.kind;if(['add-exercise','remove-block','restore-block','duplicate-block','move-up','move-down','reuse-exercise-memory','add-group','close-group','apply-client-duration'].includes(action))context.clearTemplateUndo?.();if(builderInsertContext){if(action==='add-exercise')builderFocusBlockId=builderInsertContext.activeGroupId||(context.draft?.blocks||[]).find((item)=>item?.id&&!builderInsertContext.blockIds.has(item.id))?.id||null;else builderFocusBlockId=(context.draft?.blocks||[]).find((item)=>item?.id&&!builderInsertContext.blockIds.has(item.id))?.id||null;if(builderFocusBlockId)builderFocusScroll=true;}if(['move-up','move-down'].includes(action)&&payload.blockId){builderFocusBlockId=payload.blockId;builderFocusAction=action;}if(action==='restore-block'&&payload.snapshot?.block?.id){builderFocusBlockId=payload.snapshot.block.id;builderFocusScroll=true;}if(action==='edit-preview'&&payload.blockId){builderFocusBlockId=payload.blockId;builderFocusAlways=true;}if(action==='remove-block'&&result.undo)context.setBuilderUndo?.(result.undo);if(action==='restore-block')context.setBuilderUndo?.(null);if(action==='add-live-exercise')liveAddDispatched=true;if(action==='finish')finishDispatched=true;
     if(['complete-set','repeat-previous-set','correct-set','add-set','add-group-round','extra-set-now','extra-group-round-now','skip-set','skip-exercise','previous','next','rest-minus','rest-plus','substitute'].includes(action))return await settleProgressMutation(result,context);
     return await result.value;};
     function observeLateFinish(promise){
@@ -1595,12 +1620,21 @@ async function click(event){
     if(['start','publish','finish'].includes(action)){
       const sameOwner=action==='publish'?context?.draft&&context.draft===getContext()?.draft:
         sameLiveExecutionOwner(context,getContext());
-      if(sameOwner)recordOperationalOutcome(
-        action==='start'?'training_start':action==='publish'?'session_publish':'training_finish',
-        outcome.ok?'ack':'not_confirmed');
+      if(sameOwner){
+        operationalResult=classifySessionOperationOutcome({outcome,dispatchKind:operationalDispatchKind,execution:context.execution});
+        recordOperationalOutcome(
+          action==='start'?'training_start':action==='publish'?'session_publish':'training_finish',
+          operationalResult);
+      }
     }
-    if(outcome.ok&&action==='start'&&actionState?.status==='success')
-      actionState.message='Entrenamiento iniciado y confirmado por el servidor.';
+    if(outcome.ok&&action==='start'&&actionState){
+      if(operationalResult==='ack'&&actionState.status==='success')
+        actionState.message='Entrenamiento iniciado y confirmado por el servidor.';
+      else if(operationalResult!=='ack'){
+        actionState.status='pending';
+        actionState.message='Inicio pendiente de confirmación del servidor. Conservamos el progreso local sin presentarlo como confirmado.';
+      }
+    }
     if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution,draft:context?.draft,catalog:context?.catalog});onError(outcome.error);if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish'){
       const publication=await publicationAckRefreshOutcome(outcome.value,context.onPublished);
       if(!publication.refreshOk){
@@ -1627,8 +1661,10 @@ async function click(event){
       try{await persistContext(getContext());}
       catch{startRecoveryStorageWarning=true;}
       if(startRecoveryStorageWarning&&actionState){
-        actionState.status='retry';
-        actionState.message='Entrenamiento iniciado y confirmado. No se pudo guardar la copia de recuperación en este dispositivo; comprueba la sincronización antes de salir.';
+        actionState.status=operationalResult==='ack'?'retry':'pending';
+        actionState.message=operationalResult==='ack'
+          ?'Entrenamiento iniciado y confirmado. No se pudo guardar la copia de recuperación en este dispositivo; comprueba la sincronización antes de salir.'
+          :'Inicio pendiente de confirmación del servidor. Conservamos el progreso local sin presentarlo como confirmado.';
       }
     }
     else if(outcome.ok&&action!=='discard-draft')await persistContext(getContext());

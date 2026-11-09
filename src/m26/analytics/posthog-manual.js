@@ -3,7 +3,7 @@
 // No SDK, cookies, auto-capture, replay, pageview or person profiles.
 const EVENT_NAMES=new Set(['iberfit_workspace_viewed','iberfit_navigation_requested','iberfit_training_start_requested','iberfit_operation_result']);
 const SAFE_OPERATIONS=new Set(['training_start','training_finish','session_publish']);
-const SAFE_RESULTS=new Set(['ack','not_confirmed']);
+const SAFE_RESULTS=new Set(['ack','pending','not_confirmed']);
 const SAFE_ROLES=new Set(['client','coach','admin']);
 const SAFE_AREAS=new Set(['hoy','agenda','clientes','planificacion','sesion','progreso','actividad','informes','ajustes','admin-inicio','admin-analitica','admin-usuarios','admin-configuracion','admin-equipo','biblioteca','iri','retos','mensajes','verificacion']);
 const ALLOWED_HOSTS=new Set(['https://us.i.posthog.com','https://eu.i.posthog.com']);

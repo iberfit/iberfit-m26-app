@@ -73,12 +73,14 @@ test('Operational ACK telemetry is anonymous, consent-first, bounded and allowli
  a.change(true);
  assert.equal(a.watcher.recordOperation('training_start','ack'),true);
  assert.equal(a.watcher.recordOperation('session_publish','not_confirmed'),true);
+ assert.equal(a.watcher.recordOperation('training_finish','pending'),true);
  assert.equal(a.watcher.recordOperation('private-client-id','ack'),false);
  assert.equal(a.watcher.recordOperation('training_start','patient data'),false);
  const results=a.sent.slice(1).map(row=>JSON.parse(row.opts.body));
  assert.deepEqual(results.map(row=>[row.event,row.properties.operation,row.properties.result]),[
   ['iberfit_operation_result','training_start','ack'],
   ['iberfit_operation_result','session_publish','not_confirmed'],
+  ['iberfit_operation_result','training_finish','pending'],
  ]);
  for(const row of results){
   assert.deepEqual(Object.keys(row.properties).sort(),[
