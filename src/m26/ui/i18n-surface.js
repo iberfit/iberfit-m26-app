@@ -5,6 +5,8 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // UNIVERSAL: server-ACKed training start must have equivalent EN/FR/PT copy.
+  ['Entrenamiento iniciado y confirmado por el servidor.','Workout started and confirmed by the server.','Entraînement démarré et confirmé par le serveur.','Treino iniciado e confirmado pelo servidor.'],
   // UNIVERSAL U60 date cancellation and interrupted closeout recovery.
   ["Cancelar esta fecha","Cancel this date","Annuler cette date","Cancelar esta data"],
   ["Confirmar cancelación","Confirm cancellation","Confirmer l’annulation","Confirmar cancelamento"],
