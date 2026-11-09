@@ -928,3 +928,15 @@
   .m26-auth-progress-mark{animation:none;border-right-color:currentColor}
 }
 
+
+/* SIGNATURE EXCELLENCE UHD · account protection stays readable rather than
+ * shrinking to a tiny login island on 4K monitors. No changes under 2560px. */
+@media (min-width:2560px){
+  .m26-auth-page .m26-auth-stage{
+    width:min(106rem,calc(100vw - 8rem));
+    grid-template-columns:minmax(0,1fr) minmax(34rem,40rem);
+    gap:clamp(4rem,5vw,8rem);
+  }
+  .m26-auth-page .m26-auth-intro-copy{max-width:42rem}
+  .m26-auth-page .m26-auth-card{width:min(40rem,100%);max-width:100%}
+}

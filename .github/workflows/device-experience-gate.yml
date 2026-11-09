@@ -236,9 +236,11 @@ jobs:
         run: |
           npx playwright test --config playwright.authenticated-visual.config.mjs \
             --project=authenticated-visual-desktop-chromium \
+            --project=authenticated-visual-uhd-chromium \
             --project=authenticated-visual-tablet-chromium \
             --project=authenticated-visual-tablet-landscape-chromium \
-            --project=authenticated-visual-mobile-chromium
+            --project=authenticated-visual-mobile-chromium \
+            --project=authenticated-visual-compact-mobile-chromium
       - name: Preserve authenticated device evidence
         if: always()
         uses: actions/upload-artifact@v4

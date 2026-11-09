@@ -4159,12 +4159,13 @@ export function renderCoachPlanningSessionsProgressive(items=[],entity='session'
     const slice=remaining.slice(offset,offset+COACH_PLANNING_ARCHIVE_GROUP);
     const from=COACH_PLANNING_VISIBLE_SESSIONS+offset+1;
     const to=from+slice.length-1;
-    groups.push(`<details class="m26-coach-planning-batch" data-coach-planning-batch>
+    groups.push(`<details class="m26-coach-planning-batch" data-coach-planning-batch data-coach-archive-size="${slice.length}">
       <summary>${groupNoun} ${from}–${to}<span aria-hidden="true">+</span></summary>
-      <div class="m26-stack">${slice.map(item=>publicationCard(item,entity)).join('')}</div>
+      <div class="m26-stack" data-coach-planning-content></div>
+      <template data-coach-planning-template>${slice.map(item=>publicationCard(item,entity)).join('')}</template>
     </details>`);
   }
-  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive data-coach-planning-entity="${entity}">
+  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive data-coach-planning-entity="${entity}" data-coach-planning-total="${items.length}">
     ${visible}
     <details class="m26-coach-planning-archive" data-coach-planning-archive>
       <summary><span><strong>Consultar ${entity==='planning'?'otros':'otras'} ${remaining.length} ${noun}</strong>
@@ -4174,6 +4175,23 @@ export function renderCoachPlanningSessionsProgressive(items=[],entity='session'
     </details>
   </div>`;
 }
+// Inert HTML templates keep hundreds of historical publication controls out of
+// the active DOM until a Coach explicitly opens their batch. Native <details>
+// continues to work with keyboard, touch and screen readers; the existing
+// delegated publication actions attach when the exact original cards mount.
+// No history, metadata, authorization or server operation is discarded.
+export function hydrateCoachPlanningBatchOnToggle(event){
+  const batch=event?.target;
+  if(batch?.tagName!=='DETAILS'||batch?.open!==true||
+     !batch.hasAttribute?.('data-coach-planning-batch'))return false;
+  const template=batch.querySelector?.(':scope > template[data-coach-planning-template]');
+  const mount=batch.querySelector?.(':scope > [data-coach-planning-content]');
+  if(!template?.content||!mount)return false;
+  mount.append(template.content);
+  template.remove();
+  return true;
+}
+
 function publicationList(items,entity,emptyTitle,{clientView=false,canStartSession=true,coachPlanning=false}={}){
   if(!items?.length)return emptyState(emptyTitle,clientView
     ?'Tu entrenador añadirá aquí el contenido cuando esté listo para ti.'

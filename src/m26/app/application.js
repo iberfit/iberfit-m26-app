@@ -41,7 +41,7 @@ import {createM26MotionController} from '../motion/motion-controller.js';
 import {createContextualGuidanceController} from '../guidance/contextual-guidance.js';
 import {createProgressiveOnboardingController} from '../onboarding/progressive-onboarding.js';
 import {createRouteViewModel} from '../modules/route-view-model.js';
-import {renderRouteView} from '../modules/route-render.js';
+import {renderRouteView,hydrateCoachPlanningBatchOnToggle} from '../modules/route-render.js';
 import {createWorkflowController} from './workflow-controller.js';
 import {createSessionVault,sessionExpiresSoon} from './session-vault.js';
 import {createSessionForegroundRefreshCoordinator} from './session-foreground-refresh.js';
@@ -2736,6 +2736,9 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   root.addEventListener('click', guardPendingSessionEntry, true);
   root.addEventListener('click', onAuthClick);
   root.addEventListener('click', onQaCoachHistoryClick);
+  // Capture the non-bubbling native <details> toggle once; archive history
+  // becomes interactive on demand without rendering hidden cards on login.
+  root.addEventListener('toggle',hydrateCoachPlanningBatchOnToggle,true);
 
   const recovery = inspectPasswordRecoveryHash(
     locationLike?.hash || ''
