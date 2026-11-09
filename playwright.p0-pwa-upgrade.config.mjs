@@ -15,6 +15,10 @@ export default defineConfig({
   use:{
     baseURL:'http://127.0.0.1:4186',
     browserName:'chromium',
+    // Use the full Chromium new-headless binary for service-worker upgrade E2E.
+    // The headless-shell executable crashed with SIGSEGV in the PWA test
+    // runner; the functional assertions and retries remain unchanged.
+    channel:'chromium',
     serviceWorkers:'allow',
     trace:'retain-on-failure',
     screenshot:'only-on-failure',
