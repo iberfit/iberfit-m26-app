@@ -68,7 +68,7 @@ test('UNIVERSAL U90 QA order-correction is append-only and retains the exact ent
   assert.equal((qaOrder.match(oldCTE)||[]).length,1);
   assert.equal(canonicalEntities(qaOrder),canonicalEntities(original));
   assert.equal(canonicalEntities(finalProd),canonicalEntities(prodBaseline));
-  assert.ok(!/\\bDO\\s+\\$/u.test(sql));
+  assert.ok(!/\bDO\s+\$/u.test(sql));
 });
 
 test('UNIVERSAL U91 QA performance fastpath preserves M43 sanitization and rollback source',()=>{
@@ -78,14 +78,29 @@ test('UNIVERSAL U91 QA performance fastpath preserves M43 sanitization and rollb
   assert.match(sql,/u91_qa_environment_source_gate/u);
   assert.ok(sql.includes('d1ecdc751a5ba5b17bb9a219756e0e48'));
   assert.ok(rollback.includes('6e738331104794833987e82b6b6d105f'));
-  assert.match(current,/then public\\.iberfit_m43_client_safe_session_v2\\(/u);
-  assert.match(current,/jsonb_set\\(CASE WHEN jsonb_typeof\\(e\\.body\\)='object'/u);
-  assert.doesNotMatch(current,/then jsonb_set\\(public\\.iberfit_m43_client_safe_session_v2\\(e\\.body\\)/u);
-  assert.match(prior,/then jsonb_set\\(public\\.iberfit_m43_client_safe_session_v2\\(e\\.body\\)/u);
+  assert.match(current,/then public\.iberfit_m43_client_safe_session_v2\(/u);
+  assert.match(current,/jsonb_set\(CASE WHEN jsonb_typeof\(e\.body\)='object'/u);
+  assert.doesNotMatch(current,/then jsonb_set\(public\.iberfit_m43_client_safe_session_v2\(e\.body\)/u);
+  assert.match(prior,/then jsonb_set\(public\.iberfit_m43_client_safe_session_v2\(e\.body\)/u);
   assert.ok(current.includes("SET search_path TO ''"));
   assert.ok(current.includes('STABLE SECURITY DEFINER'));
   assert.ok(current.includes("else public.iberfit_m43_client_safe_session_v2(e.body) end"));
   assert.ok(current.includes("NOT (e.entity_id=ANY(v_keep_completed_sessions))"));
   assert.ok(current.includes("v_defer_completed_blocks"));
-  assert.ok(!/\\b(GRANT|REVOKE|ALTER POLICY|DROP TABLE|TRUNCATE)\\b/iu.test(sql));
+  assert.ok(!/\b(GRANT|REVOKE|ALTER POLICY|DROP TABLE|TRUNCATE)\b/iu.test(sql));
+});
+
+test('UNIVERSAL U91 SonarCloud duplication exemptions are exact immutable SQL artifacts only',()=>{
+ const p=readFileSync(new URL('../.sonarcloud.properties',import.meta.url),'utf8');
+ const match=p.match(/^sonar\.cpd\.exclusions=(.+)$/mu);
+ assert.ok(match);
+ const patterns=match[1].split(',');
+ assert.equal(patterns.length,8);
+ assert.equal(new Set(patterns).size,patterns.length);
+ for(const entry of patterns){
+   assert.match(entry,/^supabase\/(?:qa-migrations|qa-rollbacks|migrations|rollbacks)\/20261109\d{6}_u9[01]_[-._a-z0-9]+\.sql$/u);
+   assert.ok(!entry.includes('*'),entry);
+   assert.ok(!entry.includes('/src/'),entry);
+ }
+ assert.ok(!p.includes('sonar.exclusions='));
 });
