@@ -15,10 +15,13 @@ test('U360 WebKit: live detail opens survive only same execution and set repaint
   assert.ok(casePart.includes('nodes[index].open=true'));
 });
 test('U360 WebKit: preserves original post-render set validation and all controls',()=>{
- const rendered=file.slice(file.indexOf('  render=()=>{const before=getContext()'),file.indexOf('  function renderSession(){'));
+ const renderStart=file.indexOf('  render=()=>{');
+ const renderEnd=file.indexOf('  function renderSession(){',renderStart);
+ assert.ok(renderStart>=0&&renderEnd>renderStart);
+ const rendered=file.slice(renderStart,renderEnd);
  for(const token of ['captureSessionBuilderDisclosureState','captureSessionBuilderFocus','baseRender?.()',
-   'restoreSessionBuilderDisclosureState','restoreSessionBuilderFocus','restoreLiveDisclosure(liveDisclosure,getContext())',
-   'hydrateActiveSetDraft(getContext())','hydrateFinalFeedbackDraft(getContext())',
-   'syncLiveAddExerciseControl(getContext())','ensureSessionClockTicker(getContext())'])
+   'restoreSessionBuilderDisclosureState','restoreSessionBuilderFocus','restoreLiveDisclosure(liveDisclosure,after)',
+   'hydrateActiveSetDraft(after)','hydrateFinalFeedbackDraft(after)',
+   'syncLiveAddExerciseControl(after)','ensureSessionClockTicker(after)'])
    assert.ok(rendered.includes(token),token);
 });

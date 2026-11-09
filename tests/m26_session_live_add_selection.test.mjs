@@ -20,7 +20,7 @@ test('session controller synchronizes and guards the live-add action across rend
   assert.match(source,/button\.disabled=liveAddPending\|\|uncertain\|\|!state\.enabled/u);
   assert.match(source,/setAttribute\?\.\('aria-disabled',!button\.disabled\?'false':'true'\)/u);
   assert.match(source,/select\.disabled=liveAddPending\|\|!hasSelectableOption/u);
-  assert.match(source,/render=\(\)=>\{[^}]*syncLiveAddExerciseControl\(getContext\(\)\)/u);
+  assert.match(source,/render=\(\)=>\{[\s\S]*?baseRender\?\.\(\);\s*const after=getContext\(\);[\s\S]*?syncLiveAddExerciseControl\(after\)/u);
   assert.match(source,/if\(action==='add-live-exercise'\)\{\s*const liveSelection=liveAddExerciseSelectionState/u);
   assert.match(source,/if\(!liveSelection\.enabled\)\{syncLiveAddExerciseControl\(context\);return;\}/u);
   assert.match(source,/payload\.operationId=liveAddOperationId/u);
