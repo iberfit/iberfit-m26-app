@@ -3,16 +3,13 @@
 -- Three replacements preserve admin NULL-owner visibility and coach/client owner ACL.
 -- Apply QA first; require exact Client A/B Coach/Admin JSON digest parity and E2E.
 -- Production must remain staged pending protected release, M44 restore and gates.
-DO $u90_guard$
-BEGIN
-  IF (SELECT s.value #>> '{}' FROM public.iberfit_system_settings s WHERE s.key='environment') IS DISTINCT FROM 'QA' THEN
-    RAISE EXCEPTION 'U90_WRONG_ENVIRONMENT_QA' USING ERRCODE='42501';
-  END IF;
-  IF md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure)) IS DISTINCT FROM 'a8bf53fd05478bb2face12edc642dccc' THEN
-    RAISE EXCEPTION 'U90_BOOTSTRAP_SOURCE_CHANGED_QA' USING ERRCODE='55000';
-  END IF;
-END
-$u90_guard$;
+-- U90 fail-closed preflight, identical to the audited U43 scalar guard.
+-- Never introduce anonymous DO, dynamic EXECUTE or migration-time data writes.
+SELECT 1 / (CASE WHEN
+  EXISTS (SELECT 1 FROM public.iberfit_system_settings s
+    WHERE s.key='environment' AND s.value #>> '{}'='QA')
+  AND md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))='a8bf53fd05478bb2face12edc642dccc'
+  THEN 1 ELSE 0 END) AS u90_environment_and_source_guard;
 
 CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26_rc29()
  RETURNS jsonb
