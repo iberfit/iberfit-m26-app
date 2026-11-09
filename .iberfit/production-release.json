@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "17da1af5925ecf9d0f899f8949a409624efddefb",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "20f88839490daf996a6fb45db15d4baa12518c8c",
+  "notes": "IBERFIT SIGNATURE EXCELLENCE 360 frontend-only; sin mutaciones SQL, Auth, Storage ni Edge"
+}
