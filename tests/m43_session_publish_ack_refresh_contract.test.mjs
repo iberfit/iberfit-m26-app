@@ -60,7 +60,7 @@ test('M43: remote publication receipt survives both hydration and UI callback er
 
 test('M43 controller makes the server ACK and UI callback two independent phases',()=>{
   const source=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
-  assert.match(source,/if\(outcome\.ok&&action==='publish'\)\{\s*const publication=await publicationAckRefreshOutcome\(outcome\.value,context\.onPublished\)/);
+  assert.match(source,/if\(outcome\.ok&&action==='publish'&&operationalResult==='ack'\)\{\s*const publication=await publicationAckRefreshOutcome\(outcome\.value,context\.onPublished\)/);
   assert.match(source,/if\(!publication\.refreshOk\)\{/);
   assert.match(source,/actionState\.status='pending'/);
   assert.match(source,/El servidor confirmó la publicación, pero la vista todavía no se pudo actualizar/);

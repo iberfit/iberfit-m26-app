@@ -37,7 +37,7 @@ test('Coach publication and Client finish never claim success without remote rec
    for(const status of ['pending','not_confirmed']){
      const message=pendingSessionOperationFeedback(operation,status);
      assert.equal(typeof message,'string');
-     assert.match(message,/confirmad/iu);
+     assert.match(message,/confirmad|confirmación/iu);
      for(const language of ['en','fr','pt']){
        const translated=iberfitSurfaceTranslate(message,{language});
        assert.notEqual(translated,message,language+' '+operation);
