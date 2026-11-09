@@ -220,7 +220,7 @@ jobs:
             curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
               -H "$AUTH_HEADER" -H "$ACCEPT_HEADER" -H "$API_VERSION_HEADER" \
               "$ACTIONS_API/actions/runs/$M44_RUN_ID" -o /tmp/m44-offsite-run.json
-            curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --retry 3 --retry-all-errors \
               -H "$AUTH_HEADER" -H "$ACCEPT_HEADER" -H "$API_VERSION_HEADER" \
               "$ACTIONS_API/actions/runs/$M44_RUN_ID/jobs?per_page=100&filter=all" -o /tmp/m44-offsite-jobs.json
             curl --fail --silent --show-error --location --retry 3 --retry-all-errors \

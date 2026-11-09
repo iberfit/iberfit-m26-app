@@ -1387,6 +1387,16 @@ async function click(event){
     }
     return;
   }
+  // WebKit can dispatch a native summary click across an asynchronous live
+  // repaint. Commit disclosure state synchronously and suppress the second
+  // native toggle so the reason field remains reachable by touch/keyboard.
+  const skipSummary=event.target.closest?.('details[data-session-skip-set-disclosure] > summary');
+  if(skipSummary){
+    event.preventDefault?.();
+    const details=skipSummary.parentElement;
+    if(details?.tagName==='DETAILS')details.open=!details.open;
+    return;
+  }
   const openSubstitution=event.target.closest?.('[data-session-open-substitution]');
   if(openSubstitution){
     event.preventDefault?.();

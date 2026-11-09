@@ -152,7 +152,7 @@ jobs:
 
           run_id="$(node -p "require('/tmp/m44-offsite-run.json').id")"
           run_sha="$(node -p "require('/tmp/m44-offsite-run.json').head_sha")"
-          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --retry 3 --retry-all-errors \
             -H "$auth" -H "$accept" -H "$version" \
             "$api/actions/runs/$run_id/jobs?per_page=100&filter=all" -o /tmp/m44-offsite-jobs.json
           curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
