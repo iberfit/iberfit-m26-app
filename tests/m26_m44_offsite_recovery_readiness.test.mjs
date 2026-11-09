@@ -12,6 +12,7 @@ const SHA='48d4ae327272ab2016cd0298788aa0af8981a63a';
 const job=(name,extra={})=>({
   id:extra.id||100,
   run_id:RUN_ID,
+  run_attempt:extra.run_attempt??(name==='m44-prod-db-storage-encrypted-backup-and-restore'?2:1),
   workflow_name:EXPECTED_WORKFLOW_NAME,
   head_branch:'canary/rc74-4',
   head_sha:SHA,
@@ -134,4 +135,76 @@ test('selects newest same-name artifact from rerun and requires it to match the 
   });
   const result=evaluateM44OffsiteRecovery(x.run,x.jobs,x.artifacts,{nowMs:NOW});
   assert.equal(result.artifactId,12083431361);
+});
+
+
+// Partial GitHub rerun: contract and synthetic proof stay in attempt 1 while
+// production archive/restore runs again in attempt 2.
+test('accepts the latest successful production rerun with prior same-run contract jobs',()=>{
+  const x=fixture();
+  x.jobs.jobs.push(job('m44-prod-db-storage-encrypted-backup-and-restore',{
+    id:104,run_attempt:1,steps:requiredSteps,
+  }));
+  x.jobs.total_count=4;
+  x.jobs.jobs.reverse();
+  const result=evaluateM44OffsiteRecovery(x.run,x.jobs,x.artifacts,{nowMs:NOW});
+  assert.equal(result.productionJobId,103);
+  assert.equal(result.runAttempt,2);
+});
+
+test('rejects a failed most-recent attempt, never accepting a successful older run',()=>{
+  const x=fixture();
+  const prodName='m44-prod-db-storage-encrypted-backup-and-restore';
+  x.jobs.jobs=x.jobs.jobs.filter(j=>j.name!==prodName);
+  x.jobs.jobs.push(job(prodName,{id:104,run_attempt:1,steps:requiredSteps}));
+  x.jobs.jobs.push({...job(prodName,{id:105,run_attempt:2,steps:requiredSteps}),conclusion:'failure'});
+  x.jobs.total_count=4;
+  assert.throws(
+    ()=>evaluateM44OffsiteRecovery(x.run,x.jobs,x.artifacts,{nowMs:NOW}),
+    /M44_OFFSITE_REQUIRED_JOB_NOT_SUCCESS/,
+  );
+});
+
+test('requires actual production restore job from final workflow attempt',()=>{
+  const x=fixture();
+  const prod=x.jobs.jobs.find(j=>j.name==='m44-prod-db-storage-encrypted-backup-and-restore');
+  prod.run_attempt=1;
+  assert.throws(
+    ()=>evaluateM44OffsiteRecovery(x.run,x.jobs,x.artifacts,{nowMs:NOW}),
+    /M44_OFFSITE_PROD_JOB_NOT_LATEST_ATTEMPT/,
+  );
+});
+
+test('rejects truncated all-attempts responses and duplicate attempt records',()=>{
+  const x=fixture();
+  x.jobs.total_count=4;
+  assert.throws(
+    ()=>evaluateM44OffsiteRecovery(x.run,x.jobs,x.artifacts,{nowMs:NOW}),
+    /M44_OFFSITE_JOBS_INCOMPLETE/,
+  );
+  x.jobs.total_count=4;
+  x.jobs.jobs.push({...x.jobs.jobs[0],id:999});
+  assert.throws(
+    ()=>evaluateM44OffsiteRecovery(x.run,x.jobs,x.artifacts,{nowMs:NOW}),
+    /M44_OFFSITE_DUPLICATE_JOB_ATTEMPT/,
+  );
+});
+
+test('rejects old mismatched or impossible attempts even when later success exists',()=>{
+  const name='m44-prod-db-storage-encrypted-backup-and-restore';
+  for(const mutate of [
+    j=>{j.head_sha='f'.repeat(40);},
+    j=>{j.run_id=RUN_ID+1;},
+    j=>{j.head_branch='main';},
+    j=>{j.workflow_name='Another workflow';},
+    j=>{j.run_attempt=3;},
+    j=>{j.run_attempt=0;},
+  ]){
+    const x=fixture();
+    const stale=job(name,{id:104,run_attempt:1,steps:requiredSteps});
+    mutate(stale);
+    x.jobs.jobs.push(stale);
+    x.jobs.total_count=4;
+    assert.throws(()=>evaluateM44OffsiteRecovery(x.run,x.jobs,x.artifacts,{nowMs:NOW}));
+  }
 });
