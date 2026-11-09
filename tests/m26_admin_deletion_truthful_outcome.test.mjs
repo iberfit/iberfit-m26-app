@@ -27,7 +27,7 @@ test('Admin client-delete explains the operational scope rather than promising w
  }],canManage:true});
  assert.match(html,/data-admin-form="client-delete"/u);
  assert.match(html,/Eliminar expediente operativo/u);
- assert.match(html,/no elimina automáticamente la identidad Auth/u);
+ assert.match(html,/no elimina automáticamente la identidad Auth/iu);
  assert.doesNotMatch(html,/Eliminar definitivamente/u);
  const source=adminDeletionOutcome('client',{response:{authIdentityRetained:true}});
  assert.match(source,/cuenta de acceso/u);
