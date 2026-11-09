@@ -10,7 +10,9 @@ import {
 } from './session-execution.js';
 import { runAction } from '../ui/action-state.js';
 import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
-import {setPendingSessionEntry,peekPendingSessionEntry,consumePendingSessionEntry,clearPendingSessionEntry} from '../intelligence/session-entry-intent.js';
+import {setPendingSessionEntry,peekPendingSessionEntry,consumePendingSessionEntry,clearPendingSessionEntry,revalidatePendingSessionEntry} from '../intelligence/session-entry-intent.js';
+import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
+import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
 import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
@@ -554,8 +556,10 @@ export function isCoachDraftSaveShortcut(event,context={},root){
  return Boolean(button&&!button.disabled&&button?.getAttribute?.('aria-disabled')!=='true');
 }
 
-export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,progressActionTimeoutMs=4000,liveAddTimeoutMs=20000,finishTimeoutMs=20000,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document,clockTarget=globalThis}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
+export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,progressActionTimeoutMs=4000,liveAddTimeoutMs=20000,finishTimeoutMs=20000,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document,clockTarget=globalThis,getSessionEntryState=null,onOperationResult=()=>{}}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
   if(telemetryRemoteSync!==null&&typeof telemetryRemoteSync?.notifyStaged!=='function')throw new Error('M26_TELEMETRY_REMOTE_SYNC_INVALID');
+  // Telemetry is a bounded, privacy-safe acknowledgment only; it must never affect execution.
+  function recordOperationalOutcome(operation,result){try{onOperationResult(operation,result);}catch{}}
   let mounted=false,autosaveTimer=null,scheduledContext=null,autosaveChain=Promise.resolve();
   // Volatile notes, scoped to the exact Coach + client + draft.
   let captureState=null;
@@ -1173,6 +1177,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       const outcome=context.actionState?await runAction(context.actionState,task):{ok:true,value:await task()};
       if(!outcome.ok){
         if(!sameLiveExecutionOwner(context,getContext()))return false;
+        recordOperationalOutcome('training_start','not_confirmed');
         // Global diagnostics may supply a generic message. The action-specific
         // recovery message must be the last committed UI state, not overwritten.
         onError(outcome.error);
@@ -1183,6 +1188,9 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       // The ACK is authoritative, but no stale continuation may operate on
       // another owner's workspace after an async network round-trip.
       if(!sameLiveExecutionOwner(context,getContext()))return true;
+      recordOperationalOutcome('training_start','ack');
+      if(context?.actionState?.status==='success')
+        context.actionState.message='Entrenamiento iniciado y confirmado por el servidor.';
       // A confirmed SESION_INICIAR is the source of truth. Local checkpoint
       // persistence can fail (private mode, quota, crash, another tab) but
       // must never relabel an already-committed workout as "failed to start".
@@ -1207,6 +1215,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
         return true;
       }
       await persistContext(context).catch(()=>{});
+      recordOperationalOutcome('training_start','not_confirmed');
       onError(error);
       const mapped=sessionCommandFailureOutcome(error,{action:'start',role:context?.actor?.role,execution:context?.execution});
       if(mapped&&context?.actionState){context.actionState.status=mapped.status;context.actionState.message=mapped.message;}
@@ -1234,7 +1243,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     // A shell render can still show the previous area, a loading transition or
     // a different session. Do not consume the user's 30-second entry intent
     // until the exact authorized execution has been mounted and revalidated.
-    const pending=peekPendingSessionEntry(root);
+    let pending=peekPendingSessionEntry(root);
     if(!pending)return;
     const actorClientId=String(context?.actor?.clientId||'').trim();
     if(actorClientId&&actorClientId!==pending.clientId){
@@ -1246,6 +1255,23 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!execution||!session)return;
     if(String(execution.clientId||'')!==pending.clientId||
        String(session.id||'')!==pending.sessionId)return;
+    // Read the current, hydrated owner-scoped state immediately before start.
+    // A button's initial adaptive label is NOT authorization to start later.
+    if(typeof getSessionEntryState==='function'){
+      let currentState=null;
+      try{currentState=getSessionEntryState();}catch{}
+      if(currentState?.identity?.role!=='client'||
+        String(currentState?.identity?.clientId||'')!==pending.clientId){
+        clearPendingSessionEntry(root);
+        return;
+      }
+      pending=revalidatePendingSessionEntry(root,{
+        state:currentState,now:new Date(),
+        buildContext:buildAdaptiveSessionContext,
+        buildDecision:buildSessionEntryDecision,
+      });
+      if(!pending)return;
+    }
     // Consume before awaiting the remote ACK; a second shell render must
     // never produce a second SESION_INICIAR for the same tap.
     consumePendingSessionEntry(root);
@@ -1565,7 +1591,17 @@ async function click(event){
     let runTask=invokeTask;
     if(action==='add-live-exercise')runTask=()=>settleWithin(invokeTask(),safeLiveAddTimeout,()=>{liveAddTimedOut=true;if(liveAddDispatched){liveAddBlockedOperationId=liveAddOperationId;markExecutionSync(context.execution,'pending',{operationId:liveAddOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
     else if(action==='finish')runTask=()=>settleWithin(invokeTask(),safeFinishTimeout,()=>{finishTimedOut=true;if(finishDispatched&&finishOperationId){finishBlockedOperationId=finishOperationId;markExecutionSync(context.execution,'pending',{operationId:finishOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
-    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution,draft:context?.draft,catalog:context?.catalog});onError(outcome.error);if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish'){
+    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};
+    if(['start','publish','finish'].includes(action)){
+      const sameOwner=action==='publish'?context?.draft&&context.draft===getContext()?.draft:
+        sameLiveExecutionOwner(context,getContext());
+      if(sameOwner)recordOperationalOutcome(
+        action==='start'?'training_start':action==='publish'?'session_publish':'training_finish',
+        outcome.ok?'ack':'not_confirmed');
+    }
+    if(outcome.ok&&action==='start'&&actionState?.status==='success')
+      actionState.message='Entrenamiento iniciado y confirmado por el servidor.';
+    if(!outcome.ok){const mapped=sessionCommandFailureOutcome(outcome.error,{action,role:context?.actor?.role,execution:context?.execution,draft:context?.draft,catalog:context?.catalog});onError(outcome.error);if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;failureFocusSelector=mapped.focusSelector||null;}if(context?.execution?.syncStatus==='pending')schedulePendingExecutionSync(context,1250);}if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut&&context?.execution?.syncStatus==='pending'&&actionState){actionState.status='pending';actionState.message='Guardado en este dispositivo. Puedes continuar la sesión mientras IBERFIT confirma la sincronización.';}if(outcome.ok&&action==='publish'){
       const publication=await publicationAckRefreshOutcome(outcome.value,context.onPublished);
       if(!publication.refreshOk){
         // A second click would generate a different operation ID. Preserve the
