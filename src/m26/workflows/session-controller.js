@@ -1256,7 +1256,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(String(execution.clientId||'')!==pending.clientId||
        String(session.id||'')!==pending.sessionId)return;
     // Read the current, hydrated owner-scoped state immediately before start.
-    // A button's initial adaptive label is NOT authorization to start later.
+    // An initial button label is NOT authorization to start later.
     if(typeof getSessionEntryState==='function'){
       let currentState=null;
       try{currentState=getSessionEntryState();}catch{}
