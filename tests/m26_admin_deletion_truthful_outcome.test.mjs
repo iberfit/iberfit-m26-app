@@ -20,13 +20,15 @@ test('Administrative user decommission distinguishes Auth soft-delete ACK from m
  assert.throws(()=>adminDeletionOutcome('invalid',{}),/M26_ADMIN_DELETION_OUTCOME_INVALID/u);
 });
 test('Admin client-delete explains the operational scope rather than promising whole-person erasure',()=>{
- const html=renderAdminRoute({admin:true,kind:'admin-usuarios',clients:[{
+ const html=renderAdminRoute({admin:true,kind:'admin-clientes',leads:[],clients:[{
   id:'10000000-0000-4000-8000-000000000277',name:'Persona sintética',
   email:'synthetic@example.test',status:'active',revision:1,
- }],canManageStatus:true,canManage:true,currentUserId:'admin-test'});
- // Exact presence may depend on the route view model, but source must never promise
- // permanent erasure while retaining Auth and protected records.
- assert.equal(typeof html,'string');
+  lifecycle:{status:'active'},coachNames:['Coach sintético'],
+ }],canManage:true});
+ assert.match(html,/data-admin-form="client-delete"/u);
+ assert.match(html,/Eliminar expediente operativo/u);
+ assert.match(html,/no elimina automáticamente la identidad Auth/u);
+ assert.doesNotMatch(html,/Eliminar definitivamente/u);
  const source=adminDeletionOutcome('client',{response:{authIdentityRetained:true}});
  assert.match(source,/cuenta de acceso/u);
 });

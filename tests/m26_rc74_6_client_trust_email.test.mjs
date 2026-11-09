@@ -44,7 +44,8 @@ test('la acción de eliminación aparece sólo con capacidad Admin y exige confi
   assert.match(enabled,/name="confirmPhrase"/u);
   assert.match(enabled,/pattern="ELIMINAR"/u);
   assert.match(enabled,/minlength="8"/u);
-  assert.match(enabled,/Eliminar definitivamente/u);
+  assert.match(enabled,/Eliminar expediente operativo/u);
+  assert.match(enabled,/no elimina automáticamente la identidad Auth/u);
   const disabled=renderAdminRoute({admin:true,kind:'admin-clientes',leads:[],clients:[client],canManage:false});
   assert.doesNotMatch(disabled,/data-admin-form="client-delete"/u);
 });
