@@ -17,7 +17,7 @@ test('Coach archive keeps every authorized publication in inert batches',()=>{
   }));
   const html=renderCoachPlanningSessionsProgressive(rows,'session');
   assert.match(html,/data-coach-planning-total="48"/);
-  assert.equal((html.match(/data-coach-planning-batch-size=/g)||[]).length,
+  assert.equal((html.match(/data-coach-archive-size=/g)||[]).length,
     Math.ceil((rows.length-COACH_PLANNING_VISIBLE_SESSIONS)/COACH_PLANNING_ARCHIVE_GROUP));
   assert.equal((html.match(/data-coach-planning-template/g)||[]).length,3);
   assert.equal((html.match(/data-publication-card/g)||[]).length,rows.length);

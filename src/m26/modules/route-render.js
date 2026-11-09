@@ -4159,7 +4159,7 @@ export function renderCoachPlanningSessionsProgressive(items=[],entity='session'
     const slice=remaining.slice(offset,offset+COACH_PLANNING_ARCHIVE_GROUP);
     const from=COACH_PLANNING_VISIBLE_SESSIONS+offset+1;
     const to=from+slice.length-1;
-    groups.push(`<details class="m26-coach-planning-batch" data-coach-planning-batch data-coach-planning-batch-size="${slice.length}">
+    groups.push(`<details class="m26-coach-planning-batch" data-coach-planning-batch data-coach-archive-size="${slice.length}">
       <summary>${groupNoun} ${from}–${to}<span aria-hidden="true">+</span></summary>
       <div class="m26-stack" data-coach-planning-content></div>
       <template data-coach-planning-template>${slice.map(item=>publicationCard(item,entity)).join('')}</template>
