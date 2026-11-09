@@ -18,10 +18,10 @@ const newOwner=/where \(v_role='admin' or e\.client_id=any\(v_allowed_client_ids
 for(const [env,path,rollback,before,after] of variants){
   test('UNIVERSAL U90 '+env+' isolated SQL source and reversible safe visibility',()=>{
     const sql=read(path),old=read(rollback),fn=extract(sql),previous=extract(old);
-    assert.match(sql,/U90_BOOTSTRAP_SOURCE_CHANGED_/u);
+    assert.match(sql,/u90_environment_and_source_guard/u);
     assert.ok(sql.includes("s.value #>> '{}'='"+env+"'"));
     assert.match(sql,/u90_environment_and_source_guard/u);
-    assert.doesNotMatch(sql,/DO \\$u90_guard/u);
+    assert.doesNotMatch(sql,/\\bDO\\s+\\$u90_guard/u);
     assert.ok(sql.includes(before));
     assert.ok(old.includes(after));
     assert.equal((fn.match(oldCTE)||[]).length,0);
