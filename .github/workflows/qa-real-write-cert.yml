@@ -132,6 +132,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify current Canary SHA before shared QA operations
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
       - name: Verify private Storage owner, Coach and other Client real authenticated access
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -174,6 +178,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify current Canary SHA before shared QA operations
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
       - name: Certify V45 real QA persistence, isolation, idempotency and revocation with synthetic clients
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -216,6 +224,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify current Canary SHA before shared QA operations
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
       - name: Determine whether immutable QA IRI PDF emission needs recertification
         id: iri-impact
         env:
@@ -344,6 +356,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify current Canary SHA before shared QA operations
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
       - name: Execute M43 Coach-Client authenticated QA lifecycle
         env:
           GH_ACTIONS_TOKEN: ${{ github.token }}
@@ -389,6 +405,10 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Verify current Canary SHA before shared QA operations
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
       - run: npm ci
       - name: Restore Chromium browser cache
         id: chromium-cache
