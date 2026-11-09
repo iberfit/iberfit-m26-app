@@ -5761,3 +5761,16 @@ m26-echart[data-density="compact"]{
     max-width:min(1920px,100%);
   }
 }
+
+
+/* IBERFIT Private Coach · evidence-first pre-session review, no overlay or extra card stack. */
+.m26-next-session-premium-review{border-block:1px solid rgba(197,160,89,.24);padding:.95rem 0;display:grid;gap:.7rem}
+.m26-next-session-premium-review h3{margin:.15rem 0;font-size:clamp(.98rem,1.15vw,1.18rem);line-height:1.35}
+.m26-next-session-premium-review p{margin:.15rem 0;line-height:1.5}
+.m26-next-session-premium-review ul{list-style:none;margin:0;padding:0;display:grid;gap:.65rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr))}
+.m26-next-session-premium-review li{min-width:0;border-left:2px solid #C5A059;padding:.14rem .75rem;display:grid;align-content:start;gap:.24rem}
+.m26-next-session-premium-review li strong{font-size:.89rem}
+.m26-next-session-premium-review li p{font-size:.83rem}
+.m26-next-session-premium-review small{display:block;opacity:.82;font-size:.72rem;line-height:1.5}
+.m45-client-service-assists .m45-compose-assist-actions{flex-wrap:wrap}
+@media(max-width:520px){.m26-next-session-premium-review{gap:.8rem}.m26-next-session-premium-review ul{grid-template-columns:1fr}}

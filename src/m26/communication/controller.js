@@ -1,3 +1,4 @@
+import {clientServicePrompt} from './client-service-prompts.js';
 const toast=(message)=>{try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}catch{}};
 const text=(d,k,m=4000)=>String(d.get(k)||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,m);
 const NOTIFICATION_PREFERENCE_KEYS=new Set(['sessionReminders','scheduleChanges','planPublished','coachMessages','challenges','milestones']);
@@ -588,9 +589,11 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       event.preventDefault?.();
       const roleNode=root.querySelector?.('[data-communication-role]');
       const role=String(roleNode?.dataset?.communicationRole||roleNode?.getAttribute?.('data-communication-role')||'');
-      if(role!=='coach')return;
+      if(role!=='coach'&&role!=='client')return;
       const key=String(suggestion.dataset?.m45ComposePrompt||'');
-      const prompt=Object.hasOwn(COACH_MESSAGE_ASSISTS,key)?COACH_MESSAGE_ASSISTS[key]:null;
+      const prompt=role==='coach'
+        ?(Object.hasOwn(COACH_MESSAGE_ASSISTS,key)?COACH_MESSAGE_ASSISTS[key]:null)
+        :clientServicePrompt(key)?.draft||null;
       if(!prompt)return;
       const form=suggestion.closest?.('[data-communication-form="message-send"]');
       const textarea=form?.querySelector?.('textarea[name="body"]');

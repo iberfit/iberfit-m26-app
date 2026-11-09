@@ -12,6 +12,7 @@ import {renderClientDeviceHub,deviceConfirmedStats} from '../wearables/device-hu
 import {clientWearableActivation} from '../wearables/activation-experience.js';
 import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
 import {renderClientDayContext} from '../experience/client-day-context.js';
+import {buildCoachSessionReviewCues} from '../intelligence/session-adjustment-cues.js';
 import {renderPeriodizationBoard,renderClientCycleGoal} from '../planning/periodization-workbench.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
@@ -4666,6 +4667,16 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
   const iri=prep.iri;
   const tone=prep.reviewRequired?'warning':'success';
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
+  const premiumReview=isCoach?buildCoachSessionReviewCues(prep):null;
+  const premiumReviewMarkup=premiumReview?.items?.length
+    ?'<section class="m26-next-session-premium-review" data-premium-coach-review aria-label="Criterio adaptativo para la sesión">'
+      +'<div><p class="m26-eyebrow">Decisión personalizada · Coach</p><h3>Qué conviene contrastar hoy</h3>'
+      +'<p>Señales actuales que pueden justificar una conversación antes de adaptar la sesión.</p></div>'
+      +'<ul>'+premiumReview.items.map((item)=>'<li><strong>'+escapeHtml(item.title)+'</strong>'
+        +'<p>'+escapeHtml(item.detail)+'</p><small>'+escapeHtml(item.source)+'</small></li>').join('')+'</ul>'
+      +'<small>Información contextual, no evaluación clínica. No se modifican cargas, ejercicios, horarios ni publicaciones automáticamente.</small>'
+      +'</section>'
+    :'';
   const reviewAction=prep.reviewRequired
     ?isCoach
       ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${escapeHtml(prep.clientId||'')}" data-m26-target-area="expediente" data-m26-target-focus="action-outcome">Revisar seguimiento antes de entrenar</button>`
@@ -4709,6 +4720,7 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
     </div>
     ${renderCoachSinceLastReview(prep.sinceLastReview)}
     ${reasons.length?`<div class="m26-next-session-review"><strong>Antes de iniciar, revisa</strong><ul>${reasons.map((item)=>`<li>${escapeHtml(item.label)}</li>`).join('')}</ul></div>`:''}
+    ${premiumReviewMarkup}
     <div class="m26-next-session-grid">
       <article class="m26-next-session-card">
         <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Bienestar</p><h3>Último check-in</h3></div><small>${escapeHtml(nextSessionPrepDate(prep.progress.latestCheckinAt))}</small></div>
