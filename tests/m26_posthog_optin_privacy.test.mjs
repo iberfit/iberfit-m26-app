@@ -64,3 +64,34 @@ test('Never subscribes to DOM content, keystrokes, clicks without consent, or se
  assert.match(renderPosthogConsentPanel(),/ubicaciones/u);
  a.watcher.destroy();
 });
+
+// No production health, identity, or form payload can enter operational analytics.
+test('Operational ACK telemetry is anonymous, consent-first, bounded and allowlisted',()=>{
+ const a=setup();
+ assert.equal(a.watcher.recordOperation('training_start','ack'),false);
+ assert.equal(a.sent.length,0);
+ a.change(true);
+ assert.equal(a.watcher.recordOperation('training_start','ack'),true);
+ assert.equal(a.watcher.recordOperation('session_publish','not_confirmed'),true);
+ assert.equal(a.watcher.recordOperation('training_finish','pending'),true);
+ assert.equal(a.watcher.recordOperation('private-client-id','ack'),false);
+ assert.equal(a.watcher.recordOperation('training_start','patient data'),false);
+ const results=a.sent.slice(1).map(row=>JSON.parse(row.opts.body));
+ assert.deepEqual(results.map(row=>[row.event,row.properties.operation,row.properties.result]),[
+  ['iberfit_operation_result','training_start','ack'],
+  ['iberfit_operation_result','session_publish','not_confirmed'],
+  ['iberfit_operation_result','training_finish','pending'],
+ ]);
+ for(const row of results){
+  assert.deepEqual(Object.keys(row.properties).sort(),[
+   'schema','role','device','release','$process_person_profile','$geoip_disable','operation','result',
+  ].sort());
+  assert.equal(row.properties.$process_person_profile,false);
+  assert.equal(row.properties.$geoip_disable,true);
+  assert.equal(row.properties.clientId,undefined);
+  assert.equal(row.properties.sessionId,undefined);
+ }
+ a.change(false);
+ assert.equal(a.watcher.recordOperation('training_finish','ack'),false);
+ a.watcher.destroy();
+});

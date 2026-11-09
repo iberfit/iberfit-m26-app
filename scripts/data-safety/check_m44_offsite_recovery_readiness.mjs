@@ -60,6 +60,7 @@ export function evaluateM44OffsiteRecovery(
   if(!run||typeof run!=='object'||Array.isArray(run))throw new Error('M44_OFFSITE_RUN_INVALID');
 
   const runId=positiveInt(run.id,'M44_OFFSITE_RUN_ID');
+  const runAttempt=positiveInt(run.run_attempt,'M44_OFFSITE_RUN_ATTEMPT');
   if(run.name!==EXPECTED_WORKFLOW_NAME)throw new Error('M44_OFFSITE_WORKFLOW_NAME_MISMATCH');
   if(run.path!==EXPECTED_WORKFLOW_PATH)throw new Error('M44_OFFSITE_WORKFLOW_PATH_MISMATCH');
   if(run.head_branch!==EXPECTED_BRANCH)throw new Error('M44_OFFSITE_BRANCH_MISMATCH');
@@ -73,7 +74,29 @@ export function evaluateM44OffsiteRecovery(
   if(ageHours > maxAgeHours)throw new Error('M44_OFFSITE_RUN_TOO_OLD');
 
   const jobs=collection(jobsPayload,'jobs','M44_OFFSITE_JOBS');
-  const byName=new Map(jobs.map((job)=>[String(job?.name||''),job]));
+  // GitHub's default jobs API omits jobs from earlier attempts on partial reruns.
+  // Require a complete all-attempts page, then choose the newest attempt per job.
+  if(jobsPayload.total_count!==undefined&&(
+    !Number.isSafeInteger(jobsPayload.total_count)||
+    jobsPayload.total_count!==jobs.length
+  ))throw new Error('M44_OFFSITE_JOBS_INCOMPLETE');
+  const byName=new Map();
+  for(const job of jobs){
+    const name=String(job?.name||'');
+    if(!REQUIRED_JOBS.includes(name))continue;
+    const attempt=positiveInt(job.run_attempt,'M44_OFFSITE_JOB_ATTEMPT:'+name);
+    if(attempt>runAttempt)throw new Error('M44_OFFSITE_JOB_FUTURE_ATTEMPT:'+name);
+    if(Number(job.run_id)!==runId)throw new Error('M44_OFFSITE_JOB_RUN_MISMATCH:'+name);
+    if(job.workflow_name!==EXPECTED_WORKFLOW_NAME)throw new Error('M44_OFFSITE_JOB_WORKFLOW_MISMATCH:'+name);
+    if(job.head_branch!==EXPECTED_BRANCH)throw new Error('M44_OFFSITE_JOB_BRANCH_MISMATCH:'+name);
+    if(job.head_sha!==run.head_sha)throw new Error('M44_OFFSITE_JOB_SHA_MISMATCH:'+name);
+    const previous=byName.get(name);
+    if(previous){
+      if(attempt===Number(previous.run_attempt))throw new Error('M44_OFFSITE_DUPLICATE_JOB_ATTEMPT:'+name);
+      if(attempt<Number(previous.run_attempt))continue;
+    }
+    byName.set(name,job);
+  }
   for(const name of REQUIRED_JOBS){
     const job=byName.get(name);
     if(!job||!success(job))throw new Error('M44_OFFSITE_REQUIRED_JOB_NOT_SUCCESS:'+name);
@@ -84,6 +107,7 @@ export function evaluateM44OffsiteRecovery(
   }
 
   const productionJob=byName.get('m44-prod-db-storage-encrypted-backup-and-restore');
+  if(Number(productionJob.run_attempt)!==runAttempt)throw new Error('M44_OFFSITE_PROD_JOB_NOT_LATEST_ATTEMPT');
   const productionCompletedMs=isoMs(productionJob.completed_at,'M44_OFFSITE_PROD_JOB_COMPLETED_AT');
   const prodAgeHours=(nowMs-productionCompletedMs)/3_600_000;
   if(prodAgeHours < -1)throw new Error('M44_OFFSITE_PROD_JOB_TIMESTAMP_IN_FUTURE');
@@ -128,7 +152,7 @@ export function evaluateM44OffsiteRecovery(
     mode:'IBERFIT_M44_ENCRYPTED_OFFSITE_RESTORE_PROOF',
     recoveryAuthority:'INDEPENDENT_ENCRYPTED_DB_STORAGE_RESTORE',
     runId,
-    runAttempt:Number(run.run_attempt)||1,
+    runAttempt,
     productionJobId:positiveInt(productionJob.id,'M44_OFFSITE_PROD_JOB_ID'),
     artifactId,
     artifactBytes:bytes,

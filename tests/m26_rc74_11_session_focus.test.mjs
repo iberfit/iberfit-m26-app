@@ -149,7 +149,7 @@ test('primary touch controls remain locked across an in-flight session ACK and r
   assert.match(source,/data-valid/u);
   assert.match(source,/if\(sessionActionPending\)queueMicrotask\(syncPendingNextControls\)/u);
   assert.match(source,/sessionActionPending=false;if\(root[.]dataset\)delete root[.]dataset[.]m26SessionActionPending;syncPendingNextControls\(\)/u);
-  assert.match(source,/ensureSessionClockTicker\(getContext\(\)\);syncPendingNextControls\(\)/u);
+  assert.match(source,/ensureSessionClockTicker\(after\);\s*syncPendingNextControls\(\)/u);
 });
 
 test('session focus proxies cannot resurrect any next primary command during an outstanding remote action',async()=>{

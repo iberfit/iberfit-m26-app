@@ -78,3 +78,20 @@ test('UNIVERSAL U71 QA preserves unrelated prior appointments and dates during t
  assert.match(s,/const ownVisible=visible\.filter\(row=>occ\.includes\(row\.id\)\)/);
  assert.match(s,/const ownCoachDates=coachCalendar\.filter\(row=>occ\.includes\(row\.id\)\)/);
 });
+
+test('UNIVERSAL U71 protected Canary only enables existing two-phase signed QA proof',()=>{
+ const workflow=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ const source=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ assert.match(workflow,/^\s+- 'canary\/rc74-4'$/mu);
+ assert.match(source,/'canary\/rc74-4'/u);
+ assert.doesNotMatch(workflow,/audit\/free-static-ux-zap-20261108/u);
+ assert.match(workflow,/github\.run_attempt == 1/u);
+ assert.match(workflow,/github\.run_attempt == 2/u);
+ assert.match(workflow,/environment: m26-canary-readonly/u);
+ assert.match(source,/BRANCH_HEAD_MOVED/u);
+ assert.match(source,/QA_FIXTURE_SOURCE_DATES_NOT_CLEAN/u);
+ assert.match(source,/ENV_ISOLATION/u);
+ assert.match(source,/BRANCH_NOT_ALLOWLISTED/u);
+ assert.match(source,/NON_EXPLICIT_ATTEMPT/u);
+ assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
+});

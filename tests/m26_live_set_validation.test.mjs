@@ -57,9 +57,12 @@ test('Client set validation is reconciled after saved observations hydrate on sh
   // The Coach editor can snapshot/restore its panels before and after rendering.
   // Regardless of that UX work, the live Client set must hydrate AFTER the
   // shell's base render, rather than before it.
-  const renderWrapper=controller.match(/render=\(\)=>\{([^\n]*)/u)?.[1]||'';
+  const renderStart=controller.indexOf('  render=()=>{');
+  const renderEnd=controller.indexOf('  function renderSession()',renderStart);
+  assert.ok(renderStart>=0&&renderEnd>renderStart);
+  const renderWrapper=controller.slice(renderStart,renderEnd);
   const baseIndex=renderWrapper.indexOf('baseRender?.();');
-  const hydrateIndex=renderWrapper.indexOf('hydrateActiveSetDraft(getContext())');
+  const hydrateIndex=renderWrapper.indexOf('hydrateActiveSetDraft(after)');
   assert.ok(baseIndex>=0,'The shell must complete the base render');
   assert.ok(hydrateIndex>baseIndex,'Saved live-set fields hydrate after the shell render');
   assert.match(renderWrapper,/restoreSessionBuilderDisclosureState\(/u);

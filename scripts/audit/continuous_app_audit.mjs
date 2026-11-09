@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {readOnlyPublicProbeWithRetry} from './public-probe-retry.mjs';
 
 import {
   M26_AREAS,
@@ -400,11 +401,13 @@ async function auditAnonymousRpcPosture(publishableKey){
 
   let publicProbeOk=false;
   try{
-    const publicProbe=await postSupabaseRpc({
+    // A single transient network error is not evidence of an access-policy regression.
+    // Retry only the 1-row public probe once. A second failure remains critical.
+    const publicProbe=await readOnlyPublicProbeWithRetry(()=>postSupabaseRpc({
       publishableKey,
       rpc:PUBLIC_BRAND_RPC,
       body:JSON.stringify({p_limit:1,p_offset:0}),
-    });
+    }));
     coverage.live.publicBrandRpcStatus=publicProbe.status;
     publicProbeOk=publicProbe.ok;
     if(!publicProbe.ok){

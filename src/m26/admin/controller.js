@@ -204,6 +204,24 @@ function createdClientId(result={}){
   return candidates.map((value)=>String(value||'').trim()).find(Boolean)||'';
 }
 function adminError(error){const value=String(error?.message||error||'');if(/V26_CLIENT_PROFILE_REVISION_CONFLICT/.test(value))return 'La ficha cambió mientras la estabas editando. La vista se actualizará para que revises la última versión antes de guardar de nuevo.';if(/V26_CLIENT_PROFILE_(?:NAME|OBJECTIVE|MODALITY|FREQUENCY|DURATION)_INVALID/.test(value))return 'Revisa los datos obligatorios de la ficha antes de guardar.';if(/ONLINE_REQUIRED/.test(value))return 'Esta operación administrativa requiere conexión.';if(/IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED/.test(value))return 'Confirma tu identidad con la verificación segura de IBERFIT antes de continuar.';if(/ADMIN_USER_DELETE_SELF_FORBIDDEN|USER_DELETE_SELF_FORBIDDEN/.test(value))return 'No puedes eliminar la cuenta con la que estás administrando IBERFIT.';if(/ADMIN_USER_DELETE_LAST_ADMIN_PROTECTED|LAST_ADMIN_PROTECTED/.test(value))return 'IBERFIT protege al último Admin activo. Autoriza otro Admin antes de eliminar esta cuenta.';if(/ADMIN_USER_DELETE_ACK_REQUIRED/.test(value))return 'Debes confirmar que entiendes la pérdida inmediata de acceso antes de eliminar la cuenta.';if(/ADMIN_USER_DELETE_CONFIRMATION_INVALID|USER_DECOMMISSION_COMMAND_INVALID/.test(value))return 'La confirmación no coincide con la cuenta. Revisa el correo y escribe ELIMINAR.';if(/ADMIN_USER_DELETE_REVISION_CONFLICT/.test(value))return 'La cuenta cambió mientras la estabas revisando. Actualiza la vista y vuelve a intentarlo.';if(/ADMIN_USER_AUTH_SOFT_DELETE|USER_DECOMMISSION_FAILED/.test(value))return 'El acceso ya quedó revocado, pero falta terminar la baja de identidad. Reintenta para completar el cierre seguro.';if(/V26_INVITATION_RATE_LIMITED/.test(value))return 'El cliente se creó, pero el proveedor limitó temporalmente el envío. La invitación queda pendiente.';if(/V26_INVITATION|V26_ADMIN_CLIENT_CREATE/.test(value))return 'No fue posible completar el alta segura del cliente.';if(/IBERFIT_CLIENT_DELETE_PROTECTED_HISTORY/.test(value))return 'Este cliente conserva registros protegidos que IBERFIT no puede eliminar. El expediente permanece intacto.';if(/IBERFIT_CLIENT_DELETE_UNMANAGED_REFERENCE/.test(value))return 'IBERFIT detectó información vinculada que todavía no tiene una política de eliminación segura. No se ha borrado nada.';if(/IBERFIT_CLIENT_DELETE_CONFIRMATION_INVALID/.test(value))return 'La confirmación no coincide con el cliente. Revisa el correo o nombre y escribe ELIMINAR.';if(/IBERFIT_CLIENT_DELETE_NOT_FOUND|V65E_CLIENT_SCOPE/.test(value))return 'El cliente no existe o no pertenece a esta organización.';return 'No fue posible confirmar el cambio.';}
+// Administrative receipts are not proof of whole-person erasure.
+// Backend may preserve a legal history or require a separate Auth action.
+export function adminDeletionOutcome(kind,result={}){
+  const outer=result?.response||{};
+  const receipt=outer?.response||outer?.result||outer;
+  if(kind==='client'){
+    return receipt?.authIdentityRetained===true
+      ?'Expediente eliminado. La cuenta de acceso sigue pendiente de baja; no se ha completado la supresión integral.'
+      :'Expediente eliminado. Confirma por separado la baja de acceso y los datos sujetos a retención.';
+  }
+  if(kind==='user'){
+    return receipt?.authIdentitySoftDeleted===true
+      ?'Acceso revocado e identidad Auth desactivada. Pueden conservarse registros sujetos a retención.'
+      :'Acceso revocado. La baja de identidad Auth aún no está confirmada.';
+  }
+  throw new Error('M26_ADMIN_DELETION_OUTCOME_INVALID');
+}
+
 export function createAdminController({root,store,service,render=()=>{}}={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_ADMIN_CONTROLLER_CONTEXT_REQUIRED');
   const pendingLocks=new Set();
@@ -325,7 +343,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     const run=(input,success,options={})=>execute(input,success,{form,lockKey,...options});
     if(kind==='user-status')return run({type:'ADMIN_USUARIO_CAMBIAR_ESTADO',entityId:text(data,'userId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{userId:text(data,'userId',200),status:text(data,'status',40)}},'Estado actualizado.');
     if(kind==='role-change'){const action=text(data,'action',20);return run({type:action==='revoke'?'ADMIN_ROL_REVOCAR':'ADMIN_ROL_OTORGAR',entityId:text(data,'userId',200),organizationId:org,reason:text(data,'reason',500),payload:{userId:text(data,'userId',200),role:text(data,'role',30)}},action==='revoke'?'Aplicación revocada.':'Aplicación autorizada.');}
-    if(kind==='user-delete')return run({type:'ADMIN_USUARIO_ELIMINAR',entityId:text(data,'userId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{userId:text(data,'userId',200),confirmUserId:text(data,'confirmUserId',200),confirmValue:text(data,'confirmValue',254),confirmPhrase:text(data,'confirmPhrase',20),confirmAcknowledged:text(data,'confirmAcknowledged',10)==='yes'}},'Cuenta eliminada de IBERFIT y acceso revocado.');
+    if(kind==='user-delete')return run({type:'ADMIN_USUARIO_ELIMINAR',entityId:text(data,'userId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{userId:text(data,'userId',200),confirmUserId:text(data,'confirmUserId',200),confirmValue:text(data,'confirmValue',254),confirmPhrase:text(data,'confirmPhrase',20),confirmAcknowledged:text(data,'confirmAcknowledged',10)==='yes'}},(result)=>adminDeletionOutcome('user',result));
     if(kind==='assignment-create')return run({type:'ADMIN_ASIGNACION_CREAR',entityId:org,organizationId:org,reason:text(data,'reason',500),payload:{coachUserId:text(data,'coachUserId',200),clientId:text(data,'clientId',200),startsAt:text(data,'startsAt',40)}},'Asignación creada.');
     if(kind==='assignment-end')return run({type:'ADMIN_ASIGNACION_FINALIZAR',entityId:text(data,'assignmentId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{assignmentId:text(data,'assignmentId',200)}},'Asignación finalizada.');
     if(kind==='lead-create')return run({type:'ADMIN_LEAD_CREAR',entityId:org,organizationId:org,payload:{name:text(data,'name',200),email:text(data,'email',254),phone:text(data,'phone',80),source:text(data,'source',120),objective:text(data,'objective',1000)}},'Lead registrado.');
@@ -475,7 +493,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       const confirmPhrase=text(data,'confirmPhrase',20).toUpperCase();
       const reason=text(data,'reason',500);
       if(text(data,'confirmAcknowledged',20)!=='yes'||confirmPhrase!=='ELIMINAR'||reason.length<8){toast('Completa la confirmación de eliminación y explica el motivo antes de continuar.');return false;}
-      return run({type:'ADMIN_CLIENTE_ELIMINAR',entityId:clientId,organizationId:org,reason,payload:{clientId,confirmClientId:clientId,confirmValue,confirmPhrase}},'Cliente eliminado de forma permanente.');
+      return run({type:'ADMIN_CLIENTE_ELIMINAR',entityId:clientId,organizationId:org,reason,payload:{clientId,confirmClientId:clientId,confirmValue,confirmPhrase}},(result)=>adminDeletionOutcome('client',result));
     }
     if(kind==='task-create')return run({type:'ADMIN_TAREA_CREAR',entityId:org,organizationId:org,payload:{priority:text(data,'priority',30),taskType:text(data,'taskType',80),title:text(data,'title',200),detail:text(data,'detail',2000)}},'Tarea creada.');
     if(kind==='task-resolve')return run({type:'ADMIN_TAREA_RESOLVER',entityId:text(data,'taskId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{taskId:text(data,'taskId',200)}},'Tarea resuelta.');

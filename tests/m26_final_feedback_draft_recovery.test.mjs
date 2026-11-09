@@ -209,11 +209,11 @@ test('controlador captura, persiste e hidrata RPE, comentario, dolor y notas',()
   assert.ok(source.includes('if(saved)queueExecutionDraftPersist(context)'));
   const renderBlock=source.match(/render=\(\)=>\{([^}]*)\};/)?.[1]||'';
   for(const call of [
-    'hydrateActiveSetDraft(getContext())',
-    'hydrateFinalFeedbackDraft(getContext())',
-    'syncLiveAddExerciseControl(getContext())',
-    'syncFinishControl(getContext())',
-    'syncManualSyncControl(getContext())',
+    'hydrateActiveSetDraft(after)',
+    'hydrateFinalFeedbackDraft(after)',
+    'syncLiveAddExerciseControl(after)',
+    'syncFinishControl(after)',
+    'syncManualSyncControl(after)',
     'syncQuickRpeControl()',
   ]) assert.ok(renderBlock.includes(call),call);
   assert.ok(source.includes('createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:'));

@@ -1945,7 +1945,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         </details>
         ${state}
         <button type="button" class="m26-primary-action" data-session-action="complete-set" data-rest-seconds="${e(planned.restSeconds??60)}">Completar serie</button>
-        <details class="m26-session-options">
+        <details class="m26-session-options" data-session-skip-set-disclosure>
           <summary>No realizar esta serie</summary>
           <label>Motivo<input maxlength="500" data-session-skip-set-reason placeholder="Ej. molestia, fatiga o ajuste técnico"></label>
           ${coachReasonPresets('skip-set',isCoach)}

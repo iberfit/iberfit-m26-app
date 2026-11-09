@@ -15,10 +15,21 @@ test('U360 WebKit: live detail opens survive only same execution and set repaint
   assert.ok(casePart.includes('nodes[index].open=true'));
 });
 test('U360 WebKit: preserves original post-render set validation and all controls',()=>{
- const rendered=file.slice(file.indexOf('  render=()=>{const before=getContext()'),file.indexOf('  function renderSession(){'));
+ const renderStart=file.indexOf('  render=()=>{');
+ const renderEnd=file.indexOf('  function renderSession(){',renderStart);
+ assert.ok(renderStart>=0&&renderEnd>renderStart);
+ const rendered=file.slice(renderStart,renderEnd);
  for(const token of ['captureSessionBuilderDisclosureState','captureSessionBuilderFocus','baseRender?.()',
-   'restoreSessionBuilderDisclosureState','restoreSessionBuilderFocus','restoreLiveDisclosure(liveDisclosure,getContext())',
-   'hydrateActiveSetDraft(getContext())','hydrateFinalFeedbackDraft(getContext())',
-   'syncLiveAddExerciseControl(getContext())','ensureSessionClockTicker(getContext())'])
+   'restoreSessionBuilderDisclosureState','restoreSessionBuilderFocus','restoreLiveDisclosure(liveDisclosure,after)',
+   'hydrateActiveSetDraft(after)','hydrateFinalFeedbackDraft(after)',
+   'syncLiveAddExerciseControl(after)','ensureSessionClockTicker(after)'])
    assert.ok(rendered.includes(token),token);
+});
+
+test('U360 WebKit: skip-set reason disclosure toggles synchronously without native double toggle',()=>{
+ const ui=readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
+ assert.ok(ui.includes('data-session-skip-set-disclosure'));
+ assert.ok(file.includes("event.target.closest?.('details[data-session-skip-set-disclosure] > summary')"));
+ assert.ok(file.includes("if(details?.tagName==='DETAILS')details.open=!details.open"));
+ assert.ok(file.includes('event.preventDefault?.()'));
 });

@@ -94,6 +94,29 @@ test('UNIVERSAL U60 missing cycles, unknown owners, unreadable calendar and part
       endDate:query.endDate,count:0,occurrences:[occurrence('cancelada')]}),
   }),/CALENDAR_RESPONSE_INVALID/u);
 });
+test('UNIVERSAL U60 never treats truncated or contradictory calendar pages as complete',async()=>{
+  const range={startDate:'2026-11-01',endDate:'2026-11-30'};
+  const complete=query=>({clientId:owner,startDate:query.startDate,
+    endDate:query.endDate,count:0,occurrences:[]});
+  for(const partial of [
+    {hasMore:true},
+    {hasMore:'false'},
+    {hasMore:false,nextCursor:{localDate:'2026-11-15',id:session}},
+    {hasMore:true,nextCursor:{localDate:'2026-11-15',id:session}},
+  ]){
+    await assert.rejects(()=>assertNoPendingSessionOccurrences({
+      state:fixture(range),clientId:owner,sessionId:session,
+      readCalendar:async query=>({...complete(query),...partial}),
+    }),/U60_RETIRE_CALENDAR_RESPONSE_INVALID/u,
+    'unread pages or inconsistent continuation metadata cannot authorize withdrawal');
+  }
+  const proof=await assertNoPendingSessionOccurrences({
+    state:fixture(range),clientId:owner,sessionId:session,
+    readCalendar:async query=>({...complete(query),hasMore:false,nextCursor:null}),
+  });
+  assert.equal(proof.ok,true);
+  assert.equal(proof.verifiedOccurrences,0);
+});
 test('UNIVERSAL U60 cycle scan is strictly bounded, correct for Gregorian leap dates',async()=>{
   await assert.rejects(()=>assertNoPendingSessionOccurrences({
     state:fixture({startDate:'2026-01-01',endDate:'2029-01-01'}),

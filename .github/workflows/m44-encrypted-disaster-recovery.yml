@@ -13,6 +13,7 @@
 # PROD DB+Storage backup and independent PostgreSQL 17 restore on protected merge.
 # Admin/Coach/Remote already watch this M44 path; keep Free QA scoping intact.
 # No changes to job code, permissions, backup policy, credentials or RLS.
+# U91 protected Universal Canary integration: refresh encrypted PROD database+Storage archive and isolated PG17 restore at protected merge only; no change to job logic, permissions or backup lifetime.
 name: IBERFIT M44 Encrypted Offsite Disaster Recovery
 # UNIVERSAL 360 Coach route context dedup: new exact-source protected Canary M44 DB+Storage restore trigger only; no policy or job changes.
 # P0 UNIVERSAL 360 1294: renew genuine encrypted PROD DB+Storage isolated restore on protected final Canary SHA, without changing any backup steps, scopes, secrets or policy.

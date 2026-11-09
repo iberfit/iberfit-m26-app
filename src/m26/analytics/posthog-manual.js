@@ -1,7 +1,9 @@
 // IBERFIT analytics v1: manual, anonymous, consent-first and production-only.
 // This module never reads identities, URLs, form values, health data or session state.
 // No SDK, cookies, auto-capture, replay, pageview or person profiles.
-const EVENT_NAMES=new Set(['iberfit_workspace_viewed','iberfit_navigation_requested','iberfit_training_start_requested']);
+const EVENT_NAMES=new Set(['iberfit_workspace_viewed','iberfit_navigation_requested','iberfit_training_start_requested','iberfit_operation_result']);
+const SAFE_OPERATIONS=new Set(['training_start','training_finish','session_publish']);
+const SAFE_RESULTS=new Set(['ack','pending','not_confirmed']);
 const SAFE_ROLES=new Set(['client','coach','admin']);
 const SAFE_AREAS=new Set(['hoy','agenda','clientes','planificacion','sesion','progreso','actividad','informes','ajustes','admin-inicio','admin-analitica','admin-usuarios','admin-configuracion','admin-equipo','biblioteca','iri','retos','mensajes','verificacion']);
 const ALLOWED_HOSTS=new Set(['https://us.i.posthog.com','https://eu.i.posthog.com']);
@@ -24,7 +26,7 @@ export function renderPosthogConsentPanel({admin=false}={}){
   const css=admin?'m26-admin-notice m26-analytics-consent':'m26-settings-section m26-analytics-consent';
   return '<section class="'+css+'" id="m26-settings-analytics">'+
     '<header><p class="m26-eyebrow">Analítica opcional</p><h3>Ayúdanos a mejorar IBERFIT</h3>'+
-    '<p>Si lo autorizas, registramos únicamente la sección visitada y algunas acciones de navegación para mejorar la facilidad de uso. No enviamos nombres, correos, identificadores de clientes, entrenamientos, registros de salud, formularios, ubicaciones ni rutas URL.</p></header>'+
+    '<p>Si lo autorizas, registramos de manera anónima secciones, navegación y confirmaciones técnicas de operaciones para mejorar la facilidad de uso. No enviamos nombres, correos, identificadores de clientes, entrenamientos, registros de salud, formularios, ubicaciones ni rutas URL.</p></header>'+
     '<label class="m26-consent"><input type="checkbox" data-iberfit-analytics-consent'+(consented?' checked':'')+(available?'':' disabled aria-disabled="true"')+'>'+
     '<span><strong>Permitir analítica anónima en esta sesión</strong><small>Desactivada por defecto; puedes revocarla aquí en cualquier momento. Sin cookies, perfiles personales ni grabaciones.</small></span></label>'+
     (!available?'<p class="m26-data-footnote">Esta función todavía no está habilitada en este entorno.</p>':'')+
@@ -59,6 +61,11 @@ export function createIberfitPosthogObserver({root,config={},production=false,qa
     if(eventName==='iberfit_navigation_requested'){
       if(!area)return false;
       properties.area=area;
+    }
+    if(eventName==='iberfit_operation_result'){
+      if(!SAFE_OPERATIONS.has(extra.operation)||!SAFE_RESULTS.has(extra.result))return false;
+      properties.operation=extra.operation;
+      properties.result=extra.result;
     }
     const payload={api_key:config.publicKey,distinct_id:distinctId,event:eventName,properties};
     sent++;
@@ -106,5 +113,8 @@ export function createIberfitPosthogObserver({root,config={},production=false,qa
     root?.removeEventListener?.('click',onClick,true);
     if(active===client)active=null;
   }
-  return Object.freeze({available,get consented(){return consented;},revoke,destroy});
+  return Object.freeze({
+    available,get consented(){return consented;},revoke,destroy,
+    recordOperation:(operation,result)=>emit('iberfit_operation_result',{operation,result}),
+  });
 }

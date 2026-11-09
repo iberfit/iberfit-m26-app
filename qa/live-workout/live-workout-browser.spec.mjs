@@ -223,6 +223,8 @@ test('Cliente conserva flujo limpio, puede sustituir antes de progresar y omitir
 
   const skipDetails=page.locator('[data-session-live-entry] details.m26-session-options').filter({hasText:'No realizar esta serie'});
   await skipDetails.locator('summary').click();
+  await expect(skipDetails,'Skipping a set must open its actual native disclosure in WebKit').toHaveAttribute('open','');
+  await expect(skipDetails.locator('[data-session-skip-set-reason]')).toBeVisible();
   await skipDetails.locator('[data-session-skip-set-reason]').fill('Molestia puntual QA');
   await skipDetails.locator('[data-session-action="skip-set"]').click();
 
