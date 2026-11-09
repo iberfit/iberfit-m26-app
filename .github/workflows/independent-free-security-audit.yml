@@ -118,6 +118,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p recovery/independent-security
+          # Local ephemeral artifact dir only: ZAP's non-root container user needs write access.
+          chmod 0777 recovery/independent-security
           docker run --rm --network host \
             -v "${PWD}/recovery/independent-security:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
