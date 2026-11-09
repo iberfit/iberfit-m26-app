@@ -8,7 +8,7 @@
 SELECT 1 / (CASE WHEN
   EXISTS (SELECT 1 FROM public.iberfit_system_settings s
     WHERE s.key='environment' AND s.value #>> '{}'='PRODUCTION')
-  AND md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))='b35c18173878fa0a5e937657e30f1f5a'
+  AND md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))='2be3baa2f70d51490dcd9dc0b36deecd'
   THEN 1 ELSE 0 END) AS u90_environment_and_source_guard;
 
 CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26_rc29()

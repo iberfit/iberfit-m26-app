@@ -115,7 +115,12 @@ begin
       where a.active=true and (a.coach_user_id=auth.uid() or v_role='admin')
     ),'[]'::jsonb),
     'm26Entities',coalesce((
-
+      with candidates as materialized (
+        select distinct client_id from public.domain_entities_v26
+      ), visible as materialized (
+        select client_id from candidates
+        where (v_role='admin' or client_id=any(v_allowed_client_ids))
+      )
       select jsonb_agg(jsonb_build_object(
         'entityType',e.entity_type,
         'entityId',e.entity_id,
@@ -129,7 +134,7 @@ begin
         'updatedAt',e.updated_at
       ))
       from public.domain_entities_v26 e
-      where (v_role='admin' or e.client_id=any(v_allowed_client_ids))
+      where exists (select 1 from visible v where v.client_id is not distinct from e.client_id)
         -- Dedicated data.checkins is the canonical Client check-in collection.
         -- Avoid serializing the same check-in a second time in m26Entities.
         and (v_role not in ('client','cliente') or (
