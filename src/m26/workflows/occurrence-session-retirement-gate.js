@@ -66,7 +66,11 @@ export async function assertNoPendingSessionOccurrences({
       String(result.startDate||'')!==next||
       String(result.endDate||'')!==upper||
       !Array.isArray(result.occurrences)||
-      result.count!==result.occurrences.length)
+      result.count!==result.occurrences.length||
+      // A truncated page can look like an empty calendar. This preflight
+      // must never authorize retirement until the entire date range was read.
+      (result.hasMore!==undefined&&result.hasMore!==false)||
+      result.nextCursor!=null)
       error('CALENDAR_RESPONSE_INVALID');
     for(const row of result.occurrences){
       if(!row||uuid(row.clientId)!==owner
