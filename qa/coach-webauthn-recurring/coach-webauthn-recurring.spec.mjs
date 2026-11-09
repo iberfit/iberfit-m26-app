@@ -612,6 +612,7 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
 
     for(const device of [
       {name:'desktop',width:1440,height:1000,mobile:false,touch:false},
+      {name:'desktop-4k',width:3840,height:2160,mobile:false,touch:false},
       {name:'tablet-portrait',width:1024,height:1366,mobile:true,touch:true},
       {name:'tablet-landscape',width:1366,height:1024,mobile:true,touch:true},
       {name:'mobile',width:390,height:844,mobile:true,touch:true},
@@ -644,6 +645,10 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
         const archive=surface.locator('[data-coach-planning-archive]');
         await expect(archive,device.name+': '+entity+' exposes complete native archive').toHaveCount(1);
         await expect(archive,device.name+': archive starts collapsed').not.toHaveAttribute('open','');
+        const allItems=Number(await surface.getAttribute('data-coach-planning-total'));
+        expect(allItems,entity+': exact authorized history count retained').toBeGreaterThan(6);
+        const initialDomCards=await surface.locator('[data-publication-card]').count();
+        expect(initialDomCards,entity+': no hidden historical cards eagerly mounted').toBeLessThanOrEqual(6);
         const archiveGroups=archive.locator('.m26-coach-planning-archive-groups');
         await expect(archiveGroups,'Closed '+entity+' archive MUST hide cards visually').toBeHidden();
         await archive.locator(':scope > summary').click();
@@ -654,10 +659,14 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
         await firstBatch.locator(':scope > summary').click();
         await expect(firstBatch.locator(':scope > .m26-stack'),
           'Nested '+entity+' batch opens with all controls').toBeVisible();
+        await expect.poll(()=>firstBatch.locator('[data-publication-card]').count(),
+          {message:entity+': opening a batch must hydrate original action cards'}).toBeGreaterThan(0);
+        expect(await surface.locator('[data-publication-card]').count(),
+          entity+': only opened batches may be mounted').toBeLessThanOrEqual(24);
         await firstBatch.locator(':scope > summary').click();
         await archive.locator(':scope > summary').click();
         await expect(archiveGroups).toBeHidden();
-        const allCards=await surface.locator('[data-publication-card]').count();
+        const allCards=allItems;
         expect(allCards,entity+': no historical Coach publication removed').toBeGreaterThan(6);
         (evidence.coachPlanningProgressive??=[]).push({
           viewport:device.name,entity,allCards,archiveCollapsed:true,
@@ -680,7 +689,7 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
       }
     }
     expect(evidence.signatureU26Audits.map(x=>x.viewport)).toEqual(['desktop','mobile']);
-    evidence.m43CoachWorkspaceCertified=evidence.devices.length===5;
+    evidence.m43CoachWorkspaceCertified=evidence.devices.length===6;
 
     expect(evidence.blocked,'No business mutation or foreign request may be attempted').toEqual([]);
     const errorResponses=await Promise.all(errorResponseChecks);
