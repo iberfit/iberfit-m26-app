@@ -40,6 +40,11 @@ on:
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'scripts/release/verify_frontend_only_promotion.mjs'
       - 'src/m26/admin/**'
+      - 'src/m26/communication/**'
+      - 'src/m26/modules/**'
+      - 'src/m26/intelligence/**'
+      - 'src/m26/design/role-surfaces.css'
+      - 'public/m26/sw.js'
   push:
     branches: [canary/rc74-4]
     paths:
@@ -79,6 +84,11 @@ on:
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'scripts/release/verify_frontend_only_promotion.mjs'
       - 'src/m26/admin/**'
+      - 'src/m26/communication/**'
+      - 'src/m26/modules/**'
+      - 'src/m26/intelligence/**'
+      - 'src/m26/design/role-surfaces.css'
+      - 'public/m26/sw.js'
   workflow_dispatch:
 
 permissions:

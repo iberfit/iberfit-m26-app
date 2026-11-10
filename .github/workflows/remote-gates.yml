@@ -46,6 +46,11 @@ on:
       - 'tests/m26_remote_gate_webauthn_origin.test.mjs'
       - 'tests/m26_shared_qa_auth_concurrency_contract.test.mjs'
       - 'tests/m26_canary_exact_qa_auth_lock.test.mjs'
+      - 'src/m26/communication/**'
+      - 'src/m26/modules/**'
+      - 'src/m26/intelligence/**'
+      - 'src/m26/design/role-surfaces.css'
+      - 'public/m26/sw.js'
   workflow_dispatch:
     inputs:
       confirmation:

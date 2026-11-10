@@ -14,6 +14,11 @@ on:
       - 'docs/DEVICE_EXPERIENCE_POLICY.md'
       - '.github/workflows/coach-webauthn-recurring.yml'
       - 'src/m26/app/**'
+      - 'src/m26/communication/**'
+      - 'src/m26/modules/**'
+      - 'src/m26/intelligence/**'
+      - 'src/m26/design/role-surfaces.css'
+      - 'public/m26/sw.js'
       # Coach navigation/animation is an authenticated real-pointer E2E surface.
       - 'src/m26/shell/**'
       - 'src/m26/experience/route-view-transitions.js'
@@ -60,6 +65,11 @@ on:
       - 'docs/DEVICE_EXPERIENCE_POLICY.md'
       - '.github/workflows/coach-webauthn-recurring.yml'
       - 'src/m26/app/**'
+      - 'src/m26/communication/**'
+      - 'src/m26/modules/**'
+      - 'src/m26/intelligence/**'
+      - 'src/m26/design/role-surfaces.css'
+      - 'public/m26/sw.js'
       # Coach navigation/animation is an authenticated real-pointer E2E surface.
       - 'src/m26/shell/**'
       - 'src/m26/experience/route-view-transitions.js'
