@@ -299,16 +299,23 @@ export function schedulePriorityNavigation(commit,{windowLike=globalThis.window,
   const fallback=()=>{
     if(!attempted)timer(once,0);
   };
+  const onTaskFailure=(error)=>{
+    if(!attempted){fallback();return;}
+    // A task error AFTER invocation is a real application failure, never an
+    // excuse to replay the navigation. Preserve browser-visible diagnostics.
+    if(typeof windowLike?.reportError==='function')windowLike.reportError(error);
+    else queueMicrotask(()=>{throw error;});
+  };
   const scheduler=windowLike?.scheduler;
   if(typeof scheduler?.postTask==='function'){
     try{
       // Priority applies to the scheduling slot, not to the user's permissions.
       // A rejected postTask is eligible for exactly one timer fallback *only*
       // if it was never invoked. Never replay a partially committed route.
-      Promise.resolve(scheduler.postTask(once,{priority})).catch(fallback);
+      Promise.resolve(scheduler.postTask(once,{priority})).catch(onTaskFailure);
       return 'priority-task';
-    }catch{
-      fallback();
+    }catch(error){
+      onTaskFailure(error);
       return 'timer';
     }
   }

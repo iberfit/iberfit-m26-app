@@ -41,11 +41,14 @@ test('postTask rejection before invocation reschedules once; rejection after inv
   assert.equal(timers.length,1);
   timers[0]();
   assert.equal(count,1);
-  const failAfter={setTimeout(fn){timers.push(fn);},scheduler:{postTask(fn){fn();return Promise.reject(new Error('post-task-error'));}}};
+  const reported=[];
+  const failAfter={setTimeout(fn){timers.push(fn);},reportError(error){reported.push(error.message);},
+    scheduler:{postTask(fn){fn();return Promise.reject(new Error('post-task-error'));}}};
   schedulePriorityNavigation(()=>count++,{windowLike:failAfter});
   await Promise.resolve();await Promise.resolve();
   assert.equal(timers.length,1,'do not replay a route after it already committed');
   assert.equal(count,2);
+  assert.deepEqual(reported,['post-task-error'],'an executed task failure must remain observable');
 });
 test('synchronous unsupported scheduler preserves fallback; invalid priorities reject safely',()=>{
   const {host,timers}=harness();
