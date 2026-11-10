@@ -62,3 +62,32 @@ test('application only applies planning defaults to a genuinely new draft',()=>{
     /createSessionDraft\(sessionDraftDefaultsFromState\(state,clientId\)\)/u,
   );
 });
+
+test('Coach session defaults choose latest valid owner profile without sorting a large shared collection',()=>{
+  const other='22222222-2222-4222-8222-222222222222';
+  const profiles=Array.from({length:3000},(_,n)=>({
+    clientId:other,sessionDurationMinutes:120,
+    updatedAt:new Date(Date.UTC(2026,0,1,0,0,n%60)).toISOString(),
+  }));
+  profiles.unshift({clientId,sessionDurationMinutes:75,updatedAt:'2026-11-02T10:00:00Z'});
+  profiles.push({clientId,sessionDurationMinutes:80,updatedAt:'2026-11-04T10:00:00Z'});
+  profiles.push({clientId,sessionDurationMinutes:'not-a-duration',updatedAt:'2026-11-09T10:00:00Z'});
+  profiles.push({clientId:other,sessionDurationMinutes:200,updatedAt:'2026-11-10T10:00:00Z'});
+  const state={collections:{trainingCycles:[],clientProfiles:profiles}};
+  const before=structuredClone(state);
+  const seed=sessionDraftDefaultsFromState(state,clientId);
+  assert.equal(seed.source,'profile');
+  assert.equal(seed.durationMinutes,80);
+  assert.deepEqual(state,before,'selection must not change canonical profiles');
+});
+
+test('same-date profile ties keep earliest stable source and default when all values invalid',()=>{
+  const at='2026-11-04T10:00:00Z';
+  const state={collections:{trainingCycles:[],clientProfiles:[
+    {clientId,sessionDurationMinutes:65,updatedAt:at},
+    {clientId,sessionDurationMinutes:90,updatedAt:at},
+  ]}};
+  assert.equal(sessionDraftDefaultsFromState(state,clientId).durationMinutes,65);
+  state.collections.clientProfiles=[{clientId,sessionDurationMinutes:999,updatedAt:at}];
+  assert.equal(sessionDraftDefaultsFromState(state,clientId).durationMinutes,50);
+});

@@ -162,13 +162,60 @@ test('Coach recorre pausa, descanso, corrección, serie extra, omisión y cierre
 });
 
 
+test('Coach keeps one explicit Next tap while a corrected set is still being persisted',async({page})=>{
+  await page.goto('/qa/live-workout/fixture.html?role=coach&scenario=strength&persistDelayMs=550',
+    {waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_LIVE_WORKOUT_QA__?.mounted)).toBe(true);
+  await page.locator('[data-session-action="start"]').click();
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
+  await fillCurrentSet(page,{reps:'8',load:'20 kg',rpe:'7',rir:'3'});
+  await page.locator('[data-session-action="complete-set"]').click();
+  await expect(page.locator('[data-session-live-state="rest"]')).toBeVisible();
+  await expect(page.locator('#qa-root')).not.toHaveAttribute('data-m26-session-action-pending','true');
+
+  const correction=page.locator('[data-session-rest-correction]');
+  await correction.locator('summary').click();
+  await correction.locator('[data-set-field="reps"]').fill('9');
+  await correction.locator('[data-session-action="correct-set"]').click();
+  await expect.poll(async()=>Object.values((await state(page)).results)[0]?.reps).toBe(9);
+  await expect(page.locator('#qa-root')).toHaveAttribute('data-m26-session-action-pending','true');
+  // Simulate a stale enabled control delivering the user's real click before
+  // the prior action has cleared its lock. This must not lose the Next intent.
+  await page.evaluate(()=>{
+    const next=document.querySelector('[data-session-action="next"]');
+    if(!next)throw new Error('QA_NEXT_ACTION_MISSING');
+    next.disabled=false;
+    next.setAttribute('aria-disabled','false');
+    next.click();
+  });
+  await expect.poll(async()=>{
+    const s=await state(page);
+    return {index:s.index,setIndex:s.setIndex,
+      advances:s.events.filter(event=>event.type==='STEP_ADVANCED').length,
+      errors:s.errors,restUntil:s.restUntil};
+  },{timeout:10000,intervals:[100,200,400]}).toEqual({
+    index:0,setIndex:1,advances:1,errors:[],restUntil:null,
+  });
+  await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
+});
+
 test('SIGNATURE Coach controls stay within 320px after advancing to the next set',async({page})=>{
   await open(page,'coach');
   await page.locator('[data-session-action="start"]').click();
   await fillCurrentSet(page,{reps:'8',load:'20 kg',rpe:'7',rir:'3'});
   await page.locator('[data-session-action="complete-set"]').click();
   await page.locator('[data-session-action="next"]').click();
+  await expect.poll(async()=>{
+    const s=await state(page);
+    return {index:s.index,setIndex:s.setIndex,errors:s.errors};
+  },{timeout:10000,intervals:[100,200,400]}).toEqual({
+    index:0,setIndex:1,errors:[],
+  });
   await page.setViewportSize({width:320,height:740});
+  const scrollMargin=await page.locator('[data-session-action="complete-set"]')
+    .evaluate(el=>parseFloat(getComputedStyle(el).scrollMarginBlockStart));
+  expect(scrollMargin,'primary CTA must clear the mobile sticky Coach controls')
+    .toBeGreaterThan(100);
   const quick=page.locator('[data-session-coach-quick-controls]');
   await expect(quick).toBeVisible();
   await expect(quick.locator('button')).toHaveCount(3);

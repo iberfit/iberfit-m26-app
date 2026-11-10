@@ -48,17 +48,25 @@ export function sessionDraftDefaultsFromState(state,clientId,{now=new Date()}={}
   const collections=state?.collections||{};
   const record=selectCurrentTrainingCycle(collections.trainingCycles,{clientId:safeClientId,now});
   const cycle=record?draftSeedRecord(record):null;
-  const profiles=(Array.isArray(collections.clientProfiles)?collections.clientProfiles:[])
-    .map(draftSeedRecord)
-    .filter((item)=>draftSeedClientId(item)===safeClientId)
-    .sort((a,b)=>{
-      const stamp=(item)=>{const ms=Date.parse(String(item.updatedAt??item.updated_at??item.createdAt??item.created_at??''));return Number.isFinite(ms)?ms:0;};
-      return stamp(b)-stamp(a);
-    });
+  // One stable pass: only a profile belonging to this client may seed a
+  // session. Invalid newer durations never displace an older confirmed one.
+  let profileDuration=null,profileTime=-Infinity;
+  for(const raw of Array.isArray(collections.clientProfiles)?collections.clientProfiles:[]){
+    const profile=draftSeedRecord(raw);
+    if(draftSeedClientId(profile)!==safeClientId)continue;
+    const duration=confirmedSessionDuration(
+      profile?.sessionDurationMinutes??profile?.session_duration_minutes,
+    );
+    if(duration===null)continue;
+    const stamp=Date.parse(String(
+      profile.updatedAt??profile.updated_at??profile.createdAt??profile.created_at??'',
+    ));
+    const time=Number.isFinite(stamp)?stamp:0;
+    if(profileDuration===null||time>profileTime){
+      profileDuration=duration;profileTime=time;
+    }
+  }
   const cycleDuration=confirmedSessionDuration(cycle?.sessionDurationMinutes??cycle?.session_duration_minutes);
-  const profileDuration=profiles
-    .map((profile)=>confirmedSessionDuration(profile?.sessionDurationMinutes??profile?.session_duration_minutes))
-    .find((value)=>value!==null)??null;
   return Object.freeze({
     clientId:safeClientId,
     durationMinutes:cycleDuration??profileDuration??50,

@@ -1,8 +1,10 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
-import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId} from '../domain/session-execution-truth.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
+import {isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
+import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record||{};}
@@ -14,11 +16,57 @@ function statusOf(record){return String(field(record,'status','estado')||'').tri
 function idOf(record){return String(field(record,'id','entityId','entity_id')||'').trim();}
 function titleOf(record,fallback='Sesión IBERFIT'){return String(field(record,'title','name','nombre','titulo')||fallback).trim().slice(0,140);}
 function forClient(state,key,clientId){const expected=String(clientId||'').trim();return arr(state?.collections?.[key]).filter((item)=>clientIdOf(item)===expected);}
-function byDateDesc(a,b){return (safeDate(dateOf(b))?.getTime()||0)-(safeDate(dateOf(a))?.getTime()||0);}
-function byDateAsc(a,b){return (safeDate(dateOf(a))?.getTime()||0)-(safeDate(dateOf(b))?.getTime()||0);}
 function percent(value){const measured=finite(value);return measured===null?null:Math.round(measured*100);}
 function finite(value){if(typeof value!=='number'&&typeof value!=='string')return null;if(typeof value==='string'&&!value.trim())return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function text(value,max=1600){return String(value??'').trim().slice(0,max);}
+// Compare the immutable prescribed queue with the completed workout queue.
+ // These counts are informational. Missing results are unknown, never successes.
+export function summarizeConfirmedSessionSets(execution){
+  const item=unwrap(execution);
+  if(!sessionExecutionIsCompleted(item)||!sessionExecutionIsConfirmed(item)||
+    !Array.isArray(item.queue)||!item.queue.length||
+    !item.results||typeof item.results!=='object'||Array.isArray(item.results))
+    return null;
+  const original=item.planSnapshot||item.plan_snapshot;
+  const sessionId=String(field(item,'sessionId','session_id')||'');
+  if(!sessionId||String(original?.sessionId||'')!==sessionId||
+    !Array.isArray(original?.queue)||!original.queue.length)return null;
+  const sumSets=queue=>{
+    let total=0;
+    if(queue.length>200)return null;
+    for(const item of queue){
+      const sets=Number(item?.sets);
+      if(!item?.exerciseId||!Number.isInteger(sets)||sets<1||sets>100)return null;
+      total+=sets;
+      if(total>2500)return null;
+    }
+    return total;
+  };
+  const plannedSets=sumSets(original.queue);
+  const executionSets=sumSets(item.queue);
+  if(plannedSets===null||executionSets===null)return null;
+  let recordedSets=0,skippedSets=0;
+  const hasRecordedMetric=result=>result&&typeof result==='object'&&[
+    result.reps,result.seconds,result.distanceKm,result.distanceM,
+    result.intervalsCompleted,
+  ].some(value=>(typeof value==='number'||typeof value==='string')&&
+    String(value).trim()!==''&&Number.isFinite(Number(value))&&Number(value)>=0);
+  for(const block of item.queue){
+    for(let setNumber=1;setNumber<=block.sets;setNumber++){
+      const step={...block,setNumber,totalSets:block.sets};
+      const result=executionResultForStep(item,step,setNumber);
+      const skipped=skippedSetForStep(item,step,setNumber);
+      if(hasRecordedMetric(result)&&skipped)return null; // contradictory ACK
+      if(hasRecordedMetric(result))recordedSets++;
+      else if(skipped)skippedSets++;
+    }
+  }
+  return Object.freeze({
+    plannedSets,executionSets,recordedSets,skippedSets,
+    unrecordedSets:executionSets-recordedSets-skippedSets,
+    source:'completed-confirmed-snapshot',
+  });
+}
 function feedbackOf(execution){
   const item=unwrap(execution);
   const feedback=item?.feedback&&typeof item.feedback==='object'&&!Array.isArray(item.feedback)?item.feedback:{};
@@ -31,38 +79,57 @@ function feedbackOf(execution){
 }
 function nextAppointment(state,clientId,now){
   const nowMs=(now instanceof Date?now:new Date(now)).getTime();
-  return forClient(state,'appointments',clientId)
-    .map(normalizeAppointmentRecord)
-    .filter((item)=>item.status==='confirmada')
-    .filter((item)=>{
-      const start=safeDate(item.startAt)?.getTime();
-      const end=safeDate(item.endAt)?.getTime();
-      return Number.isFinite(start)&&(start>=nowMs||(Number.isFinite(end)&&end>start&&end>nowMs));
-    })
-    .sort(byDateAsc)[0]||null;
+  let selected=null,earliest=Infinity;
+  for(const raw of forClient(state,'appointments',clientId)){
+    const item=normalizeAppointmentRecord(raw);
+    if(item.status!=='confirmada')continue;
+    const start=safeDate(item.startAt)?.getTime();
+    const end=safeDate(item.endAt)?.getTime();
+    if(!Number.isFinite(start)||
+      !(start>=nowMs||(Number.isFinite(end)&&end>start&&end>nowMs)))continue;
+    // Equal start times preserve the original stable source order.
+    if(selected===null||start<earliest){selected=item;earliest=start;}
+  }
+  return selected;
 }
 const STARTABLE_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
+function latestRecord(records,when=dateOf){
+  let chosen=null,mostRecent=-Infinity;
+  for(const record of records){
+    const time=safeDate(when(record))?.getTime()||0;
+    if(chosen===null||time>mostRecent){chosen=record;mostRecent=time;}
+  }
+  return chosen;
+}
 function sessionForPreparation(state,clientId,appointment){
   const sessions=forClient(state,'sessions',clientId);
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim();
   if(appointmentSessionId){
-    const exact=sessions.find((item)=>idOf(item)===appointmentSessionId);
+    const exact=sessions.find(item=>idOf(item)===appointmentSessionId);
     if(exact)return exact;
   }
-  const published=sessions
-    .filter((item)=>STARTABLE_SESSION_STATES.has(statusOf(item)))
-    .sort(byDateDesc);
-  return published[0]||sessions.sort(byDateDesc)[0]||null;
+  let newestPublished=null,publishedTime=-Infinity;
+  let newestAny=null,anyTime=-Infinity;
+  for(const item of sessions){
+    const stamp=safeDate(dateOf(item))?.getTime()||0;
+    if(newestAny===null||stamp>anyTime){newestAny=item;anyTime=stamp;}
+    if(STARTABLE_SESSION_STATES.has(statusOf(item))&&
+      (newestPublished===null||stamp>publishedTime)){
+      newestPublished=item;publishedTime=stamp;
+    }
+  }
+  return newestPublished||newestAny;
 }
 function latestExecution(state,clientId){
-  return [...confirmedSessionExecutionsForClient(
-    state,
-    clientId,
-    {requireCompleted:true,requireDate:false},
-  )].sort((a,b)=>(safeDate(sessionExecutionDate(b))?.getTime()||0)-(safeDate(sessionExecutionDate(a))?.getTime()||0))[0]||null;
+  return latestRecord(confirmedSessionExecutionsForClient(
+    state,clientId,{requireCompleted:true,requireDate:false},
+  ),sessionExecutionDate);
 }
 function latestIri(state,clientId){
-  return forClient(state,'iriAssessments',clientId).sort(byDateDesc)[0]||null;
+  return latestRecord(
+    forClient(state,'iriAssessments',clientId).filter(isInitialIriAssessment),
+    item=>field(item,'assessmentDate','assessment_date','evaluatedAt','evaluated_at')||dateOf(item),
+  );
 }
 function loadLabel(load){
   if(!load)return null;
@@ -97,7 +164,8 @@ function recentExerciseMemory(state,clientId,exerciseNames=null){
 }
 function iriContext(state,clientId,progress){
   const iri=latestIri(state,clientId);
-  if(!iri&&!progress?.iri2)return null;
+  // A longitudinal record cannot stand in for the initial IRI baseline.
+  if(!iri)return null;
   return Object.freeze({
     assessmentId:idOf(iri)||progress?.iri2?.currentAssessmentId||null,
     assessmentDate:field(iri,'assessmentDate','assessment_date','evaluatedAt','evaluated_at')||progress?.iri2?.currentAssessmentDate||null,
@@ -135,13 +203,18 @@ function wellbeingShift(state,clientId,{now=new Date(),days=28,threshold=WELLBEI
   const end=now instanceof Date?now:new Date(now);
   const endMs=Number.isFinite(end.getTime())?end.getTime():Date.now();
   const startMs=endMs-Math.max(1,Number(days)||28)*86_400_000;
-  const rows=forClient(state,'checkins',clientId)
-    .filter((item)=>{
-      const time=safeDate(dateOf(item))?.getTime();
-      return Number.isFinite(time)&&time>=startMs&&time<=endMs;
-    })
-    .sort(byDateDesc)
-    .slice(0,4);
+  // Keep only the four newest owner-scoped check-ins. Stable ties preserve
+  // input order, and older history is never cloned or sorted.
+  const selected=[];
+  for(const item of forClient(state,'checkins',clientId)){
+    const time=safeDate(dateOf(item))?.getTime();
+    if(!Number.isFinite(time)||time<startMs||time>endMs)continue;
+    const index=selected.findIndex(row=>time>row.time);
+    const at=index<0?selected.length:index;
+    if(at<4)selected.splice(at,0,{time,item});
+    if(selected.length>4)selected.pop();
+  }
+  const rows=selected.map(row=>row.item);
   if(rows.length<4)return Object.freeze({
     available:false,
     reason:'insufficient_checkins',
@@ -273,13 +346,20 @@ export function buildTrainingSinceLastCoachReview(state,clientId,{now=new Date()
   // canonical closed status even if it is supplied by a trusted preparer.
   const decisions=outcomes?.closed||summarizeActionOutcomes(
     state?.collections?.m26Entities||[],owner,{now}).closed;
-  const reviewed=[...decisions].filter(item=>
-    item?.clientId===owner&&item.status==='cerrado'
-    &&typeof item.reviewedAt==='string'
-    &&/^\d{4}-\d{2}-\d{2}$/.test(item.reviewedAt)
-    &&item.reviewedAt<=today)
-    .sort((a,b)=>b.reviewedAt.localeCompare(a.reviewedAt));
-  const latestReview=reviewed[0]||null;
+  // Select the most recent verified follow-up in one pass. Equal dates keep
+  // their original order; an invalid civil date is never treated as a review.
+  let latestReview=null;
+  for(const item of decisions){
+    if(item?.clientId!==owner||item.status!=='cerrado'
+      ||typeof item.reviewedAt!=='string'
+      ||!/^\d{4}-\d{2}-\d{2}$/.test(item.reviewedAt)
+      ||item.reviewedAt>today)continue;
+    const instant=Date.parse(item.reviewedAt+'T12:00:00Z');
+    if(!Number.isFinite(instant)
+      ||new Date(instant).toISOString().slice(0,10)!==item.reviewedAt)continue;
+    if(!latestReview||item.reviewedAt>latestReview.reviewedAt)
+      latestReview=item;
+  }
   if(!latestReview)return missing('no-closed-review');
   const elapsed=(Date.parse(today+'T12:00:00Z')
     -Date.parse(latestReview.reviewedAt+'T12:00:00Z'))/86400000;
@@ -378,6 +458,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       sessionId:String(field(execution,'sessionId','session_id')||'').trim()||null,
       completedAt:sessionExecutionDate(execution)||null,
       feedback,
+      seriesEvidence:summarizeConfirmedSessionSets(execution),
     }):null,
     exerciseMemory:memories,
     decisions:Object.freeze({

@@ -661,6 +661,10 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   let queuedExitAfterFinish=null;
   let manualSyncPending=false;
   let sessionActionPending=false;
+  // One explicit Next tap may arrive while the prior set correction is still
+  // being committed. Keep only its scoped intent; never auto-advance on error.
+  let deferredNextTap=null;
+  let pendingSessionAction=null;
   // Compatibility name retained for the existing contract tests. This now
   // guards every primary focus action, not only Next: optimistic execution
   // state may render the following control before the previous remote mutation
@@ -1603,11 +1607,23 @@ async function click(event){
       }
       return;
     }
-    if(sessionActionPending||action==='start'&&startPending)return;
+    if(sessionActionPending||action==='start'&&startPending){
+      if(action==='next'&&sessionActionPending
+        &&['complete-set','correct-set','rest-minus','rest-plus'].includes(pendingSessionAction)
+        &&context?.execution?.status==='active'){
+        const step=currentStep(context.execution,context.session);
+        if(step&&executionResultForStep(context.execution,step)&&!deferredNextTap){
+          deferredNextTap={context,index:context.execution.index,
+            setIndex:context.execution.setIndex};
+        }
+      }
+      return;
+    }
     // A stale DOM control, accessibility activation or double tap after ACK
     // must never send another SESION_INICIAR for an already-active execution.
     if(action==='start'&&context?.execution?.status!=='ready')return;
     sessionActionPending=true;
+    pendingSessionAction=action;
     // Dock rerenders cannot overrule the actual controller's write lock.
     if(root.dataset)root.dataset.m26SessionActionPending='true';
     syncPendingNextControls();
@@ -1617,6 +1633,7 @@ async function click(event){
     let liveAddDispatched=false,liveAddTimedOut=false;
     let finishDispatched=false,finishTimedOut=false;
     let startRecoveryStorageWarning=false,operationalDispatchKind=null,operationalResult=null;
+    let completedAction=false;
     if(action==='add-live-exercise')liveAddPending=true;
     if(action==='finish')finishPending=true;
     const actionState=context.actionState;let failureFocusSelector=null,builderFocusBlockId=null,builderFocusAction=null,builderFocusScroll=false,builderFocusAlways=false;const builderInsertContext=['add-exercise','add-group','duplicate-block'].includes(action)&&context?.draft?{activeGroupId:String(context.draft.activeGroupId||'').trim()||null,blockIds:new Set((context.draft.blocks||[]).map((item)=>item?.id).filter(Boolean))}:null;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
@@ -1722,7 +1739,7 @@ async function click(event){
     else if(outcome.ok&&action!=='discard-draft')await persistContext(getContext());
     // On invalid preview, never replace the actionable validation message with
     // a secondary local-storage error. Autosave remains scheduled separately.
-    if(outcome.ok&&action==='save-draft'&&actionState){const confirmation=sessionDraftSaveOutcome(getContext()?.draftPersistence);actionState.status=confirmation.status;actionState.message=confirmation.message;}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}if(outcome.ok&&action==='remove-block'&&actionState){actionState.status='success';actionState.message='Bloque eliminado del borrador.';}if(outcome.ok&&action==='restore-block'&&actionState){actionState.status='success';actionState.message='Bloque restaurado.';}if(outcome.ok&&action==='apply-client-duration'&&actionState){actionState.status='success';actionState.message='Duración del cliente aplicada al borrador. Revisa la sesión antes de publicar.';}renderSession();if(outcome.ok&&builderFocusAlways&&builderFocusBlockId){const target=Array.from(root.querySelectorAll?.('[data-block-id]')||[]).find((node)=>String(node.getAttribute?.('data-block-id')||'')===String(builderFocusBlockId));if(target){try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}}}if(outcome.ok&&builderFocusBlockId)focusBuilderBlock(builderFocusBlockId,{action:builderFocusAction,scrollOnNarrow:builderFocusScroll});if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);}catch(error){if(action==='start'&&context?.execution?.status==='active'){
+    if(outcome.ok&&action==='save-draft'&&actionState){const confirmation=sessionDraftSaveOutcome(getContext()?.draftPersistence);actionState.status=confirmation.status;actionState.message=confirmation.message;}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}if(outcome.ok&&action==='remove-block'&&actionState){actionState.status='success';actionState.message='Bloque eliminado del borrador.';}if(outcome.ok&&action==='restore-block'&&actionState){actionState.status='success';actionState.message='Bloque restaurado.';}if(outcome.ok&&action==='apply-client-duration'&&actionState){actionState.status='success';actionState.message='Duración del cliente aplicada al borrador. Revisa la sesión antes de publicar.';}renderSession();if(outcome.ok&&builderFocusAlways&&builderFocusBlockId){const target=Array.from(root.querySelectorAll?.('[data-block-id]')||[]).find((node)=>String(node.getAttribute?.('data-block-id')||'')===String(builderFocusBlockId));if(target){try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}}}if(outcome.ok&&builderFocusBlockId)focusBuilderBlock(builderFocusBlockId,{action:builderFocusAction,scrollOnNarrow:builderFocusScroll});if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);completedAction=outcome.ok===true;}catch(error){if(action==='start'&&context?.execution?.status==='active'){
       // A committed start must remain authoritative even if the UI refresh
       // throws. No second SESION_INICIAR with another operation ID.
       if(actionState){
@@ -1738,7 +1755,28 @@ async function click(event){
       if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}
       renderSession();
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
-    }}finally{sessionActionPending=false;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){
+    }}finally{sessionActionPending=false;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();pendingSessionAction=null;
+      const intent=deferredNextTap;
+      deferredNextTap=null;
+      if(completedAction&&intent)queueMicrotask(()=>{
+        if(!mounted||sessionActionPending||startPending||exitPending)return;
+        const latest=getContext();
+        if(!sameLiveExecutionOwner(intent.context,latest)
+          ||intent.context.session!==latest?.session
+          ||String(intent.context.actor?.role||'').trim().toLowerCase()!==
+            String(latest.actor?.role||'').trim().toLowerCase()
+          ||latest.execution?.index!==intent.index
+          ||latest.execution?.setIndex!==intent.setIndex
+          ||latest.execution?.status!=='active'
+          ||latest.execution?.syncStatus!=='clean'
+          ||Boolean(latest.execution?.pendingOperationIds?.length))return;
+        const step=currentStep(latest.execution,latest.session);
+        if(!step||!executionResultForStep(latest.execution,step))return;
+        const next=root.querySelector?.('[data-session-action="next"]');
+        if(!next||next.disabled||next.getAttribute?.('aria-disabled')==='true')return;
+        next.click?.(); // replay only the original manual tap, exactly once
+      });
+      if(action==='start')startPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){
         finishPending=false;syncFinishControl(getContext());
         const intent=queuedExitAfterFinish;queuedExitAfterFinish=null;
         if(intent&&sessionExitAfterFinishConfirmed(intent.context,getContext())){

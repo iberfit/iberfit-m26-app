@@ -42,6 +42,38 @@ const localDate=date=>{
     .filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
   return p.year+'-'+p.month+'-'+p.day;
 };
+// Explicit editing aid: only unambiguous prescription values may be copied.
+// This never creates a performed set, RPE/RIR observation, or remote write.
+export function plannedDatedSetDraft(step){
+  const p=step?.prescription;
+  if(!p||typeof p!=='object'||Array.isArray(p))return Object.freeze({});
+  const result={};
+  const repetitions=String(p.reps??'').trim();
+  if(/^(?:0|[1-9][0-9]{0,4})$/u.test(repetitions)&&Number(repetitions)<=10000)
+    result.reps=repetitions;
+  const rawWeight=String(p.plannedLoad??'').trim();
+  // Suffix test is linear even on adversarial runs of whitespace.
+  const weight=(rawWeight.slice(-2).toLowerCase()==='kg'
+    ?rawWeight.slice(0,-2):rawWeight).trim();
+  if(/^(?:0|[1-9][0-9]{0,4})(?:[.,][0-9]{1,2})?$/u.test(weight)&&
+    Number(weight.replace(',','.'))<=10000)
+    result.load=weight.replace(',','.');
+  return Object.freeze(result);
+}
+export function applyPlannedDatedSetDraft(step,panel){
+  if(typeof panel?.querySelector!=='function')return 0;
+  const values=plannedDatedSetDraft(step);
+  let filled=0;
+  for(const [key,name] of [['reps','u60Reps'],['load','u60Load']]){
+    if(values[key]===undefined)continue;
+    const input=panel.querySelector('[name="'+name+'"]');
+    if(input&&typeof input.value==='string'&&input.value.trim()===''){
+      input.value=values[key];filled++;
+    }
+  }
+  // No RPE/RIR inferred. The real observed series is saved only on ACK.
+  return filled;
+}
 export function qaDatedCalendarRange(now=new Date()){
   if(!(now instanceof Date)||!Number.isFinite(now.getTime()))
     fail('CLOCK_INVALID');
@@ -49,6 +81,51 @@ export function qaDatedCalendarRange(now=new Date()){
   const t=Date.parse(today+'T12:00:00.000Z');
   const at=delta=>new Date(t+delta*86400000).toISOString().slice(0,10);
   return Object.freeze({startDate:at(-14),endDate:at(77)});
+}
+// Read-only planning aid. Requires existing authorized, confirmed appointments
+// with exact server timestamps; never manufactures appointments or executes SQL.
+export function suggestedConfirmedDatedAppointments(appointments,{
+  clientId,sessionId,durationMinutes,range=qaDatedCalendarRange(),now=new Date(),
+}={}){
+  if(!Array.isArray(appointments)||!UUID.test(uid(clientId))||!UUID.test(uid(sessionId))
+    ||!Number.isInteger(durationMinutes)||durationMinutes<10||durationMinutes>240
+    ||!(now instanceof Date)||!Number.isFinite(now.getTime()))return Object.freeze([]);
+  const seen=new Map(),ambiguous=new Set();
+  const formatter=new Intl.DateTimeFormat('en-US',{
+    timeZone:ZONE,year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',hourCycle:'h23',
+  });
+  const strictTimestamp=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/iu;
+  for(const item of appointments){
+    if(uid(field(item,'clientId','client_id'))!==uid(clientId)
+      ||uid(field(item,'sessionId','session_id'))!==uid(sessionId)
+      ||String(field(item,'status')||'').trim().toLowerCase()!=='confirmada')continue;
+    const startRaw=String(field(item,'startAt','start_at')||'');
+    const endRaw=String(field(item,'endAt','end_at')||'');
+    if(!strictTimestamp.test(startRaw)||!strictTimestamp.test(endRaw))continue;
+    const start=Date.parse(startRaw),end=Date.parse(endRaw);
+    if(!Number.isFinite(start)||!Number.isFinite(end)||start<now.getTime()
+      ||end-start!==durationMinutes*60000)continue;
+    const parts=Object.fromEntries(formatter.formatToParts(new Date(start))
+      .filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
+    const date=parts.year+'-'+parts.month+'-'+parts.day;
+    const time=parts.hour+':'+parts.minute;
+    if(date<range.startDate||date>range.endDate)continue;
+    try{
+      // A DST-ambiguous or non-existent clock is never guessed for the Coach.
+      if(Date.parse(resolveSantiagoLocalInstant(date,time))!==start)continue;
+    }catch{continue;}
+    if(seen.has(date))ambiguous.add(date);
+    else seen.set(date,date+' '+time);
+  }
+  return Object.freeze([...seen.entries()].filter(([day])=>!ambiguous.has(day))
+    .map(([,label])=>label).sort((a,b)=>a<b?-1:a>b?1:0).slice(0,52));
+}
+export function datedCoachPreviewMatchesForm(preview,{role,clientId,sessionId,datesInput}={}){
+  return Boolean(preview&&role==='coach'&&
+    preview.roleScope==='coach|'+uid(clientId)&&
+    preview.clientId===uid(clientId)&&preview.sessionId===uid(sessionId)&&
+    preview.datesInput===String(datesInput??'').trim());
 }
 function parseCoachDates(value){
   const lines=String(value||'').trim().split(/\r?\n/gu).filter(Boolean);
@@ -65,12 +142,20 @@ function formValue(target,name){
 }
 function humanError(error){
   const code=String(error?.message||'');
+  if(/RPE_REQUIRED|RPE_INVALID/u.test(code))
+    return 'Registra el RPE real de esta serie, entre 1 y 10, en pasos de 0,5. Puedes seleccionarlo o escribirlo.';
+  if(/METRIC_INVALID/u.test(code))
+    return 'Revisa las repeticiones, el tiempo, la distancia o el RIR. Deben ser cantidades válidas y dentro de sus límites.';
+  if(/SKIP_REASON_REQUIRED/u.test(code))
+    return 'Para omitir una serie debes registrar un motivo de al menos tres caracteres.';
   if(/OWNER_KEY_(LOCKED|RECOVERY_PHRASE_REQUIRED)/u.test(code))
     return 'Introduce tu clave privada de recuperación (mínimo 16 caracteres). No es la contraseña de tu cuenta.';
   if(/SCOPE|ROLE|FORBIDDEN|DENIED|PRIVACY|AUTH/u.test(code))
     return 'Esta operación no está autorizada para tu cuenta, cliente o modalidad.';
   if(/RECOVERY|JOURNAL|CHECKPOINT|CONFLICT|CAS|UNCERTAIN/u.test(code))
     return 'Hay una operación o copia cifrada pendiente. Conserva este dispositivo y recupera antes de repetir la acción.';
+  if(/PREVIEW_FORM_CHANGED/u.test(code))
+    return 'Has cambiado la sesión o las fechas después de verificarlas. Repite la verificación antes de confirmar.';
   if(/APPOINTMENT|DATE|CYCLE|PREVIEW|FORMAT|WINDOW/u.test(code))
     return 'Revisa las fechas, el ciclo publicado y las citas confirmadas: deben coincidir exactamente antes de publicar.';
   return 'No se pudo confirmar el cambio. El progreso local cifrado se conserva; comprueba la conexión y reintenta.';
@@ -99,8 +184,11 @@ export function createDatedOccurrenceQaUi({
     createId:()=>cryptoImpl.randomUUID(),
   });
   let mounted=false,disposed=false,busy=false,ticker=null,loadedFor='',rows=[],
-    focus=null,preview=null,message='',failure='',generation=0;
+    focus=null,preview=null,message='',failure='',generation=0,visibleScopeKey='';
   const repaint=()=>{if(!disposed)onRender();};
+  // The U33 calendar differs by signed-in role, even for one client UUID.
+  // A Coach projection must never be reused by Client after changing area.
+  const roleScope=scope=>scope.role+'|'+scope.clientId;
   function identity(){
     const state=getState()||{},i=state.identity||{};
     const role=String(i.role||'').trim().toLowerCase();
@@ -121,7 +209,17 @@ export function createDatedOccurrenceQaUi({
     return scope;
   }
   function visibleOwner(){
-    try{return identity();}catch{return null;}
+    let scope=null;
+    try{scope=identity();}catch{}
+    const key=scope?roleScope(scope):'';
+    if(key!==visibleScopeKey){
+      visibleScopeKey=key;
+      generation++; // invalidate any calendar or preview started in an older role
+      // Read-only in-memory projection only. Never delete encrypted recovery
+      // journals/checkpoints or active workouts when a workspace changes.
+      loadedFor='';rows=[];preview=null;message='';failure='';
+    }
+    return scope;
   }
   function workoutView(){
     return focus?runtime.workout.view():null;
@@ -133,7 +231,7 @@ export function createDatedOccurrenceQaUi({
       ['ready','active','pending-recovery'].includes(v?.phase));
   }
   function dateRows(scope){
-    return loadedFor===scope.clientId?rows:[];
+    return loadedFor===roleScope(scope)?rows:[];
   }
   async function verifySessionRetirement({clientId,sessionId}={}){
     if(disposed)fail('DESTROYED');
@@ -147,7 +245,7 @@ export function createDatedOccurrenceQaUi({
       readCalendar:range=>runtime.calendar(range),
     });
     await authenticated();
-    if(identity().clientId!==auth.clientId)fail('COACH_RETIRE_SCOPE_CHANGED');
+    if(roleScope(identity())!==roleScope(auth))fail('COACH_RETIRE_SCOPE_CHANGED');
     return verdict;
   }
   function renderPanel(){
@@ -155,9 +253,10 @@ export function createDatedOccurrenceQaUi({
     const scope=visibleOwner();
     if(!scope)return '';
     const coach=scope.role==='coach';
-    const isCurrent=loadedFor===scope.clientId;
+    const isCurrent=loadedFor===roleScope(scope);
     const entries=dateRows(scope);
-    const view=workoutView();
+    const view=focus?.clientId===scope.clientId&&focus?.role===scope.role
+      ?workoutView():null;
     const locked=!vault.isUnlocked();
     const status=failure
       ?'<p role="alert" class="m26-form-status is-error">'+escape(failure)+'</p>'
@@ -188,14 +287,22 @@ export function createDatedOccurrenceQaUi({
         :view.executionStatus==='awaiting_feedback'
           ?'<p>Series registradas. Añade el feedback antes de finalizar.</p>'
           :'';
+      const plannedDraft=coach?plannedDatedSetDraft(step):{};
+      const hasPlannedDraft=Object.keys(plannedDraft).length>0;
       const recordForm=phase==='active'&&view.executionStatus==='active'&&step
         ?'<div class="m26-field-grid" data-u60-entry>'+
+         (coach&&hasPlannedDraft
+           ?'<div class="m26-wide"><button type="button" data-u60-copy-plan aria-label="Copiar objetivo prescrito a los campos vacíos">Usar objetivo como borrador</button>'+
+            '<p class="m26-field-help">No es un resultado real. Revisa cada valor, registra el esfuerzo observado y confirma la serie.</p></div>':'')+
          '<label>Repeticiones<input name="u60Reps" type="number" min="0" max="10000" inputmode="decimal"></label>'+
          '<label>Tiempo (segundos)<input name="u60Seconds" type="number" min="0" max="86400" inputmode="decimal"></label>'+
          '<label>Distancia running (km)<input name="u60DistanceKm" type="number" step="0.01" min="0" max="1000" inputmode="decimal"></label>'+
          '<label>Distancia natación (m)<input name="u60DistanceM" type="number" min="0" max="100000" inputmode="decimal"></label>'+
          '<label>Carga (kg)<input name="u60Load" maxlength="80"></label>'+
          '<label>RPE de la serie (1–10)<input name="u60Rpe" type="number" min="1" max="10" step="0.5" required inputmode="decimal"></label>'+
+         (coach?'<div class="m26-session-coach-rpe-quick" role="group" aria-label="Seleccionar RPE real de la serie"><span>RPE real</span>'+
+           [6,7,8,9,10].map(value=>'<button type="button" data-u60-quick-rpe="'+value+'" aria-label="RPE '+value+'" aria-pressed="false">'+value+'</button>').join('')+
+           '</div>':'')+
          '<label>RIR<input name="u60Rir" type="number" min="0" max="10" step="0.5" inputmode="decimal"></label>'+
          '<label>Ritmo running (min/km)<input name="u60Pace" placeholder="5:30" pattern="[0-9]{1,2}:[0-5][0-9]"></label>'+
          '<label>Ritmo natación (min/100m)<input name="u60PaceSwim" placeholder="2:15"></label>'+
@@ -242,22 +349,28 @@ export function createDatedOccurrenceQaUi({
           (coach&&vault.isUnlocked()?'<button type="button" data-iberdates-action="u60-retry-date" data-u60-id="'+escape(row.id)+'">Recuperar cambio pendiente</button>':'')+
           '</div></article>';
       }).join(''):'';
+      const activePreview=preview?.clientId===scope.clientId&&
+        preview?.roleScope===roleScope(scope)?preview:null;
       const sessions=coach?(scope.state.collections?.sessions||[])
         .filter(s=>uid(field(s,'clientId','client_id'))===scope.clientId
           &&String(field(s,'status')||'').toLowerCase()==='disponible'
           &&String(field(s,'deliveryModality')||'')==='guiada_en_app')
-        .map(s=>'<option value="'+escape(field(s,'id'))+'">'+
+        .map(s=>'<option value="'+escape(field(s,'id'))+'"'+
+          (activePreview?.sessionId===uid(field(s,'id'))?' selected':'')+'>'+
           escape(String(field(s,'title')||'Entrenamiento').slice(0,90))+'</option>').join(''):'';
       const publisher=coach&&sessions
         ?'<details class="m26-panel"><summary>Programar varias fechas de una sesión publicada</summary>'+
          '<label>Sesión publicada<select name="u60Session">'+sessions+'</select></label>'+
          '<label>Fechas y horas en Chile, una por línea (AAAA-MM-DD HH:mm)'+
-         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-11-09 08:00&#10;2026-11-12 08:00"></textarea></label>'+
+         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-11-09 08:00&#10;2026-11-12 08:00">'+escape(activePreview?.datesInput||'')+'</textarea></label>'+
+         '<div class="m26-inline-actions"><button type="button" data-u60-use-appointments>Usar citas confirmadas</button></div>'+
+         '<p class="m26-field-help">Solo prepara las fechas a partir de citas existentes; no crea citas ni publica entrenamientos.</p>'+
+         '<p class="m26-field-help" role="status" aria-live="polite" data-u60-appointment-hint></p>'+
          '<p class="m26-field-help">Cada fecha necesita una cita ya confirmada y vinculada a esa sesión, con horario y duración exactos. La cita se prepara en Agenda. La publicación nunca modifica otras fechas.</p>'+
          '<button type="button" data-iberdates-action="u60-preview">Verificar fechas y citas</button>'+
          '<button type="button" data-iberdates-action="u60-retry-publish">Recuperar una programación pendiente</button>'+
-         (preview&&preview.clientId===scope.clientId
-           ?'<p role="status">'+escape(preview.preview.count)+' fechas verificadas · revisión requerida</p>'+
+         (activePreview
+           ?'<p role="status">'+escape(activePreview.preview.count)+' fechas verificadas · revisión requerida</p>'+
             '<button type="button" class="m26-primary-action" data-iberdates-action="u60-publish">Confirmar programación</button>'
            :'')+'</details>':'';
       body=(isCurrent?(cards||'<p class="m26-empty-copy">No hay fechas dentro del periodo consultado.</p>')
@@ -278,11 +391,17 @@ export function createDatedOccurrenceQaUi({
     return matches[0];
   }
   async function load(scope){
+    // The first authenticated calendar action can precede the first route
+    // paint. Establish the visible owner key before accepting remote rows.
+    const visible=visibleOwner();
+    if(!visible||roleScope(visible)!==roleScope(scope))fail('ACTOR_CHANGED');
     const range=qaDatedCalendarRange();
+    const requestedScope=roleScope(scope),requestedGeneration=generation;
     const output=await runtime.calendar({clientId:scope.clientId,...range,limit:50});
     await authenticated();
-    if(identity().clientId!==scope.clientId)fail('CLIENT_CHANGED');
-    loadedFor=scope.clientId;rows=output.occurrences;preview=null;
+    if(roleScope(identity())!==requestedScope||generation!==requestedGeneration)
+      fail('ACTOR_CHANGED');
+    loadedFor=requestedScope;rows=output.occurrences;preview=null;
     message='Calendario confirmado: '+rows.length+' fecha(s) verificadas.';
   }
   function readResult(button){
@@ -298,13 +417,27 @@ export function createDatedOccurrenceQaUi({
       if(value)values[name]=value;
     }
     if(!values.rpe)fail('RPE_REQUIRED');
+    const observed=Number(values.rpe);
+    if(!Number.isFinite(observed)||observed<1||observed>10||
+      !Number.isInteger(observed*2))fail('RPE_INVALID');
+    for(const [key,min,max] of [
+      ['reps',0,10000],['seconds',0,86400],
+      ['distanceKm',0,1000],['distanceM',0,100000],
+      ['rir',0,10],
+    ]){
+      if(!Object.hasOwn(values,key))continue;
+      const actual=Number(values[key]);
+      if(!Number.isFinite(actual)||actual<min||actual>max)fail('METRIC_INVALID');
+    }
+    if(values.rir!==undefined&&!Number.isInteger(Number(values.rir)*2))
+      fail('METRIC_INVALID');
     return values;
   }
-  async function previewDates(scope,button){
+  async function previewDates(scope,payload){
     if(scope.role!=='coach')fail('COACH_REQUIRED');
     if(!vault.isUnlocked())fail('OWNER_KEY_LOCKED');
-    if(loadedFor!==scope.clientId)fail('CALENDAR_REQUIRED');
-    const sessionId=uid(formValue(button,'u60Session'));
+    if(loadedFor!==roleScope(scope))fail('CALENDAR_REQUIRED');
+    const sessionId=uid(payload.selectedSession);
     const session=(scope.state.collections?.sessions||[])
       .find(s=>uid(field(s,'id'))===sessionId
         &&uid(field(s,'clientId','client_id'))===scope.clientId);
@@ -322,7 +455,7 @@ export function createDatedOccurrenceQaUi({
     const minutes=Number(field(session,'durationMinutes'));
     if(!Number.isInteger(minutes)||minutes<10||minutes>240)
       fail('DURATION_INVALID');
-    const dates=parseCoachDates(formValue(button,'u60Dates'));
+    const dates=parseCoachDates(payload.plannedDates);
     const appointments=scope.state.collections?.appointments||[];
     const appointmentIdsByDate={};
     for(const date of dates){
@@ -350,9 +483,13 @@ export function createDatedOccurrenceQaUi({
       existingOccurrences:dateRows(scope),
       existingAppointments:appointments.filter(ap=>!excluded.has(uid(field(ap,'id')))),
     };
+    const startedAtGeneration=generation;
     const verified=await runtime.previewDates(options);
-    preview={clientId:scope.clientId,sessionId,revision,
-      preview:verified,appointmentIdsByDate};
+    await authenticated();
+    if(roleScope(identity())!==roleScope(scope)||generation!==startedAtGeneration)
+      fail('ACTOR_CHANGED');
+    preview={clientId:scope.clientId,roleScope:roleScope(scope),sessionId,revision,
+      datesInput:payload.plannedDates,preview:verified,appointmentIdsByDate};
     message='Fechas, horarios, ciclo y citas verificados. Confirma para programar.';
   }
   async function perform(action,button,payload){
@@ -365,7 +502,7 @@ export function createDatedOccurrenceQaUi({
     }
     if(action==='u60-calendar'){await load(scope);return;}
     if(!vault.isUnlocked())fail('OWNER_KEY_LOCKED');
-    if(action==='u60-preview'){await previewDates(scope,button);return;}
+    if(action==='u60-preview'){await previewDates(scope,payload);return;}
     if(action==='u60-retry-publish'){
       if(scope.role!=='coach')fail('COACH_REQUIRED');
       const id=uid(formValue(button,'u60Session'));
@@ -379,9 +516,13 @@ export function createDatedOccurrenceQaUi({
       return;
     }
     if(action==='u60-publish'){
-      if(scope.role!=='coach'||!preview||preview.clientId!==scope.clientId)
-        fail('PREVIEW_REQUIRED');
+      if(scope.role!=='coach'||!preview||preview.clientId!==scope.clientId||
+        preview.roleScope!==roleScope(scope))fail('PREVIEW_REQUIRED');
       const pending=preview;
+      if(!datedCoachPreviewMatchesForm(pending,{
+        role:scope.role,clientId:scope.clientId,sessionId:payload.selectedSession,
+        datesInput:payload.plannedDates,
+      }))fail('PREVIEW_FORM_CHANGED');
       const source=(scope.state.collections?.sessions||[])
         .find(s=>uid(field(s,'id'))===pending.sessionId);
       if(!source||Number(field(source,'revision'))!==pending.revision)
@@ -450,7 +591,7 @@ export function createDatedOccurrenceQaUi({
       if(scope.role!=='coach'&&(!row.appointmentId||
         !['confirmada','cancelada','completada'].includes(row.appointmentStatus)))
         fail('APPOINTMENT_REQUIRED');
-      const target={clientId:scope.clientId,occurrenceId:row.id};
+      const target={clientId:scope.clientId,occurrenceId:row.id,role:scope.role};
       focus=target;
       try{await runtime.openWorkout(target);}
       catch(error){
@@ -462,7 +603,8 @@ export function createDatedOccurrenceQaUi({
       message='Estado individual verificado mediante lectura privada.';
       return;
     }
-    if(!focus||focus.clientId!==scope.clientId)fail('WORKOUT_SCOPE_CHANGED');
+    if(!focus||focus.clientId!==scope.clientId||focus.role!==scope.role)
+      fail('WORKOUT_SCOPE_CHANGED');
     if(action==='u60-close'){
       if(runtime.workout.view().hasUncertain||
         runtime.workout.view().unsavedWork)fail('UNSAVED_WORKOUT');
@@ -526,6 +668,74 @@ export function createDatedOccurrenceQaUi({
     fail('UNKNOWN_ACTION');
   }
   async function onClick(event){
+    const appointmentButton=event?.target?.closest?.('[data-u60-use-appointments]');
+    if(appointmentButton?.hasAttribute?.('data-u60-use-appointments')&&
+      root.contains(appointmentButton)&&!disposed&&!busy&&!appointmentButton.disabled){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const scope=visibleOwner();
+      if(scope?.role!=='coach')return;
+      const panel=appointmentButton.closest?.('[data-u60-panel]');
+      const sessionId=uid(panel?.querySelector?.('[name="u60Session"]')?.value);
+      const datesField=panel?.querySelector?.('[name="u60Dates"]');
+      const hint=panel?.querySelector?.('[data-u60-appointment-hint]');
+      const message=value=>{if(hint)hint.textContent=value;};
+      if(!datesField)return;
+      if(String(datesField.value||'').trim()){
+        message('Ya hay fechas escritas. Revísalas antes de reemplazarlas.');
+        return;
+      }
+      const session=(scope.state.collections?.sessions||[]).find(row=>
+        uid(field(row,'id'))===sessionId&&
+        uid(field(row,'clientId','client_id'))===scope.clientId&&
+        String(field(row,'status')||'').toLowerCase()==='disponible'&&
+        field(row,'deliveryModality')==='guiada_en_app');
+      if(!session)return;
+      const dates=suggestedConfirmedDatedAppointments(
+        scope.state.collections?.appointments||[],{
+          clientId:scope.clientId,sessionId,
+          durationMinutes:Number(field(session,'durationMinutes')),
+        });
+      if(!dates.length){
+        message('No hay citas confirmadas compatibles para esta sesión.');
+        return;
+      }
+      datesField.value=dates.join('\n');
+      message('Se han incorporado citas confirmadas. Revisa las fechas y verifica antes de publicar.');
+      return; // Only local editing; server publication always needs preview.
+    }
+    const planButton=event?.target?.closest?.('[data-u60-copy-plan]');
+    if(planButton?.hasAttribute?.('data-u60-copy-plan')&&
+      root.contains(planButton)&&!disposed&&!busy&&!planButton.disabled){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const scope=visibleOwner();
+      if(scope?.role!=='coach'||focus?.clientId!==scope.clientId||
+        focus.role!==scope.role)return;
+      const view=workoutView();
+      if(view?.phase!=='active'||view.executionStatus!=='active')return;
+      const panel=planButton.closest?.('[data-u60-panel]');
+      applyPlannedDatedSetDraft(view.currentStep,panel);
+      return; // no automatic save, sync, RPE or DOM rebuild
+    }
+    // A manual, local Coach shortcut. It never sends a command, records an
+    // observation autonomously, or rebuilds the active input surface.
+    const quick=event?.target?.closest?.('[data-u60-quick-rpe]');
+    const chosen=Number(quick?.getAttribute?.('data-u60-quick-rpe'));
+    // A non-shortcut element (including a delegated action with a generic
+    // closest() test shim) must still reach the original action handler.
+    if(quick&&[6,7,8,9,10].includes(chosen)&&
+      root.contains(quick)&&!disposed&&!busy&&!quick.disabled){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const panel=quick.closest?.('[data-u60-panel]');
+      const input=panel?.querySelector?.('[name="u60Rpe"]');
+      if(!input)return;
+      input.value=String(chosen);
+      for(const button of panel.querySelectorAll?.('[data-u60-quick-rpe]')||[])
+        button.setAttribute?.('aria-pressed',button===quick?'true':'false');
+      return;
+    }
     const button=event?.target?.closest?.('[data-iberdates-action]');
     if(!button||!root.contains(button)||disposed)return;
     event.preventDefault?.();
@@ -537,7 +747,10 @@ export function createDatedOccurrenceQaUi({
     try{
       // Validate/capture BEFORE rebuilding the DOM, including sport-specific
       // units, recovery secret and closeout. Even invalid input must be caught.
+      const planning=action==='u60-preview'||action==='u60-publish';
       payload={id:button.dataset?.u60Id,
+        selectedSession:planning?formValue(button,'u60Session'):'',
+        plannedDates:planning?formValue(button,'u60Dates'):'',
         phrase:action==='u60-unlock'?formValue(button,'u60Phrase'):'',
         result:action==='u60-record'?readResult(button):null,
         reason:action==='u60-skip'?formValue(button,'u60SkipReason'):'',
@@ -560,6 +773,8 @@ export function createDatedOccurrenceQaUi({
     finally{payload.phrase='';busy=false;repaint();}
   }
   function tick(){
+    // No global DOM lookup while the operator is outside dated execution.
+    if(!focus)return;
     const node=root.querySelector?.('[data-u60-clock-start]');
     const started=Date.parse(String(node?.getAttribute?.('data-u60-clock-start')||''));
     if(node&&Number.isFinite(started)){
@@ -570,6 +785,9 @@ export function createDatedOccurrenceQaUi({
   function mount(){
     if(disposed)fail('DESTROYED');
     if(mounted)return;
+    // Establish the visible role/client before any delegated form validation
+    // so first-action errors are not lost to a later scope initialization.
+    visibleOwner();
     mounted=true;root.addEventListener('click',onClick);
     // One lightweight text-only tick while QA is authenticated. The timer is
     // derived from the SERVER ACK's startedAt, not a speculative click.

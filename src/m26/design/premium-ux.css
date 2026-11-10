@@ -1398,6 +1398,12 @@ body {
     width:max-content;
     max-width:100%;
   }
+  /* The sticky Coach controls must not cover a just-revealed primary action
+     during touch/keyboard/Playwright scroll-into-view on narrow screens. */
+  .m26-session-live-v3 :is([data-session-action="next"],
+    [data-session-action="complete-set"]){
+    scroll-margin-block-start:clamp(7rem,19vh,11rem);
+  }
 }
 
 @media (max-width:580px){
