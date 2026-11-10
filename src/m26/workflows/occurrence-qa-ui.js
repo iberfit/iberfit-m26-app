@@ -638,6 +638,9 @@ export function createDatedOccurrenceQaUi({
   function mount(){
     if(disposed)fail('DESTROYED');
     if(mounted)return;
+    // Establish the visible role/client before any delegated form validation
+    // so first-action errors are not lost to a later scope initialization.
+    visibleOwner();
     mounted=true;root.addEventListener('click',onClick);
     // One lightweight text-only tick while QA is authenticated. The timer is
     // derived from the SERVER ACK's startedAt, not a speculative click.
