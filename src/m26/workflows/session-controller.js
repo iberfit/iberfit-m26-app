@@ -1737,6 +1737,15 @@ async function click(event){
       }
     }
     else if(outcome.ok&&action!=='discard-draft')await persistContext(getContext());
+    // An online action can be queued behind an in-flight, already-ACKed
+    // mutation while its durable receipt/refresh is still being settled.
+    // Persist the exact queued operation first, then flush that SAME operation
+    // through the owner-scoped CAS journal. Never replay a tap or invent a new ID.
+    if(outcome.ok&&outcome.value?.queued===true&&context.online!==false
+      &&sameLiveExecutionOwner(context,getContext())
+      &&context.execution?.syncStatus==='pending'){
+      schedulePendingExecutionSync(context,0);
+    }
     // On invalid preview, never replace the actionable validation message with
     // a secondary local-storage error. Autosave remains scheduled separately.
     if(outcome.ok&&action==='save-draft'&&actionState){const confirmation=sessionDraftSaveOutcome(getContext()?.draftPersistence);actionState.status=confirmation.status;actionState.message=confirmation.message;}if(outcome.ok&&action==='reuse-exercise-memory'&&actionState){actionState.status='success';actionState.message='Referencia confirmada aplicada al borrador. Revisa la prescripción antes de publicar.';}if(outcome.ok&&action==='remove-block'&&actionState){actionState.status='success';actionState.message='Bloque eliminado del borrador.';}if(outcome.ok&&action==='restore-block'&&actionState){actionState.status='success';actionState.message='Bloque restaurado.';}if(outcome.ok&&action==='apply-client-duration'&&actionState){actionState.status='success';actionState.message='Duración del cliente aplicada al borrador. Revisa la sesión antes de publicar.';}renderSession();if(outcome.ok&&builderFocusAlways&&builderFocusBlockId){const target=Array.from(root.querySelectorAll?.('[data-block-id]')||[]).find((node)=>String(node.getAttribute?.('data-block-id')||'')===String(builderFocusBlockId));if(target){try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}}}if(outcome.ok&&builderFocusBlockId)focusBuilderBlock(builderFocusBlockId,{action:builderFocusAction,scrollOnNarrow:builderFocusScroll});if(failureFocusSelector)focusSessionRecoveryField(failureFocusSelector);completedAction=outcome.ok===true;}catch(error){if(action==='start'&&context?.execution?.status==='active'){

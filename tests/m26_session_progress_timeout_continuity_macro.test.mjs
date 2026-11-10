@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {createCommandBus,createMemoryOperationRepository} from '../src/m26/command-bus.js';
 import {createExecutionRecoveryCoordinator,createMemoryExecutionRecoveryStore} from '../src/m26/workflows/session-recovery.js';
-import {createExecution,startExecution,currentStep} from '../src/m26/workflows/session-execution.js';
+import {createExecution,startExecution,currentStep,markExecutionSync,buildProgressExecutionCommand} from '../src/m26/workflows/session-execution.js';
 import {createSessionController} from '../src/m26/workflows/session-controller.js';
 import {createActionState} from '../src/m26/ui/action-state.js';
 
@@ -107,5 +107,51 @@ test('timeout de progreso libera la UI, la siguiente acción queda en cola y el 
   assert.deepEqual(await commandBus.pending(),[]);
   assert.equal(currentStep(execution,session).setNumber,2);
   assert.ok(errors.some(error=>error?.message==='M26_SESSION_ACTION_TIMEOUT'),'el timeout de UI se reporta sin bloquear la continuidad');
+  controller.destroy();
+});
+
+test('online Client/Coach progress queued behind prior ACK auto-flushes once in original CAS order',async()=>{
+  const execution=createExecution({session,clientId:'client-timeout',executionId:'execution-online-queued'});
+  startExecution(execution,{actor});
+  execution.revision=5;
+  const repository=createMemoryOperationRepository();
+  const calls=[];
+  const commandBus=createCommandBus({
+    repository,getToken:async()=> 'jwt',getRole:()=> 'coach',rehydrate:async()=>{},
+    transport:{
+      preflight:async()=>({kind:'ack'}),
+      execute:async(_token,command)=>{
+        calls.push({operationId:command.operationId,baseRevision:command.baseRevision});
+        return {kind:'ack',remoteRevision:5+calls.length};
+      },
+    },
+  });
+  const predecessor={...buildProgressExecutionCommand(execution,5),operationId:'predecessor-queued-online'};
+  await commandBus.enqueue(predecessor);
+  markExecutionSync(execution,'pending',{operationId:predecessor.operationId});
+  const store=createMemoryExecutionRecoveryStore({ownerId:'coach-online-queued'});
+  let context;
+  const coordinator=createExecutionRecoveryCoordinator({store,commandBus,isOnline:()=>true,getActiveContext:()=>context});
+  const actionState=createActionState();
+  const {root,nodes}=rootHarness();
+  const errors=[];
+  context={session,execution,catalog:{has:()=>true,get:()=>null,search:()=>[]},
+    actor,actionState,commandBus,recoveryCoordinator:coordinator,online:true};
+  const controller=createSessionController({
+    root,getContext:()=>context,render(){},onError:error=>errors.push(error),
+    liveTelemetryController:{start(){},pause(){},resume(){},stop(){}},
+    lifecycleTarget:passiveTarget(),visibilityTarget:passiveTarget({visibilityState:'visible'}),clockTarget:{},
+  });
+  controller.mount();
+  await root.click(nodes.complete);
+  for(let i=0;i<250&&(calls.length!==2||execution.syncStatus!=='clean');i++)
+    await new Promise(resolve=>setTimeout(resolve,10));
+  assert.deepEqual(calls.map(x=>x.baseRevision),[5,6],
+    'the exact online queue follows the previous server ACK, with the server CAS');
+  assert.equal(new Set(calls.map(x=>x.operationId)).size,2,'no duplicate operation IDs');
+  assert.equal(execution.syncStatus,'clean');
+  assert.deepEqual(execution.pendingOperationIds,[]);
+  assert.deepEqual(await commandBus.pending(),[],'no orphaned local writes');
+  assert.deepEqual(errors,[],'no hidden error or unhandled recovery rejection');
   controller.destroy();
 });
