@@ -4730,6 +4730,20 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
       <article class="m26-next-session-card">
         <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Última sesión</p><h3>Feedback y esfuerzo</h3></div><small>${escapeHtml(nextSessionPrepDate(prep.progress.lastExecutionAt))}</small></div>
         <p>${escapeHtml(feedbackParts.join(' · ')||'Sin feedback final confirmado.')}</p>
+        ${prep?.lastExecution?.seriesEvidence?((facts)=>{
+          const parts=[
+            facts.recordedSets+' registradas',
+            facts.skippedSets?facts.skippedSets+' omitidas expresamente':null,
+            facts.unrecordedSets?facts.unrecordedSets+' sin registro':null,
+          ].filter(Boolean).join(' · ');
+          return '<div class="m26-next-session-series-evidence" data-m26-coach-plan-executed>'+
+            '<strong>Planificado frente a realizado</strong>'+
+            '<p>'+escapeHtml(parts)+'</p>'+
+            '<small>Plan original: '+escapeHtml(facts.plannedSets)+
+            ' series · Ejecución: '+escapeHtml(facts.executionSets)+
+            ' series. Solo resultados confirmados; los datos ausentes no cuentan como realizados.</small>'+
+            '</div>';
+        })(prep.lastExecution.seriesEvidence):''}
       </article>
       <article class="m26-next-session-card">
         <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Diagnóstico / evolución</p><h3>Contexto IRI</h3></div><small>${escapeHtml(iri?nextSessionPrepDate(iri.assessmentDate):'Sin IRI confirmado')}</small></div>

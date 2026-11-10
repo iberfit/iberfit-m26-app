@@ -4,6 +4,7 @@ import {listExercisePerformanceMemories} from '../engagement/exercise-performanc
 import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
 import {isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
+import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record||{};}
@@ -18,6 +19,52 @@ function forClient(state,key,clientId){const expected=String(clientId||'').trim(
 function percent(value){const measured=finite(value);return measured===null?null:Math.round(measured*100);}
 function finite(value){if(typeof value!=='number'&&typeof value!=='string')return null;if(typeof value==='string'&&!value.trim())return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function text(value,max=1600){return String(value??'').trim().slice(0,max);}
+// Compare the immutable prescribed queue with the completed workout queue.
+ // These counts are informational. Missing results are unknown, never successes.
+export function summarizeConfirmedSessionSets(execution){
+  if(!execution||!Array.isArray(execution.queue)||!execution.queue.length||
+    !execution.results||typeof execution.results!=='object'||
+    Array.isArray(execution.results))return null;
+  const original=execution.planSnapshot||execution.plan_snapshot;
+  const sessionId=String(field(execution,'sessionId','session_id')||'');
+  if(!sessionId||String(original?.sessionId||'')!==sessionId||
+    !Array.isArray(original?.queue)||!original.queue.length)return null;
+  const sumSets=queue=>{
+    let total=0;
+    if(queue.length>200)return null;
+    for(const item of queue){
+      const sets=Number(item?.sets);
+      if(!item?.exerciseId||!Number.isInteger(sets)||sets<1||sets>100)return null;
+      total+=sets;
+      if(total>2500)return null;
+    }
+    return total;
+  };
+  const plannedSets=sumSets(original.queue);
+  const executionSets=sumSets(execution.queue);
+  if(plannedSets===null||executionSets===null)return null;
+  let recordedSets=0,skippedSets=0;
+  const hasRecordedMetric=result=>result&&typeof result==='object'&&[
+    result.reps,result.seconds,result.distanceKm,result.distanceM,
+    result.intervalsCompleted,
+  ].some(value=>value!==null&&value!==undefined&&value!==''&&
+    Number.isFinite(Number(value)));
+  for(const item of execution.queue){
+    for(let setNumber=1;setNumber<=item.sets;setNumber++){
+      const step={...item,setNumber,totalSets:item.sets};
+      const result=executionResultForStep(execution,step,setNumber);
+      const skipped=skippedSetForStep(execution,step,setNumber);
+      if(hasRecordedMetric(result)&&skipped)return null; // contradictory ACK
+      if(hasRecordedMetric(result))recordedSets++;
+      else if(skipped)skippedSets++;
+    }
+  }
+  return Object.freeze({
+    plannedSets,executionSets,recordedSets,skippedSets,
+    unrecordedSets:executionSets-recordedSets-skippedSets,
+    source:'completed-confirmed-snapshot',
+  });
+}
 function feedbackOf(execution){
   const item=unwrap(execution);
   const feedback=item?.feedback&&typeof item.feedback==='object'&&!Array.isArray(item.feedback)?item.feedback:{};
@@ -402,6 +449,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       sessionId:String(field(execution,'sessionId','session_id')||'').trim()||null,
       completedAt:sessionExecutionDate(execution)||null,
       feedback,
+      seriesEvidence:summarizeConfirmedSessionSets(execution),
     }):null,
     exerciseMemory:memories,
     decisions:Object.freeze({

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import {buildNextSessionPreparation} from '../src/m26/intelligence/next-session-prep.js';
+import {buildNextSessionPreparation,summarizeConfirmedSessionSets} from '../src/m26/intelligence/next-session-prep.js';
 import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
 import {renderExpedienteRoute,renderSessionsRoute} from '../src/m26/modules/route-render.js';
 
@@ -304,4 +304,78 @@ test('Coach wellbeing comparison uses four most recent owner records with stable
   assert.equal(energy?.delta,-4);
   assert.equal(energy?.recent,2);
   assert.equal(energy?.previous,6);
+});
+
+test('Coach sees immutable prescription vs confirmed execution sets without treating missing as performed',()=>{
+  const state=baseState();
+  const e=state.collections.sessionExecutions[0];
+  e.queue=[{blockId:'b1',exerciseId:'squat',sets:3}];
+  e.planSnapshot={sessionId:'session-published',
+    queue:[{blockId:'b1',exerciseId:'squat',sets:2}],
+    blocks:[{id:'b1',type:'exercise',exerciseId:'squat',sets:2}]};
+  e.results={'b1:squat:1':{exerciseId:'squat',reps:8,load:'50 kg'}};
+  e.skippedSets={'b1:squat:2':{reason:'Revisión del Coach'}};
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.deepEqual(prep.lastExecution.seriesEvidence,{
+    plannedSets:2,executionSets:3,recordedSets:1,skippedSets:1,
+    unrecordedSets:1,source:'completed-confirmed-snapshot',
+  });
+  const html=renderSessionsRoute({
+    kind:'sesion',role:'coach',canBuild:true,serviceKind:'training',
+    sessions:[],sessionCounts:{published:0},executions:[],
+    nextSessionPreparation:prep,
+  });
+  assert.match(html,/data-m26-coach-plan-executed/u);
+  assert.match(html,/Plan original: 2 series/u);
+  assert.match(html,/1 registradas/u);
+  assert.match(html,/1 sin registro/u);
+  assert.match(html,/los datos ausentes no cuentan como realizados/u);
+});
+
+test('Coach summary does not invent a plan when historic execution lacks a verified immutable snapshot',()=>{
+  const state=baseState();
+  const e=state.collections.sessionExecutions[0];
+  e.queue=[{blockId:'b1',exerciseId:'squat',sets:3}];
+  e.results={'b1:squat:1':{reps:8}};
+  assert.equal(summarizeConfirmedSessionSets(e),null);
+  e.planSnapshot={sessionId:'some-other-session',
+    queue:[{blockId:'b1',exerciseId:'squat',sets:3}]};
+  assert.equal(summarizeConfirmedSessionSets(e),null);
+  e.planSnapshot.sessionId=e.sessionId;
+  delete e.results;
+  assert.equal(summarizeConfirmedSessionSets(e),null);
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.lastExecution.seriesEvidence,null);
+  const html=renderSessionsRoute({kind:'sesion',role:'coach',
+    sessions:[],sessionCounts:{published:0},nextSessionPreparation:prep,
+    serviceKind:'training'});
+  assert.doesNotMatch(html,/data-m26-coach-plan-executed/u);
+});
+
+test('two identical exercise IDs in distinct blocks cannot double-count legacy results',()=>{
+  const execution={
+    sessionId:'session-1',
+    planSnapshot:{sessionId:'session-1',queue:[
+      {blockId:'b1',exerciseId:'squat',sets:1},
+      {blockId:'b2',exerciseId:'squat',sets:1},
+    ]},
+    queue:[
+      {blockId:'b1',exerciseId:'squat',sets:1},
+      {blockId:'b2',exerciseId:'squat',sets:1},
+    ],
+    results:{'squat:1':{reps:8}},
+  };
+  const report=summarizeConfirmedSessionSets(execution);
+  assert.equal(report.recordedSets,1);
+  assert.equal(report.unrecordedSets,1);
+  execution.results['b2:squat:1']={reps:6};
+  assert.equal(summarizeConfirmedSessionSets(execution).recordedSets,2);
+});
+
+test('contradictory skipped and performed set cannot be reported as confirmed evidence',()=>{
+  const e={sessionId:'session-1',queue:[{blockId:'b1',exerciseId:'squat',sets:1}],
+    planSnapshot:{sessionId:'session-1',queue:[{blockId:'b1',exerciseId:'squat',sets:1}]},
+    results:{'b1:squat:1':{reps:8}},
+    skippedSets:{'b1:squat:1':{reason:'Marca contradictoria'}}};
+  assert.equal(summarizeConfirmedSessionSets(e),null);
 });
