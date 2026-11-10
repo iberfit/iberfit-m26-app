@@ -1755,7 +1755,7 @@ async function click(event){
       if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}
       renderSession();
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
-    }}finally{sessionActionPending=false;pendingSessionAction=null;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();
+    }}finally{sessionActionPending=false;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();pendingSessionAction=null;
       const intent=deferredNextTap;
       deferredNextTap=null;
       if(completedAction&&intent)queueMicrotask(()=>{
