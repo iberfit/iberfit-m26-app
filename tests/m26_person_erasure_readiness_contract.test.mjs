@@ -6,7 +6,7 @@ const now=Date.parse('2026-11-10T23:00:00.000Z');
 const id=(n)=>'10000000-0000-4000-8000-'+String(n).padStart(12,'0');
 const target=(n)=>({
   clientId:id(n),authUserId:id(n+10),exactIdentityConfirmed:true,
-  originalUserAuthorizationVerified:true,identityAmbiguityResolved:false,
+  originalUserAuthorizationVerified:true,identityAmbiguityResolved:true,
   professionalAccount:false,adminRole:false,coachRole:false,
   activeSessions:0,sessionRevocationIndependentlyVerified:true,
   authDeletionSupported:true,authForeignKeysReviewed:true,
@@ -46,7 +46,7 @@ test('fail closed for partial or wrong target scope and protected-person collisi
   assert.ok(r.blockers.includes('TARGET_IDENTITY_COLLISION'));
 });
 test('an ambiguous identity or a privileged account cannot pass',()=>{
-  const e=candidate();e.targets[1].exactIdentityConfirmed=false;e.targets[1].adminRole=true;
+  const e=candidate();e.targets[1].exactIdentityConfirmed=false;e.targets[1].adminRole=true;e.targets[1].identityAmbiguityResolved=false;
   const r=check(e);assert.ok(r.blockers.includes('TARGET_IDENTITY_NOT_CONFIRMED'));
   assert.ok(r.blockers.includes('PRIVILEGED_ACCOUNT_PROTECTED'));
 });

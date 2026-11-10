@@ -27,7 +27,7 @@ export function evaluatePersonErasureEvidence(evidence,{nowMs=Date.now()}={}){
     ||!isCount(protectedPerson.baseline.photoCount)
     ||!isCount(protectedPerson.baseline.externalReportCount)
     ||protectedPerson.baseline.trainingServiceActive!==false)add('PROTECTED_BASELINE_MISSING');
-  if(!protectedPerson.excludedFromDeletion)add('PROTECTED_SCOPE_NOT_EXCLUDED');
+  if(protectedPerson.excludedFromDeletion!==true)add('PROTECTED_SCOPE_NOT_EXCLUDED');
 
   const targets=Array.isArray(evidence.targets)?evidence.targets:[];
   if(targets.length!==2)add('TARGET_COUNT_INVALID');
@@ -36,51 +36,51 @@ export function evaluatePersonErasureEvidence(evidence,{nowMs=Date.now()}={}){
   for(let i=0;i<targets.length;i++){
     const t=targets[i];
     if(!isRecord(t)){add('TARGET_RECORD_INVALID');continue;}
-    if(!validId(t.clientId)||ids.has(t.clientId)||t.clientId===protectedPerson.clientId)add('TARGET_IDENTITY_COLLISION');
-    else ids.add(t.clientId);
-    if(!t.exactIdentityConfirmed||!t.originalUserAuthorizationVerified||t.identityAmbiguityResolved)
+    if(!validId(t.clientId)||ids.has(String(t.clientId).toLowerCase())||String(t.clientId).toLowerCase()===String(protectedPerson.clientId).toLowerCase())add('TARGET_IDENTITY_COLLISION');
+    else ids.add(t.clientId.toLowerCase());
+    if(t.exactIdentityConfirmed!==true||t.originalUserAuthorizationVerified!==true||t.identityAmbiguityResolved!==true)
       add('TARGET_IDENTITY_NOT_CONFIRMED');
-    if(t.professionalAccount===true||t.adminRole===true||t.coachRole===true)add('PRIVILEGED_ACCOUNT_PROTECTED');
-    if(!validId(t.authUserId)||authIds.has(t.authUserId))add('AUTH_IDENTITY_NOT_UNIQUE');
-    else authIds.add(t.authUserId);
-    if(!isCount(t.activeSessions)||t.activeSessions!==0||!t.sessionRevocationIndependentlyVerified)
+    if(t.professionalAccount!==false||t.adminRole!==false||t.coachRole!==false)add('PRIVILEGED_ACCOUNT_PROTECTED');
+    if(!validId(t.authUserId)||authIds.has(String(t.authUserId).toLowerCase()))add('AUTH_IDENTITY_NOT_UNIQUE');
+    else authIds.add(t.authUserId.toLowerCase());
+    if(!isCount(t.activeSessions)||t.activeSessions!==0||t.sessionRevocationIndependentlyVerified!==true)
       add('AUTH_SESSIONS_NOT_REVOKED');
-    if(!t.authDeletionSupported||!t.authForeignKeysReviewed)add('AUTH_DELETION_NOT_PROVEN');
-    if(!isCount(t.pendingOperations)||t.pendingOperations!==0||!t.writeFenceVerified)add('IN_FLIGHT_WRITES_NOT_FENCED');
-    if(t.legalHold===true)add('LEGAL_HOLD');
+    if(t.authDeletionSupported!==true||t.authForeignKeysReviewed!==true)add('AUTH_DELETION_NOT_PROVEN');
+    if(!isCount(t.pendingOperations)||t.pendingOperations!==0||t.writeFenceVerified!==true)add('IN_FLIGHT_WRITES_NOT_FENCED');
+    if(t.legalHold!==false)add('LEGAL_HOLD');
     const references=Array.isArray(t.references)?t.references:[];
     if(!references.length)add('RELATION_INVENTORY_MISSING');
     for(const ref of references){
       if(!isRecord(ref)||typeof ref.relation!=='string'||!isCount(ref.count)
         ||!['remove','anonymize','preserve_non_personal'].includes(ref.disposition)
-        ||!ref.reviewed||!ref.postcheckDefined||(ref.count>0&&!ref.recoveryDocumented))
+        ||ref.reviewed!==true||ref.postcheckDefined!==true||(ref.count>0&&ref.recoveryDocumented!==true))
         add('UNRESOLVED_DATA_RELATION');
     }
     const objects=Array.isArray(t.storageObjects)?t.storageObjects:null;
     if(!objects)add('STORAGE_INVENTORY_MISSING');
     else for(const object of objects){
-      if(!isRecord(object)||!object.ownerConfirmed||!object.targetScoped
-        ||!object.protectedPersonExcluded||!object.recoveryDocumented||!object.storageApiDeletionPlanned
+      if(!isRecord(object)||object.ownerConfirmed!==true||object.targetScoped!==true
+        ||object.protectedPersonExcluded!==true||object.recoveryDocumented!==true||object.storageApiDeletionPlanned!==true
         ||typeof object.bucket!=='string'||!object.bucket)
         add('STORAGE_OBJECT_UNVERIFIED');
     }
-    if(!t.storageInventoryReconciled)add('STORAGE_INVENTORY_UNRECONCILED');
+    if(t.storageInventoryReconciled!==true)add('STORAGE_INVENTORY_UNRECONCILED');
   }
   const catalog=isRecord(evidence.catalog)?evidence.catalog:{};
   if(!isCount(catalog.clientIdColumns)||catalog.clientIdColumns===0
     ||!isCount(catalog.authUserForeignKeys)||catalog.authUserForeignKeys===0
     ||catalog.unreviewedClientIdColumns!==0||catalog.unreviewedAuthForeignKeys!==0
-    ||!catalog.schemaFingerprintVerified)add('SCHEMA_COVERAGE_INCOMPLETE');
+    ||catalog.schemaFingerprintVerified!==true)add('SCHEMA_COVERAGE_INCOMPLETE');
 
   const backup=isRecord(evidence.backup)?evidence.backup:{};
   const backupAge=nowMs-cleanDate(backup.completedAt);
   if(!Number.isFinite(backupAge)||backupAge<0||backupAge>MAX_BACKUP_AGE_MS
-    ||!backup.postgres?.restoreVerified||!backup.storage?.restoreVerified
-    ||!backup.hostedAuth?.restoreVerified||!backup.offsiteVerified
-    ||!backup.rollbackDrillVerified)add('RECOVERY_NOT_CERTIFIED');
+    ||backup.postgres?.restoreVerified!==true||backup.storage?.restoreVerified!==true
+    ||backup.hostedAuth?.restoreVerified!==true||backup.offsiteVerified!==true
+    ||backup.rollbackDrillVerified!==true)add('RECOVERY_NOT_CERTIFIED');
 
   const assurance=isRecord(evidence.assurance)?evidence.assurance:{};
-  if(!assurance.adminVerified||!assurance.privilegedWebAuthnVerified||!assurance.orgScopeVerified)
+  if(assurance.adminVerified!==true||assurance.privilegedWebAuthnVerified!==true||assurance.orgScopeVerified!==true)
     add('PRIVILEGED_ASSURANCE_MISSING');
   if(evidence.protectedPersonPreservationProof!==true)
     add('PROTECTED_PRESERVATION_UNPROVEN');
