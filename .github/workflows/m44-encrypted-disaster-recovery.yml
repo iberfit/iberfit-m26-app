@@ -1,3 +1,6 @@
+# EXCELLENCE 360 protected release 2026-11-10: re-run exact Canary Coach/Admin WebAuthn and remote QA gates.
+# Trigger unchanged encrypted PROD PostgreSQL+Storage recovery with independent isolated PG17 restore.
+# Only comments added; no workflow logic, security controls, RLS, migrations, or PROD data changes.
 # SIGNATURE EXCELLENCE 360 · protected postmerge M44 recovery renewal 2026-11-09.
 # Trigger-only metadata: require a NEW encrypted PROD PostgreSQL+Storage archive,
 # PostgreSQL 17 isolated restore and byte parity before frontend-only production.
