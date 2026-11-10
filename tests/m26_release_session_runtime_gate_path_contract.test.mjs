@@ -15,11 +15,11 @@ const workflows=[
 ];
 
 function triggerBody(yaml,event){
-  const marker='  '+event+':\\n';
+  const marker='  '+event+':'+String.fromCharCode(10);
   const start=yaml.indexOf(marker);
   assert.ok(start>=0,'event exists: '+event);
   const remainder=yaml.slice(start+marker.length);
-  const end=remainder.search(/\\n  (?:push|pull_request|workflow_dispatch|schedule):/u);
+  const endings=['push','pull_request','workflow_dispatch','schedule']\n    .map(name=>remainder.indexOf(String.fromCharCode(10)+'  '+name+':'))\n    .filter(index=>index>=0);\n  const end=endings.length?Math.min(...endings):-1;
   return end<0?remainder:remainder.slice(0,end);
 }
 
