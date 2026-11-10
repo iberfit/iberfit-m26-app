@@ -92,7 +92,7 @@ function createHarness(role='coach'){
     ui.mount();
   }catch(error){globalThis.indexedDB=originalIndexedDb;throw error;}
   const close=()=>{ui.destroy();globalThis.indexedDB=originalIndexedDb;};
-  return {ui,root,state,calls,listeners,close};
+  return {ui,root,state,calls,listeners,close,transport};
 }
 
 test('UNIVERSAL Coach calendar is fetched ONLY after an explicit action; no private read or write',async()=>{
@@ -284,6 +284,43 @@ test('U60 invalid observed RPE is rejected before any write or encryption action
     assert.match(h.ui.renderPanel(),/RPE real de esta serie/u);
   }finally{h.close();}
 });
+
+test('U60 rejects an in-flight Coach calendar after Coach → Client → Coach even with the same UUID',async()=>{
+  const h=createHarness('coach');
+  try{
+    let enterRemote,releaseRemote;
+    const entered=new Promise(resolve=>{enterRemote=resolve;});
+    const remote=new Promise(resolve=>{releaseRemote=resolve;});
+    h.transport.occurrenceCalendar=async(_token,query)=>{
+      enterRemote();
+      return remote;
+    };
+    const button={disabled:false,dataset:{},getAttribute:()=> 'u60-calendar',
+      closest:()=>null};
+    const reading=h.listeners.get('click')({
+      target:{closest:()=>button},preventDefault(){},stopPropagation(){},
+    });
+    await entered;
+    h.state.identity.role='client';
+    const client=h.ui.renderPanel();
+    assert.doesNotMatch(client,/Sesión verificable/u);
+    h.state.identity.role='coach';
+    h.ui.renderPanel();
+    releaseRemote({kind:'calendar',clientId:CLIENT,count:1,hasMore:false,
+      occurrences:[{id:OCC,clientId:CLIENT,sessionId:SESSION,
+        localDate:queryDate(),timeZone:'America/Santiago',
+        status:'planificada',revision:0,title:'Sesión verificable'}]});
+    await reading;
+    const after=h.ui.renderPanel();
+    assert.doesNotMatch(after,/Sesión verificable/u,
+      'an old response must not repopulate a cache after an ABA role change');
+    assert.match(after,/No se pudo confirmar el cambio/u);
+  }finally{h.close();}
+});
+
+function queryDate(){
+  return qaDatedCalendarRange(new Date()).startDate;
+}
 
 test('U60 time-late calendar reads are rejected after role change, including Coach to Client to Coach',()=>{
   const source=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
