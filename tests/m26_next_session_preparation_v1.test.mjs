@@ -354,7 +354,7 @@ test('Coach summary does not invent a plan when historic execution lacks a verif
 
 test('two identical exercise IDs in distinct blocks cannot double-count legacy results',()=>{
   const execution={
-    sessionId:'session-1',
+    sessionId:'session-1',status:'completed',syncStatus:'clean',
     planSnapshot:{sessionId:'session-1',queue:[
       {blockId:'b1',exerciseId:'squat',sets:1},
       {blockId:'b2',exerciseId:'squat',sets:1},
