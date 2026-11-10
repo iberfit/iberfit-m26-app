@@ -79,6 +79,51 @@ export function qaDatedCalendarRange(now=new Date()){
   const at=delta=>new Date(t+delta*86400000).toISOString().slice(0,10);
   return Object.freeze({startDate:at(-14),endDate:at(77)});
 }
+// Read-only planning aid. Requires existing authorized, confirmed appointments
+// with exact server timestamps; never manufactures appointments or executes SQL.
+export function suggestedConfirmedDatedAppointments(appointments,{
+  clientId,sessionId,durationMinutes,range=qaDatedCalendarRange(),now=new Date(),
+}={}){
+  if(!Array.isArray(appointments)||!UUID.test(uid(clientId))||!UUID.test(uid(sessionId))
+    ||!Number.isInteger(durationMinutes)||durationMinutes<10||durationMinutes>240
+    ||!(now instanceof Date)||!Number.isFinite(now.getTime()))return Object.freeze([]);
+  const seen=new Map(),ambiguous=new Set();
+  const formatter=new Intl.DateTimeFormat('en-US',{
+    timeZone:ZONE,year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',hourCycle:'h23',
+  });
+  const strictTimestamp=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/iu;
+  for(const item of appointments){
+    if(uid(field(item,'clientId','client_id'))!==uid(clientId)
+      ||uid(field(item,'sessionId','session_id'))!==uid(sessionId)
+      ||String(field(item,'status')||'').trim().toLowerCase()!=='confirmada')continue;
+    const startRaw=String(field(item,'startAt','start_at')||'');
+    const endRaw=String(field(item,'endAt','end_at')||'');
+    if(!strictTimestamp.test(startRaw)||!strictTimestamp.test(endRaw))continue;
+    const start=Date.parse(startRaw),end=Date.parse(endRaw);
+    if(!Number.isFinite(start)||!Number.isFinite(end)||start<now.getTime()
+      ||end-start!==durationMinutes*60000)continue;
+    const parts=Object.fromEntries(formatter.formatToParts(new Date(start))
+      .filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
+    const date=parts.year+'-'+parts.month+'-'+parts.day;
+    const time=parts.hour+':'+parts.minute;
+    if(date<range.startDate||date>range.endDate)continue;
+    try{
+      // A DST-ambiguous or non-existent clock is never guessed for the Coach.
+      if(Date.parse(resolveSantiagoLocalInstant(date,time))!==start)continue;
+    }catch{continue;}
+    if(seen.has(date))ambiguous.add(date);
+    else seen.set(date,date+' '+time);
+  }
+  return Object.freeze([...seen.entries()].filter(([day])=>!ambiguous.has(day))
+    .map(([,label])=>label).sort().slice(0,52));
+}
+export function datedCoachPreviewMatchesForm(preview,{role,clientId,sessionId,datesInput}={}){
+  return Boolean(preview&&role==='coach'&&
+    preview.roleScope==='coach|'+uid(clientId)&&
+    preview.clientId===uid(clientId)&&preview.sessionId===uid(sessionId)&&
+    preview.datesInput===String(datesInput??'').trim());
+}
 function parseCoachDates(value){
   const lines=String(value||'').trim().split(/\r?\n/gu).filter(Boolean);
   if(!lines.length||lines.length>52)fail('DATES_REQUIRED');
@@ -106,6 +151,8 @@ function humanError(error){
     return 'Esta operación no está autorizada para tu cuenta, cliente o modalidad.';
   if(/RECOVERY|JOURNAL|CHECKPOINT|CONFLICT|CAS|UNCERTAIN/u.test(code))
     return 'Hay una operación o copia cifrada pendiente. Conserva este dispositivo y recupera antes de repetir la acción.';
+  if(/PREVIEW_FORM_CHANGED/u.test(code))
+    return 'Has cambiado la sesión o las fechas después de verificarlas. Repite la verificación antes de confirmar.';
   if(/APPOINTMENT|DATE|CYCLE|PREVIEW|FORMAT|WINDOW/u.test(code))
     return 'Revisa las fechas, el ciclo publicado y las citas confirmadas: deben coincidir exactamente antes de publicar.';
   return 'No se pudo confirmar el cambio. El progreso local cifrado se conserva; comprueba la conexión y reintenta.';
@@ -299,22 +346,28 @@ export function createDatedOccurrenceQaUi({
           (coach&&vault.isUnlocked()?'<button type="button" data-iberdates-action="u60-retry-date" data-u60-id="'+escape(row.id)+'">Recuperar cambio pendiente</button>':'')+
           '</div></article>';
       }).join(''):'';
+      const activePreview=preview?.clientId===scope.clientId&&
+        preview?.roleScope===roleScope(scope)?preview:null;
       const sessions=coach?(scope.state.collections?.sessions||[])
         .filter(s=>uid(field(s,'clientId','client_id'))===scope.clientId
           &&String(field(s,'status')||'').toLowerCase()==='disponible'
           &&String(field(s,'deliveryModality')||'')==='guiada_en_app')
-        .map(s=>'<option value="'+escape(field(s,'id'))+'">'+
+        .map(s=>'<option value="'+escape(field(s,'id'))+'"'+
+          (activePreview?.sessionId===uid(field(s,'id'))?' selected':'')+'>'+
           escape(String(field(s,'title')||'Entrenamiento').slice(0,90))+'</option>').join(''):'';
       const publisher=coach&&sessions
         ?'<details class="m26-panel"><summary>Programar varias fechas de una sesión publicada</summary>'+
          '<label>Sesión publicada<select name="u60Session">'+sessions+'</select></label>'+
          '<label>Fechas y horas en Chile, una por línea (AAAA-MM-DD HH:mm)'+
-         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-11-09 08:00&#10;2026-11-12 08:00"></textarea></label>'+
+         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-11-09 08:00&#10;2026-11-12 08:00">'+escape(activePreview?.datesInput||'')+'</textarea></label>'+
+         '<div class="m26-inline-actions"><button type="button" data-u60-use-appointments>Usar citas confirmadas</button></div>'+
+         '<p class="m26-field-help">Solo prepara las fechas a partir de citas existentes; no crea citas ni publica entrenamientos.</p>'+
+         '<p class="m26-field-help" role="status" aria-live="polite" data-u60-appointment-hint></p>'+
          '<p class="m26-field-help">Cada fecha necesita una cita ya confirmada y vinculada a esa sesión, con horario y duración exactos. La cita se prepara en Agenda. La publicación nunca modifica otras fechas.</p>'+
          '<button type="button" data-iberdates-action="u60-preview">Verificar fechas y citas</button>'+
          '<button type="button" data-iberdates-action="u60-retry-publish">Recuperar una programación pendiente</button>'+
-         (preview&&preview.clientId===scope.clientId
-           ?'<p role="status">'+escape(preview.preview.count)+' fechas verificadas · revisión requerida</p>'+
+         (activePreview
+           ?'<p role="status">'+escape(activePreview.preview.count)+' fechas verificadas · revisión requerida</p>'+
             '<button type="button" class="m26-primary-action" data-iberdates-action="u60-publish">Confirmar programación</button>'
            :'')+'</details>':'';
       body=(isCurrent?(cards||'<p class="m26-empty-copy">No hay fechas dentro del periodo consultado.</p>')
@@ -377,11 +430,11 @@ export function createDatedOccurrenceQaUi({
       fail('METRIC_INVALID');
     return values;
   }
-  async function previewDates(scope,button){
+  async function previewDates(scope,payload){
     if(scope.role!=='coach')fail('COACH_REQUIRED');
     if(!vault.isUnlocked())fail('OWNER_KEY_LOCKED');
     if(loadedFor!==roleScope(scope))fail('CALENDAR_REQUIRED');
-    const sessionId=uid(formValue(button,'u60Session'));
+    const sessionId=uid(payload.selectedSession);
     const session=(scope.state.collections?.sessions||[])
       .find(s=>uid(field(s,'id'))===sessionId
         &&uid(field(s,'clientId','client_id'))===scope.clientId);
@@ -399,7 +452,7 @@ export function createDatedOccurrenceQaUi({
     const minutes=Number(field(session,'durationMinutes'));
     if(!Number.isInteger(minutes)||minutes<10||minutes>240)
       fail('DURATION_INVALID');
-    const dates=parseCoachDates(formValue(button,'u60Dates'));
+    const dates=parseCoachDates(payload.plannedDates);
     const appointments=scope.state.collections?.appointments||[];
     const appointmentIdsByDate={};
     for(const date of dates){
@@ -433,7 +486,7 @@ export function createDatedOccurrenceQaUi({
     if(roleScope(identity())!==roleScope(scope)||generation!==startedAtGeneration)
       fail('ACTOR_CHANGED');
     preview={clientId:scope.clientId,roleScope:roleScope(scope),sessionId,revision,
-      preview:verified,appointmentIdsByDate};
+      datesInput:payload.plannedDates,preview:verified,appointmentIdsByDate};
     message='Fechas, horarios, ciclo y citas verificados. Confirma para programar.';
   }
   async function perform(action,button,payload){
@@ -446,7 +499,7 @@ export function createDatedOccurrenceQaUi({
     }
     if(action==='u60-calendar'){await load(scope);return;}
     if(!vault.isUnlocked())fail('OWNER_KEY_LOCKED');
-    if(action==='u60-preview'){await previewDates(scope,button);return;}
+    if(action==='u60-preview'){await previewDates(scope,payload);return;}
     if(action==='u60-retry-publish'){
       if(scope.role!=='coach')fail('COACH_REQUIRED');
       const id=uid(formValue(button,'u60Session'));
@@ -463,6 +516,10 @@ export function createDatedOccurrenceQaUi({
       if(scope.role!=='coach'||!preview||preview.clientId!==scope.clientId||
         preview.roleScope!==roleScope(scope))fail('PREVIEW_REQUIRED');
       const pending=preview;
+      if(!datedCoachPreviewMatchesForm(pending,{
+        role:scope.role,clientId:scope.clientId,sessionId:payload.selectedSession,
+        datesInput:payload.plannedDates,
+      }))fail('PREVIEW_FORM_CHANGED');
       const source=(scope.state.collections?.sessions||[])
         .find(s=>uid(field(s,'id'))===pending.sessionId);
       if(!source||Number(field(source,'revision'))!==pending.revision)
@@ -608,6 +665,42 @@ export function createDatedOccurrenceQaUi({
     fail('UNKNOWN_ACTION');
   }
   async function onClick(event){
+    const appointmentButton=event?.target?.closest?.('[data-u60-use-appointments]');
+    if(appointmentButton?.hasAttribute?.('data-u60-use-appointments')&&
+      root.contains(appointmentButton)&&!disposed&&!busy&&!appointmentButton.disabled){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const scope=visibleOwner();
+      if(scope?.role!=='coach')return;
+      const panel=appointmentButton.closest?.('[data-u60-panel]');
+      const sessionId=uid(panel?.querySelector?.('[name="u60Session"]')?.value);
+      const datesField=panel?.querySelector?.('[name="u60Dates"]');
+      const hint=panel?.querySelector?.('[data-u60-appointment-hint]');
+      const message=value=>{if(hint)hint.textContent=value;};
+      if(!datesField)return;
+      if(String(datesField.value||'').trim()){
+        message('Ya hay fechas escritas. Revísalas antes de reemplazarlas.');
+        return;
+      }
+      const session=(scope.state.collections?.sessions||[]).find(row=>
+        uid(field(row,'id'))===sessionId&&
+        uid(field(row,'clientId','client_id'))===scope.clientId&&
+        String(field(row,'status')||'').toLowerCase()==='disponible'&&
+        field(row,'deliveryModality')==='guiada_en_app');
+      if(!session)return;
+      const dates=suggestedConfirmedDatedAppointments(
+        scope.state.collections?.appointments||[],{
+          clientId:scope.clientId,sessionId,
+          durationMinutes:Number(field(session,'durationMinutes')),
+        });
+      if(!dates.length){
+        message('No hay citas confirmadas compatibles para esta sesión.');
+        return;
+      }
+      datesField.value=dates.join('\n');
+      message('Se han incorporado citas confirmadas. Revisa las fechas y verifica antes de publicar.');
+      return; // Only local editing; server publication always needs preview.
+    }
     const planButton=event?.target?.closest?.('[data-u60-copy-plan]');
     if(planButton?.hasAttribute?.('data-u60-copy-plan')&&
       root.contains(planButton)&&!disposed&&!busy&&!planButton.disabled){
@@ -651,7 +744,10 @@ export function createDatedOccurrenceQaUi({
     try{
       // Validate/capture BEFORE rebuilding the DOM, including sport-specific
       // units, recovery secret and closeout. Even invalid input must be caught.
+      const planning=action==='u60-preview'||action==='u60-publish';
       payload={id:button.dataset?.u60Id,
+        selectedSession:planning?formValue(button,'u60Session'):'',
+        plannedDates:planning?formValue(button,'u60Dates'):'',
         phrase:action==='u60-unlock'?formValue(button,'u60Phrase'):'',
         result:action==='u60-record'?readResult(button):null,
         reason:action==='u60-skip'?formValue(button,'u60SkipReason'):'',

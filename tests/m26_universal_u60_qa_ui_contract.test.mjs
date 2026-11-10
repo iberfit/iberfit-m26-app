@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import {
   createDatedOccurrenceQaUi,qaDatedCalendarRange,formatDatedElapsed,
   plannedDatedSetDraft,applyPlannedDatedSetDraft,
+  suggestedConfirmedDatedAppointments,datedCoachPreviewMatchesForm,
 } from '../src/m26/workflows/occurrence-qa-ui.js';
 import {M26_ACTION_REGISTRY} from '../src/m26/ui/interactive-audit.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
@@ -429,5 +430,71 @@ test('U60 Coach prescription draft copy has complete EN/FR/PT translations',()=>
       assert.notEqual(output,source,language+': '+source);
       assert.ok(output.length>12);
     }
+  }
+});
+
+test('U60 appointment suggestion uses only future confirmed same-owner dates and exact duration in Santiago',()=>{
+  const one={id:'appt-1',clientId:CLIENT,sessionId:SESSION,status:'confirmada',
+    startAt:'2026-11-12T11:00:00.000Z',endAt:'2026-11-12T12:00:00.000Z'};
+  const two={...one,id:'appt-2',startAt:'2026-11-15T11:00:00.000Z',
+    endAt:'2026-11-15T12:00:00.000Z'};
+  const foreign={...one,id:'foreign',clientId:'20000000-0000-4000-8000-000000000002',
+    startAt:'2026-11-16T11:00:00.000Z',endAt:'2026-11-16T12:00:00.000Z'};
+  const wrongSession={...one,id:'other-session',sessionId:'30000000-0000-4000-8000-000000000002',
+    startAt:'2026-11-17T11:00:00.000Z',endAt:'2026-11-17T12:00:00.000Z'};
+  const canceled={...one,id:'cancel',status:'cancelada',
+    startAt:'2026-11-18T11:00:00.000Z',endAt:'2026-11-18T12:00:00.000Z'};
+  const wrongDuration={...one,id:'short',startAt:'2026-11-19T11:00:00.000Z',
+    endAt:'2026-11-19T11:30:00.000Z'};
+  const old={...one,id:'old',startAt:'2026-11-08T11:00:00.000Z',
+    endAt:'2026-11-08T12:00:00.000Z'};
+  const unzoned={...one,id:'ambiguous-time',startAt:'2026-11-20T08:00:00',
+    endAt:'2026-11-20T09:00:00'};
+  const params={clientId:CLIENT,sessionId:SESSION,durationMinutes:60,
+    range:{startDate:'2026-11-10',endDate:'2026-11-30'},
+    now:new Date('2026-11-10T12:00:00Z')};
+  const rows=[wrongSession,old,canceled,foreign,two,one,wrongDuration,unzoned];
+  assert.deepEqual(suggestedConfirmedDatedAppointments(rows,params),
+    ['2026-11-12 08:00','2026-11-15 08:00']);
+  assert.equal(Object.isFrozen(suggestedConfirmedDatedAppointments(rows,params)),true);
+  assert.deepEqual(rows.at(-3),one,'suggestions must not mutate the original appointments');
+  const conflict={...one,id:'appt-conflict',
+    startAt:'2026-11-12T13:00:00.000Z',endAt:'2026-11-12T14:00:00.000Z'};
+  assert.deepEqual(suggestedConfirmedDatedAppointments([...rows,conflict],params),
+    ['2026-11-15 08:00'],'ambiguous same-day bookings need manual review');
+  assert.deepEqual(suggestedConfirmedDatedAppointments(rows,{...params,durationMinutes:0}),[]);
+});
+
+test('U60 Coach publication must match the immutable reviewed role/session/date text',()=>{
+  const first='2026-11-12 08:00\n2026-11-15 08:00';
+  const preview={clientId:CLIENT,roleScope:'coach|'+CLIENT,
+    sessionId:SESSION,datesInput:first};
+  const input={role:'coach',clientId:CLIENT,sessionId:SESSION,datesInput:first};
+  assert.equal(datedCoachPreviewMatchesForm(preview,input),true);
+  assert.equal(datedCoachPreviewMatchesForm(preview,{...input,datesInput:first+'\n2026-11-18 08:00'}),false);
+  assert.equal(datedCoachPreviewMatchesForm(preview,{...input,sessionId:'30000000-0000-4000-8000-000000000002'}),false);
+  assert.equal(datedCoachPreviewMatchesForm(preview,{...input,role:'client'}),false);
+  assert.equal(datedCoachPreviewMatchesForm(preview,{...input,clientId:'20000000-0000-4000-8000-000000000002'}),false);
+  assert.equal(datedCoachPreviewMatchesForm(null,input),false);
+  const code=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
+  assert.ok(code.includes("if(!datedCoachPreviewMatchesForm(pending,{"));
+  assert.ok(code.includes("fail('PREVIEW_FORM_CHANGED')"));
+  assert.ok(code.includes("plannedDates:planning?formValue(button,'u60Dates')"));
+  assert.ok(code.includes("escape(activePreview?.datesInput||'')"));
+  assert.ok(code.includes('data-u60-use-appointments'));
+  assert.doesNotMatch(code,/data-iberdates-action="u60-use-appointments"/u);
+});
+
+test('U60 appointment assistant messages are translated in all supported locales',()=>{
+  for(const source of [
+    'Usar citas confirmadas',
+    'Solo prepara las fechas a partir de citas existentes; no crea citas ni publica entrenamientos.',
+    'Ya hay fechas escritas. Revísalas antes de reemplazarlas.',
+    'No hay citas confirmadas compatibles para esta sesión.',
+    'Se han incorporado citas confirmadas. Revisa las fechas y verifica antes de publicar.',
+    'Has cambiado la sesión o las fechas después de verificarlas. Repite la verificación antes de confirmar.',
+  ]){
+    for(const language of ['en','fr','pt'])
+      assert.notEqual(iberfitSurfaceTranslate(source,{language}),source);
   }
 });
