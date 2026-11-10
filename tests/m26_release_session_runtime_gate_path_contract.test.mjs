@@ -19,7 +19,10 @@ function triggerBody(yaml,event){
   const start=yaml.indexOf(marker);
   assert.ok(start>=0,'event exists: '+event);
   const remainder=yaml.slice(start+marker.length);
-  const endings=['push','pull_request','workflow_dispatch','schedule']\n    .map(name=>remainder.indexOf(String.fromCharCode(10)+'  '+name+':'))\n    .filter(index=>index>=0);\n  const end=endings.length?Math.min(...endings):-1;
+  const endings=['push','pull_request','workflow_dispatch','schedule']
+    .map(name=>remainder.indexOf(String.fromCharCode(10)+'  '+name+':'))
+    .filter(index=>index>=0);
+  const end=endings.length?Math.min(...endings):-1;
   return end<0?remainder:remainder.slice(0,end);
 }
 
