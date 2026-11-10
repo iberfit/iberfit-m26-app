@@ -417,3 +417,17 @@ test('U60 plan copy applies only user-selected safe targets to empty fields and 
   assert.equal(applyPlannedDatedSetDraft({prescription:{reps:'8-12'}},panel),0);
   assert.equal(applyPlannedDatedSetDraft(step,null),0);
 });
+
+test('U60 Coach prescription draft copy has complete EN/FR/PT translations',()=>{
+  for(const source of [
+    'Copiar objetivo prescrito a los campos vacíos',
+    'Usar objetivo como borrador',
+    'No es un resultado real. Revisa cada valor, registra el esfuerzo observado y confirma la serie.',
+  ]){
+    for(const language of ['en','fr','pt']){
+      const output=iberfitSurfaceTranslate(source,{language});
+      assert.notEqual(output,source,language+': '+source);
+      assert.ok(output.length>12);
+    }
+  }
+});
