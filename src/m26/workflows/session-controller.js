@@ -1763,6 +1763,8 @@ async function click(event){
         const latest=getContext();
         if(!sameLiveExecutionOwner(intent.context,latest)
           ||intent.context.session!==latest?.session
+          ||String(intent.context.actor?.role||'').trim().toLowerCase()!==
+            String(latest.actor?.role||'').trim().toLowerCase()
           ||latest.execution?.index!==intent.index
           ||latest.execution?.setIndex!==intent.setIndex
           ||latest.execution?.status!=='active'
