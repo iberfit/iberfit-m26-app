@@ -46,7 +46,7 @@ import {
 import { deriveAgeYears } from '../workflows/iri-profile.js';
 import {confirmedFirstSessionDraft} from '../workflows/iri-first-session.js';
 import {scoreIriPerformance} from '../norms/iri-scoring.js';
-import {buildIri2DecisionLog,buildIriPlanningSeed} from '../workflows/iri-2-longitudinal.js';
+import {buildIri2DecisionLog,buildIriPlanningSeed,isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
 import {getIberfitLanguage,iberfitLanguageOptions,iberfitLocaleOptions,iberfitPlannedLanguages} from '../ui/i18n.js';
 import {exerciseDisplayName} from '../exercises/names.js';
 import {readIberfitExperiencePreferences,socialPolicyFromPreferences,notificationConsentFromPreferences} from '../ui/preferences.js';
@@ -839,10 +839,7 @@ if (area === 'clientes') {
   if (area === 'iri') {
     const clientId = routeClientId(shellVm, state);
     const iriRecords = recordsForClient(state, 'iriAssessments', clientId)
-      .filter((record)=>{
-        const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
-        return !type||type==='inicial';
-      })
+      .filter(isInitialIriAssessment)
       .sort((a, b) => String(domainDate(a) || '').localeCompare(String(domainDate(b) || '')));
     const current = iriRecords.find(
       (record) => text(record, 'id') === state.selectedIriAssessmentId
@@ -898,10 +895,7 @@ if (area === 'clientes') {
     let iriPlanningSeed=null;
     if(canEdit){
       const baselineIri=recordsForClient(state,'iriAssessments',clientId)
-        .filter((record)=>{
-          const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
-          return !type||type==='inicial';
-        })
+        .filter(isInitialIriAssessment)
         .sort((a,b)=>String(domainDate(a)||'').localeCompare(String(domainDate(b)||'')))[0]||null;
       const baselineDraft=baselineIri&&compactIri(baselineIri)?.confirmed
         ?confirmedFirstSessionDraft(baselineIri,clientId)
@@ -1011,10 +1005,7 @@ if (area === 'clientes') {
     const reports = recordsForClient(state, 'reports', clientId);
     const role = String(shellVm.identity?.role || '');
     const iriAssessments = recordsForClient(state, 'iriAssessments', clientId)
-      .filter((record)=>{
-        const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
-        return !type||type==='inicial';
-      })
+      .filter(isInitialIriAssessment)
       .sort((a, b) =>
         String(domainDate(a) || '').localeCompare(String(domainDate(b) || ''))
       );

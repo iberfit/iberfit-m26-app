@@ -1,4 +1,5 @@
 import { selectedClient } from '../production-state.js';
+import {isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
 import {
   isClientVisibleAppointment,
   isConfirmedAppointment,
@@ -120,9 +121,17 @@ export function recordsForClient(
 export function latestForClient(
   state,
   collectionKey,
-  clientId = state?.selectedClientId
+  clientId = state?.selectedClientId,
+  predicate = null
 ) {
-  return recordsForClient(state, collectionKey, clientId).sort(byNewest)[0] || null;
+  if(!clientId)return null;
+  let latest=null;
+  for(const record of list(state,collectionKey)){
+    if(clientIdOf(record)!==clientId||(predicate&&!predicate(record)))continue;
+    if(latest===null||byNewest(record,latest)<0)latest=record;
+  }
+  // No history truncation: scan every matching record, clone only the winner.
+  return clone(latest);
 }
 
 export function profileForClient(state, clientId = state?.selectedClientId) {
@@ -134,7 +143,7 @@ export function accessForClient(state, clientId = state?.selectedClientId) {
 }
 
 export function latestIriForClient(state, clientId = state?.selectedClientId) {
-  return latestForClient(state, 'iriAssessments', clientId);
+  return latestForClient(state, 'iriAssessments', clientId, isInitialIriAssessment);
 }
 
 export function latestReportForClient(state, clientId = state?.selectedClientId) {
@@ -236,10 +245,12 @@ function indexedRows(index, key, clientId) {
   return index?.[key]?.get(clientId) || [];
 }
 
-function latestIndexed(index, key, clientId) {
-  const rows = indexedRows(index, key, clientId);
-  if (!rows.length) return null;
-  const latest = [...rows].sort(byNewest)[0] || null;
+function latestIndexed(index, key, clientId, predicate = null) {
+  let latest=null;
+  for(const record of indexedRows(index,key,clientId)){
+    if(predicate&&!predicate(record))continue;
+    if(latest===null||byNewest(record,latest)<0)latest=record;
+  }
   return clone(latest);
 }
 
@@ -284,7 +295,7 @@ function indexedClientHealthSummary(client, clientId, index, now) {
     client: clone(client),
     profile: latestIndexed(index, 'clientProfiles', clientId),
     access: latestIndexed(index, 'clientAccess', clientId),
-    iri: latestIndexed(index, 'iriAssessments', clientId),
+    iri: latestIndexed(index, 'iriAssessments', clientId, isInitialIriAssessment),
     report: latestIndexed(index, 'reports', clientId),
     cycle: clone(cycle),
     counts: {
