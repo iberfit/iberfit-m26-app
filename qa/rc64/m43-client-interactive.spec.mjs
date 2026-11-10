@@ -135,6 +135,13 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await page.locator('[data-m26-area="sesion"]:visible').first().click();
   await expect(page.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25_000});
   const card=page.locator('[data-rc39-session]').filter({hasText:LIVE});
+  // A retry of a failed browser job must never silently replay a synthetic
+  // workout that was already server-ACKed and completed on the first attempt.
+  // Do not auto-create, re-open, mutate, or misclassify that old fixture.
+  const completedFixture=page.locator('[data-m43-session-history] [data-m43-completed-session]').filter({hasText:LIVE});
+  if(await completedFixture.count()){
+    throw Error('M43_SYNTHETIC_FIXTURE_ALREADY_COMPLETED_NEW_RUN_REQUIRED');
+  }
   await expect(card,'Only this GitHub run synthetic Client session is startable').toHaveCount(1,{timeout:20_000});
   sessionId=await card.getAttribute('data-rc39-session');
   expect(sessionId).toMatch(UUID);
