@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "a95a45a90bd17a3e8ae58e3e7dc86296ffbf5f11",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "0c8e63223a7a9468f74193a0b3bc62ce6e1cc173",
+  "notes": "EXCELLENCE 360: Executive Concierge + IRI initial truth + linear Coach reads + M43 fail-closed QA, 7/7 exact Canary source gates and M44 verified recovery"
+}
