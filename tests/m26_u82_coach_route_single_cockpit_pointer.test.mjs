@@ -38,7 +38,8 @@ test('U82: Coach physical click returns before a potentially heavy authenticated
   assert.match(nav,/String\(latest\.identity\?\.id\|\|''\)!==ownerId/u);
   assert.match(nav,/String\(latest\.identity\?\.role\|\|''\)!==expectedRole/u);
   assert.match(nav,/String\(latest\.activeArea\|\|''\)!==previousArea/u);
-  assert.match(nav,/\},0\);\s*\}else commitRoute\(\);/u);
+  assert.match(nav,/schedulePriorityNavigation\(\(\)=>\{/u);
+  assert.match(nav,/\},\{windowLike,priority:coachPointer\?'user-blocking':'user-visible'\}\);\s*\}else commitRoute\(\);/u);
   assert.match(nav,/forceSync:String\(current\.identity\?\.role\|\|''\)==='coach'/u);
   const u26=readFileSync(new URL('../qa/signature-u26-authenticated-professional-routes.mjs',import.meta.url),'utf8');
   assert.match(u26,/choice\.click\(\{noWaitAfter:true,timeout:12000\}\)/u);
