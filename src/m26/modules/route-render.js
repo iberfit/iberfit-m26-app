@@ -4669,8 +4669,8 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
   const premiumReview=isCoach?buildCoachSessionReviewCues(prep):null;
   const premiumReviewMarkup=premiumReview?.items?.length
-    ?'<section class="m26-next-session-premium-review" data-premium-coach-review aria-label="Criterio adaptativo para la sesión">'
-      +'<div><p class="m26-eyebrow">Decisión personalizada · Coach</p><h3>Qué conviene contrastar hoy</h3>'
+    ?'<section class="m26-next-session-premium-review" data-premium-coach-review aria-labelledby="m26-premium-coach-review-title">'
+      +'<div><p class="m26-eyebrow">Decisión personalizada · Coach</p><h3 id="m26-premium-coach-review-title">Qué conviene contrastar hoy</h3>'
       +'<p>Señales actuales que pueden justificar una conversación antes de adaptar la sesión.</p></div>'
       +'<ul>'+premiumReview.items.map((item)=>'<li><strong>'+escapeHtml(item.title)+'</strong>'
         +'<p>'+escapeHtml(item.detail)+'</p><small>'+escapeHtml(item.source)+'</small></li>').join('')+'</ul>'
