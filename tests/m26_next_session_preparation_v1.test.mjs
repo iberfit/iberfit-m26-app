@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import {buildNextSessionPreparation,summarizeConfirmedSessionSets} from '../src/m26/intelligence/next-session-prep.js';
+import {buildNextSessionPreparation,buildTrainingSinceLastCoachReview,summarizeConfirmedSessionSets} from '../src/m26/intelligence/next-session-prep.js';
 import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
 import {renderExpedienteRoute,renderSessionsRoute} from '../src/m26/modules/route-render.js';
 
@@ -74,6 +74,36 @@ function baseState(){
     },
   };
 }
+
+test('Coach last closed review is one-pass, owner-scoped, civil-date valid and stable on ties',()=>{
+  const state=baseState();
+  const closed=[
+    ...Array.from({length:1200},(_,i)=>({
+      id:'old-'+i,clientId,status:'cerrado',reviewedAt:'2026-08-25',
+    })),
+    {id:'foreign',clientId:'someone-else',status:'cerrado',reviewedAt:'2026-09-12'},
+    {id:'invalid-calendar',clientId,status:'cerrado',reviewedAt:'2026-09-31'},
+    {id:'future',clientId,status:'cerrado',reviewedAt:'2026-09-14'},
+    {id:'still-open',clientId,status:'abierto',reviewedAt:'2026-09-12'},
+    {id:'latest-first',clientId,status:'cerrado',reviewedAt:'2026-09-10'},
+    {id:'latest-tie',clientId,status:'cerrado',reviewedAt:'2026-09-10'},
+    {id:'earlier',clientId,status:'cerrado',reviewedAt:'2026-09-09'},
+  ];
+  const before=structuredClone(closed);
+  const result=buildTrainingSinceLastCoachReview(state,clientId,{
+    now,outcomes:{closed},
+  });
+  assert.equal(result.available,true);
+  assert.equal(result.reviewId,'latest-first','equal dates preserve the earliest input');
+  assert.equal(result.reviewedAt,'2026-09-10');
+  assert.equal(result.confirmedSessions,1,'only confirmed training since the review is counted');
+  assert.equal(result.latestSessionAt,'2026-09-11');
+  assert.equal(Object.isFrozen(result),true);
+  assert.deepEqual(closed,before,'the selection never sorts or mutates the input');
+  assert.equal(buildTrainingSinceLastCoachReview(state,clientId,{
+    now,outcomes:{closed:[{id:'invalid',clientId,status:'cerrado',reviewedAt:'2026-09-31'}]},
+  }).reason,'no-closed-review');
+});
 
 test('next-session brief consolidates confirmed context without mutating state',()=>{
   const state=baseState();
