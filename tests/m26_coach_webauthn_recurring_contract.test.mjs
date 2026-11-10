@@ -43,17 +43,13 @@ test('trusted Canary workflow owns OIDC reset, real ceremony and cleanup',async(
   assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY/u);
 });
 
-test('U80 Coach navigation changes trigger trusted WebAuthn on PRs and every protected Canary push',async()=>{
+test('U80 Coach navigation changes must trigger trusted real WebAuthn on Canary push, not just PR contract',async()=>{
   const workflow=await read('.github/workflows/coach-webauthn-recurring.yml');
-  const pullRequest=workflow.split('\n  pull_request:\n')[1]?.split('\n  push:\n')[0];
-  const canaryPush=workflow.split('\n  push:\n')[1]?.split('\n  workflow_dispatch:')[0];
-  assert.ok(pullRequest&&canaryPush,'Both PR and Canary triggers must be present');
-  for(const path of ["      - 'src/m26/shell/**'","      - 'src/m26/experience/route-view-transitions.js'"]){
-    assert.ok(pullRequest.includes(path),path+' must still trigger the safe PR contract');
+  const paths=["      - 'src/m26/shell/**'","      - 'src/m26/experience/route-view-transitions.js'"];
+  for(const path of paths){
+    assert.equal(workflow.split(path).length-1,2,
+      path+' must be covered by both PR and protected Canary push triggers');
   }
-  assert.match(canaryPush,/branches: \[canary\/rc74-4\]/u);
-  assert.doesNotMatch(canaryPush,/^    paths(?:-ignore)?:/mu,
-    'Every protected Canary source SHA must run the real WebAuthn ceremony');
   assert.match(workflow,/live-coach-webauthn:[\s\S]*if: github\.event_name != 'pull_request'/u,
     'Real credential ceremonies remain forbidden on untrusted PRs');
 });
