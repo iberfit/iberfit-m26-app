@@ -1,5 +1,5 @@
 -- IBERFIT QA ONLY P0 rollback. Source-pinned, no data or permission mutation.
-SELECT 1/(CASE WHEN EXISTS (SELECT 1 FROM public.iberfit_system_settings s WHERE s.key='environment' AND s.value#>>'{}'='QA') AND md5(pg_get_functiondef('public.iberfit_bootstrap_v26()'::regprocedure))='9b0a3c67c0bc24b3877836dbc0f36235' THEN 1 ELSE 0 END) AS qa_rollback_source_guard;
+SELECT 1/(CASE WHEN EXISTS (SELECT 1 FROM public.iberfit_system_settings s WHERE s.key='environment' AND s.value#>>'{}'='QA') AND md5(pg_get_functiondef('public.iberfit_bootstrap_v26()'::regprocedure))='243c5df0f05cb35fffd3cf777a5932c5' THEN 1 ELSE 0 END) AS qa_rollback_source_guard;
 CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26()
  RETURNS jsonb
  LANGUAGE plpgsql
