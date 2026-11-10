@@ -664,6 +664,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   // One explicit Next tap may arrive while the prior set correction is still
   // being committed. Keep only its scoped intent; never auto-advance on error.
   let deferredNextTap=null;
+  let pendingSessionAction=null;
   // Compatibility name retained for the existing contract tests. This now
   // guards every primary focus action, not only Next: optimistic execution
   // state may render the following control before the previous remote mutation
@@ -1607,7 +1608,9 @@ async function click(event){
       return;
     }
     if(sessionActionPending||action==='start'&&startPending){
-      if(action==='next'&&sessionActionPending&&context?.execution?.status==='active'){
+      if(action==='next'&&sessionActionPending
+        &&['complete-set','correct-set','rest-minus','rest-plus'].includes(pendingSessionAction)
+        &&context?.execution?.status==='active'){
         const step=currentStep(context.execution,context.session);
         if(step&&executionResultForStep(context.execution,step)&&!deferredNextTap){
           deferredNextTap={context,index:context.execution.index,
@@ -1620,6 +1623,7 @@ async function click(event){
     // must never send another SESION_INICIAR for an already-active execution.
     if(action==='start'&&context?.execution?.status!=='ready')return;
     sessionActionPending=true;
+    pendingSessionAction=action;
     // Dock rerenders cannot overrule the actual controller's write lock.
     if(root.dataset)root.dataset.m26SessionActionPending='true';
     syncPendingNextControls();
@@ -1751,7 +1755,7 @@ async function click(event){
       if(mapped&&actionState){actionState.status=mapped.status;actionState.message=mapped.message;}
       renderSession();
       if(mapped?.focusSelector)focusSessionRecoveryField(mapped.focusSelector);
-    }}finally{sessionActionPending=false;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();
+    }}finally{sessionActionPending=false;pendingSessionAction=null;if(root.dataset)delete root.dataset.m26SessionActionPending;syncPendingNextControls();
       const intent=deferredNextTap;
       deferredNextTap=null;
       if(completedAction&&intent)queueMicrotask(()=>{
