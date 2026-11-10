@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {schedulePriorityNavigation} from '../src/m26/shell/priority-navigation.js';
+import {schedulePriorityNavigation} from '../src/m26/shell/navigation.js';
 
 function harness({scheduler=true}={}){
   const tasks=[],timers=[],priorities=[];

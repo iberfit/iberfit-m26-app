@@ -16,7 +16,7 @@ import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js
 import {revalidatePendingSessionEntry} from '../intelligence/session-entry-intent.js';
 import {createRouteViewModel} from '../modules/route-view-model.js';
 import {runRouteViewTransition} from '../experience/route-view-transitions.js';
-import {schedulePriorityNavigation} from './priority-navigation.js';
+import {schedulePriorityNavigation} from './navigation.js';
 import {adminClientContextArea} from '../admin/navigation.js';
 
 const ACTION_CENTER_TITLE_ID='m26-coach-action-center-title';
