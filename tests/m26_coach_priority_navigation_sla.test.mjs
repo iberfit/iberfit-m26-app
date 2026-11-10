@@ -70,3 +70,20 @@ test('authenticated Coach navigation keeps exact ticket, generation, owner, role
   assert.match(shell,/String\(latest\.activeArea\|\|''\)!==previousArea/);
   assert.match(shell,/forceSync:String\(current\.identity\?\.role\|\|''\)==='coach'/);
 });
+
+test('Postmerge Coach, Admin and remote release gates watch the exact shell navigation runtime',()=>{
+  const admin=readFileSync('.github/workflows/admin-webauthn-recurring.yml','utf8');
+  const remote=readFileSync('.github/workflows/remote-gates.yml','utf8');
+  const coach=readFileSync('.github/workflows/coach-webauthn-recurring.yml','utf8');
+  const after=(yaml,tag,next)=>yaml.split('  '+tag+':')[1]?.split('  '+next+':')[0]||'';
+  const adminPr=after(admin,'pull_request','push');
+  const adminPush=after(admin,'push','workflow_dispatch');
+  const remotePush=after(remote,'push','workflow_dispatch');
+  for(const scope of [adminPr,adminPush,remotePush]){
+    for(const path of ['src/m26/shell/shell-controller.js','src/m26/shell/navigation.js']){
+      assert.equal(scope.split("- '"+path+"'").length-1,1,'exact navigation trigger '+path);
+    }
+    assert.ok(!scope.includes("- 'src/**'"),'no broad source trigger');
+  }
+  assert.match(after(coach,'push','workflow_dispatch'),/src\/m26\/shell\/\*\*/u);
+});

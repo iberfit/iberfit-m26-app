@@ -6,6 +6,8 @@ on:
       - canary/rc74-4
     paths:
       - 'src/m26/app/**'
+      - 'src/m26/shell/shell-controller.js'
+      - 'src/m26/shell/navigation.js'
       - 'src/m26/workflows/session-controller.js'
       - 'src/m26/workflows/session-execution.js'
       - 'src/m26/workflows/session-recovery.js'
