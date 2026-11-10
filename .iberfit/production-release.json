@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "0c8e63223a7a9468f74193a0b3bc62ce6e1cc173",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "17da1af5925ecf9d0f899f8949a409624efddefb",
+  "notes": "IBERFIT PRIVATE COACH 360 · concierge y revisión contextual Coach; promoción frontend-only con gates exact-SHA certificados, sin mutaciones SQL, Auth, Storage ni Edge"
+}
