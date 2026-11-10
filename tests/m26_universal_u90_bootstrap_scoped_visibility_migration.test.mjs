@@ -95,11 +95,20 @@ test('UNIVERSAL U91 SonarCloud duplication exemptions are exact immutable SQL ar
  const match=p.match(/^sonar\.cpd\.exclusions=(.+)$/mu);
  assert.ok(match);
  const patterns=match[1].split(',');
- assert.equal(patterns.length,8);
+ const p0Exact=new Set([
+   'supabase/qa-migrations/20261110163500_p0_qa_bootstrap_sanitized_projection_reuse.sql',
+   'supabase/qa-rollbacks/20261110163500_p0_qa_bootstrap_sanitized_projection_reuse.rollback.sql',
+ ]);
+ assert.equal(patterns.length,10);
  assert.equal(new Set(patterns).size,patterns.length);
- for(const entry of patterns){
+ const historic=patterns.filter(entry=>!p0Exact.has(entry));
+ assert.equal(historic.length,8);
+ for(const entry of historic){
    assert.match(entry,/^supabase\/(?:qa-migrations|qa-rollbacks|migrations|rollbacks)\/20261109\d{6}_u9[01]_[-._a-z0-9]+\.sql$/u);
-   assert.ok(!entry.includes('*'),entry);
+ }
+ for(const path of p0Exact)assert.ok(patterns.includes(path),path);
+ for(const entry of patterns){
+   assert.ok(!entry.includes('*')&&!entry.includes('?'),entry);
    assert.ok(!entry.includes('/src/'),entry);
  }
  assert.ok(!p.includes('sonar.exclusions='));
