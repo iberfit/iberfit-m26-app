@@ -114,6 +114,48 @@ test('UNIVERSAL Coach calendar is fetched ONLY after an explicit action; no priv
   }finally{h.close();}
 });
 
+test('U60 Coach calendar is invalidated when switching to Client on the same UUID',async()=>{
+  const h=createHarness('coach');
+  try{
+    const button={disabled:false,dataset:{},getAttribute:()=> 'u60-calendar',
+      closest:()=>null};
+    await h.listeners.get('click')({
+      target:{closest:()=>button},preventDefault:()=>{},stopPropagation:()=>{},
+    });
+    assert.match(h.ui.renderPanel(),/Sesión verificable/u);
+    assert.match(h.ui.renderPanel(),/u60-confirm/u);
+    h.state.identity.role='client';
+    const clientMarkup=h.ui.renderPanel();
+    assert.doesNotMatch(clientMarkup,/Sesión verificable/u);
+    assert.doesNotMatch(clientMarkup,/u60-confirm/u);
+    assert.match(clientMarkup,/Consulta el calendario autorizado/u);
+    h.state.identity.role='coach';
+    const returnedMarkup=h.ui.renderPanel();
+    assert.doesNotMatch(returnedMarkup,/Sesión verificable/u,
+      're-entering Coach must request a fresh authorized calendar');
+  }finally{h.close();}
+});
+
+test('U60 changing selected Coach client clears stale prior-client calendar',async()=>{
+  const h=createHarness('coach');
+  const second='20000000-0000-4000-8000-000000000002';
+  try{
+    const button={disabled:false,dataset:{},getAttribute:()=> 'u60-calendar',
+      closest:()=>null};
+    await h.listeners.get('click')({
+      target:{closest:()=>button},preventDefault:()=>{},stopPropagation:()=>{},
+    });
+    assert.match(h.ui.renderPanel(),/Sesión verificable/u);
+    h.state.collections.clients.push({id:second});
+    h.state.selectedClientId=second;
+    assert.doesNotMatch(h.ui.renderPanel(),/Sesión verificable/u);
+    assert.doesNotMatch(h.ui.renderPanel(),/u60-confirm/u);
+    h.state.selectedClientId=CLIENT;
+    assert.doesNotMatch(h.ui.renderPanel(),/Sesión verificable/u,
+      'returning to a client cannot reuse stale owner-scoped rows');
+  }finally{h.close();}
+});
+
 test('UNIVERSAL role isolation: Client sees no Coach scheduling and Admin sees no date workspace',()=>{
   const client=createHarness('client');
   try{

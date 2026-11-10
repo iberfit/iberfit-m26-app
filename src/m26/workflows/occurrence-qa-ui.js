@@ -99,8 +99,11 @@ export function createDatedOccurrenceQaUi({
     createId:()=>cryptoImpl.randomUUID(),
   });
   let mounted=false,disposed=false,busy=false,ticker=null,loadedFor='',rows=[],
-    focus=null,preview=null,message='',failure='',generation=0;
+    focus=null,preview=null,message='',failure='',generation=0,visibleScopeKey='';
   const repaint=()=>{if(!disposed)onRender();};
+  // The U33 calendar differs by signed-in role, even for one client UUID.
+  // A Coach projection must never be reused by Client after changing area.
+  const roleScope=scope=>scope.role+'|'+scope.clientId;
   function identity(){
     const state=getState()||{},i=state.identity||{};
     const role=String(i.role||'').trim().toLowerCase();
@@ -121,7 +124,16 @@ export function createDatedOccurrenceQaUi({
     return scope;
   }
   function visibleOwner(){
-    try{return identity();}catch{return null;}
+    let scope=null;
+    try{scope=identity();}catch{}
+    const key=scope?roleScope(scope):'';
+    if(key!==visibleScopeKey){
+      visibleScopeKey=key;
+      // Read-only in-memory projection only. Never delete encrypted recovery
+      // journals/checkpoints or active workouts when a workspace changes.
+      loadedFor='';rows=[];preview=null;message='';failure='';
+    }
+    return scope;
   }
   function workoutView(){
     return focus?runtime.workout.view():null;
@@ -133,7 +145,7 @@ export function createDatedOccurrenceQaUi({
       ['ready','active','pending-recovery'].includes(v?.phase));
   }
   function dateRows(scope){
-    return loadedFor===scope.clientId?rows:[];
+    return loadedFor===roleScope(scope)?rows:[];
   }
   async function verifySessionRetirement({clientId,sessionId}={}){
     if(disposed)fail('DESTROYED');
@@ -147,7 +159,7 @@ export function createDatedOccurrenceQaUi({
       readCalendar:range=>runtime.calendar(range),
     });
     await authenticated();
-    if(identity().clientId!==auth.clientId)fail('COACH_RETIRE_SCOPE_CHANGED');
+    if(roleScope(identity())!==roleScope(auth))fail('COACH_RETIRE_SCOPE_CHANGED');
     return verdict;
   }
   function renderPanel(){
@@ -155,9 +167,10 @@ export function createDatedOccurrenceQaUi({
     const scope=visibleOwner();
     if(!scope)return '';
     const coach=scope.role==='coach';
-    const isCurrent=loadedFor===scope.clientId;
+    const isCurrent=loadedFor===roleScope(scope);
     const entries=dateRows(scope);
-    const view=workoutView();
+    const view=focus?.clientId===scope.clientId&&focus?.role===scope.role
+      ?workoutView():null;
     const locked=!vault.isUnlocked();
     const status=failure
       ?'<p role="alert" class="m26-form-status is-error">'+escape(failure)+'</p>'
@@ -279,10 +292,11 @@ export function createDatedOccurrenceQaUi({
   }
   async function load(scope){
     const range=qaDatedCalendarRange();
+    const requestedScope=roleScope(scope);
     const output=await runtime.calendar({clientId:scope.clientId,...range,limit:50});
     await authenticated();
-    if(identity().clientId!==scope.clientId)fail('CLIENT_CHANGED');
-    loadedFor=scope.clientId;rows=output.occurrences;preview=null;
+    if(roleScope(identity())!==requestedScope)fail('ACTOR_CHANGED');
+    loadedFor=requestedScope;rows=output.occurrences;preview=null;
     message='Calendario confirmado: '+rows.length+' fecha(s) verificadas.';
   }
   function readResult(button){
@@ -303,7 +317,7 @@ export function createDatedOccurrenceQaUi({
   async function previewDates(scope,button){
     if(scope.role!=='coach')fail('COACH_REQUIRED');
     if(!vault.isUnlocked())fail('OWNER_KEY_LOCKED');
-    if(loadedFor!==scope.clientId)fail('CALENDAR_REQUIRED');
+    if(loadedFor!==roleScope(scope))fail('CALENDAR_REQUIRED');
     const sessionId=uid(formValue(button,'u60Session'));
     const session=(scope.state.collections?.sessions||[])
       .find(s=>uid(field(s,'id'))===sessionId
@@ -351,7 +365,7 @@ export function createDatedOccurrenceQaUi({
       existingAppointments:appointments.filter(ap=>!excluded.has(uid(field(ap,'id')))),
     };
     const verified=await runtime.previewDates(options);
-    preview={clientId:scope.clientId,sessionId,revision,
+    preview={clientId:scope.clientId,roleScope:roleScope(scope),sessionId,revision,
       preview:verified,appointmentIdsByDate};
     message='Fechas, horarios, ciclo y citas verificados. Confirma para programar.';
   }
@@ -379,8 +393,8 @@ export function createDatedOccurrenceQaUi({
       return;
     }
     if(action==='u60-publish'){
-      if(scope.role!=='coach'||!preview||preview.clientId!==scope.clientId)
-        fail('PREVIEW_REQUIRED');
+      if(scope.role!=='coach'||!preview||preview.clientId!==scope.clientId||
+        preview.roleScope!==roleScope(scope))fail('PREVIEW_REQUIRED');
       const pending=preview;
       const source=(scope.state.collections?.sessions||[])
         .find(s=>uid(field(s,'id'))===pending.sessionId);
@@ -450,7 +464,7 @@ export function createDatedOccurrenceQaUi({
       if(scope.role!=='coach'&&(!row.appointmentId||
         !['confirmada','cancelada','completada'].includes(row.appointmentStatus)))
         fail('APPOINTMENT_REQUIRED');
-      const target={clientId:scope.clientId,occurrenceId:row.id};
+      const target={clientId:scope.clientId,occurrenceId:row.id,role:scope.role};
       focus=target;
       try{await runtime.openWorkout(target);}
       catch(error){
@@ -462,7 +476,8 @@ export function createDatedOccurrenceQaUi({
       message='Estado individual verificado mediante lectura privada.';
       return;
     }
-    if(!focus||focus.clientId!==scope.clientId)fail('WORKOUT_SCOPE_CHANGED');
+    if(!focus||focus.clientId!==scope.clientId||focus.role!==scope.role)
+      fail('WORKOUT_SCOPE_CHANGED');
     if(action==='u60-close'){
       if(runtime.workout.view().hasUncertain||
         runtime.workout.view().unsavedWork)fail('UNSAVED_WORKOUT');
@@ -560,6 +575,8 @@ export function createDatedOccurrenceQaUi({
     finally{payload.phrase='';busy=false;repaint();}
   }
   function tick(){
+    // No global DOM lookup while the operator is outside dated execution.
+    if(!focus)return;
     const node=root.querySelector?.('[data-u60-clock-start]');
     const started=Date.parse(String(node?.getAttribute?.('data-u60-clock-start')||''));
     if(node&&Number.isFinite(started)){
