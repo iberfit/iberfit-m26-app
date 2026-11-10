@@ -322,6 +322,19 @@ function queryDate(){
   return qaDatedCalendarRange(new Date()).startDate;
 }
 
+test('Coach RPE shortcuts and all form recovery errors are localized EN/FR/PT',()=>{
+  for(const text of [
+    'Registra el RPE real de esta serie, entre 1 y 10, en pasos de 0,5. Puedes seleccionarlo o escribirlo.',
+    'Revisa las repeticiones, el tiempo, la distancia o el RIR. Deben ser cantidades válidas y dentro de sus límites.',
+    'Para omitir una serie debes registrar un motivo de al menos tres caracteres.',
+    'Seleccionar RPE real de la serie',
+    'RPE real',
+  ])for(const language of ['en','fr','pt']){
+    const translated=iberfitSurfaceTranslate(text,{language});
+    assert.notEqual(translated,text,language+' '+text);
+  }
+});
+
 test('U60 time-late calendar reads are rejected after role change, including Coach to Client to Coach',()=>{
   const source=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
   assert.match(source,/generation\+\+; \/\/ invalidate any calendar/u);

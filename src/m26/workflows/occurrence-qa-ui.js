@@ -217,7 +217,7 @@ export function createDatedOccurrenceQaUi({
          '<label>Carga (kg)<input name="u60Load" maxlength="80"></label>'+
          '<label>RPE de la serie (1–10)<input name="u60Rpe" type="number" min="1" max="10" step="0.5" required inputmode="decimal"></label>'+
          (coach?'<div class="m26-session-coach-rpe-quick" role="group" aria-label="Seleccionar RPE real de la serie"><span>RPE real</span>'+
-           [6,7,8,9,10].map(value=>'<button type="button" data-u60-quick-rpe="'+value+'" aria-label="Marcar RPE real '+value+'" aria-pressed="false">'+value+'</button>').join('')+
+           [6,7,8,9,10].map(value=>'<button type="button" data-u60-quick-rpe="'+value+'" aria-label="RPE '+value+'" aria-pressed="false">'+value+'</button>').join('')+
            '</div>':'')+
          '<label>RIR<input name="u60Rir" type="number" min="0" max="10" step="0.5" inputmode="decimal"></label>'+
          '<label>Ritmo running (min/km)<input name="u60Pace" placeholder="5:30" pattern="[0-9]{1,2}:[0-5][0-9]"></label>'+
