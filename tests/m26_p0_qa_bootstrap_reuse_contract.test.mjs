@@ -38,3 +38,18 @@ test('rollback is QA-only source-pinned and restores the original full code',()=
     assert.doesNotMatch(s,/\b(?:GRANT|REVOKE|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER TABLE)\b/i);
   }
 });
+
+test('Sonar CPD exclusions cover only the exact immutable SQL pair and preserve all other analysis',()=>{
+  const config=readFileSync(new URL('../.sonarcloud.properties',import.meta.url),'utf8');
+  const declaration=config.split('\\n').find(line=>line.startsWith('sonar.cpd.exclusions='));
+  assert.ok(declaration);
+  const paths=declaration.slice('sonar.cpd.exclusions='.length).split(',');
+  assert.equal(paths.length,new Set(paths).size);
+  for(const p of [
+    'supabase/qa-migrations/20261110163500_p0_qa_bootstrap_sanitized_projection_reuse.sql',
+    'supabase/qa-rollbacks/20261110163500_p0_qa_bootstrap_sanitized_projection_reuse.rollback.sql'
+  ])assert.equal(paths.filter(x=>x===p).length,1);
+  assert.ok(paths.every(x=>x.endsWith('.sql')&&!/[?*]/u.test(x)));
+  assert.ok(!config.includes('sonar.exclusions='));
+  assert.ok(!config.includes('sonar.sources='));
+});
