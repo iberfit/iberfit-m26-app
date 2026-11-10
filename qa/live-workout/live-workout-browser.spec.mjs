@@ -205,7 +205,17 @@ test('SIGNATURE Coach controls stay within 320px after advancing to the next set
   await fillCurrentSet(page,{reps:'8',load:'20 kg',rpe:'7',rir:'3'});
   await page.locator('[data-session-action="complete-set"]').click();
   await page.locator('[data-session-action="next"]').click();
+  await expect.poll(async()=>{
+    const s=await state(page);
+    return {index:s.index,setIndex:s.setIndex,errors:s.errors};
+  },{timeout:10000,intervals:[100,200,400]}).toEqual({
+    index:0,setIndex:1,errors:[],
+  });
   await page.setViewportSize({width:320,height:740});
+  const scrollMargin=await page.locator('[data-session-action="complete-set"]')
+    .evaluate(el=>parseFloat(getComputedStyle(el).scrollMarginBlockStart));
+  expect(scrollMargin,'primary CTA must clear the mobile sticky Coach controls')
+    .toBeGreaterThan(100);
   const quick=page.locator('[data-session-coach-quick-controls]');
   await expect(quick).toBeVisible();
   await expect(quick.locator('button')).toHaveCount(3);
