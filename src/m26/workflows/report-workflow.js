@@ -2,7 +2,7 @@ import {buildProgressHub} from '../engagement/progress-hub.js';
 import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId} from '../domain/session-execution-truth.js';
-import {IRI_INITIAL_DIAGNOSTIC_KIND} from './iri-2-longitudinal.js';
+import {IRI_INITIAL_DIAGNOSTIC_KIND,isInitialIriAssessment} from './iri-2-longitudinal.js';
 import {buildPostSessionSportEvidence} from './report-sport-evidence.js';
 import {buildPlanExecutionSummary} from '../engagement/progress-engine.js';
 
@@ -47,12 +47,7 @@ function uniqueConfirmedExecutions(records){const seen=new Set();return sortNewe
 function dateOffset(endDate,days){const time=timestamp(endDate);if(!Number.isFinite(time))return null;return new Date(time-(Math.max(1,days)-1)*DAY_MS).toISOString().slice(0,10);}
 function inWindow(record,start,end){const date=executionDate(record);return Boolean(date&&date>=start&&date<=end);}
 function confirmedIri(record){const status=String(recordValue(record,'status','estado')||'').toLowerCase();return Boolean(recordValue(record,'firstSessionCompletedAt','first_session_completed_at'))||/(?:complet|confirmad|approved|aprob)/i.test(status);}
-function isInitialIri(record){
-  const type=String(recordValue(record,'assessmentType','assessment_type','type','assessmentKind','kind','phase')||'').trim().toLowerCase();
-  // Historical untyped assessment rows remain readable; explicitly typed
-  // follow-up records must never be projected as the initial diagnosis.
-  return !type||['inicial','initial',IRI_INITIAL_DIAGNOSTIC_KIND].includes(type);
-}
+function isInitialIri(record){return isInitialIriAssessment(record);}
 function objectiveMeasurement(candidate){if(candidate===null||candidate===undefined||candidate==='')return false;if(Array.isArray(candidate))return candidate.some(objectiveMeasurement);if(typeof candidate==='object')return Object.values(candidate).some(objectiveMeasurement);if(typeof candidate==='number')return Number.isFinite(candidate);if(typeof candidate==='string')return candidate.trim()!==''&&Number.isFinite(Number(candidate));return false;}
 function iriCoverage(record){if(!record)return 0;const finalHr=recordValue(record,'stepFinalHr','step_final_hr'),oneMinuteHr=recordValue(record,'stepOneMinuteHr','step_one_minute_hr');const cardio=objectiveMeasurement(finalHr)&&objectiveMeasurement(oneMinuteHr);const composition=objectiveMeasurement(recordValue(record,'bodyComposition','body_composition'));const strength=objectiveMeasurement(recordValue(record,'strengthPatterns','strength_patterns'));return [cardio,composition,strength].filter(Boolean).length;}
 function evidence(label,value,source,quality='confirmada'){return Object.freeze({label,text:cleanText(value,500),source,quality});}

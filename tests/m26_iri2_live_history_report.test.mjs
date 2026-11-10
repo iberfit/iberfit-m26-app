@@ -36,6 +36,7 @@ test('longitudinal comparison remains a separate follow-up capability rather tha
 test('workflow and report routes reject explicit reevaluation rows as IRI report sources',()=>{
   const workflow=read('src/m26/app/workflow-controller.js');
   const routeVm=read('src/m26/modules/route-view-model.js');
-  assert.match(workflow,/type==='inicial'/u);
-  assert.match(routeVm,/area === 'informes'[\s\S]*type==='inicial'/u);
+  assert.match(workflow,/isInitialIriAssessment\(item\)/u);
+  assert.match(routeVm,/area === 'informes'[\s\S]*\.filter\(isInitialIriAssessment\)/u);
+  assert.match(read('src/m26/workflows/iri-2-longitudinal.js'),/FOLLOWUP_IRI_TYPES\.has\(value\)/u);
 });
