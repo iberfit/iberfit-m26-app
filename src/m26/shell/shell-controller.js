@@ -16,6 +16,7 @@ import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js
 import {revalidatePendingSessionEntry} from '../intelligence/session-entry-intent.js';
 import {createRouteViewModel} from '../modules/route-view-model.js';
 import {runRouteViewTransition} from '../experience/route-view-transitions.js';
+import {schedulePriorityNavigation} from './priority-navigation.js';
 import {adminClientContextArea} from '../admin/navigation.js';
 
 const ACTION_CENTER_TITLE_ID='m26-coach-action-center-title';
@@ -943,7 +944,10 @@ export function createShellController({ root, store, renderRoute = () => '', get
         const version=generation;
         const ownerId=String(current.identity?.id||'');
         const previousArea=String(current.activeArea||'');
-        windowLike.setTimeout(()=>{
+        // Still defer beyond the trusted click event to avoid reparenting the
+        // active hit target, but don't let unrelated timer tasks hold a Coach
+        // navigation behind background work. Safari safely uses the timer.
+        schedulePriorityNavigation(()=>{
           if(ticket!==touchRouteTicket||version!==generation||!unsubscribe)return;
           // Read only immutable identity + area for CAS; avoid cloning
           // the whole U38 history just to reject a stale navigation.
@@ -952,7 +956,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
             ||String(latest.identity?.role||'')!==expectedRole
             ||String(latest.activeArea||'')!==previousArea)return;
           commitRoute();
-        },0);
+        },{windowLike,priority:coachPointer?'user-blocking':'user-visible'});
       }else commitRoute();
       return;
     }
