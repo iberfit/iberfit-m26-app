@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "d8f82511b455d1e07beb45fdf3bd63f38b5135df",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "a95a45a90bd17a3e8ae58e3e7dc86296ffbf5f11",
+  "notes": "IBERFIT UNIVERSAL 360 final P0 session/Coach performance frontend-only; Canary exact 12/12 GREEN, M44 PG17 encrypted restore GREEN; QA-only SQL not applied to PROD."
+}
