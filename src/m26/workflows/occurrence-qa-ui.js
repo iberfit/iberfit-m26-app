@@ -51,7 +51,10 @@ export function plannedDatedSetDraft(step){
   const repetitions=String(p.reps??'').trim();
   if(/^(?:0|[1-9][0-9]{0,4})$/u.test(repetitions)&&Number(repetitions)<=10000)
     result.reps=repetitions;
-  const weight=String(p.plannedLoad??'').trim().replace(/\s*kg$/iu,'').trim();
+  const rawWeight=String(p.plannedLoad??'').trim();
+  // Suffix test is linear even on adversarial runs of whitespace.
+  const weight=(rawWeight.slice(-2).toLowerCase()==='kg'
+    ?rawWeight.slice(0,-2):rawWeight).trim();
   if(/^(?:0|[1-9][0-9]{0,4})(?:[.,][0-9]{1,2})?$/u.test(weight)&&
     Number(weight.replace(',','.'))<=10000)
     result.load=weight.replace(',','.');
@@ -116,7 +119,7 @@ export function suggestedConfirmedDatedAppointments(appointments,{
     else seen.set(date,date+' '+time);
   }
   return Object.freeze([...seen.entries()].filter(([day])=>!ambiguous.has(day))
-    .map(([,label])=>label).sort().slice(0,52));
+    .map(([,label])=>label).sort((a,b)=>a<b?-1:a>b?1:0).slice(0,52));
 }
 export function datedCoachPreviewMatchesForm(preview,{role,clientId,sessionId,datesInput}={}){
   return Boolean(preview&&role==='coach'&&
