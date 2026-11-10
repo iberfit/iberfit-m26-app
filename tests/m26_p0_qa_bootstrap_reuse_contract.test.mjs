@@ -41,7 +41,7 @@ test('rollback is QA-only source-pinned and restores the original full code',()=
 
 test('Sonar CPD exclusions cover only the exact immutable SQL pair and preserve all other analysis',()=>{
   const config=readFileSync(new URL('../.sonarcloud.properties',import.meta.url),'utf8');
-  const declaration=config.split('\\n').find(line=>line.startsWith('sonar.cpd.exclusions='));
+  const declaration=config.split(String.fromCharCode(10)).find(line=>line.startsWith('sonar.cpd.exclusions='));
   assert.ok(declaration);
   const paths=declaration.slice('sonar.cpd.exclusions='.length).split(',');
   assert.equal(paths.length,new Set(paths).size);
