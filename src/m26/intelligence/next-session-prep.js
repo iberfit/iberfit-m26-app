@@ -346,13 +346,20 @@ export function buildTrainingSinceLastCoachReview(state,clientId,{now=new Date()
   // canonical closed status even if it is supplied by a trusted preparer.
   const decisions=outcomes?.closed||summarizeActionOutcomes(
     state?.collections?.m26Entities||[],owner,{now}).closed;
-  const reviewed=[...decisions].filter(item=>
-    item?.clientId===owner&&item.status==='cerrado'
-    &&typeof item.reviewedAt==='string'
-    &&/^\d{4}-\d{2}-\d{2}$/.test(item.reviewedAt)
-    &&item.reviewedAt<=today)
-    .sort((a,b)=>b.reviewedAt.localeCompare(a.reviewedAt));
-  const latestReview=reviewed[0]||null;
+  // Select the most recent verified follow-up in one pass. Equal dates keep
+  // their original order; an invalid civil date is never treated as a review.
+  let latestReview=null;
+  for(const item of decisions){
+    if(item?.clientId!==owner||item.status!=='cerrado'
+      ||typeof item.reviewedAt!=='string'
+      ||!/^\d{4}-\d{2}-\d{2}$/.test(item.reviewedAt)
+      ||item.reviewedAt>today)continue;
+    const instant=Date.parse(item.reviewedAt+'T12:00:00Z');
+    if(!Number.isFinite(instant)
+      ||new Date(instant).toISOString().slice(0,10)!==item.reviewedAt)continue;
+    if(!latestReview||item.reviewedAt>latestReview.reviewedAt)
+      latestReview=item;
+  }
   if(!latestReview)return missing('no-closed-review');
   const elapsed=(Date.parse(today+'T12:00:00Z')
     -Date.parse(latestReview.reviewedAt+'T12:00:00Z'))/86400000;
