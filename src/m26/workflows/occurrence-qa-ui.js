@@ -42,6 +42,21 @@ const localDate=date=>{
     .filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
   return p.year+'-'+p.month+'-'+p.day;
 };
+// Explicit editing aid: only unambiguous prescription values may be copied.
+// This never creates a performed set, RPE/RIR observation, or remote write.
+export function plannedDatedSetDraft(step){
+  const p=step?.prescription;
+  if(!p||typeof p!=='object'||Array.isArray(p))return Object.freeze({});
+  const result={};
+  const repetitions=String(p.reps??'').trim();
+  if(/^(?:0|[1-9][0-9]{0,4})$/u.test(repetitions)&&Number(repetitions)<=10000)
+    result.reps=repetitions;
+  const weight=String(p.plannedLoad??'').trim().replace(/\s*kg$/iu,'').trim();
+  if(/^(?:0|[1-9][0-9]{0,4})(?:[.,][0-9]{1,2})?$/u.test(weight)&&
+    Number(weight.replace(',','.'))<=10000)
+    result.load=weight.replace(',','.');
+  return Object.freeze(result);
+}
 export function qaDatedCalendarRange(now=new Date()){
   if(!(now instanceof Date)||!Number.isFinite(now.getTime()))
     fail('CLOCK_INVALID');
@@ -208,8 +223,13 @@ export function createDatedOccurrenceQaUi({
         :view.executionStatus==='awaiting_feedback'
           ?'<p>Series registradas. Añade el feedback antes de finalizar.</p>'
           :'';
+      const plannedDraft=coach?plannedDatedSetDraft(step):{};
+      const hasPlannedDraft=Object.keys(plannedDraft).length>0;
       const recordForm=phase==='active'&&view.executionStatus==='active'&&step
         ?'<div class="m26-field-grid" data-u60-entry>'+
+         (coach&&hasPlannedDraft
+           ?'<div class="m26-wide"><button type="button" data-u60-copy-plan aria-label="Copiar objetivo prescrito a los campos vacíos">Usar objetivo como borrador</button>'+
+            '<p class="m26-field-help">No es un resultado real. Revisa cada valor, registra el esfuerzo observado y confirma la serie.</p></div>':'')+
          '<label>Repeticiones<input name="u60Reps" type="number" min="0" max="10000" inputmode="decimal"></label>'+
          '<label>Tiempo (segundos)<input name="u60Seconds" type="number" min="0" max="86400" inputmode="decimal"></label>'+
          '<label>Distancia running (km)<input name="u60DistanceKm" type="number" step="0.01" min="0" max="1000" inputmode="decimal"></label>'+
@@ -574,6 +594,25 @@ export function createDatedOccurrenceQaUi({
     fail('UNKNOWN_ACTION');
   }
   async function onClick(event){
+    const planButton=event?.target?.closest?.('[data-u60-copy-plan]');
+    if(planButton?.hasAttribute?.('data-u60-copy-plan')&&
+      root.contains(planButton)&&!disposed&&!busy&&!planButton.disabled){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const scope=visibleOwner();
+      if(scope?.role!=='coach'||focus?.clientId!==scope.clientId||
+        focus.role!==scope.role)return;
+      const view=workoutView();
+      if(view?.phase!=='active'||view.executionStatus!=='active')return;
+      const values=plannedDatedSetDraft(view.currentStep);
+      const panel=planButton.closest?.('[data-u60-panel]');
+      for(const [key,name] of [['reps','u60Reps'],['load','u60Load']]){
+        if(values[key]===undefined)continue;
+        const input=panel?.querySelector?.('[name="'+name+'"]');
+        if(input&&String(input.value||'').trim()==='')input.value=values[key];
+      }
+      return; // no automatic save, sync, RPE or DOM rebuild
+    }
     // A manual, local Coach shortcut. It never sends a command, records an
     // observation autonomously, or rebuilds the active input surface.
     const quick=event?.target?.closest?.('[data-u60-quick-rpe]');

@@ -4,6 +4,7 @@ import {webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {
   createDatedOccurrenceQaUi,qaDatedCalendarRange,formatDatedElapsed,
+  plannedDatedSetDraft,
 } from '../src/m26/workflows/occurrence-qa-ui.js';
 import {M26_ACTION_REGISTRY} from '../src/m26/ui/interactive-audit.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
@@ -342,4 +343,55 @@ test('U60 time-late calendar reads are rejected after role change, including Coa
   assert.match(source,/generation!==startedAtGeneration/u);
   assert.match(source,/focus\.role!==scope\.role/u);
   assert.match(source,/if\(!focus\)return;/u);
+});
+
+test('U60 copy-plan assistant only accepts unambiguous reps and kg, never invents effort',()=>{
+  assert.deepEqual(plannedDatedSetDraft({prescription:{reps:'8',plannedLoad:'52,5 kg',targetRpe:7,targetRir:3}}),
+    {reps:'8',load:'52.5'});
+  for(const reps of ['8-12','4 x 8','99999','-1','NaN']){
+    const values=plannedDatedSetDraft({prescription:{reps,plannedLoad:'50kg'}});
+    assert.equal(values.reps,undefined,reps);
+    assert.equal(values.load,'50');
+    assert.equal(values.rpe,undefined);
+  }
+  assert.deepEqual(plannedDatedSetDraft({prescription:{reps:'8',plannedLoad:'según indicación'}}),
+    {reps:'8'});
+  assert.deepEqual(plannedDatedSetDraft(null),{});
+  assert.equal(Object.isFrozen(plannedDatedSetDraft({prescription:{reps:'9'}})),true);
+});
+
+test('U60 plan-copy interaction is Coach-only, does not overwrite edits, never sends a workout write',async()=>{
+  const h=createHarness('coach');
+  const fields={
+    u60Reps:{value:''},u60Load:{value:'60'},u60Rpe:{value:''},
+  };
+  const panel={querySelector:selector=>{
+    const match=selector.match(/^\\[name="([^"]+)"\\]$/u);
+    return fields[match?.[1]]||null;
+  }};
+  const button={
+    disabled:false,
+    hasAttribute:key=>key==='data-u60-copy-plan',
+    closest:key=>key==='[data-u60-panel]'?panel:null,
+  };
+  const originalState=h.state;
+  try{
+    // No active occurrence: a shortcut cannot inject data into another form.
+    await h.listeners.get('click')({target:{closest:key=>
+      key==='[data-u60-copy-plan]'?button:null},preventDefault(){},stopPropagation(){}});
+    assert.equal(fields.u60Reps.value,'');
+    assert.equal(fields.u60Load.value,'60');
+    assert.equal(fields.u60Rpe.value,'');
+    assert.equal(h.calls.length,0);
+    assert.equal(h.state,originalState);
+  }finally{h.close();}
+});
+
+test('U60 plan editing control is not an action-registry command and requires an actual user click',()=>{
+  const ui=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
+  assert.match(ui,/data-u60-copy-plan/u);
+  assert.match(ui,/scope\\?\\.role!=='coach'/u);
+  assert.match(ui,/if\\(input&&String\\(input.value\\|\\|''\\).trim\\(\\)===''\\)input.value=values\\[key\\]/u);
+  assert.match(ui,/return; \\/\\/ no automatic save, sync, RPE or DOM rebuild/u);
+  assert.doesNotMatch(ui,/data-iberdates-action="u60-copy-plan"/u);
 });
