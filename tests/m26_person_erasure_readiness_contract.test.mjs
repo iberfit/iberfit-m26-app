@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {evaluatePersonErasureEvidence} from '../scripts/data-safety/check_person_erasure_readiness.mjs';
@@ -84,9 +85,7 @@ test('invalid input always fails without echoing IDs or private data',()=>{
   assert.doesNotMatch(JSON.stringify(r),/secret|10000000-0000/u);
 });
 
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
+
 
 const sql=fs.readFileSync('backend/production/P0_PERSON_ERASURE_SCHEMA_CATALOG_READONLY.sql','utf8');
 test('person erasure schema discovery is entirely read-only and contains no personal fixture',()=>{
