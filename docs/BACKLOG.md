@@ -1,3 +1,20 @@
+## P1 · CALIDAD DEMOSTRABLE / EXECUTIVE SERVICE 360 (09/11/2026)
+
+**Interpretación de consultoría:** 6/10 es una evaluación provisional subjetiva; no es una encuesta a clientes ni una comparación E2E controlada. No vender 8,5–9/10 como nota alcanzada. Fuente de verdad de capacidades: inventario de 608 entradas (415 C, 151 B, 31 Q, 4 P y 7 X); sólo certificado LIVE equivale a producto disponible.
+
+**Nueva orden de prioridad:** (1) flujos Cliente→Coach auténticos, (2) respuesta táctil de Coach y errores/recovery, (3) usabilidad real Cliente/Coach/Admin móvil/tablet/escritorio, (4) seguridad y resiliencia continuas, (5) operaciones de concierge que ahorran tiempo, (6) nuevos proveedores según integración verificada. No sumar funciones sólo para elevar la valoración.
+
+**Métrica autenticada puntual de referencia** (Coach WebAuthn QA, run #42732459710): escritorio Clientes `3.230 ms` hasta pintado del navegador (`5.341 ms` incluye harness/aseveraciones), escritorio IRI `2.428 ms` (harness `5.655 ms`); móvil Planificación `2.652 ms` (harness `5.050 ms`). Medir pintado real y duración total por separado. Aceptación de experiencia: p95 de navegación real <5 s en dispositivo representativo; sin elevación de timeout ni pérdida de evidencia. La ejecución de test aislada no demuestra p95 de producción.
+
+**Journey esencial:** invitación → primer login → IRI opcional e independiente → sesión creada y publicada con ACK → Cliente inicia/pausa/reanuda/termina → histórico confirmado → Coach revisa → informe periódico. Criterios de aceptación: autorización de backend, real devices, 320–4K, teclado/touch, offline/retry/conflict, no falsos éxitos, PWA y egress.
+
+**Servicio ejecutivo sin vídeo**: dar salida rápida a solicitudes de hotel, cambio de horario y recuperación por mensajes privados; formularios editables, sin reservas ni cambios de carga automáticos, sin inferencias clínicas. No confundir estas solicitudes con calendario externo sincronizado o plan hotel publicado. Revisión de técnica por vídeo y notas de voz/subidas personales aplazadas expresamente por decisión de producto.
+
+**Siguientes fronteras de integridad:** informes ejecutivos compartibles sólo con aprobación/permisos, trazabilidad y fuentes confirmadas; Google/Outlook con OAuth mínimo y zonas horarias; HealthKit/Health Connect BLE con dispositivo real, revocación y validación física; programa comercial/membresías/pagos cuando se definan proveedor, moneda, facturación legal, webhook autenticado, idempotencia y conciliación. Evitar gastos incompatibles con Supabase Free.
+
+**Sin publicación automática**: terminar CI, gates exact SHA, Canary y promoción frontendOnly protegida antes de afirmar LIVE. Producción tiene usuarios reales.
+
+---
 ## IBERFIT PRIVATE COACH / CONCIERGE 360 · continuación postrelease 09/11/2026
 
 Base de referencia: Canary/PROD SIGNATURE EXCELLENCE 360 SHA

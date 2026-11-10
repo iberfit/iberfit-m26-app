@@ -28,13 +28,18 @@ function coachComposeAssists(vm){
 }
 function clientComposeAssists(vm){
   if(vm?.role!=='client')return '';
-  const buttons=CLIENT_SERVICE_PROMPTS.map((item)=>
-    '<button type="button" data-m45-compose-prompt="'+e(item.key)+'">'+e(item.label)+'</button>'
-  ).join('');
+  const renderButton=(item)=>'<button type="button" data-m45-compose-prompt="'+e(item.key)+'">'+e(item.label)+'</button>';
+  const immediate=CLIENT_SERVICE_PROMPTS.filter(item=>item.group!=='executive');
+  const occasional=CLIENT_SERVICE_PROMPTS.filter(item=>item.group==='executive');
+  const expanded=occasional.length
+    ?'<details class="m45-client-concierge-more" data-client-concierge-more><summary>Viajes, hotel y recuperación</summary>'
+      +'<div class="m45-compose-assist-actions">'+occasional.map(renderButton).join('')+'</div></details>'
+    :'';
   return '<div class="m45-compose-assists m45-client-service-assists" aria-label="Solicitudes al Coach">'
     +'<span>¿Qué necesitas coordinar?</span>'
-    +'<div class="m45-compose-assist-actions">'+buttons+'</div></div>'
-    +'<small>Solo prepara un borrador privado. Tú decides qué compartir y cuándo enviarlo. No reserva ni reprograma automáticamente.</small>';
+    +'<div class="m45-compose-assist-actions">'+immediate.map(renderButton).join('')+'</div>'
+    +expanded+'</div>'
+    +'<small>Son borradores privados editables, no órdenes automáticas. Tu Coach confirma cualquier ajuste de agenda o entrenamiento. No reserva ni reprograma automáticamente.</small>';
 }
 function thread(vm,t){
   const unread=Math.max(0,Math.trunc(Number(t.unreadCount)||0));
