@@ -577,11 +577,13 @@ export function createDatedOccurrenceQaUi({
     // A manual, local Coach shortcut. It never sends a command, records an
     // observation autonomously, or rebuilds the active input surface.
     const quick=event?.target?.closest?.('[data-u60-quick-rpe]');
-    if(quick&&root.contains(quick)&&!disposed&&!busy&&!quick.disabled){
+    const chosen=Number(quick?.getAttribute?.('data-u60-quick-rpe'));
+    // A non-shortcut element (including a delegated action with a generic
+    // closest() test shim) must still reach the original action handler.
+    if(quick&&[6,7,8,9,10].includes(chosen)&&
+      root.contains(quick)&&!disposed&&!busy&&!quick.disabled){
       event.preventDefault?.();
       event.stopPropagation?.();
-      const chosen=Number(quick.getAttribute?.('data-u60-quick-rpe'));
-      if(![6,7,8,9,10].includes(chosen))return;
       const panel=quick.closest?.('[data-u60-panel]');
       const input=panel?.querySelector?.('[name="u60Rpe"]');
       if(!input)return;
