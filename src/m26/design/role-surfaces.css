@@ -5774,3 +5774,9 @@ m26-echart[data-density="compact"]{
 .m26-next-session-premium-review small{display:block;opacity:.82;font-size:.72rem;line-height:1.5}
 .m45-client-service-assists .m45-compose-assist-actions{flex-wrap:wrap}
 @media(max-width:520px){.m26-next-session-premium-review{gap:.8rem}.m26-next-session-premium-review ul{grid-template-columns:1fr}}
+
+/* Private Coach Executive Travel: optional actions stay collapsed on narrow screens. */
+.m45-client-concierge-more{margin-top:.45rem}
+.m45-client-concierge-more>summary{cursor:pointer;list-style-position:inside;min-height:40px;padding:.45rem .15rem;color:var(--m26-cream,#F5F5F0);font-size:.84rem;font-weight:600}
+.m45-client-concierge-more>summary:focus-visible{outline:2px solid var(--m26-gold,#C5A059);outline-offset:3px;border-radius:4px}
+.m45-client-concierge-more .m45-compose-assist-actions{padding:.3rem 0 .2rem;flex-wrap:wrap}
