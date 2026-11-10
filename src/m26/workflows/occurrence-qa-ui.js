@@ -65,6 +65,12 @@ function formValue(target,name){
 }
 function humanError(error){
   const code=String(error?.message||'');
+  if(/RPE_REQUIRED|RPE_INVALID/u.test(code))
+    return 'Registra el RPE real de esta serie, entre 1 y 10, en pasos de 0,5. Puedes seleccionarlo o escribirlo.';
+  if(/METRIC_INVALID/u.test(code))
+    return 'Revisa las repeticiones, el tiempo, la distancia o el RIR. Deben ser cantidades válidas y dentro de sus límites.';
+  if(/SKIP_REASON_REQUIRED/u.test(code))
+    return 'Para omitir una serie debes registrar un motivo de al menos tres caracteres.';
   if(/OWNER_KEY_(LOCKED|RECOVERY_PHRASE_REQUIRED)/u.test(code))
     return 'Introduce tu clave privada de recuperación (mínimo 16 caracteres). No es la contraseña de tu cuenta.';
   if(/SCOPE|ROLE|FORBIDDEN|DENIED|PRIVACY|AUTH/u.test(code))
@@ -129,6 +135,7 @@ export function createDatedOccurrenceQaUi({
     const key=scope?roleScope(scope):'';
     if(key!==visibleScopeKey){
       visibleScopeKey=key;
+      generation++; // invalidate any calendar or preview started in an older role
       // Read-only in-memory projection only. Never delete encrypted recovery
       // journals/checkpoints or active workouts when a workspace changes.
       loadedFor='';rows=[];preview=null;message='';failure='';
@@ -209,6 +216,9 @@ export function createDatedOccurrenceQaUi({
          '<label>Distancia natación (m)<input name="u60DistanceM" type="number" min="0" max="100000" inputmode="decimal"></label>'+
          '<label>Carga (kg)<input name="u60Load" maxlength="80"></label>'+
          '<label>RPE de la serie (1–10)<input name="u60Rpe" type="number" min="1" max="10" step="0.5" required inputmode="decimal"></label>'+
+         (coach?'<div class="m26-session-coach-rpe-quick" role="group" aria-label="Seleccionar RPE real de la serie"><span>RPE real</span>'+
+           [6,7,8,9,10].map(value=>'<button type="button" data-u60-quick-rpe="'+value+'" aria-label="Marcar RPE real '+value+'" aria-pressed="false">'+value+'</button>').join('')+
+           '</div>':'')+
          '<label>RIR<input name="u60Rir" type="number" min="0" max="10" step="0.5" inputmode="decimal"></label>'+
          '<label>Ritmo running (min/km)<input name="u60Pace" placeholder="5:30" pattern="[0-9]{1,2}:[0-5][0-9]"></label>'+
          '<label>Ritmo natación (min/100m)<input name="u60PaceSwim" placeholder="2:15"></label>'+
@@ -296,10 +306,11 @@ export function createDatedOccurrenceQaUi({
     const visible=visibleOwner();
     if(!visible||roleScope(visible)!==roleScope(scope))fail('ACTOR_CHANGED');
     const range=qaDatedCalendarRange();
-    const requestedScope=roleScope(scope);
+    const requestedScope=roleScope(scope),requestedGeneration=generation;
     const output=await runtime.calendar({clientId:scope.clientId,...range,limit:50});
     await authenticated();
-    if(roleScope(identity())!==requestedScope)fail('ACTOR_CHANGED');
+    if(roleScope(identity())!==requestedScope||generation!==requestedGeneration)
+      fail('ACTOR_CHANGED');
     loadedFor=requestedScope;rows=output.occurrences;preview=null;
     message='Calendario confirmado: '+rows.length+' fecha(s) verificadas.';
   }
@@ -316,6 +327,20 @@ export function createDatedOccurrenceQaUi({
       if(value)values[name]=value;
     }
     if(!values.rpe)fail('RPE_REQUIRED');
+    const observed=Number(values.rpe);
+    if(!Number.isFinite(observed)||observed<1||observed>10||
+      !Number.isInteger(observed*2))fail('RPE_INVALID');
+    for(const [key,min,max] of [
+      ['reps',0,10000],['seconds',0,86400],
+      ['distanceKm',0,1000],['distanceM',0,100000],
+      ['rir',0,10],
+    ]){
+      if(!Object.hasOwn(values,key))continue;
+      const actual=Number(values[key]);
+      if(!Number.isFinite(actual)||actual<min||actual>max)fail('METRIC_INVALID');
+    }
+    if(values.rir!==undefined&&!Number.isInteger(Number(values.rir)*2))
+      fail('METRIC_INVALID');
     return values;
   }
   async function previewDates(scope,button){
@@ -368,7 +393,11 @@ export function createDatedOccurrenceQaUi({
       existingOccurrences:dateRows(scope),
       existingAppointments:appointments.filter(ap=>!excluded.has(uid(field(ap,'id')))),
     };
+    const startedAtGeneration=generation;
     const verified=await runtime.previewDates(options);
+    await authenticated();
+    if(roleScope(identity())!==roleScope(scope)||generation!==startedAtGeneration)
+      fail('ACTOR_CHANGED');
     preview={clientId:scope.clientId,roleScope:roleScope(scope),sessionId,revision,
       preview:verified,appointmentIdsByDate};
     message='Fechas, horarios, ciclo y citas verificados. Confirma para programar.';
@@ -545,6 +574,22 @@ export function createDatedOccurrenceQaUi({
     fail('UNKNOWN_ACTION');
   }
   async function onClick(event){
+    // A manual, local Coach shortcut. It never sends a command, records an
+    // observation autonomously, or rebuilds the active input surface.
+    const quick=event?.target?.closest?.('[data-u60-quick-rpe]');
+    if(quick&&root.contains(quick)&&!disposed&&!busy&&!quick.disabled){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const chosen=Number(quick.getAttribute?.('data-u60-quick-rpe'));
+      if(![6,7,8,9,10].includes(chosen))return;
+      const panel=quick.closest?.('[data-u60-panel]');
+      const input=panel?.querySelector?.('[name="u60Rpe"]');
+      if(!input)return;
+      input.value=String(chosen);
+      for(const button of panel.querySelectorAll?.('[data-u60-quick-rpe]')||[])
+        button.setAttribute?.('aria-pressed',button===quick?'true':'false');
+      return;
+    }
     const button=event?.target?.closest?.('[data-iberdates-action]');
     if(!button||!root.contains(button)||disposed)return;
     event.preventDefault?.();

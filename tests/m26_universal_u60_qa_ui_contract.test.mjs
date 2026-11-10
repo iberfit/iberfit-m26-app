@@ -232,3 +232,64 @@ test('UNIVERSAL U60 Client dates remain inside their independently scrollable ro
     'U60 Client calendar is a descendant of the existing route viewport');
   assert.match(visual,/datedPanelInScroller/u,'Mobile QA must check U60 is within the route scrollport');
 });
+
+test('U60 Coach RPE shortcut changes only the active input and never sends a write',async()=>{
+  const h=createHarness('coach');
+  try{
+    const input={value:''},choices=[];
+    const panel={
+      querySelector:selector=>selector==='[name="u60Rpe"]'?input:null,
+      querySelectorAll:selector=>selector==='[data-u60-quick-rpe]'?choices:[],
+    };
+    const choice=(value)=>{
+      const pressed={value:'false'};
+      const button={
+        disabled:false,pressed,
+        getAttribute:key=>key==='data-u60-quick-rpe'?String(value):null,
+        setAttribute:(key,val)=>{if(key==='aria-pressed')pressed.value=val;},
+        closest:selector=>selector==='[data-u60-panel]'?panel:null,
+      };
+      choices.push(button);return button;
+    };
+    const seven=choice(7),nine=choice(9);
+    const click=async(button)=>h.listeners.get('click')({
+      target:{closest:selector=>selector==='[data-u60-quick-rpe]'?button:null},
+      preventDefault(){},stopPropagation(){},
+    });
+    await click(seven);
+    assert.equal(input.value,'7');
+    assert.equal(seven.pressed.value,'true');
+    assert.equal(nine.pressed.value,'false');
+    await click(nine);
+    assert.equal(input.value,'9');
+    assert.equal(seven.pressed.value,'false');
+    assert.equal(nine.pressed.value,'true');
+    assert.equal(h.calls.length,0,'a manual RPE selection cannot call U60 transport');
+  }finally{h.close();}
+});
+
+test('U60 invalid observed RPE is rejected before any write or encryption action',async()=>{
+  const h=createHarness('coach');
+  try{
+    const panel={querySelector:selector=>selector==='[name="u60Rpe"]'
+      ?{value:'12'}:null};
+    const button={disabled:false,dataset:{},
+      getAttribute:selector=>selector==='data-iberdates-action'?'u60-record':null,
+      closest:selector=>selector==='[data-u60-panel]'?panel:null,
+    };
+    await h.listeners.get('click')({target:{closest:selector=>
+      selector==='[data-iberdates-action]'?button:null},
+      preventDefault(){},stopPropagation(){}});
+    assert.equal(h.calls.length,0);
+    assert.match(h.ui.renderPanel(),/RPE real de esta serie/u);
+  }finally{h.close();}
+});
+
+test('U60 time-late calendar reads are rejected after role change, including Coach to Client to Coach',()=>{
+  const source=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
+  assert.match(source,/generation\+\+; \/\/ invalidate any calendar/u);
+  assert.match(source,/generation!==requestedGeneration/u);
+  assert.match(source,/generation!==startedAtGeneration/u);
+  assert.match(source,/focus\.role!==scope\.role/u);
+  assert.match(source,/if\(!focus\)return;/u);
+});
