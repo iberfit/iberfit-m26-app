@@ -3,8 +3,8 @@ export const IRI2_LONGITUDINAL_SCHEMA='iberfit-iri2-longitudinal-v1';
 export const IRI_INITIAL_DIAGNOSTIC_KIND='iri-initial-diagnostic';
 export const EVOLUTION_FOLLOWUP_KIND='evolution-followup';
 
-const INITIAL_IRI_TYPES=new Set(['inicial','initial',IRI_INITIAL_DIAGNOSTIC_KIND,'iri','assessment','diagnostico','diagnóstico','baseline']);
-const FOLLOWUP_IRI_TYPES=new Set([EVOLUTION_FOLLOWUP_KIND,'followup','follow-up','seguimiento','reevaluacion','reevaluación','reassessment']);
+const INITIAL_IRI_TYPES=new Set(['inicial','initial',IRI_INITIAL_DIAGNOSTIC_KIND,'iri','assessment','diagnostico','baseline']);
+const FOLLOWUP_IRI_TYPES=new Set([EVOLUTION_FOLLOWUP_KIND,'followup','follow-up','seguimiento','reevaluacion','reassessment']);
 
 // The same baseline classification is used by Client, Coach, Admin and reports.
 // A contradictory explicit follow-up marker is never silently reclassified as IRI.
@@ -18,7 +18,7 @@ export function isInitialIriAssessment(record){
     for(const key of fields){
       const raw=source[key];
       if(typeof raw!=='string')continue;
-      const value=raw.trim().toLowerCase();
+      const value=raw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       if(value)markers.push({key,value});
     }
   }

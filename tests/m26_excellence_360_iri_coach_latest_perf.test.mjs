@@ -22,7 +22,7 @@ function state(records=[]){
     pendingOperations:[],conflicts:[],rejectedOperations:[]};
 }
 test('Excellence360 initial IRI classification recognizes canonical, Spanish and legacy markers',()=>{
-  for(const value of ['inicial','initial',IRI_INITIAL_DIAGNOSTIC_KIND,'iri','assessment','baseline']){
+  for(const value of ['inicial','initial',IRI_INITIAL_DIAGNOSTIC_KIND,'iri','assessment','baseline','diagnóstico']){
     assert.equal(isInitialIriAssessment({assessmentType:value}),true,value);
   }
   assert.equal(isInitialIriAssessment({body:{assessmentKind:IRI_INITIAL_DIAGNOSTIC_KIND}}),true);
@@ -30,7 +30,7 @@ test('Excellence360 initial IRI classification recognizes canonical, Spanish and
   assert.equal(isInitialIriAssessment(null),false);
 });
 test('Excellence360 explicit longitudinal follow-up cannot replace the IRI baseline',()=>{
-  for(const type of [EVOLUTION_FOLLOWUP_KIND,'seguimiento','follow-up','reassessment']){
+  for(const type of [EVOLUTION_FOLLOWUP_KIND,'seguimiento','follow-up','reevaluación','reassessment']){
     assert.equal(isInitialIriAssessment({assessmentType:type}),false,type);
     assert.equal(isInitialIriAssessment({assessmentType:'initial',body:{kind:type}}),false,
       'conflicting marker must fail closed');

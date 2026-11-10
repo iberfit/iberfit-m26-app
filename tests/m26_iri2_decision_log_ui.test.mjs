@@ -8,7 +8,8 @@ test('IRI route exposes only the confirmed initial decision and never a longitud
   const vm=read('src/m26/modules/route-view-model.js');
   const render=read('src/m26/modules/route-render.js');
 
-  assert.match(vm,/type==='inicial'/u);
+  assert.match(vm,/\.filter\(isInitialIriAssessment\)/u);
+  assert.match(read('src/m26/workflows/iri-2-longitudinal.js'),/FOLLOWUP_IRI_TYPES\.has\(value\)/u);
   assert.match(vm,/confirmedDraft=current&&compactIri\(current\)\?\.confirmed/u);
   assert.match(vm,/buildIri2DecisionLog\(\{assessments:confirmedDraft\?\[confirmedDraft\]:\[\]\}\)/u);
   assert.match(vm,/history: Object\.freeze\(\[\]\)/u);

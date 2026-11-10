@@ -107,7 +107,9 @@ test('diagnóstico inicial y reevaluaciones quedan físicamente separados',()=>{
   assert.match(migration,/follow-up\/evolution never mutates baseline semantics/u);
   assert.doesNotMatch(migration,/drop constraint/u);
   assert.doesNotMatch(migration,/drop index/u);
-  assert.match(viewModel,/return !type\|\|type==='inicial'/u);
+  assert.match(viewModel,/\.filter\(isInitialIriAssessment\)/u);
+  const classification=fs.readFileSync('src/m26/workflows/iri-2-longitudinal.js','utf8');
+  assert.match(classification,/FOLLOWUP_IRI_TYPES\.has\(value\)/u);
 });
 
 test('el IRI es recomendado pero nunca bloquea el entrenamiento',()=>{
