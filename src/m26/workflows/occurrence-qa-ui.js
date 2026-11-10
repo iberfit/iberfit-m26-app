@@ -57,6 +57,20 @@ export function plannedDatedSetDraft(step){
     result.load=weight.replace(',','.');
   return Object.freeze(result);
 }
+export function applyPlannedDatedSetDraft(step,panel){
+  if(typeof panel?.querySelector!=='function')return 0;
+  const values=plannedDatedSetDraft(step);
+  let filled=0;
+  for(const [key,name] of [['reps','u60Reps'],['load','u60Load']]){
+    if(values[key]===undefined)continue;
+    const input=panel.querySelector('[name="'+name+'"]');
+    if(input&&typeof input.value==='string'&&input.value.trim()===''){
+      input.value=values[key];filled++;
+    }
+  }
+  // No RPE/RIR inferred. The real observed series is saved only on ACK.
+  return filled;
+}
 export function qaDatedCalendarRange(now=new Date()){
   if(!(now instanceof Date)||!Number.isFinite(now.getTime()))
     fail('CLOCK_INVALID');
@@ -604,13 +618,8 @@ export function createDatedOccurrenceQaUi({
         focus.role!==scope.role)return;
       const view=workoutView();
       if(view?.phase!=='active'||view.executionStatus!=='active')return;
-      const values=plannedDatedSetDraft(view.currentStep);
       const panel=planButton.closest?.('[data-u60-panel]');
-      for(const [key,name] of [['reps','u60Reps'],['load','u60Load']]){
-        if(values[key]===undefined)continue;
-        const input=panel?.querySelector?.('[name="'+name+'"]');
-        if(input&&String(input.value||'').trim()==='')input.value=values[key];
-      }
+      applyPlannedDatedSetDraft(view.currentStep,panel);
       return; // no automatic save, sync, RPE or DOM rebuild
     }
     // A manual, local Coach shortcut. It never sends a command, records an

@@ -4,7 +4,7 @@ import {webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {
   createDatedOccurrenceQaUi,qaDatedCalendarRange,formatDatedElapsed,
-  plannedDatedSetDraft,
+  plannedDatedSetDraft,applyPlannedDatedSetDraft,
 } from '../src/m26/workflows/occurrence-qa-ui.js';
 import {M26_ACTION_REGISTRY} from '../src/m26/ui/interactive-audit.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
@@ -366,7 +366,7 @@ test('U60 plan-copy interaction is Coach-only, does not overwrite edits, never s
     u60Reps:{value:''},u60Load:{value:'60'},u60Rpe:{value:''},
   };
   const panel={querySelector:selector=>{
-    const match=selector.match(/^\\[name="([^"]+)"\\]$/u);
+    const match=selector.match(/^\[name="([^"]+)"\]$/u);
     return fields[match?.[1]]||null;
   }};
   const button={
@@ -390,8 +390,30 @@ test('U60 plan-copy interaction is Coach-only, does not overwrite edits, never s
 test('U60 plan editing control is not an action-registry command and requires an actual user click',()=>{
   const ui=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
   assert.match(ui,/data-u60-copy-plan/u);
-  assert.match(ui,/scope\\?\\.role!=='coach'/u);
-  assert.match(ui,/if\\(input&&String\\(input.value\\|\\|''\\).trim\\(\\)===''\\)input.value=values\\[key\\]/u);
-  assert.match(ui,/return; \\/\\/ no automatic save, sync, RPE or DOM rebuild/u);
+  assert.ok(ui.includes("scope?.role!=='coach'"));
+  assert.ok(ui.includes('applyPlannedDatedSetDraft(view.currentStep,panel)'));
+  assert.ok(ui.includes('// no automatic save, sync, RPE or DOM rebuild'));
   assert.doesNotMatch(ui,/data-iberdates-action="u60-copy-plan"/u);
+});
+
+test('U60 plan copy applies only user-selected safe targets to empty fields and leaves observed RPE untouched',()=>{
+  const values={
+    u60Reps:{value:''},
+    u60Load:{value:'62.5'},
+    u60Rpe:{value:''},
+    u60Rir:{value:''},
+  };
+  const panel={querySelector:selector=>{
+    const match=selector.match(/^\[name="([^"]+)"\]$/u);
+    return values[match?.[1]]||null;
+  }};
+  const step={prescription:{reps:'8',plannedLoad:'60 kg',targetRpe:9,targetRir:1}};
+  assert.equal(applyPlannedDatedSetDraft(step,panel),1);
+  assert.equal(values.u60Reps.value,'8');
+  assert.equal(values.u60Load.value,'62.5','never overwrite observed load');
+  assert.equal(values.u60Rpe.value,'','target RPE is not an observation');
+  assert.equal(values.u60Rir.value,'','target RIR is not an observation');
+  assert.equal(applyPlannedDatedSetDraft(step,panel),0,'second click is idempotent');
+  assert.equal(applyPlannedDatedSetDraft({prescription:{reps:'8-12'}},panel),0);
+  assert.equal(applyPlannedDatedSetDraft(step,null),0);
 });
