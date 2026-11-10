@@ -281,3 +281,44 @@ export function installMobileMoreTouchRetargetBridge({globalLike=globalThis,docu
 }
 
 installMobileMoreTouchRetargetBridge();
+
+// A high-priority task is a next-task navigation, never a synchronous click
+// handler update. Browser support is optional (Safari, embedded PWA).
+// No request, payload, owner identity or DOM node is retained by this helper.
+export function schedulePriorityNavigation(commit,{windowLike=globalThis.window,priority='user-blocking'}={}){
+  if(typeof commit!=='function')throw new TypeError('M26_NAVIGATION_COMMIT_REQUIRED');
+  if(!['user-blocking','user-visible'].includes(priority))throw new TypeError('M26_NAVIGATION_PRIORITY_INVALID');
+  const timer=windowLike?.setTimeout?.bind?.(windowLike);
+  if(typeof timer!=='function')throw new TypeError('M26_NAVIGATION_TASK_TIMER_REQUIRED');
+  let attempted=false;
+  const once=()=>{
+    if(attempted)return;
+    attempted=true;
+    commit();
+  };
+  const fallback=()=>{
+    if(!attempted)timer(once,0);
+  };
+  const onTaskFailure=(error)=>{
+    if(!attempted){fallback();return;}
+    // A task error AFTER invocation is a real application failure, never an
+    // excuse to replay the navigation. Preserve browser-visible diagnostics.
+    if(typeof windowLike?.reportError==='function')windowLike.reportError(error);
+    else queueMicrotask(()=>{throw error;});
+  };
+  const scheduler=windowLike?.scheduler;
+  if(typeof scheduler?.postTask==='function'){
+    try{
+      // Priority applies to the scheduling slot, not to the user's permissions.
+      // A rejected postTask is eligible for exactly one timer fallback *only*
+      // if it was never invoked. Never replay a partially committed route.
+      Promise.resolve(scheduler.postTask(once,{priority})).catch(onTaskFailure);
+      return 'priority-task';
+    }catch(error){
+      onTaskFailure(error);
+      return 'timer';
+    }
+  }
+  fallback();
+  return 'timer';
+}

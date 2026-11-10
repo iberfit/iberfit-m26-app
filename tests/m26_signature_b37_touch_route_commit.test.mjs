@@ -20,8 +20,9 @@ test('B37: real Client touch click finishes before any navigation-induced shell 
   assert.match(block,/maxTouchPoints/u);
   assert.match(block,/pointer: coarse/u);
   assert.match(block,/if\(\(clientTouch\|\|coachPointer\)&&typeof windowLike\?\.setTimeout==='function'\)/u);
-  assert.match(block,/windowLike\.setTimeout\(\(\)=>\{/u);
-  assert.match(block,/\},0\);\s*\}else commitRoute\(\);/u);
+  assert.match(block,/schedulePriorityNavigation\(\(\)=>\{/u);
+  assert.match(block,/priority:coachPointer\?'user-blocking':'user-visible'/u);
+  assert.match(block,/\},\{windowLike,priority:coachPointer\?'user-blocking':'user-visible'\}\);\s*\}else commitRoute\(\);/u);
   assert.ok(block.indexOf('runRouteViewTransition(')>block.indexOf('releaseFormInteraction('));
   assert.ok(block.indexOf('store.navigate(decision.area);')>block.indexOf('runRouteViewTransition('));
 });
