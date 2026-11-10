@@ -1,7 +1,7 @@
 -- IBERFIT P0 QA ONLY: avoid redundant sanitization ONLY for exact QA synthetic Client accounts.
 -- The upstream source/sanitizers are pinned; any drift restores the original sanitizer.
 -- Validated: full JSON digest parity Client A and B; no table DML, ACL, RLS, grant, Auth, or PROD mutation.
--- Expected QA source 63314af30e0e38682a84991847a9d97e. Rollback pinned to new source 9b0a3c67c0bc24b3877836dbc0f36235.
+-- Expected QA source 63314af30e0e38682a84991847a9d97e. Rollback pinned to new source 243c5df0f05cb35fffd3cf777a5932c5.
 SELECT 1/(CASE WHEN EXISTS (SELECT 1 FROM public.iberfit_system_settings s WHERE s.key='environment' AND s.value#>>'{}'='QA') AND md5(pg_get_functiondef('public.iberfit_bootstrap_v26()'::regprocedure))='63314af30e0e38682a84991847a9d97e' THEN 1 ELSE 0 END) AS qa_environment_source_guard;
 CREATE OR REPLACE FUNCTION public.iberfit_bootstrap_v26()
  RETURNS jsonb
