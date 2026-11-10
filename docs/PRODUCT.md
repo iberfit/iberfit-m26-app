@@ -161,3 +161,33 @@ Ver `docs/DEFINITION_OF_DONE.md` y `docs/RELEASE_POLICY.md`.
 - Las notas son temporales y están aisladas por identidad Coach, cliente y borrador. Incorporación atómica y autoguardado del borrador existente; la aprobación y el ACK servidor de la publicación siguen intactos.
 - La navegación mantiene una acción verdadera principal por pantalla y separa Cliente, Coach y Admin. El diagnóstico IRI inicial y la evolución son productos diferentes.
 - En web, Connected360 debe distinguir datos recientes, obsoletos y estimados sin declarar que existe una conexión nativa automática.
+
+
+## Experiencia premium · Private Coach / Concierge 360 (09/11/2026)
+
+El valor premium es tiempo ahorrado, precisión, anticipación y trato individual,
+no una cantidad mayor de gráficos o privilegios clínicos.
+
+- **IRI inicial**: punto de partida confirmado. Las proyecciones de escenarios son
+  ilustrativas hasta tener un modelo longitudinal validado y deben indicar hipótesis,
+  intervalos e incertidumbre. Nunca sustituir IRI por seguimiento.
+- **Coach adaptativo**: los registros voluntarios recientes y el contexto autorizado
+  de dispositivos producen preguntas y propuestas revisables. No se modifica
+  intensidad, volumen, horario, ejercicio ni publicación automáticamente.
+  Cualquier recomendación muestra origen, frescura y limitaciones.
+- **Concierge privado**: los borradores predefinidos de agenda, viajes, técnica y
+  hábitos usan exclusivamente la mensajería Cliente–Coach existente. No otorgan
+  prioridad contractual, respuesta inmediata, reserva ni reprogramación automática.
+- **Agenda externa**: futura integración Google/Outlook únicamente con autorización
+  explícita por persona, mínimo scope free/busy, zonas horarias y conflictos visibles.
+  Ningún evento se crea, mueve o borra sin confirmación inequívoca.
+- **Wearables**: Apple Health/Health Connect/Oura solo con consentimiento por fuente,
+  integraciones nativas/OAuth realmente implementadas, revocación y fechas claras.
+  No inventar conexión activa desde permisos web o datos históricos.
+- **Técnica visual**: vídeos de ejercicio reales con autoría/consentimiento y ángulos
+  aprobados por profesionales. Cualquier subida personal requiere Storage privado,
+  RLS, límites, moderación, caducidad, borrado y QA móvil antes de abrir esa acción.
+- **Hábitos y nutrición**: pautas generales contextualizadas, nunca diagnósticos ni
+  suplementación específica derivada de analíticas sin revisión por profesional competente.
+- **SLA empresarial**: el significado de «VIP», prioridad, horario y disponibilidad
+  depende del contrato de servicio, nunca se promete por una etiqueta UI.

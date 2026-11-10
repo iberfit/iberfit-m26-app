@@ -1,3 +1,35 @@
+## IBERFIT PRIVATE COACH / CONCIERGE 360 · continuación postrelease 09/11/2026
+
+Base de referencia: Canary/PROD SIGNATURE EXCELLENCE 360 SHA
+17da1af5925ecf9d0f899f8949a409624efddefb. Estado de este bloque:
+**candidato frontend y pruebas en rama de producto; NO fusionado, NO Canary,
+NO PROD hasta gates exactos y promoción protegida**.
+
+Entrega vertical sin SQL/Edge/Auth/Storage: aprovechar la mensajería privada
+existente para borradores Cliente de agenda, viajes, técnica y hábitos; incorporar
+propuestas profesionales basadas en señales recientes ya autorizadas en la
+preparación de sesiones Coach, sin autoprescribir ni prometer servicio VIP.
+Reutilizar IRI baseline, histórico, wearables, medios y agendas actuales.
+
+Certificación: nuevas pruebas unitarias de rol, no-autosend, borradores y
+frescura/ausencia/conflicto de evidencia; CI, Sonar, WebAuthn Coach/Admin, Device
+320/390/1024/1440/3840, QA auténtica, seguridad, egress, Canary exacto, M44
+reciente, release frontendOnly y smoke LIVE con rollback.
+
+Pendientes por dependencias y riesgos, no anunciar activos:
+1. Sincronización Google/Outlook de disponibilidad con OAuth y consentimiento;
+2. Oura API y Apple Health nativo con revocación y pruebas físicas;
+3. Vídeo bidireccional/voz con Storage privado, autorización, retención y cuotas;
+4. Biblioteca audiovisual premium con derechos, cobertura y QA de técnica;
+5. Rutas nutricionales con revisión profesional y límites de alcance;
+6. Proyecciones IRI fundamentadas longitudinalmente, no predicciones ficticias.
+
+No duplicar motores ni mover datos personales. Continúan como P1 separados
+el rendimiento Coach <5 s y control de Supabase Free. El siguiente cambio de
+backend requiere su propio circuito de migración/autorización/rollback.
+
+---
+
 ## UNIVERSAL 360 · Unificación de todas las U + 22 capacidades · 06/11/2026
 
 **Decisión operativa expresa:** ninguna U adicional numerada ni PR de microcorrección. El trabajo funcional pendiente debe permanecer en la misma rama/PR UNIVERSAL, y las U fusionadas constituyen la base real. Estado por funcionalidad = código existente / QA probado / Canary LIVE / PROD LIVE / prueba en hardware; una casilla de código NO significa producto certificado.

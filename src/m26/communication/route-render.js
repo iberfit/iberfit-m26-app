@@ -1,3 +1,4 @@
+import {CLIENT_SERVICE_PROMPTS} from './client-service-prompts.js';
 import {buildNotificationCenter} from './notification-center.js';
 
 const e=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
@@ -25,6 +26,16 @@ function coachComposeAssists(vm){
     <small>El texto se puede editar; solo se envía al pulsar Enviar.</small>
   </div>`;
 }
+function clientComposeAssists(vm){
+  if(vm?.role!=='client')return '';
+  const buttons=CLIENT_SERVICE_PROMPTS.map((item)=>
+    '<button type="button" data-m45-compose-prompt="'+e(item.key)+'">'+e(item.label)+'</button>'
+  ).join('');
+  return '<div class="m45-compose-assists m45-client-service-assists" aria-label="Solicitudes al Coach">'
+    +'<span>¿Qué necesitas coordinar?</span>'
+    +'<div class="m45-compose-assist-actions">'+buttons+'</div></div>'
+    +'<small>Solo prepara un borrador privado. Tú decides qué compartir y cuándo enviarlo. No reserva ni reprograma automáticamente.</small>';
+}
 function thread(vm,t){
   const unread=Math.max(0,Math.trunc(Number(t.unreadCount)||0));
   const badge=unread?`<span class="m30-thread-unread" data-thread-unread="${e(unread)}" aria-label="${e(unread)} mensajes sin leer">${e(unread)} nuevos</span>`:'';
@@ -32,7 +43,7 @@ function thread(vm,t){
   const history=messages.length?messages.map((m)=>`<article class="m26-message is-${e(m.senderRole)}"><strong>${e(m.senderRole==='client'?'Cliente':'Coach')}</strong><p>${e(m.body)}</p>${messageTime(m.createdAt)}</article>`).join(''):'<p>Sin mensajes todavía.</p>';
   const heading=e(vm.role==='client'?t.coachName||'Tu Coach':t.clientName||'Cliente');
   const subject=t.subject?`<small class="m45-thread-subject">${e(t.subject)}</small>`:'';
-  return `<details class="m26-thread" data-thread-unread-count="${e(unread)}"><summary><span class="m45-thread-identity"><strong>${heading}</strong>${subject}</span>${badge}</summary><div class="m26-thread-body">${history}<form data-communication-form="message-send" class="m30-message-compose" data-guided-required-form><input type="hidden" name="threadId" value="${e(t.id)}"><label class="m32-message-label">Escribe tu mensaje<textarea name="body" maxlength="4000" required placeholder="Escribe un mensaje…"></textarea></label>${coachComposeAssists(vm)}<small data-guided-required-progress aria-live="polite"></small><span class="m45-compose-status" role="status" aria-live="polite"></span><button type="submit" class="m26-primary-action">Enviar</button><small class="m45-response-expectation">Este canal es para el seguimiento de entrenamiento; no garantiza respuesta inmediata.</small></form><form data-communication-form="thread-read" class="m30-thread-read"><input type="hidden" name="threadId" value="${e(t.id)}"><button type="submit">Marcar como leída</button></form></div></details>`;
+  return `<details class="m26-thread" data-thread-unread-count="${e(unread)}"><summary><span class="m45-thread-identity"><strong>${heading}</strong>${subject}</span>${badge}</summary><div class="m26-thread-body">${history}<form data-communication-form="message-send" class="m30-message-compose" data-guided-required-form><input type="hidden" name="threadId" value="${e(t.id)}"><label class="m32-message-label">Escribe tu mensaje<textarea name="body" maxlength="4000" required placeholder="Escribe un mensaje…"></textarea></label>${coachComposeAssists(vm)}${clientComposeAssists(vm)}<small data-guided-required-progress aria-live="polite"></small><span class="m45-compose-status" role="status" aria-live="polite"></span><button type="submit" class="m26-primary-action">Enviar</button><small class="m45-response-expectation">Este canal es para el seguimiento de entrenamiento; no garantiza respuesta inmediata.</small></form><form data-communication-form="thread-read" class="m30-thread-read"><input type="hidden" name="threadId" value="${e(t.id)}"><button type="submit">Marcar como leída</button></form></div></details>`;
 }
 function notificationAction(item){
   const action=item?.action;

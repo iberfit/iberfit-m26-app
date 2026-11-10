@@ -219,7 +219,7 @@ test('M45 focused Coach search keeps caret and query when a preference refresh r
 });
 
 
-test('M45 quick follow-up helpers are exclusively for Coach and never auto-send',async()=>{
+test('M45 Coach and Client prompt helpers remain role-scoped and never auto-send',async()=>{
   const base={communication:true,kind:'communication',threads:[
     {id:'thread-one',clientName:'Cliente',coachName:'Coach',messages:[],unreadCount:0},
   ],notifications:[],clients:[],canOpenThread:false};
@@ -229,7 +229,12 @@ test('M45 quick follow-up helpers are exclusively for Coach and never auto-send'
   assert.match(coach,/data-m45-compose-prompt="next"/);
   assert.match(coach,/solo se envía al pulsar Enviar/);
   const client=renderCommunicationRoute({...base,role:'client'});
-  assert.doesNotMatch(client,/data-m45-compose-prompt/);
+  assert.doesNotMatch(client,/data-m45-compose-prompt="(?:session|recovery|next)"/);
+  for(const key of ['agenda','viaje','tecnica','habitos']){
+    assert.match(client,new RegExp('data-m45-compose-prompt="'+key+'"'));
+    assert.doesNotMatch(coach,new RegExp('data-m45-compose-prompt="'+key+'"'));
+  }
+  assert.match(client,/No reserva ni reprograma automáticamente/u);
 
   const handlers=new Map();
   const draft={value:'Mi texto previo',focus(){this.focused=true;},
