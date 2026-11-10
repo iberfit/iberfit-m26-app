@@ -291,6 +291,10 @@ export function createDatedOccurrenceQaUi({
     return matches[0];
   }
   async function load(scope){
+    // The first authenticated calendar action can precede the first route
+    // paint. Establish the visible owner key before accepting remote rows.
+    const visible=visibleOwner();
+    if(!visible||roleScope(visible)!==roleScope(scope))fail('ACTOR_CHANGED');
     const range=qaDatedCalendarRange();
     const requestedScope=roleScope(scope);
     const output=await runtime.calendar({clientId:scope.clientId,...range,limit:50});
