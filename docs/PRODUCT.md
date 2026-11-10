@@ -191,3 +191,12 @@ no una cantidad mayor de gráficos o privilegios clínicos.
   suplementación específica derivada de analíticas sin revisión por profesional competente.
 - **SLA empresarial**: el significado de «VIP», prioridad, horario y disponibilidad
   depende del contrato de servicio, nunca se promete por una etiqueta UI.
+
+## Calidad de mercado y experiencia ejecutiva (09/11/2026)
+
+- Valoración externa provisional 6/10: sirve para identificar incertidumbre, no para certificar un resultado comercial. Ninguna puntuación podrá sustituir a tests autenticados, datos de navegación, encuestas de clientes y uso sostenido.
+- Éxito premium medible = tiempo ahorrado, comienzo de sesión sin bloqueo, navegación clara, continuidad fiable, resultados explicables y seguimiento humano. Diferenciar latencia de pintado real de wall-clock del harness de Playwright.
+- Prioridad de evolución: rendimiento/recuperación/seguridad y recorridos completos antes de funciones de escaparate. Cliente ve siguiente acción; Coach trabaja sin fricción; Admin ve el riesgo y el estado.
+- Concierge ejecutivo: Hotel, jet lag y recuperación son solicitudes privadas opcionales; jamás equivalen a un plan ya adaptado o a consejo médico. El Coach revisa y aprueba ajustes. Vídeo técnico bidireccional queda aplazado.
+- Sincronización de calendarios, sensores nativos y pagos requieren certificación, permisos granulares y diseño comercial propios. No prometerlos desde UI si sólo existe infraestructura o prueba QA.
+- Informes ejecutivos: dar preferencia a resúmenes concisos de evidencia confirmada, con intervención del Coach, exportación explícita y control de identidad; IRI inicial debe mantenerse separado del seguimiento.

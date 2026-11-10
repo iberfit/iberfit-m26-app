@@ -28,8 +28,10 @@ function threadHtml(role){
 }
 
 test('Client has bounded private concierge drafts; Coach never receives Client presets',()=>{
-  assert.equal(CLIENT_SERVICE_PROMPTS.length,4);
+  assert.equal(CLIENT_SERVICE_PROMPTS.length,7);
   assert.equal(clientServicePrompt('agenda')?.key,'agenda');
+  assert.equal(CLIENT_SERVICE_PROMPTS.filter(x=>x.group==='executive').length,3);
+  assert.equal(clientServicePrompt('hotel')?.key,'hotel');
   assert.equal(clientServicePrompt('no-existe'),null);
   assert.equal(clientServicePrompt('__proto__'),null);
   const client=threadHtml('client'),coach=threadHtml('coach');
@@ -38,7 +40,9 @@ test('Client has bounded private concierge drafts; Coach never receives Client p
     assert.ok(choice.draft.length>10&&choice.draft.length<4000);
     assert.ok(!coach.includes('data-m45-compose-prompt="'+choice.key+'"'));
   }
-  assert.match(client,/No reserva ni reprograma automáticamente/u);
+  assert.match(client,/data-client-concierge-more/u);
+  assert.match(client,/Viajes, hotel y recuperación/u);
+  assert.match(client,/no órdenes automáticas/iu);
   assert.match(client,/no garantiza respuesta inmediata/iu);
 });
 
@@ -99,4 +103,16 @@ test('Stale, missing and ambiguous measurements cannot be used to propose load r
   prep.deviceContext={status:'historical',metrics:{sleepMinutes:300}};
   assert.equal(buildCoachSessionReviewCues(prep).state,'insufficient-evidence');
   assert.equal(buildCoachSessionReviewCues({}).state,'insufficient-evidence');
+});
+
+test('Executive concierge is not an automatic travel plan, booking, or medical recommendation',()=>{
+  const client=threadHtml('client'),coach=threadHtml('coach');
+  for(const key of ['hotel','jetlag','recuperacion']){
+    assert.match(client,new RegExp('data-m45-compose-prompt="'+key+'"'));
+    assert.ok(clientServicePrompt(key).draft.length<4000);
+    assert.ok(!coach.includes('data-m45-compose-prompt="'+key+'"'));
+  }
+  assert.match(clientServicePrompt('hotel').draft,/confirmes/iu);
+  assert.match(clientServicePrompt('jetlag').draft,/generales de descanso/iu);
+  assert.match(clientServicePrompt('recuperacion').draft,/decidas tú/iu);
 });
