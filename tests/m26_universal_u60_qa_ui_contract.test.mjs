@@ -465,6 +465,29 @@ test('U60 appointment suggestion uses only future confirmed same-owner dates and
   assert.deepEqual(suggestedConfirmedDatedAppointments(rows,{...params,durationMinutes:0}),[]);
 });
 
+test('U60 load suffix parsing and date ordering avoid Sonar reliability pitfalls',()=>{
+  assert.deepEqual(plannedDatedSetDraft({prescription:{reps:'7',plannedLoad:'  62,5 KG  '}}),
+    {reps:'7',load:'62.5'});
+  assert.deepEqual(plannedDatedSetDraft({prescription:{plannedLoad:'0,25kg'}}),
+    {load:'0.25'});
+  const whitespace=' '.repeat(25000);
+  assert.equal(plannedDatedSetDraft({prescription:{plannedLoad:whitespace+'kg'}}).load,
+    undefined,'an empty numeric prefix is not a measured load');
+  assert.equal(plannedDatedSetDraft({prescription:{plannedLoad:whitespace+'kX'}}).load,
+    undefined,'a long invalid suffix cannot become a load');
+  const at=date=>({
+    id:'appointment-'+date,clientId:CLIENT,sessionId:SESSION,status:'confirmada',
+    startAt:date+'T12:00:00.000Z',endAt:date+'T13:00:00.000Z',
+  });
+  const result=suggestedConfirmedDatedAppointments([
+    at('2027-01-02'),at('2026-12-31'),at('2026-12-29'),
+  ],{clientId:CLIENT,sessionId:SESSION,durationMinutes:60,
+    range:{startDate:'2026-12-28',endDate:'2027-01-05'},
+    now:new Date('2026-12-25T00:00:00.000Z')});
+  assert.deepEqual(result,['2026-12-29 09:00','2026-12-31 09:00','2027-01-02 09:00'],
+    'ASCII ISO timestamps retain exact chronological ordering across years');
+});
+
 test('U60 Coach publication must match the immutable reviewed role/session/date text',()=>{
   const first='2026-11-12 08:00\n2026-11-15 08:00';
   const preview={clientId:CLIENT,roleScope:'coach|'+CLIENT,
