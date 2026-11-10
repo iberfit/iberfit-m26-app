@@ -3,6 +3,7 @@ import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
+import {isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record||{};}
@@ -14,8 +15,6 @@ function statusOf(record){return String(field(record,'status','estado')||'').tri
 function idOf(record){return String(field(record,'id','entityId','entity_id')||'').trim();}
 function titleOf(record,fallback='Sesión IBERFIT'){return String(field(record,'title','name','nombre','titulo')||fallback).trim().slice(0,140);}
 function forClient(state,key,clientId){const expected=String(clientId||'').trim();return arr(state?.collections?.[key]).filter((item)=>clientIdOf(item)===expected);}
-function byDateDesc(a,b){return (safeDate(dateOf(b))?.getTime()||0)-(safeDate(dateOf(a))?.getTime()||0);}
-function byDateAsc(a,b){return (safeDate(dateOf(a))?.getTime()||0)-(safeDate(dateOf(b))?.getTime()||0);}
 function percent(value){const measured=finite(value);return measured===null?null:Math.round(measured*100);}
 function finite(value){if(typeof value!=='number'&&typeof value!=='string')return null;if(typeof value==='string'&&!value.trim())return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function text(value,max=1600){return String(value??'').trim().slice(0,max);}
@@ -31,38 +30,57 @@ function feedbackOf(execution){
 }
 function nextAppointment(state,clientId,now){
   const nowMs=(now instanceof Date?now:new Date(now)).getTime();
-  return forClient(state,'appointments',clientId)
-    .map(normalizeAppointmentRecord)
-    .filter((item)=>item.status==='confirmada')
-    .filter((item)=>{
-      const start=safeDate(item.startAt)?.getTime();
-      const end=safeDate(item.endAt)?.getTime();
-      return Number.isFinite(start)&&(start>=nowMs||(Number.isFinite(end)&&end>start&&end>nowMs));
-    })
-    .sort(byDateAsc)[0]||null;
+  let selected=null,earliest=Infinity;
+  for(const raw of forClient(state,'appointments',clientId)){
+    const item=normalizeAppointmentRecord(raw);
+    if(item.status!=='confirmada')continue;
+    const start=safeDate(item.startAt)?.getTime();
+    const end=safeDate(item.endAt)?.getTime();
+    if(!Number.isFinite(start)||
+      !(start>=nowMs||(Number.isFinite(end)&&end>start&&end>nowMs)))continue;
+    // Equal start times preserve the original stable source order.
+    if(selected===null||start<earliest){selected=item;earliest=start;}
+  }
+  return selected;
 }
 const STARTABLE_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
+function latestRecord(records,when=dateOf){
+  let chosen=null,mostRecent=-Infinity;
+  for(const record of records){
+    const time=safeDate(when(record))?.getTime()||0;
+    if(chosen===null||time>mostRecent){chosen=record;mostRecent=time;}
+  }
+  return chosen;
+}
 function sessionForPreparation(state,clientId,appointment){
   const sessions=forClient(state,'sessions',clientId);
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim();
   if(appointmentSessionId){
-    const exact=sessions.find((item)=>idOf(item)===appointmentSessionId);
+    const exact=sessions.find(item=>idOf(item)===appointmentSessionId);
     if(exact)return exact;
   }
-  const published=sessions
-    .filter((item)=>STARTABLE_SESSION_STATES.has(statusOf(item)))
-    .sort(byDateDesc);
-  return published[0]||sessions.sort(byDateDesc)[0]||null;
+  let newestPublished=null,publishedTime=-Infinity;
+  let newestAny=null,anyTime=-Infinity;
+  for(const item of sessions){
+    const stamp=safeDate(dateOf(item))?.getTime()||0;
+    if(newestAny===null||stamp>anyTime){newestAny=item;anyTime=stamp;}
+    if(STARTABLE_SESSION_STATES.has(statusOf(item))&&
+      (newestPublished===null||stamp>publishedTime)){
+      newestPublished=item;publishedTime=stamp;
+    }
+  }
+  return newestPublished||newestAny;
 }
 function latestExecution(state,clientId){
-  return [...confirmedSessionExecutionsForClient(
-    state,
-    clientId,
-    {requireCompleted:true,requireDate:false},
-  )].sort((a,b)=>(safeDate(sessionExecutionDate(b))?.getTime()||0)-(safeDate(sessionExecutionDate(a))?.getTime()||0))[0]||null;
+  return latestRecord(confirmedSessionExecutionsForClient(
+    state,clientId,{requireCompleted:true,requireDate:false},
+  ),sessionExecutionDate);
 }
 function latestIri(state,clientId){
-  return forClient(state,'iriAssessments',clientId).sort(byDateDesc)[0]||null;
+  return latestRecord(
+    forClient(state,'iriAssessments',clientId).filter(isInitialIriAssessment),
+    item=>field(item,'assessmentDate','assessment_date','evaluatedAt','evaluated_at')||dateOf(item),
+  );
 }
 function loadLabel(load){
   if(!load)return null;
@@ -97,7 +115,8 @@ function recentExerciseMemory(state,clientId,exerciseNames=null){
 }
 function iriContext(state,clientId,progress){
   const iri=latestIri(state,clientId);
-  if(!iri&&!progress?.iri2)return null;
+  // A longitudinal record cannot stand in for the initial IRI baseline.
+  if(!iri)return null;
   return Object.freeze({
     assessmentId:idOf(iri)||progress?.iri2?.currentAssessmentId||null,
     assessmentDate:field(iri,'assessmentDate','assessment_date','evaluatedAt','evaluated_at')||progress?.iri2?.currentAssessmentDate||null,

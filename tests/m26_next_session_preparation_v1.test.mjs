@@ -244,3 +244,43 @@ test('responsive preparation styling and PWA shell are protected',()=>{
   assert.doesNotMatch(source,/automaticExerciseChange:true/u);
   assert.doesNotMatch(source,/automaticClinicalDecision:true/u);
 });
+
+test('Coach preparation always keeps the INITIAL IRI when newer follow-ups exist',()=>{
+  const state=baseState();
+  state.collections.iriAssessments=[
+    {id:'initial-older',clientId,assessmentType:'inicial',assessmentDate:'2026-07-01',status:'completada'},
+    {id:'followup-newest',clientId,assessmentType:'evolution-followup',assessmentDate:'2026-09-12',status:'completada'},
+    {id:'initial-newer',clientId,assessmentType:'iri-initial-diagnostic',assessmentDate:'2026-08-02',status:'completada'},
+    {id:'conflicting',clientId,assessmentType:'initial',body:{kind:'evolution-followup'},assessmentDate:'2026-09-13',status:'completada'},
+    {id:'foreign',clientId:'another-client',assessmentType:'initial',assessmentDate:'2026-09-13',status:'completada'},
+  ];
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.iri?.assessmentId,'initial-newer');
+  assert.equal(prep.iri?.assessmentDate,'2026-08-02');
+  assert.notEqual(prep.iri?.assessmentId,'followup-newest');
+});
+
+test('only longitudinal follow-ups never manufacture a Coach initial IRI',()=>{
+  const state=baseState();
+  state.collections.iriAssessments=[
+    {id:'follow-only',clientId,assessmentType:'evolution-followup',
+      assessmentDate:'2026-09-12',status:'completada'},
+  ];
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.iri,null);
+  assert.equal(prep.evidence.hasIri,false);
+});
+
+test('Coach next session selection retains published priority and stable ties without sorting history',()=>{
+  const state=baseState();
+  state.collections.appointments=[];
+  state.collections.sessions=[
+    {id:'draft-later',clientId,status:'borrador',updatedAt:'2026-09-13T09:00:00Z'},
+    {id:'published-first',clientId,status:'publicado',updatedAt:'2026-09-12T09:00:00Z'},
+    {id:'published-same-time',clientId,status:'publicado',updatedAt:'2026-09-12T09:00:00Z'},
+  ];
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.session.id,'published-first');
+  assert.equal(prep.session.startable,true);
+  assert.equal(prep.session.source,'published');
+});

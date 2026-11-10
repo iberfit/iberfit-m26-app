@@ -1,3 +1,16 @@
+## MACROBLOQUE A · Coach & Entrenamiento Excellence · WIP único (10/11/2026)
+
+**Decisión aprobada:** ejecutar A → B (Cliente Progress & Retention) → C (Connected360 real), secuencialmente y sin tres PR en paralelo. A concentra planificación por fecha, ejecución ultrarrápida, memoria/alternativas, Coach Decision Brief, rendimiento y QA por rol/dispositivo; una única PR principal y una sola promoción protegida cuando todo el bloque sea apto.
+
+**Base verificable:** Canary/PROD `a95a45a90bd17a3e8ae58e3e7dc86296ffbf5f11`, EXCELLENCE 360 certificada. Candidatos nuevos no publicados hasta QA y release. Este documento no habilita RPC ni cambios SQL.
+
+**Hallazgos de entrada (Supabase QA/PROD, SELECT read-only):** `training_session_occurrences_v1` existe en ambos entornos con RLS. En QA, `iberfit_occurrence_api_u60_v1` y `iberfit_occurrence_detail_v1` tienen EXECUTE para `authenticated`; en PROD **NO**, por protección expresa. `iberfit_occurrence_api_v1` permanece revocada en ambos. La UI existente `occurrence-qa-ui.js` se monta solo en QA; no promocionar fechas solo por tener tablas o un calendario. Validar RLS, aislamiento, dos ejecuciones fechadas, recuperación cifrada, Auth, contratos U30-U60, backout y nuevo M44 antes de cualquier habilitación productiva.
+
+**Primer endurecimiento de A en la misma rama:** seleccionar el IRI inicial confirmado por clasificación explícita en el contexto de preparación Coach (nunca tomar un seguimiento nuevo como baseline), seleccionar cita/sesión/ejecución con recorrido estable sin ordenar históricos y seleccionar la duración de perfil válida más reciente con una sola pasada. Regresiones de empate, dueño, datos inválidos, follow-up y ausencia de baseline. **Estado: trabajo en rama; no LIVE hasta gates.**
+
+**Aceptación restante del macrobloque:** Coach puede programar una prescripción en varias fechas y Cliente completar dos ejecuciones independientes; primer clic/ACK, pausa/reanuda/series/descanso/cierre/reconciliación multi-device y RLS negativa; ajustes/alternativas con supervisión humana y sin auto-publicación; vista Coach con decisión y origen verificable; experiencia táctil y p95 de navegación real <5s; 320/390/tablet/desktop, egress medido; 7 gates exact-SHA, restore M44 y release con rollback. No bajar garantías ni confundir QA con producción.
+
+---
 ## P1 · CALIDAD DEMOSTRABLE / EXECUTIVE SERVICE 360 (09/11/2026)
 
 **Interpretación de consultoría:** 6/10 es una evaluación provisional subjetiva; no es una encuesta a clientes ni una comparación E2E controlada. No vender 8,5–9/10 como nota alcanzada. Fuente de verdad de capacidades: inventario de 608 entradas (415 C, 151 B, 31 Q, 4 P y 7 X); sólo certificado LIVE equivale a producto disponible.
