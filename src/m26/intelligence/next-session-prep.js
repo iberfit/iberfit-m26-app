@@ -1,7 +1,7 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
-import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId} from '../domain/session-execution-truth.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
 import {isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
 import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
@@ -22,11 +22,13 @@ function text(value,max=1600){return String(value??'').trim().slice(0,max);}
 // Compare the immutable prescribed queue with the completed workout queue.
  // These counts are informational. Missing results are unknown, never successes.
 export function summarizeConfirmedSessionSets(execution){
-  if(!execution||!Array.isArray(execution.queue)||!execution.queue.length||
-    !execution.results||typeof execution.results!=='object'||
-    Array.isArray(execution.results))return null;
-  const original=execution.planSnapshot||execution.plan_snapshot;
-  const sessionId=String(field(execution,'sessionId','session_id')||'');
+  const item=unwrap(execution);
+  if(!sessionExecutionIsCompleted(item)||!sessionExecutionIsConfirmed(item)||
+    !Array.isArray(item.queue)||!item.queue.length||
+    !item.results||typeof item.results!=='object'||Array.isArray(item.results))
+    return null;
+  const original=item.planSnapshot||item.plan_snapshot;
+  const sessionId=String(field(item,'sessionId','session_id')||'');
   if(!sessionId||String(original?.sessionId||'')!==sessionId||
     !Array.isArray(original?.queue)||!original.queue.length)return null;
   const sumSets=queue=>{
@@ -41,19 +43,19 @@ export function summarizeConfirmedSessionSets(execution){
     return total;
   };
   const plannedSets=sumSets(original.queue);
-  const executionSets=sumSets(execution.queue);
+  const executionSets=sumSets(item.queue);
   if(plannedSets===null||executionSets===null)return null;
   let recordedSets=0,skippedSets=0;
   const hasRecordedMetric=result=>result&&typeof result==='object'&&[
     result.reps,result.seconds,result.distanceKm,result.distanceM,
     result.intervalsCompleted,
-  ].some(value=>value!==null&&value!==undefined&&value!==''&&
-    Number.isFinite(Number(value)));
-  for(const item of execution.queue){
-    for(let setNumber=1;setNumber<=item.sets;setNumber++){
-      const step={...item,setNumber,totalSets:item.sets};
-      const result=executionResultForStep(execution,step,setNumber);
-      const skipped=skippedSetForStep(execution,step,setNumber);
+  ].some(value=>(typeof value==='number'||typeof value==='string')&&
+    String(value).trim()!==''&&Number.isFinite(Number(value))&&Number(value)>=0);
+  for(const block of item.queue){
+    for(let setNumber=1;setNumber<=block.sets;setNumber++){
+      const step={...block,setNumber,totalSets:block.sets};
+      const result=executionResultForStep(item,step,setNumber);
+      const skipped=skippedSetForStep(item,step,setNumber);
       if(hasRecordedMetric(result)&&skipped)return null; // contradictory ACK
       if(hasRecordedMetric(result))recordedSets++;
       else if(skipped)skippedSets++;

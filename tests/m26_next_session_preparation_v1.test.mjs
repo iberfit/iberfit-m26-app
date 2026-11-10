@@ -379,3 +379,31 @@ test('contradictory skipped and performed set cannot be reported as confirmed ev
     skippedSets:{'b1:squat:1':{reason:'Marca contradictoria'}}};
   assert.equal(summarizeConfirmedSessionSets(e),null);
 });
+
+test('completed owner-scoped wrapper uses canonical nested queue, and never treats missing data as zero',()=>{
+  const rec={id:'wrapper',clientId,status:'completed',syncStatus:'clean',
+    body:{id:'wrapper',clientId,status:'completed',syncStatus:'clean',
+      sessionId:'session-published',
+      planSnapshot:{sessionId:'session-published',queue:[{blockId:'b1',exerciseId:'squat',sets:2}]},
+      queue:[{blockId:'b1',exerciseId:'squat',sets:2}],
+      results:{'b1:squat:1':{reps:8},'b1:squat:2':{reps:false}}},
+  };
+  const result=summarizeConfirmedSessionSets(rec);
+  assert.equal(result?.recordedSets,1);
+  assert.equal(result?.unrecordedSets,1);
+  rec.body.results['b1:squat:2']={reps:'8'};
+  assert.equal(summarizeConfirmedSessionSets(rec)?.recordedSets,2);
+});
+
+test('Coach preview refuses pending or incomplete executions even if they carry results',()=>{
+  const item={sessionId:'session-published',status:'completed',syncStatus:'pending',
+    planSnapshot:{sessionId:'session-published',queue:[{blockId:'b1',exerciseId:'squat',sets:1}]},
+    queue:[{blockId:'b1',exerciseId:'squat',sets:1}],
+    results:{'b1:squat:1':{reps:8}}};
+  assert.equal(summarizeConfirmedSessionSets(item),null);
+  item.syncStatus='clean';
+  item.status='active';
+  assert.equal(summarizeConfirmedSessionSets(item),null);
+  item.status='completed';
+  assert.equal(summarizeConfirmedSessionSets(item)?.recordedSets,1);
+});
