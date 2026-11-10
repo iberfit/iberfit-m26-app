@@ -83,3 +83,19 @@ test('invalid input always fails without echoing IDs or private data',()=>{
   assert.equal(r.productionMutationPermitted,false);
   assert.doesNotMatch(JSON.stringify(r),/secret|10000000-0000/u);
 });
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const sql=fs.readFileSync('backend/production/P0_PERSON_ERASURE_SCHEMA_CATALOG_READONLY.sql','utf8');
+test('person erasure schema discovery is entirely read-only and contains no personal fixture',()=>{
+  const executable=sql.split('\n').filter(line=>!line.trim().startsWith('--')).join('\n');
+  assert.doesNotMatch(executable,/\b(?:DELETE\s+FROM|UPDATE\s+\w|INSERT\s+INTO|TRUNCATE\s+|DROP\s+|ALTER\s+|CREATE\s+|GRANT\s+|REVOKE\s+|COPY\s+|EXECUTE\s+|CALL\s+)/iu);
+  assert.doesNotMatch(sql,/juan\s+carlos|patricia|cintia|cynthia\s+catal[aá]n|@gmail|@yahoo/iu);
+  for(const s of ['information_schema.columns','auth.users','storage.objects',
+    'has_table_privilege','has_function_privilege','pg_get_constraintdef',
+    'client_catalog_md5','auth_catalog_md5']){
+    assert.ok(sql.includes(s),s);
+  }
+});
