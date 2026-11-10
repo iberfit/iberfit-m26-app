@@ -284,3 +284,24 @@ test('Coach next session selection retains published priority and stable ties wi
   assert.equal(prep.session.startable,true);
   assert.equal(prep.session.source,'published');
 });
+
+test('Coach wellbeing comparison uses four most recent owner records with stable ordering',()=>{
+  const state=baseState();
+  const olderDay=(day,energy)=>({
+    id:'checkin-'+day,clientId,recordedAt:'2026-09-'+String(day).padStart(2,'0')+'T10:00:00Z',
+    energy,sleep:6,stress:4,fatigue:4,motivation:6,pain:0,
+  });
+  state.collections.checkins=[
+    olderDay(9,6),olderDay(12,2),olderDay(8,10),
+    olderDay(10,6),olderDay(11,2),
+    {id:'foreign-checkin',clientId:'another-client',recordedAt:'2026-09-13T10:00:00Z',
+      energy:10,sleep:10,stress:0,fatigue:0,motivation:10},
+  ];
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.wellbeingShift.available,true);
+  assert.equal(prep.wellbeingShift.checkins,4);
+  const energy=prep.wellbeingShift.signals.find(item=>item.key==='energy');
+  assert.equal(energy?.delta,-4);
+  assert.equal(energy?.recent,2);
+  assert.equal(energy?.previous,6);
+});

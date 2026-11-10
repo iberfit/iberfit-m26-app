@@ -154,13 +154,18 @@ function wellbeingShift(state,clientId,{now=new Date(),days=28,threshold=WELLBEI
   const end=now instanceof Date?now:new Date(now);
   const endMs=Number.isFinite(end.getTime())?end.getTime():Date.now();
   const startMs=endMs-Math.max(1,Number(days)||28)*86_400_000;
-  const rows=forClient(state,'checkins',clientId)
-    .filter((item)=>{
-      const time=safeDate(dateOf(item))?.getTime();
-      return Number.isFinite(time)&&time>=startMs&&time<=endMs;
-    })
-    .sort(byDateDesc)
-    .slice(0,4);
+  // Keep only the four newest owner-scoped check-ins. Stable ties preserve
+  // input order, and older history is never cloned or sorted.
+  const selected=[];
+  for(const item of forClient(state,'checkins',clientId)){
+    const time=safeDate(dateOf(item))?.getTime();
+    if(!Number.isFinite(time)||time<startMs||time>endMs)continue;
+    const index=selected.findIndex(row=>time>row.time);
+    const at=index<0?selected.length:index;
+    if(at<4)selected.splice(at,0,{time,item});
+    if(selected.length>4)selected.pop();
+  }
+  const rows=selected.map(row=>row.item);
   if(rows.length<4)return Object.freeze({
     available:false,
     reason:'insufficient_checkins',
