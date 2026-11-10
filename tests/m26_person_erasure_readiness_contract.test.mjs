@@ -14,6 +14,9 @@ const target=(n)=>({
   pendingOperations:0,writeFenceVerified:true,legalHold:false,
   references:[{relation:'public.sessions.client_id',count:1,disposition:'remove',
     reviewed:true,postcheckDefined:true,recoveryDocumented:true}],
+  authReferences:[{relation:'public.audit_events.actor_user_id',count:0,
+    disposition:'anonymize',reviewed:true,postcheckDefined:true,recoveryDocumented:true}],
+  storageObjectCountExpected:1,storageApiListed:true,
   storageObjects:[{bucket:'private-synthetic',ownerConfirmed:true,targetScoped:true,
     protectedPersonExcluded:true,recoveryDocumented:true,storageApiDeletionPlanned:true}],
   storageInventoryReconciled:true,
@@ -26,7 +29,9 @@ const candidate=()=>({
     baseline:{iriCount:1,photoCount:5,externalReportCount:1,trainingServiceActive:false}},
   protectedPersonPreservationProof:true,
   targets:[target(1),target(2)],
-  catalog:{clientIdColumns:72,authUserForeignKeys:135,
+  catalog:{clientIdColumns:1,authUserForeignKeys:1,
+    clientIdRelations:['public.sessions.client_id'],
+    authUserForeignKeyRelations:['public.audit_events.actor_user_id'],
     unreviewedClientIdColumns:0,unreviewedAuthForeignKeys:0,schemaFingerprintVerified:true},
   backup:{completedAt:'2026-11-10T22:40:00.000Z',postgres:{restoreVerified:true},
     storage:{restoreVerified:true},hostedAuth:{restoreVerified:true},
@@ -64,6 +69,23 @@ test('catalog drift, unexplained audit history and undeclared Storage block comp
   assert.ok(r.blockers.includes('SCHEMA_COVERAGE_INCOMPLETE'));
   assert.ok(r.blockers.includes('UNRESOLVED_DATA_RELATION'));
   assert.ok(r.blockers.includes('STORAGE_OBJECT_UNVERIFIED'));
+});
+test('catalog must list every client/Auth relation exactly once for each target',()=>{
+  const missing=candidate();
+  missing.targets[0].authReferences=[];
+  assert.ok(check(missing).blockers.includes('RELATION_COVERAGE_INCOMPLETE'));
+  const dupe=candidate();
+  dupe.catalog.clientIdColumns=2;
+  dupe.catalog.clientIdRelations=['public.sessions.client_id','public.sessions.client_id'];
+  assert.ok(check(dupe).blockers.includes('CATALOG_ITEMS_NOT_COMPLETE'));
+  const unlisted=candidate();
+  unlisted.targets[1].references[0].relation='public.unknown.client_id';
+  assert.ok(check(unlisted).blockers.includes('RELATION_COVERAGE_INCOMPLETE'));
+});
+test('Storage reconciliation must account for every object, even if inventory is empty',()=>{
+  const e=candidate();
+  e.targets[0].storageObjectCountExpected=2;
+  assert.ok(check(e).blockers.includes('STORAGE_INVENTORY_MISSING'));
 });
 test('DB+Storage backup without restorable Hosted Auth is not enough',()=>{
   const e=candidate();e.backup.hostedAuth.restoreVerified=false;

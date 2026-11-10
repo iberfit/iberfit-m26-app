@@ -9,6 +9,13 @@ const MAX_BACKUP_AGE_MS=2*60*60*1000;
 const isRecord=(value)=>Boolean(value&&typeof value==='object'&&!Array.isArray(value));
 const isCount=(value)=>Number.isSafeInteger(value)&&value>=0;
 const validId=(value)=>typeof value==='string'&&UUID.test(value);
+const catalogValid=(list,count)=>Array.isArray(list)&&isCount(count)&&count>0&&list.length===count
+  &&list.every(item=>typeof item==='string'&&item.trim()===item&&item.length>5)
+  &&new Set(list).size===count;
+const exactCoverage=(refs,declared)=>Array.isArray(refs)&&Array.isArray(declared)
+  &&refs.length===declared.length
+  &&new Set(refs.map(ref=>ref?.relation)).size===declared.length
+  &&refs.every(ref=>declared.includes(ref?.relation));
 const cleanDate=(value)=>typeof value==='string'&&Number.isFinite(Date.parse(value))?Date.parse(value):NaN;
 
 export function evaluatePersonErasureEvidence(evidence,{nowMs=Date.now()}={}){
@@ -29,6 +36,12 @@ export function evaluatePersonErasureEvidence(evidence,{nowMs=Date.now()}={}){
     ||protectedPerson.baseline.trainingServiceActive!==false)add('PROTECTED_BASELINE_MISSING');
   if(protectedPerson.excludedFromDeletion!==true)add('PROTECTED_SCOPE_NOT_EXCLUDED');
 
+  const catalog=isRecord(evidence.catalog)?evidence.catalog:{};
+  const clientRelations=catalog.clientIdRelations;
+  const authRelations=catalog.authUserForeignKeyRelations;
+  if(!catalogValid(clientRelations,catalog.clientIdColumns)
+    ||!catalogValid(authRelations,catalog.authUserForeignKeys))
+    add('CATALOG_ITEMS_NOT_COMPLETE');
   const targets=Array.isArray(evidence.targets)?evidence.targets:[];
   if(targets.length!==2)add('TARGET_COUNT_INVALID');
   const ids=new Set();
@@ -49,15 +62,20 @@ export function evaluatePersonErasureEvidence(evidence,{nowMs=Date.now()}={}){
     if(!isCount(t.pendingOperations)||t.pendingOperations!==0||t.writeFenceVerified!==true)add('IN_FLIGHT_WRITES_NOT_FENCED');
     if(t.legalHold!==false)add('LEGAL_HOLD');
     const references=Array.isArray(t.references)?t.references:[];
-    if(!references.length)add('RELATION_INVENTORY_MISSING');
-    for(const ref of references){
+    const authReferences=Array.isArray(t.authReferences)?t.authReferences:[];
+    if(!references.length||!authReferences.length)add('RELATION_INVENTORY_MISSING');
+    if(!exactCoverage(references,clientRelations)||!exactCoverage(authReferences,authRelations))
+      add('RELATION_COVERAGE_INCOMPLETE');
+    for(const ref of [...references,...authReferences]){
       if(!isRecord(ref)||typeof ref.relation!=='string'||!isCount(ref.count)
         ||!['remove','anonymize','preserve_non_personal'].includes(ref.disposition)
         ||ref.reviewed!==true||ref.postcheckDefined!==true||(ref.count>0&&ref.recoveryDocumented!==true))
         add('UNRESOLVED_DATA_RELATION');
     }
     const objects=Array.isArray(t.storageObjects)?t.storageObjects:null;
-    if(!objects)add('STORAGE_INVENTORY_MISSING');
+    if(!objects||!isCount(t.storageObjectCountExpected)
+      ||objects.length!==t.storageObjectCountExpected||t.storageApiListed!==true)
+      add('STORAGE_INVENTORY_MISSING');
     else for(const object of objects){
       if(!isRecord(object)||object.ownerConfirmed!==true||object.targetScoped!==true
         ||object.protectedPersonExcluded!==true||object.recoveryDocumented!==true||object.storageApiDeletionPlanned!==true
@@ -66,7 +84,6 @@ export function evaluatePersonErasureEvidence(evidence,{nowMs=Date.now()}={}){
     }
     if(t.storageInventoryReconciled!==true)add('STORAGE_INVENTORY_UNRECONCILED');
   }
-  const catalog=isRecord(evidence.catalog)?evidence.catalog:{};
   if(!isCount(catalog.clientIdColumns)||catalog.clientIdColumns===0
     ||!isCount(catalog.authUserForeignKeys)||catalog.authUserForeignKeys===0
     ||catalog.unreviewedClientIdColumns!==0||catalog.unreviewedAuthForeignKeys!==0
@@ -98,7 +115,9 @@ const direct=process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).h
 if(direct){
   const input=process.argv[2];
   if(!input)throw new Error('PERSON_ERASURE_PRIVATE_EVIDENCE_FILE_REQUIRED');
-  const evidence=JSON.parse(fs.readFileSync(input,'utf8'));
+  let evidence;
+  try{evidence=JSON.parse(fs.readFileSync(input,'utf8'));}
+  catch{throw new Error('PERSON_ERASURE_PRIVATE_EVIDENCE_INVALID');}
   const result=evaluatePersonErasureEvidence(evidence);
   // No client ids, emails, object paths, health data or source evidence in stdout.
   process.stdout.write(JSON.stringify(result)+'\n');
