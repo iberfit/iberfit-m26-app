@@ -124,10 +124,23 @@ export function sessionExecutionIsConfirmed(
     .toLowerCase();
 
   const id=sessionExecutionId(item);
-
+  const denied=first(item,'serverConfirmed','server_confirmed')===false;
+  // A typed SQL "cerrada_confirmada" row has authority only with a
+  // persisted remote ACK. Do not turn a local optimistic mirror into proof.
+  const typed=String(first(item,'executionStatus','execution_status')||'')
+    .trim().toLowerCase();
+  const legacy=String(first(item,'status','estado')||'')
+    .trim().toLowerCase();
+  const contradictory=Boolean(typed&&legacy&&
+    COMPLETE_STATUSES.has(typed)!==COMPLETE_STATUSES.has(legacy));
+  const receipt=first(item,'remoteConfirmedAt','remote_confirmed_at');
+  const needsReceipt=typed==='cerrada_confirmada';
+  const validReceipt=typeof receipt==='string'&&receipt.trim().length>0
+    &&Number.isFinite(Date.parse(receipt));
   return (
     (!sync||sync==='clean')&&
-    (!id||!blockedIds.has(id))
+    (!id||!blockedIds.has(id))&&!denied&&!contradictory&&
+    (!needsReceipt||validReceipt)
   );
 }
 

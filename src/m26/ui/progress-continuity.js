@@ -146,7 +146,7 @@ function adherenceDetail(item){
     return 'No hay sesiones planificadas o confirmadas para calcular constancia.';
   }
   const pending=Number(item?.unconfirmedExecutions||0);
-  const base=`${item.completedSessions} de ${item.plannedSessions} sesiones confirmadas`;
+  const base=`${item.completedSessions} de ${item.plannedSessions} citas programadas cumplidas`;
   return pending
     ?`${base} · ${pending} pendiente${pending===1?'':'s'} fuera del cálculo`
     :base;

@@ -1,3 +1,11 @@
+## MACROBLOQUE B · Cliente · Progreso y retención con evidencia confirmada (WIP 11/11/2026)
+
+**Base:** Canary integrado `0cf9a9e978e256642e5adbf6332160834d32a668`, PR A #1320 fusionada con checks de PR verdes. La promoción LIVE de A no debe declararse certificada hasta que los workflows exact-SHA de Canary y PROD concluyan; U60 authenticated PROD sigue cerrado. No mezclar con limpieza destructiva #1319.
+
+**Objetivo B:** el seguimiento y la retención deben distinguir cumplimiento de cita, entrenamiento autónomo, sesión sin ACK, recuperación pendiente y falta de información. El IRI inicial es punto de partida, no progreso. Esta primera integración del macrobloque evita contar en `confirmedAdherenceEvidence` ejecuciones pendientes, abiertas, rechazadas, pendientes de sincronización o con recibo tipado ausente; detecta contradicciones de igual ID/revisión sin depender del orden; y calcula el factor de adherencia sobre citas cumplidas, no sesiones autónomas. Tests de regresión Cliente + Coach con datos exclusivamente sintéticos. Siguientes: estabilidad de series temporales, estados vacíos, gráficas accionables, riesgo de retención sin patologizar, navegación native-first, matrices Playwright móvil/tablet/desktop, fuentes wearable y control de gasto Supabase Free.
+
+---
+
 ## CONTRATO UX NATIVE-FIRST · PWA HOY, APP NATIVA MAÑANA (decisión de producto 11/11/2026)
 
 **Directiva permanente del propietario:** IBERFIT es **una app**, no una web corporativa ni un dashboard responsivo. Su canal actual es web/PWA, pero debe **sentirse nativa en móvil desde hoy** y prepararse para desarrollo verdaderamente nativo Android/iOS posterior sin perder flujos, identidad ni fiabilidad. El trabajo visual con Stitch debe crear **pantallas y journeys de mobile app native-first**; luego adaptar conscientemente tablet y escritorio para las tareas propias de cada dispositivo. Mantener SIGNATURE MASTER VISUAL R49 y `DESIGN.md` como fuente de tokens y componentes reales; no construir una segunda UI ni dos arquitecturas.

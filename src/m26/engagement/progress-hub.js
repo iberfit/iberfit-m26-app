@@ -1,4 +1,4 @@
-import {buildAdherenceWindows} from './progress-continuity.js';
+import {buildAdherenceWindows,reusableConfirmedSummary} from './progress-continuity.js';
 import {computeProgressSummary} from './progress-engine.js';
 import {
   assessExercisePerformance,
@@ -6,15 +6,17 @@ import {
   listExercisePerformanceMemories,
 } from './exercise-performance-engine.js';
 
-function finite(value){if(value===null||value===undefined||value==='')return null;const number=Number(value);return Number.isFinite(number)?number:null;}
-function percent(value){const number=finite(value);return number===null?null:Math.round(number*100);}
-function reusableSummary(summary,clientId,days){
-  return summary
-    &&summary.clientId===clientId
-    &&Number(summary.days)===Number(days)
-      ?summary
-      :null;
+function finite(value){
+  if(typeof value!=='number'&&typeof value!=='string')return null;
+  if(typeof value==='string'&&!value.trim())return null;
+  const number=Number(value);
+  return Number.isFinite(number)?number:null;
 }
+function count(value){
+  const number=finite(value);
+  return number!==null&&Number.isSafeInteger(number)&&number>=0?number:null;
+}
+function percent(value){const number=finite(value);return number===null?null:Math.round(number*100);}
 function labelForQuality(value){
   const quality=String(value||'').toLowerCase();
   return ({alta:'Alta',media:'Media',limitada:'Limitada',reciente:'Reciente',atrasada:'Atrasada',obsoleta:'Obsoleta',sin_datos:'Sin datos'})[quality]||'Sin evidencia suficiente';
@@ -72,7 +74,7 @@ export function buildProgressHub(
   {now=new Date(),loadDirectionForExercise=null,summaries={}}={}
 ){
   if(!clientId)return null;
-  const summary28=reusableSummary(summaries?.[28],clientId,28)
+  const summary28=reusableConfirmedSummary(summaries?.[28],clientId,28)
     ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary28)return null;
   const windows=buildAdherenceWindows(state,clientId,{
@@ -86,11 +88,14 @@ export function buildProgressHub(
   const adherence28=byDays.get(28)?.adherence??summary28.adherence;
   const adherence90=byDays.get(90)?.adherence??null;
   const wearableDecision=summary28?.wearable?.decision||{};
-  const wearableDays=finite(wearableDecision.currentEvidenceDays)??0;
-  const wearableHistoricalDays=finite(wearableDecision.historicalContextDays)??0;
-  const wearableAvailableDays=finite(summary28?.wearable?.daysWithData)??0;
-  const wearableEligible=wearableDecision.eligible===true&&wearableDays>0;
-  const checkins=finite(summary28.checkins)??0;
+  const wearableDays=count(wearableDecision.currentEvidenceDays)??0;
+  const wearableHistoricalDays=count(wearableDecision.historicalContextDays)??0;
+  const wearableAvailableDays=count(summary28?.wearable?.daysWithData)??0;
+  const providers=Array.isArray(wearableDecision.providers)?wearableDecision.providers:[];
+  const wearableEligible=wearableDecision.eligible===true&&wearableDays>0
+    &&wearableDays<=wearableAvailableDays&&providers.length===1
+    &&typeof providers[0]==='string'&&providers[0].trim().length>0;
+  const checkins=count(summary28.checkins)??0;
   const iriCoverage=finite(summary28.iriCurrent);
 
   const wearableEvidence=wearableEligible
