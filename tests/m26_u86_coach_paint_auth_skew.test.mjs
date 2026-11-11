@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {MAX_QA_FUTURE_IAT_RESPONSES,shouldAwaitFinalAssuranceResponse} from '../qa/rc64/assurance-clock-skew-gate.mjs';
+import {unexpectedQaResourceErrors} from '../qa/rc64/secure-current-source-auth.mjs';
 
 test('U86 QA waits only for bounded, typed PostgREST future-issued JWT recovery',()=>{
   const error={status:401,body:{code:'PGRST303',message:'JWT issued at future'}};
@@ -27,6 +28,8 @@ test('U86 authenticated QA keeps the original timeout and rejects all unrelated 
   assert.match(source,/if\(response\.status\(\)!==401\)return true/u);
   assert.match(source,/timeout:AUTH_FLOW_TIMEOUT_MS/u);
   assert.match(source,/assurance=await readAssurance\(outcome\.response\)/u);
+  assert.match(source,/verifiedFutureIatCount\+=outcome\.observedSkewResponses/u);
+  assert.match(source,/unexpectedQaResourceErrors\(consoleErrors,missingAvatar\.length,verifiedFutureIatCount\)/u);
   assert.match(source,/expect\(response\.status\(\),'Assurance RPC must answer successfully'\)\.toBe\(200\)/u);
 });
 
@@ -41,4 +44,15 @@ test('U86 Coach directory optimizes only its initial painting, keeping accessibl
   assert.match(realQa,/toBeLessThanOrEqual\(5_000\)/u);
   assert.match(realQa,/scriptDurationsMs/u);
   assert.doesNotMatch(realQa,/script\.sourceURL/u);
+});
+
+
+test('U86 Chromium residual 401 console is allowed only up to typed successful recovery count',()=>{
+  const residual='Failed to load resource: the server responded with a status of 401 ()';
+  const forbidden='Failed to load resource: the server responded with a status of 403 ()';
+  assert.deepEqual(unexpectedQaResourceErrors([residual],0,0),[residual]);
+  assert.deepEqual(unexpectedQaResourceErrors([residual],0,1),[]);
+  assert.deepEqual(unexpectedQaResourceErrors([residual,residual],0,1),[residual]);
+  assert.deepEqual(unexpectedQaResourceErrors([forbidden],0,1),[forbidden]);
+  assert.deepEqual(unexpectedQaResourceErrors([residual],0,4),[residual]);
 });

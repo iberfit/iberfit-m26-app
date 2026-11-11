@@ -386,6 +386,9 @@ test('current authenticated contract separates privileged fail-closed identities
     const avatarChecks=[],missingAvatar=[];
     const consoleErrors=[];
     const pageErrors=[];
+    // Only independently typed PGRST303 future-iat recoveries can explain
+    // Chrome's residual 401 resource messages; all other errors still fail.
+    let verifiedFutureIatCount=0;
     // Read-only diagnostic phases; never record secrets or identifying data.
     const authPhases=[];
     const authNetworkFailureCodes=[];
@@ -579,8 +582,10 @@ test('current authenticated contract separates privileged fail-closed identities
         if(outcome.error)throw outcome.error;
         if(!outcome.response)throw new Error('RC64_ASSURANCE_RESPONSE_REQUIRED');
         assurance=await readAssurance(outcome.response);
-        if(outcome.observedSkewResponses>0)
+        if(outcome.observedSkewResponses>0){
+          verifiedFutureIatCount+=outcome.observedSkewResponses;
           console.log('RC64_ASSURANCE_VERIFIED_FUTURE_IAT_RECOVERED:'+outcome.observedSkewResponses);
+        }
       }catch(error){
         const state=await page.evaluate(()=>{
           const card=document.querySelector('.m26-auth-card');
@@ -640,7 +645,7 @@ test('current authenticated contract separates privileged fail-closed identities
 
       expect(new Set(optionalReadFailures).size,'Optional read fallbacks must not retry-loop').toBe(optionalReadFailures.length);
       expect(optionalReadFailures.length,'At most one failure per declared optional read is tolerated').toBeLessThanOrEqual(OPTIONAL_READ_PATHS.size);
-      expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length)).toEqual([]);
+      expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length,verifiedFutureIatCount)).toEqual([]);
       expect(pageErrors).toEqual([]);
 
       evidenceRoles.push({
