@@ -228,6 +228,23 @@
   gap: var(--iberfit-space-3);
 }
 
+/* U83: Native-feeling Coach directory under verified full U38 history.
+   Keep every card, filter, action, and accessible control in the DOM.
+   Offscreen layout/paint are deferred by the browser; scrolling, focus and
+   interaction reveal the exact same content with intrinsic-size fallback.
+   Unsupported browsers use the original layout unchanged. */
+@supports (content-visibility: auto) {
+  .m26-shell[data-m26-role="coach"] .m26-followup-panel,
+  .m26-shell[data-m26-role="coach"] .m26-coach-productivity-toolbar,
+  .m26-shell[data-m26-role="coach"] .m26-client-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 20rem;
+  }
+  .m26-shell[data-m26-role="coach"] .m26-followup-panel {
+    contain-intrinsic-size: auto 27rem;
+  }
+}
+
 .m26-shell[data-m26-role="coach"] .m26-list-card {
   min-height: 3.75rem;
   padding: var(--iberfit-space-3) var(--iberfit-space-4);
