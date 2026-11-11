@@ -145,6 +145,108 @@ function expandQaHistoryTuples(snapshot){
   return changed?{...snapshot,data}:snapshot;
 }
 
+// U82 · strictly QA Coach-only, lossless same-record nested payload aliases.
+// Historical executions legitimately carry repeated plans and progression
+// snapshots. We transmit a *verified* reference only when the complete JSON
+// values are exactly equal; never drop different revisions, content or rows.
+// This leaves the immutable 20 MB authenticated wire guard untouched.
+const NESTED_REF='__iberfitQaHistoryNestedRefV1';
+const NESTED_PACKET='__iberfitQaHistoryNestedRefsV1';
+const NESTED_RULES=Object.freeze([
+ {type:'session',tag:'session-blocks',from:['blocks'],to:['publishedSnapshot']},
+ {type:'session_execution',tag:'progress-plan',from:['planSnapshot'],to:['progressSnapshot','planSnapshot']},
+ {type:'session_execution',tag:'progress-queue',from:['queue'],to:['progressSnapshot','queue']},
+ {type:'session_execution',tag:'progress-results',from:['results'],to:['progressSnapshot','results']},
+ {type:'session_execution',tag:'plan-queue',from:['queue'],to:['planSnapshot','queue']},
+ {type:'session_execution',tag:'plan-blocks',from:['sourceSnapshot'],to:['planSnapshot','blocks']},
+]);
+const NESTED_RESTORE_ORDER=Object.freeze([
+ 'session-blocks','plan-queue','plan-blocks',
+ 'progress-plan','progress-queue','progress-results',
+]);
+const own=(value,key)=>object(value)&&Object.prototype.hasOwnProperty.call(value,key);
+function nestedAt(root,path){
+ let value=root;
+ for(const key of path){
+  if(!own(value,key))return undefined;
+  value=value[key];
+ }
+ return value;
+}
+function nestedSet(root,path,value){
+ let parent=root;
+ for(const key of path.slice(0,-1)){
+  if(!own(parent,key))return false;
+  parent=parent[key];
+ }
+ if(!own(parent,path[path.length-1]))return false;
+ parent[path[path.length-1]]=value;
+ return true;
+}
+function nestedAlias(value){
+ return own(value,NESTED_REF)&&Object.keys(value).length===1;
+}
+function packQaNestedHistory(snapshot){
+ if(!qaCoach(snapshot)||!Array.isArray(snapshot?.data?.m26Entities))return snapshot;
+ if(Object.prototype.hasOwnProperty.call(snapshot.data,NESTED_PACKET))
+  throw new Error('U82_QA_HISTORY_NESTED_INVALID');
+ const allowed=new Set((snapshot.data.clients||[]).map(client=>str(client?.id)));
+ let changed=false;
+ const entities=snapshot.data.m26Entities.map(entity=>{
+  if(!allowed.has(str(entity?.clientId))||!object(entity?.body))return entity;
+  let next=null;
+  for(const rule of NESTED_RULES){
+   if(rule.type!==entity.entityType)continue;
+   const source=nestedAt(entity.body,rule.from);
+   const target=nestedAt(entity.body,rule.to);
+   if(!(object(source)||Array.isArray(source))
+     ||!(object(target)||Array.isArray(target))
+     ||nestedAlias(source)||nestedAlias(target))continue;
+   const same=canon(source)===canon(target);
+   if(!same||JSON.stringify(target).length<96)continue;
+   next??={...entity,body:structuredClone(entity.body)};
+   if(!nestedSet(next.body,rule.to,{[NESTED_REF]:rule.tag}))
+    throw new Error('U82_QA_HISTORY_NESTED_INVALID');
+  }
+  if(next){changed=true;return next;}
+  return entity;
+ });
+ return changed?{...snapshot,data:{...snapshot.data,m26Entities:entities,[NESTED_PACKET]:1}}:snapshot;
+}
+function unpackQaNestedHistory(snapshot){
+ const packet=snapshot?.data&&Object.prototype.hasOwnProperty.call(snapshot.data,NESTED_PACKET);
+ if(!packet)return snapshot;
+ if(!qaCoach(snapshot)||snapshot.data[NESTED_PACKET]!==1||
+    !Array.isArray(snapshot.data.m26Entities))
+  throw new Error('U82_QA_HISTORY_NESTED_INVALID');
+ const allowed=new Set((snapshot.data.clients||[]).map(client=>str(client?.id)));
+ let restored=0;
+ const entities=snapshot.data.m26Entities.map(entity=>{
+  if(!object(entity?.body)||!allowed.has(str(entity?.clientId)))
+   throw new Error('U82_QA_HISTORY_NESTED_INVALID');
+  let next=null;
+  for(const tag of NESTED_RESTORE_ORDER){
+   const rule=NESTED_RULES.find(item=>item.tag===tag);
+   if(rule.type!==entity.entityType)continue;
+   const target=nestedAt(next?.body||entity.body,rule.to);
+   if(!nestedAlias(target))continue;
+   if(target[NESTED_REF]!==rule.tag)
+    throw new Error('U82_QA_HISTORY_NESTED_INVALID');
+   next??={...entity,body:structuredClone(entity.body)};
+   const source=nestedAt(next.body,rule.from);
+   if(!(object(source)||Array.isArray(source))||nestedAlias(source)
+      ||!nestedSet(next.body,rule.to,structuredClone(source)))
+    throw new Error('U82_QA_HISTORY_NESTED_INVALID');
+   restored++;
+  }
+  return next||entity;
+ });
+ if(restored===0)throw new Error('U82_QA_HISTORY_NESTED_INVALID');
+ const data={...snapshot.data,m26Entities:entities};
+ delete data[NESTED_PACKET];
+ return {...snapshot,data};
+}
+
 export function compactQaCanonicalExecutionSummaries(snapshot){
  if(!qaCoach(snapshot)||!Array.isArray(snapshot?.data?.sessionExecutions))return snapshot;
  const byId=index(snapshot);let count=0;
@@ -156,10 +258,10 @@ export function compactQaCanonicalExecutionSummaries(snapshot){
   return {...row,summary:{[REF]:row.id}};
  });
  const withSummaries=count?{...snapshot,data:{...snapshot.data,sessionExecutions:rows}}:snapshot;
- return compactQaHistoryTuples(withSummaries);
+ return compactQaHistoryTuples(packQaNestedHistory(withSummaries));
 }
 export function expandQaCanonicalExecutionSummaries(snapshot){
- snapshot=expandQaHistoryTuples(snapshot);
+ snapshot=unpackQaNestedHistory(expandQaHistoryTuples(snapshot));
  const rows=snapshot?.data?.sessionExecutions;
  if(!Array.isArray(rows))return snapshot;
  let byId=null,count=0;
