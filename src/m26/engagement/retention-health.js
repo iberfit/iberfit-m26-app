@@ -6,7 +6,16 @@ import {buildProgressHub} from './progress-hub.js';
 import {buildCrmRenewalSummary} from './crm-renewals.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
-function finite(value){if(value===null||value===undefined||value==='')return null;const number=Number(value);return Number.isFinite(number)?number:null;}
+function finite(value){
+  if(typeof value!=='number'&&typeof value!=='string')return null;
+  if(typeof value==='string'&&!value.trim())return null;
+  const number=Number(value);
+  return Number.isFinite(number)?number:null;
+}
+function count(value){
+  const n=finite(value);
+  return n!==null&&Number.isSafeInteger(n)&&n>=0?n:null;
+}
 function percent(value){return Number.isFinite(value)?Math.round(value*100):null;}
 function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
 function rawClientId(record){const body=bodyOf(record);return String(record?.clientId??record?.client_id??record?.clienteId??record?.cliente_id??body?.clientId??body?.client_id??body?.clienteId??body?.cliente_id??'').trim();}
@@ -81,7 +90,7 @@ function feedbackFactor(summary,alerts){
       'Es contexto de seguimiento y retención; no es un diagnóstico ni prescribe cambios automáticamente.',
     );
   }
-  if(Number(summary?.checkins||0)>0){
+  if((count(summary?.checkins)??0)>0){
     return factor('feedback','Feedback','green',`${summary.checkins} registro${summary.checkins===1?'':'s'} de bienestar en 28 días sin alerta contextual prioritaria.`,'checkins','media');
   }
   return factor('feedback','Feedback','insufficient','Sin feedback reciente suficiente para clasificar esta dimensión.','checkins+sessionExecutions','limitada');
@@ -89,20 +98,28 @@ function feedbackFactor(summary,alerts){
 
 function activityFactor(summary){
   const wearable=summary?.wearable||{};
-  const days=Number(wearable?.daysWithData||0);
-  if(days<2){
-    return factor('activity','Actividad','insufficient','Menos de 2 días con datos de actividad recientes; no se interpreta como inactividad.','wearableDailySummaries','limitada');
+  const available=count(wearable.daysWithData)??0;
+  const decision=wearable.decision||{};
+  const days=count(decision.currentEvidenceDays)??0;
+  const providers=Array.isArray(decision.providers)?decision.providers:[];
+  const supported=decision.eligible===true&&days>=2&&days<=available
+    &&providers.length===1&&typeof providers[0]==='string'
+    &&providers[0].trim().length>0;
+  if(!supported){
+    return factor('activity','Actividad','insufficient',
+      available
+        ?'Hay datos de actividad disponibles, pero falta cobertura actual comparable y de origen único; no se interpreta como inactividad.'
+        :'Menos de 2 días con datos de actividad recientes; no se interpreta como inactividad.',
+      'wearableDailySummaries','limitada');
   }
-  const freshness=String(wearable?.freshness||'sin_datos');
+  const freshness=String(decision.freshness||wearable.freshness||'sin_datos');
   const status=freshness==='reciente'?'green':'yellow';
   return factor(
-    'activity',
-    'Actividad',
-    status,
-    `${days} días con datos · ${freshness}`,
+    'activity','Actividad',status,
+    `${days} días actuales confirmados · ${freshness}`,
     'wearableDailySummaries',
-    wearable?.quality||'media',
-    status==='green'?'Cobertura reciente disponible.':'Los datos están atrasados; esto puede ser sincronización y no implica menor actividad.',
+    decision.quality||'limitada',
+    status==='green'?'Cobertura actual comparable disponible.':'Comprobar actualización del dispositivo; la ausencia de sincronización no implica inactividad.',
   );
 }
 

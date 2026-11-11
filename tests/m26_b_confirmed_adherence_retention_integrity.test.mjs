@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {confirmedAdherenceEvidence} from '../src/m26/engagement/confirmed-adherence.js';
 import {__retentionHealthInternals} from '../src/m26/engagement/retention-health.js';
+import {buildProgressHub} from '../src/m26/engagement/progress-hub.js';
 
 const appointment=(id,status='confirmada')=>({id,sessionId:'session-a',status,revision:2});
 const completion=(id,more={})=>({
@@ -85,4 +86,25 @@ test('B: contradictory or absent adherence is insufficient evidence, not churn r
   const result=__retentionHealthInternals.adherenceFactor(item);
   assert.equal(result.status,'insufficient');
  }
+});
+
+test('B: wearable current data requires a single comparable provider and consistent day counts',()=>{
+ const base={daysWithData:3,freshness:'reciente',decision:{eligible:true,currentEvidenceDays:2,historicalContextDays:1,freshness:'reciente',quality:'alta',providers:['normalized_file']}};
+ assert.equal(__retentionHealthInternals.activityFactor({wearable:base}).status,'green');
+ const input={collections:{}};
+ const hub=wearable=>buildProgressHub(input,'c1',{now:new Date('2026-11-10T18:00:00Z'),summaries:{28:{clientId:'c1',days:28,checkins:false,plannedSessions:0,completedSessions:0,adherence:null,wearable,iriAssessmentCount:0}}});
+ assert.equal(hub(base).pillars.find(p=>p.id==='activity').status,'strong');
+ assert.equal(hub(base).pillars.find(p=>p.id==='wellbeing').status,'insufficient','boolean is never a check-in count');
+ for(const decision of [{providers:[]},{providers:['one','two']},{currentEvidenceDays:5},{currentEvidenceDays:true},{eligible:false}]){
+  const changed={...base,decision:{...base.decision,...decision}};
+  assert.equal(__retentionHealthInternals.activityFactor({wearable:changed}).status,'insufficient');
+  assert.equal(hub(changed).pillars.find(p=>p.id==='activity').status,'insufficient');
+ }
+});
+test('B: two old wearable days are not proof of recent activity or loss of adherence',()=>{
+ const wearable={daysWithData:4,freshness:'atrasada',decision:{eligible:false,currentEvidenceDays:0,providers:[]}};
+ const a=__retentionHealthInternals.activityFactor({wearable});
+ assert.equal(a.status,'insufficient');
+ assert.match(a.evidence,/disponibles/);
+ assert.equal(__retentionHealthInternals.feedbackFactor({checkins:true},[]).status,'insufficient');
 });
