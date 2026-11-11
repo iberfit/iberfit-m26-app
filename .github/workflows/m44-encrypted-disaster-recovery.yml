@@ -1,3 +1,4 @@
+# P0 11-NOV-2026 QA bootstrap exact-source repair: trigger a FRESH protected PROD DB+Storage encrypted backup + isolated PG17 restore after Canary merge for A+B release. Comment only; no workflow logic, scopes, secrets or production data writes changed.
 # MACROBLOQUE B 11-NOV-2026: protected Canary merge refreshes real encrypted PROD PostgreSQL+Storage backup and isolated PG17 restore (<=2h). Trigger-only metadata; never weaken artifact, restore, permission or release policy.
 # EXCELLENCE 360 protected release 2026-11-10: re-run exact Canary Coach/Admin WebAuthn and remote QA gates.
 # Trigger unchanged encrypted PROD PostgreSQL+Storage recovery with independent isolated PG17 restore.
