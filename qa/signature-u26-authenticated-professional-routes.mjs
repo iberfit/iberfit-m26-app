@@ -45,6 +45,25 @@ async function installTrustedRoutePaintProbe(page,role){
   await page.evaluate(expectedRole=>{
     globalThis.__IBERFIT_QA_U26_NAV_PAINT__?.stop?.();
     let pending=null,last=null,paintQueued=false,firstEligibleMs=null;
+    // QA-only: collect bounded anonymous long-task timings when a genuine
+    // physical navigation exceeds the 5s SLA. No URLs, client data or tokens.
+    const longTasks=[];
+    let perfObserver=null;
+    try{
+      const supported=PerformanceObserver.supportedEntryTypes||[];
+      const entryTypes=['longtask','long-animation-frame'].filter(type=>supported.includes(type));
+      if(entryTypes.length){
+        perfObserver=new PerformanceObserver(list=>{
+          for(const entry of list.getEntries()){
+            const duration=Number(entry.duration);
+            if(!Number.isFinite(duration)||duration<50)continue;
+            longTasks.push({type:entry.entryType,startMs:Math.round(entry.startTime),durationMs:Math.round(duration)});
+          }
+          if(longTasks.length>64)longTasks.splice(0,longTasks.length-64);
+        });
+        perfObserver.observe({entryTypes});
+      }
+    }catch{}
     const shellSelector='.m26-shell[data-m26-role="'+expectedRole+'"]';
     function routeIsPaintable(area){
       const shell=document.querySelector(shellSelector);
@@ -91,7 +110,8 @@ async function installTrustedRoutePaintProbe(page,role){
       attributeFilter:['aria-current','class','style','inert']});
     globalThis.__IBERFIT_QA_U26_NAV_PAINT__={
       read:()=>last,
-      stop:()=>{pending=null;document.removeEventListener('pointerdown',onPointer,true);observer.disconnect();},
+      readLongTasks:()=>longTasks.slice(-24),
+      stop:()=>{pending=null;document.removeEventListener('pointerdown',onPointer,true);observer.disconnect();perfObserver?.disconnect();},
     };
   },role);
 }
@@ -183,10 +203,11 @@ async function navigateViaActualControl(page,role,area){
             phase:p.phase,area:p.area,elapsedMs:p.elapsedMs,atMs:p.atMs,
           })):[]};
     }).catch(()=>({probe:'unavailable'}));
+    const longTasks=await page.evaluate(()=>globalThis.__IBERFIT_QA_U26_NAV_PAINT__?.readLongTasks?.()||[]).catch(()=>[]);
     console.log('SIGNATURE_U26_SLOW_REAL_PAINT '+role+'/'+area+' '+
       Math.round(painted.elapsedMs)+'ms '+
       JSON.stringify({eligibleElapsedMs:Math.round(painted.eligibleElapsedMs),
-        frameWaitMs:Math.round(painted.frameWaitMs),...phases}));
+        frameWaitMs:Math.round(painted.frameWaitMs),longTasks,...phases}));
   }
   expect(painted.elapsedMs,area+': trusted touch-to-paint must not exceed 5s')
     .toBeLessThanOrEqual(5_000);
