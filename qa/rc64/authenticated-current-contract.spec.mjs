@@ -15,6 +15,7 @@ import {
 } from './secure-current-source-auth.mjs';
 import {evaluateRecoveredFirstFactor,mayRetryUserLoginAfterNetworkError} from './recovered-first-factor-contract.mjs';
 import {createQaSupabasePayloadFootprint} from './supabase-payload-footprint.mjs';
+import {shouldAwaitFinalAssuranceResponse} from './assurance-clock-skew-gate.mjs';
 
 const ASSURANCE_PATH='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
 const OPTIONAL_READ_PATHS=new Set([
@@ -522,9 +523,28 @@ test('current authenticated contract separates privileged fail-closed identities
       await page.locator('#m26-login-password').fill(account.password);
       // Handle rejection immediately: a failed click must not orphan an unhandled
       // assurance wait. Keep the same timeout and do not bypass the RPC.
-      const makeAssuranceOutcome=()=>page.waitForResponse((response)=>{
-        try{const url=new URL(response.url());return url.origin===SUPABASE_ORIGIN&&url.pathname===ASSURANCE_PATH;}catch{return false;}
-      },{timeout:AUTH_FLOW_TIMEOUT_MS}).then(response=>({response}),error=>({error}));
+      const makeAssuranceOutcome=()=>{
+        let observedSkewResponses=0;
+        // Keep the real 30s budget and observe the FINAL server-authorized
+        // assurance response. The transport alone retries a verified
+        // PGRST303 future-issued JWT clock skew (at most three times).
+        // Every other 401, 403 or malformed response still fails closed.
+        return page.waitForResponse(async(response)=>{
+          let url;
+          try{url=new URL(response.url());}catch{return false;}
+          if(url.origin!==SUPABASE_ORIGIN||url.pathname!==ASSURANCE_PATH)return false;
+          if(response.status()!==401)return true;
+          const body=await response.json().catch(()=>null);
+          if(shouldAwaitFinalAssuranceResponse({
+            status:response.status(),body,observedSkewResponses,
+          })){
+            observedSkewResponses+=1;
+            return false;
+          }
+          return true;
+        },{timeout:AUTH_FLOW_TIMEOUT_MS})
+          .then(response=>({response,observedSkewResponses}),error=>({error}));
+      };
       const assuranceOutcome=makeAssuranceOutcome();
       // The app already retries a transport stall once. The read-only gate may
       // verify ONE explicit user retry if both transport attempts failed and
@@ -559,6 +579,8 @@ test('current authenticated contract separates privileged fail-closed identities
         if(outcome.error)throw outcome.error;
         if(!outcome.response)throw new Error('RC64_ASSURANCE_RESPONSE_REQUIRED');
         assurance=await readAssurance(outcome.response);
+        if(outcome.observedSkewResponses>0)
+          console.log('RC64_ASSURANCE_VERIFIED_FUTURE_IAT_RECOVERED:'+outcome.observedSkewResponses);
       }catch(error){
         const state=await page.evaluate(()=>{
           const card=document.querySelector('.m26-auth-card');
