@@ -649,7 +649,28 @@ export function createShellController({ root, store, renderRoute = () => '', get
     });
   }
 
-  function focusMain(){queueMicrotask(()=>root.querySelector?.('#m26-main')?.focus?.({preventScroll:false}));}
+  function focusMain(){
+    queueMicrotask(()=>{
+      const main=root.querySelector?.('#m26-main');
+      if(!main)return;
+      // Coach U38 may hold a 45-page immutable archive. Native focus with
+      // automatic scroll synchronously forces expensive page-wide layout while
+      // the freshly rendered directory is waiting for its first paint.
+      // Preserve the semantic main landmark/focus without that implicit reflow.
+      const coach=store.getNavigationSnapshot?.()?.identity?.role==='coach';
+      if(!coach){main.focus?.({preventScroll:false});return;}
+      const start=root.ownerDocument?.defaultView?.performance?.now?.()??0;
+      main.focus?.({preventScroll:true});
+      // The old route's document scroll must not survive a Coach route switch.
+      // Reset the known scroll containers directly, without scrollIntoView or
+      // a second layout-dependent focus pass. Other roles stay unchanged.
+      const documentScroller=root.ownerDocument?.scrollingElement;
+      if(documentScroller?.scrollTop>0)documentScroller.scrollTop=0;
+      if(main.scrollTop>0)main.scrollTop=0;
+      const duration=(root.ownerDocument?.defaultView?.performance?.now?.()??start)-start;
+      markQaShellStage('main-focus-scroll-reset',store.getNavigationSnapshot?.()?.activeArea||'',duration);
+    });
+  }
   const COACH_ACTION_FOCUS_TARGETS=Object.freeze({
     'action-outcome':'[data-m26-coach-focus="action-outcome"]',
     'next-session-preparation':'[data-next-session-preparation]',
