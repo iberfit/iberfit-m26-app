@@ -388,7 +388,10 @@ jobs:
     needs: [pr-current-head, m43-real-coach-client-qa]
     if: ${{ needs.pr-current-head.outputs.current == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
     name: M43 real Client browser current-source
-    runs-on: ubuntu-latest
+    # Pin the LTS image during GitHub's ubuntu-latest 26.04 rollout.
+    # Ubuntu 26 failed before browser tests at Playwright install-deps/DNS.
+    # Keep the identical real auth, browser, artifact and fail-closed gates.
+    runs-on: ubuntu-24.04
     timeout-minutes: 18
     environment: m26-canary-readonly
     concurrency:
