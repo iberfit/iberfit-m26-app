@@ -154,10 +154,16 @@ test('B: pending, rejected and other-client feedback cannot produce a Coach pain
   remote_confirmed_at:'2026-11-09T10:10:00Z'};
  assert.equal(deriveAdherenceAlerts(bState([real]),'c1',{now:NOW_B})
    .some(a=>a.id==='post-session-discomfort'),true);
- assert.equal(deriveAdherenceAlerts(bState([real],[{
-   id:'a1',clientId:'c1',status:'confirmada',scheduledAt:'2026-11-08T08:00:00Z'
- }]),'c1',{now:NOW_B}).some(a=>a.id==='no-completions'),true,
- 'an autonomous training must not hide missed scheduled commitments');
+ const once=[{id:'a1',clientId:'c1',status:'confirmada',scheduledAt:'2026-11-08T08:00:00Z'}];
+ assert.equal(deriveAdherenceAlerts(bState([real],once),'c1',{now:NOW_B})
+  .some(a=>a.id==='no-completions'),false,
+ 'one booking is insufficient evidence for a critical continuity alarm');
+ const recurring=[...once,
+  {id:'a2',clientId:'c1',status:'confirmada',scheduledAt:'2026-11-07T08:00:00Z'},
+  {id:'a3',clientId:'c1',status:'confirmada',scheduledAt:'2026-11-06T08:00:00Z'}];
+ assert.equal(deriveAdherenceAlerts(bState([real],recurring),'c1',{now:NOW_B})
+  .some(a=>a.id==='no-completions'),true,
+ 'three unfulfilled bookings still require Coach review despite autonomous activity');
 });
 test('B: pending completion command prevents fabricated post-session feedback',()=>{
  const execution={id:'e1',clientId:'c1',status:'completed',syncStatus:'clean',

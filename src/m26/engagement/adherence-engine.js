@@ -198,10 +198,14 @@ export function deriveAdherenceAlerts(state,clientId,{now=new Date(),summary:pro
   if(postSession)alerts.push(postSession);
   if(trajectory.status==='slipping')alerts.push(makeSignal('adherence-slipping','warning','Caída reciente de continuidad',`${trajectory.summary}. La referencia de 7 días está al menos 15 puntos porcentuales por debajo de la de 28 días; las ventanas se solapan y se usa como señal temprana, no como explicación causal.`,trajectory.coachAction,'sessions'));
   if(Number.isFinite(summary.adherence)&&summary.plannedSessions>=3&&summary.adherence<0.6)alerts.push(makeSignal('adherence-low','warning','Adherencia por debajo de lo previsto',`Se completó el ${Math.round(summary.adherence*100)}% de las sesiones planificadas en 28 días.`,'Revisar barreras de agenda, comprensión o tolerancia.','sessions'));
-  if(summary.plannedSessions>0
+  // A single booking that is only just due is insufficient evidence to
+  // replace "Próxima sesión" with a high-priority continuity alarm.
+  // Keep the original >=3 booked commitments threshold used by adherence.
+  if(Number.isSafeInteger(summary.plannedSessions)
+    &&summary.plannedSessions>=3
     &&(summary.scheduledCompletedSessions??summary.completedSessions)===0)
     alerts.push(makeSignal('no-completions','critical','Sin citas de entrenamiento cumplidas en el periodo',
-      'Existen citas planificadas, pero ninguna se ha cumplido en la ventana analizada. Un entrenamiento autónomo no equivale a asistencia a una cita.',
+      'Hay al menos tres citas planificadas en la ventana, pero ninguna se ha cumplido. Un entrenamiento autónomo no equivale a asistencia a una cita.',
       'Contactar y verificar continuidad del plan.','sessions'));
   if(!summary.lastExecutionAt)alerts.push(makeSignal('execution-missing','info','Sin historial suficiente de ejecución','Todavía no hay una ejecución confirmada para interpretar progreso o carga.','Mantener el dato como ausente; no convertirlo en cero.','data-quality'));
   const cycles=arr(state?.collections?.trainingCycles).filter((item)=>clientIdOf(item)===clientId&&!['archivado','archived','cancelado','cancelled'].includes(statusOf(item)));
