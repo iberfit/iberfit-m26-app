@@ -179,10 +179,26 @@ export function buildTraining360DecisionPack({
     executionEvidence);
   const dates=[...rows.values()].sort((a,b)=>a.localDate.localeCompare(b.localDate)
     ||a.id.localeCompare(b.id));
+  // A single appointment cannot represent two different dated occurrences.
+  const seenAppointment=new Map(),reusedAppointmentIds=new Set();
+  for(const date of dates){
+    if(!date.appointmentId)continue;
+    const earlier=seenAppointment.get(date.appointmentId);
+    if(earlier&&earlier!==date.id)reusedAppointmentIds.add(date.appointmentId);
+    else if(!earlier)seenAppointment.set(date.appointmentId,date.id);
+  }
+  const invalidLinkedAppointments=new Set();
   const items=dates.map(o=>{
     const p=prescriptions.get(o.sessionId);
     const ap=o.appointmentId?appointmentById.get(o.appointmentId):null;
-    const authorizedAp=ap&&cleanId(field(ap,'sessionId','session_id'))===o.sessionId?ap:null;
+    const start=ap?field(ap,'startAt','start_at','scheduledAt','scheduled_at'):null;
+    const at=start==null?null:new Date(start);
+    const sameLocalDay=at===null||(
+      Number.isFinite(at.getTime())&&localToday(at)===o.localDate);
+    const authorizedAp=ap&&!reusedAppointmentIds.has(o.appointmentId)
+      &&sameLocalDay&&cleanId(field(ap,'sessionId','session_id'))===o.sessionId
+      ?ap:null;
+    if(o.appointmentId&&!authorizedAp)invalidLinkedAppointments.add(o.id);
     const appointmentStatus=authorizedAp?lower(field(authorizedAp,'status')):null;
     const exec=o.executionId?verifiedExecution(executionMap.get(o.executionId),owner,o):null;
     const executionVerified=o.executionId===null?!['en_curso','completada'].includes(o.status)
@@ -248,7 +264,7 @@ export function buildTraining360DecisionPack({
     ||x.status==='completada');
   const possibleAdherence=adherenceEligible.length>0
     &&!unverifiedCompletedDue&&!unresolvedInProgress
-    &&ambiguousOccurrenceIds.size===0
+    &&ambiguousOccurrenceIds.size===0&&invalidLinkedAppointments.size===0
     ?Math.round(100*adherenceEligible.filter(x=>
       x.status==='completada'&&x.executionVerified).length
       /adherenceEligible.length):null;
@@ -284,7 +300,8 @@ export function buildTraining360DecisionPack({
       cancelled:items.filter(x=>x.status==='cancelada').length,
       verifiedAdherencePct:possibleAdherence,
       insufficientEvidence:unverifiedCompletedDue||unresolvedInProgress
-        ||ambiguousOccurrenceIds.size>0||relevantConflict
+        ||ambiguousOccurrenceIds.size>0||invalidLinkedAppointments.size>0
+        ||relevantConflict
         ||dates.some(x=>!visibleIds.has(x.id)),
     }),
     days:Object.freeze(days),upcoming:Object.freeze(upcoming),

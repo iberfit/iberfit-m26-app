@@ -157,11 +157,11 @@ test('two independent dates count only independently confirmed executions',()=>{
  const C='10000000-0000-4000-8000-000000000211',S='10000000-0000-4000-8000-000000000212';
  const O1='10000000-0000-4000-8000-000000000213',O2='10000000-0000-4000-8000-000000000214';
  const E1='10000000-0000-4000-8000-000000000215',E2='10000000-0000-4000-8000-000000000216';
- const AP='10000000-0000-4000-8000-000000000217';
+ const AP='10000000-0000-4000-8000-000000000217',AP2='10000000-0000-4000-8000-000000000218';
  const s={id:S,clientId:C,status:'disponible',deliveryModality:'guiada_en_app',visibleToClient:true,clientVisibilityLevel:'full'};
- const o=(id,date,executionId)=>({id,clientId:C,sessionId:S,localDate:date,timeZone:'America/Santiago',status:'completada',revision:3,appointmentId:AP,executionId});
+ const o=(id,date,executionId,appointmentId)=>({id,clientId:C,sessionId:S,localDate:date,timeZone:'America/Santiago',status:'completada',revision:3,appointmentId,executionId});
  const e=(id,occurrenceId)=>({id,clientId:C,sessionId:S,occurrenceId,status:'completada',revision:3,syncStatus:'clean',serverConfirmed:true});
- const input={role:'coach',clientId:C,now:new Date('2026-11-15T16:00:00Z'),sessions:[s],appointments:[{id:AP,clientId:C,sessionId:S,status:'completada'}],occurrences:[o(O1,'2026-11-12',E1),o(O2,'2026-11-13',E2)],executions:[e(E1,O1),e(E2,O2)]};
+ const input={role:'coach',clientId:C,now:new Date('2026-11-15T16:00:00Z'),sessions:[s],appointments:[{id:AP,clientId:C,sessionId:S,status:'completada',startAt:'2026-11-12T15:00:00Z'},{id:AP2,clientId:C,sessionId:S,status:'completada',startAt:'2026-11-13T15:00:00Z'}],occurrences:[o(O1,'2026-11-12',E1,AP),o(O2,'2026-11-13',E2,AP2)],executions:[e(E1,O1),e(E2,O2)]};
  const good=buildTraining360DecisionPack(input);
  assert.equal(good.summary.prescriptions,1);assert.equal(good.summary.completedDue,2);assert.equal(good.summary.verifiedAdherencePct,100);
  for(const bad of [{syncStatus:'pending'},{serverConfirmed:false},{occurrenceId:O1}]){
@@ -182,4 +182,22 @@ test('dated reader rejects foreign source snapshot with matching queue and block
   const changed=structuredClone(fixture);changed.executionBody.sourceSnapshot={...p,...invalid};
   await assert.rejects(read(changed),/U60_PRIVATE_EXECUTION_DRIFT/);
  }
+});
+
+test('U60 rejects a reused appointment ID or wrong Chile civil date',()=>{
+ const C='10000000-0000-4000-8000-000000000211',S='10000000-0000-4000-8000-000000000212';
+ const O1='10000000-0000-4000-8000-000000000213',O2='10000000-0000-4000-8000-000000000214';
+ const AP1='10000000-0000-4000-8000-000000000217',AP2='10000000-0000-4000-8000-000000000218';
+ const session={id:S,clientId:C,status:'disponible',deliveryModality:'guiada_en_app',visibleToClient:true,clientVisibilityLevel:'full'};
+ const ap=(id,date)=>({id,clientId:C,sessionId:S,status:'confirmada',startAt:date});
+ const occurrence=(id,date,appointmentId)=>({id,clientId:C,sessionId:S,appointmentId,localDate:date,timeZone:'America/Santiago',status:'confirmada',revision:1});
+ const original={role:'client',clientId:C,now:NOW,sessions:[session],appointments:[ap(AP1,'2026-11-12T15:00:00Z'),ap(AP2,'2026-11-13T15:00:00Z')],occurrences:[occurrence(O1,'2026-11-12',AP1),occurrence(O2,'2026-11-13',AP2)],executions:[]};
+ const good=buildTraining360DecisionPack(original);
+ assert.equal(good.summary.scheduledDates,2);assert.equal(good.summary.insufficientEvidence,false);
+ const reused=buildTraining360DecisionPack({...original,occurrences:[original.occurrences[0],{...original.occurrences[1],appointmentId:AP1}]});
+ assert.equal(reused.summary.scheduledDates,0);assert.equal(reused.summary.insufficientEvidence,true);
+ const wrong=buildTraining360DecisionPack({...original,appointments:[ap(AP1,'2026-11-12T00:30:00Z'),original.appointments[1]]});
+ assert.equal(wrong.summary.scheduledDates,1);assert.equal(wrong.summary.insufficientEvidence,true);
+ const coach=buildTraining360DecisionPack({...original,role:'coach',occurrences:[original.occurrences[0],{...original.occurrences[1],appointmentId:AP1}]});
+ assert.equal(coach.summary.scheduledDates,2);assert.equal(coach.summary.insufficientEvidence,true);
 });
