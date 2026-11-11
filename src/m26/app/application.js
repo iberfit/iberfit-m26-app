@@ -46,6 +46,7 @@ import {createWorkflowController} from './workflow-controller.js';
 import {createSessionVault,sessionExpiresSoon} from './session-vault.js';
 import {createSessionForegroundRefreshCoordinator} from './session-foreground-refresh.js';
 import {createHydrationCoordinator} from './hydration-coordinator.js';
+import {canPrefetchClientCommunication} from './client-communication-prefetch.js';
 import {clearIberfitExperiencePreferences} from '../ui/preferences.js';
 import {inspectOwnerDeviceData,ownerDeviceClearPrompt,clearOwnerDeviceData} from '../privacy/device-data.js';
 import {renderAccessUi} from './access-ui.js';
@@ -817,19 +818,49 @@ export async function createM26Application({root=document.querySelector('#app'),
             assertOwner:requireOwner,signal,
           })
         :transport.bootstrap(currentToken(),{signal});
+      // Resolve server-authorized role metadata concurrently with the
+      // canonical snapshot. When it proves there is exactly ONE Client role,
+      // the read-only communication bootstrap can begin before the potentially
+      // slow canonical RPC completes. It never authorizes or renders anything.
+      const extensionsPending=rc39Transport?optionalAuthBootstrap(
+        ()=>rc39Transport.extensions(currentToken()),
+        {rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]},
+        'rc39',
+      ):Promise.resolve({rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]});
+      const contextPending=adminTransport?optionalAuthBootstrap(
+        ()=>adminTransport.applicationContextOptional(currentToken()),
+        {available:false,reason:'timeout_or_unavailable',data:null},
+        'application-context',
+      ):Promise.resolve({available:false,reason:'disabled',data:null});
+      const communicationFallback={available:false,reason:'timeout_or_unavailable',data:null};
+      const preferredEarlyRole=String(activeApplicationRole||'').trim().toLowerCase();
+      const clientCommunicationPending=communicationTransport
+        ?Promise.all([extensionsPending,contextPending]).then(([earlyExtensions,earlyContext])=>{
+          requireOwner();
+          const verifiedContext=normalizeApplicationContextExtension(
+            earlyContext.available?{...earlyContext.data,available:true}:{available:false},
+          );
+          const verifiedRoles=normalizeAuthorizedRoles({authorizedRoles:
+            verifiedContext.roles.length?verifiedContext.roles:earlyExtensions.authorizedRoles,
+          });
+          if(!canPrefetchClientCommunication(verifiedRoles,preferredEarlyRole))return null;
+          qaStage('rc64-client-communication-prefetch-start');
+          return optionalAuthBootstrap(
+            ()=>communicationTransport.bootstrapOptional(currentToken(),{application:'client'}),
+            communicationFallback,
+            'client-communication-prefetch',
+          ).then(result=>{
+            requireOwner();
+            qaStage('rc64-client-communication-prefetch-ready');
+            return result;
+          });
+        }).catch(()=>null) // A stale lease is checked again before ANY commit.
+        :Promise.resolve(null);
       const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
         primarySnapshot,
         transport.commandRegistry(currentToken()),
-        rc39Transport?optionalAuthBootstrap(
-          ()=>rc39Transport.extensions(currentToken()),
-          {rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]},
-          'rc39',
-        ):Promise.resolve({rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]}),
-        adminTransport?optionalAuthBootstrap(
-          ()=>adminTransport.applicationContextOptional(currentToken()),
-          {available:false,reason:'timeout_or_unavailable',data:null},
-          'application-context',
-        ):Promise.resolve({available:false,reason:'disabled',data:null}),
+        extensionsPending,
+        contextPending,
         optionalAuthBootstrap(
           ()=>transport.backendBootstrap(currentToken()),
           {available:false,ready:false,reason:'timeout_or_unavailable'},
@@ -871,11 +902,22 @@ export async function createM26Application({root=document.querySelector('#app'),
           {available:false,reason:'timeout_or_unavailable',data:null},
           'admin',
         ):Promise.resolve({available:false,reason:'role_not_admin',data:null}),
-        ['client','coach'].includes(activeRole)&&communicationTransport?optionalAuthBootstrap(
-          ()=>communicationTransport.bootstrapOptional(currentToken(),{application:activeRole}),
-          {available:false,reason:'timeout_or_unavailable',data:null},
-          'communication',
-        ):Promise.resolve({available:false,reason:'unsupported',data:null}),
+        ['client','coach'].includes(activeRole)&&communicationTransport
+          ?(async()=>{
+            // Consume exactly the one prefetched read if its verified role
+            // matches. Otherwise perform the original role-specific read.
+            if(activeRole==='client'){
+              const early=await clientCommunicationPending;
+              requireOwner();
+              if(early&&typeof early==='object')return early;
+            }
+            return optionalAuthBootstrap(
+              ()=>communicationTransport.bootstrapOptional(currentToken(),{application:activeRole}),
+              communicationFallback,
+              'communication',
+            );
+          })()
+          :Promise.resolve({available:false,reason:'unsupported',data:null}),
         activeRole==='client'&&runtime.environment==='production'
           &&runtime.qaOnly===false&&typeof transport.connected360DailyProduction==='function'
           ?optionalAuthBootstrap(
