@@ -57,7 +57,14 @@ async function installTrustedRoutePaintProbe(page,role){
           for(const entry of list.getEntries()){
             const duration=Number(entry.duration);
             if(!Number.isFinite(duration)||duration<50)continue;
-            longTasks.push({type:entry.entryType,startMs:Math.round(entry.startTime),durationMs:Math.round(duration)});
+            const trace={type:entry.entryType,startMs:Math.round(entry.startTime),durationMs:Math.round(duration)};
+            if(entry.entryType==='long-animation-frame'){
+              // Bounded duration-only script evidence, never a source URL,
+              // user identity, token, health payload or request metadata.
+              trace.scriptDurationsMs=Array.from(entry.scripts||[])
+                .slice(0,6).map(script=>Math.round(Number(script.duration)||0));
+            }
+            longTasks.push(trace);
           }
           if(longTasks.length>64)longTasks.splice(0,longTasks.length-64);
         });

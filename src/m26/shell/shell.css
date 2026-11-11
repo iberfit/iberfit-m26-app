@@ -340,6 +340,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .m26-shell input:invalid:not(:placeholder-shown),.m26-shell select:invalid:not(:focus) { border-color: rgba(215,154,145,.48); }
 @supports (content-visibility:auto) {
   .m26-library-card { content-visibility: auto; contain-intrinsic-size: 5.5rem; }
+  /* Skip styling and painting offscreen Coach roster cards; their full DOM,
+     accessible controls and native scrolling remain intact. */
+  .m26-shell[data-m26-role="coach"] .m26-client-directory-route .m26-client-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 11rem;
+  }
 }
 @media (hover:hover) {
   .m26-client-card:hover,.m26-library-card:hover,.m26-list-card:hover { border-color: rgba(228,205,152,.36); transform: translateY(-1px); }
@@ -1384,6 +1390,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
     420ms
     cubic-bezier(.2,.72,.2,1)
     both;
+}
+
+/* A real Coach session favors immediate directory paint over decorative
+   entrance animation; Client and Admin retain the existing visual system. */
+.m26-shell[data-m26-role="coach"] .m26-client-directory-route > * {
+  animation: none;
 }
 
 .m26-route > *:nth-child(1) {
