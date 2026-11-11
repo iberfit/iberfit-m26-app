@@ -11,11 +11,18 @@ const CONFIDENCE=Object.freeze({
   LIMITED:'limitada',
 });
 
-function finite(value){
-  return value!==null&&
-    value!==''&&
-    Number.isFinite(Number(value));
+function measured(value,min=-Infinity,max=Infinity){
+  // Boolean, blank, arrays and objects cannot become numeric evidence.
+  if(typeof value!=='number'&&typeof value!=='string')return null;
+  if(typeof value==='string'&&!value.trim())return null;
+  const n=Number(value);
+  return Number.isFinite(n)&&n>=min&&n<=max?n:null;
 }
+function validCount(value){
+  const n=measured(value,0);
+  return n!==null&&Number.isSafeInteger(n)?n:null;
+}
+function finite(value){return measured(value)!==null;}
 
 function number(value,fallback=0){
   const parsed=Number(value);
@@ -41,8 +48,9 @@ function confidenceFor(summary={},evidenceCount=0){
     .trim()
     .toLowerCase();
 
-  if(quality==='alta')return CONFIDENCE.HIGH;
-  if(quality==='media')return CONFIDENCE.MEDIUM;
+  if(quality==='alta')return evidenceCount>=3?CONFIDENCE.HIGH:
+    evidenceCount>=2?CONFIDENCE.MEDIUM:CONFIDENCE.LIMITED;
+  if(quality==='media')return evidenceCount>=2?CONFIDENCE.MEDIUM:CONFIDENCE.LIMITED;
   if(quality==='limitada')return CONFIDENCE.LIMITED;
 
   return evidenceCount>=4
@@ -66,7 +74,7 @@ export function buildIberfitDecisionBrief({
   now=new Date(),
 }={}){
   const safeSummary=
-    summary&&typeof summary==='object'
+    summary&&typeof summary==='object'&&!Array.isArray(summary)
       ?summary
       :{};
 
@@ -84,17 +92,18 @@ export function buildIberfitDecisionBrief({
     evidenceCount+=1;
   }
 
-  if(finite(safeSummary.adherence)){
-    const adherence=Math.max(
-      0,
-      Math.min(
-        1,
-        Number(safeSummary.adherence)
-      )
-    );
-
+  const plannedCount=validCount(safeSummary.plannedSessions);
+  const completedCount=validCount(safeSummary.completedSessions);
+  const reportedAdherence=measured(safeSummary.adherence,0,1);
+  const measuredAdherence=plannedCount!==null&&plannedCount>0
+    &&completedCount!==null&&completedCount<=plannedCount
+    ?completedCount/plannedCount:null;
+  const adherence=measuredAdherence!==null
+    &&(reportedAdherence===null||Math.abs(reportedAdherence-measuredAdherence)<=0.01)
+    ?measuredAdherence:null;
+  if(adherence!==null){
     signals.push(
-      `Adherencia confirmada: ${Math.round(adherence*100)}% (${number(safeSummary.completedSessions)} de ${number(safeSummary.plannedSessions)} sesiones).`
+      `Adherencia confirmada: ${Math.round(adherence*100)}% (${completedCount} de ${plannedCount} sesiones).`
     );
 
     evidenceCount+=1;
@@ -104,9 +113,10 @@ export function buildIberfitDecisionBrief({
     );
   }
 
-  if(finite(safeSummary.averageRpe)){
+  const meanRpe=measured(safeSummary.averageRpe,1,10);
+  if(meanRpe!==null){
     signals.push(
-      `RPE medio confirmado: ${Number(safeSummary.averageRpe).toFixed(1)}.`
+      `RPE medio confirmado: ${meanRpe.toFixed(1)}.`
     );
 
     evidenceCount+=1;
@@ -124,7 +134,7 @@ export function buildIberfitDecisionBrief({
     evidenceCount+=1;
   }
 
-  const checkins=number(safeSummary.checkins);
+  const checkins=validCount(safeSummary.checkins)??0;
 
   if(checkins>0){
     signals.push(
@@ -140,9 +150,12 @@ export function buildIberfitDecisionBrief({
 
   const wearable=safeSummary?.wearable||{};
   const wearableDecision=wearable?.decision||{};
-  const wearableDays=number(wearableDecision.currentEvidenceDays);
-  const wearableAvailableDays=number(wearable.daysWithData);
-  const wearableEligible=wearableDecision.eligible===true&&wearableDays>0;
+  const wearableDays=validCount(wearableDecision.currentEvidenceDays)??0;
+  const wearableAvailableDays=validCount(wearable.daysWithData)??0;
+  const providers=Array.isArray(wearableDecision.providers)?wearableDecision.providers:[];
+  const wearableEligible=wearableDecision.eligible===true&&wearableDays>0
+    &&wearableDays<=wearableAvailableDays&&providers.length===1
+    &&typeof providers[0]==='string'&&providers[0].trim().length>0;
 
   if(wearableEligible){
     signals.push(
@@ -160,9 +173,9 @@ export function buildIberfitDecisionBrief({
     );
   }
 
-  const unconfirmed=number(
+  const unconfirmed=validCount(
     safeSummary.unconfirmedExecutions
-  );
+  )??0;
 
   if(unconfirmed>0){
     limitations.push(
@@ -183,9 +196,7 @@ export function buildIberfitDecisionBrief({
     );
   }
 
-  const planned=number(
-    safeSummary.plannedSessions
-  );
+  const planned=plannedCount??0;
 
   const nextStep=
     String(topAlert?.action||'').trim()||

@@ -15,17 +15,25 @@ const escape=x=>String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').rep
 const fmt=(n,{decimals=0}={})=>n===null||!Number.isFinite(n)?'—':new Intl.NumberFormat('es-CL',{maximumFractionDigits:decimals}).format(n);
 function volumeOf(execution){
   const record=unwrap(execution);
-  const rows=record.results&&typeof record.results==='object'?Object.values(record.results):[];
+  // A results array or an explicitly skipped set is not a verified measured set.
+  const rows=record.results&&typeof record.results==='object'&&!Array.isArray(record.results)
+    ?Object.values(record.results):[];
   let known=0,valid=0;
   for(const row of rows){
-    if(!row||typeof row!=='object')continue;
+    if(!row||typeof row!=='object'||Array.isArray(row)||
+      row.skipped===true||row.completed===false||
+      ['skipped','omitida','omitido','unconfirmed'].includes(String(row.status||'').toLowerCase()))continue;
     const reps=finite(val(row,'reps','actualReps'),0,10000);
     // Exact kg units only: never infer kilograms from an unlabelled number or lb.
-    const raw=String(val(row,'loadKg','load_kg')??'');
+    const raw=val(row,'loadKg','load_kg');
     const label=String(row.load??'').trim();
     const direct=finite(raw,0,10000);
     const match=label.match(/^(\d+(?:[.,]\d+)?)\s*kg$/iu);
-    const kg=direct??(match?finite(match[1],0,10000):null);
+    const labelled=match?finite(match[1],0,10000):null;
+    // Two contradictory explicit kg fields must never inflate confirmed volume.
+    if(direct!==null&&labelled!==null&&Math.abs(direct-labelled)>0.01)continue;
+    if(direct!==null&&label&&labelled===null)continue;
+    const kg=direct??labelled;
     if(reps!==null&&kg!==null){known+=kg*reps;valid+=1;}
   }
   return valid?{kgReps:Math.round(known),sets:valid}:null;

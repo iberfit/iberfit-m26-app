@@ -1,3 +1,13 @@
+## MACROBLOQUE A · Coach · Integridad de señales verificadas (11/11/2026, WIP)
+
+**Base exacta:** Canary/PROD `d8f82511b455d1e07beb45fdf3bd63f38b5135df`. La eliminación definitiva de dos fichas de prueba se aparca como P0 bloqueado externamente, con acceso revocado, copia M44 restaurada y tercero protegido. No mezclar limpieza destructiva con evolución funcional. PR #1319 continúa DRAFT, no desplegada.
+
+**Nuevo objetivo operativo A en una única rama:** endurecer el Decision Brief Coach para no convertir adherencia, RPE, contadores o fuentes wearable incompletas en evidencias confirmadas; no sobreelevar la confianza por una etiqueta cualitativa. Invalidar puntajes de bienestar fuera de rango y evitar que series expresamente omitidas o cargas contradictorias inflen el volumen semanal. Pruebas sintéticas de roles/proveniencia, sin cambiar el servidor, Auth, RLS, Storage ni habilitar U60 QA-only en PROD. Los valores desconocidos deben ser ausencia explícita, nunca cero.
+
+**Alcance de cierre pendiente del Macrobloque A completo:** prueba real Coach → sesión/agenda multifecha → publicación confirmada → Cliente inicia y ejecuta dos ocurrencias separadas → Coach ve los resultados, WebAuthn y responsive/QA/RLS. U30-U60 sigue sin EXECUTE en PROD; no declarar la capacidad productiva hasta habilitación segura, migración staged revisada y promoción con rollback. A → B → C se mantiene según contrato, sin varios WIP simultáneos.
+
+---
+
 ## MACROBLOQUE A · Coach & Entrenamiento Excellence · WIP único (10/11/2026)
 
 **Decisión aprobada:** ejecutar A → B (Cliente Progress & Retention) → C (Connected360 real), secuencialmente y sin tres PR en paralelo. A concentra planificación por fecha, ejecución ultrarrápida, memoria/alternativas, Coach Decision Brief, rendimiento y QA por rol/dispositivo; una única PR principal y una sola promoción protegida cuando todo el bloque sea apto.
