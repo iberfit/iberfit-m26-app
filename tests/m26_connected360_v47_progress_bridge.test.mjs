@@ -74,8 +74,10 @@ test('P0: old but real V47 data appear only as a clearly dated history',async()=
   assert.match(markup,/no representa tu estado actual/u);
   const oneMonthLater=buildWearableViewModel({records,role:'client',
     now:new Date('2026-12-03T12:00:00Z'),scope:{}});
-  assert.equal(oneMonthLater.lastHistoricalDate,null);
+  assert.equal(oneMonthLater.lastHistoricalDate,'2026-10-12');
   assert.equal(oneMonthLater.summary.daysWithData,0);
+  assert.equal(oneMonthLater.summary.metrics.steps,null);
+  assert.equal(oneMonthLater.historicalRecords.length,1);
 });
 
 test('P0: historical Client activity is explicitly dated; never converts it to current status',async()=>{

@@ -1,0 +1,47 @@
+name: IBERFIT C Connected360 Isolated PostgreSQL 17
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261111131000_connected360_v47_last_seven_owner_history.sql'
+      - 'supabase/rollbacks/20261111131000_connected360_v47_last_seven_owner_history.rollback.sql'
+      - 'scripts/data-safety/m26_c_v47_isolated_pg17.sh'
+      - '.github/workflows/m26-c-connected360-isolated-pg17.yml'
+  push:
+    branches: ['canary/rc74-4']
+    paths:
+      - 'supabase/migrations/20261111131000_connected360_v47_last_seven_owner_history.sql'
+      - 'supabase/rollbacks/20261111131000_connected360_v47_last_seven_owner_history.rollback.sql'
+      - 'scripts/data-safety/m26_c_v47_isolated_pg17.sh'
+      - '.github/workflows/m26-c-connected360-isolated-pg17.yml'
+permissions:
+  contents: read
+concurrency:
+  group: m26-c-v47-pg17-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  isolated-pg17-roles-and-rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-local-only
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=5s
+          --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate exact V47 SQL, roles, owner scope and rollback against synthetic PG17
+        shell: bash
+        env:
+          IBERFIT_PG17_SYNTHETIC_ONLY: 'YES'
+          PGPASSWORD: synthetic-local-only
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: postgres
+        run: bash scripts/data-safety/m26_c_v47_isolated_pg17.sh

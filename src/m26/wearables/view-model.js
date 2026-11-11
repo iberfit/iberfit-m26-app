@@ -3,19 +3,22 @@ import {isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {isCertifiedNativeAutoSyncSource} from './foreground-sync.js';
 import {zeroCostProviderReadiness,wearableZeroCostPolicy} from './free-policy.js';
 import {createWearableConnectionState,wearableConnectionHealth} from './connection-state.js';
-import {summarizeWearableData} from './normalization.js';
+import {summarizeWearableData,deduplicateWearableDailyRecords} from './normalization.js';
 
 function clone(value){return value==null?value:structuredClone(value);}
 function status(value){const key=String(value||'').trim().toLowerCase();return ['active','activo','connected','conectado'].includes(key)?'conectado':['paused','pausado'].includes(key)?'pausado':['revoked','revocado'].includes(key)?'revocado':'pendiente';}
 
 export function buildWearableViewModel({records=[],connections=[],role='client',now=new Date(),scope=globalThis}={}){
   const summary=summarizeWearableData(records,{now,days:7});
-  // Keep a bounded historical view of real older samples without confusing
-  // them with the current 7-day health summary or a recovery recommendation.
-  const historical=summary.daysWithData===0
-    ?summarizeWearableData(records,{now,days:30}):null;
-  const historicalRecords=Object.freeze((historical?.records||[])
-    .slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7));
+  // Show up to seven real older observations regardless of their age.
+  // The seven-day summary remains the ONLY source for current status/decisions.
+  // Canonical deduplication removes invalid providers/metrics and future dates
+  // are excluded via the local civil-day start of that recent window.
+  const historicalRecords=Object.freeze(summary.daysWithData===0
+    ?deduplicateWearableDailyRecords(records)
+      .filter(item=>item.date<summary.startDate)
+      .slice(-7).reverse()
+    :[]);
   const lastHistoricalDate=historicalRecords[0]?.date||null;
   const connectionRows=(Array.isArray(connections)?connections:[]).map((item)=>{
     const definition=wearableProviderDefinition(item?.provider||item?.source);
