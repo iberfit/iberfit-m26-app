@@ -185,13 +185,18 @@ const WELLBEING_SHIFT_METRICS=Object.freeze([
   Object.freeze({key:'fatigue',direction:'higher',label:'Fatiga reciente más alta que en los dos registros previos.'}),
   Object.freeze({key:'motivation',direction:'lower',label:'Motivación reciente más baja que en los dos registros previos.'}),
 ]);
+function wellbeingScore(value){
+  // Check-in scales are 0–10; invalid or missing values are unknown, never zero.
+  const n=finite(value);
+  return n!==null&&n>=0&&n<=10?n:null;
+}
 function wellbeingScores(record){
   return Object.freeze({
-    energy:finite(field(record,'energy','energia')),
-    sleep:finite(field(record,'sleep','sueno','sueño')),
-    stress:finite(field(record,'stress','estres','estrés')),
-    fatigue:finite(field(record,'fatigue','fatiga')),
-    motivation:finite(field(record,'motivation','motivacion','motivación')),
+    energy:wellbeingScore(field(record,'energy','energia')),
+    sleep:wellbeingScore(field(record,'sleep','sueno','sueño')),
+    stress:wellbeingScore(field(record,'stress','estres','estrés')),
+    fatigue:wellbeingScore(field(record,'fatigue','fatiga')),
+    motivation:wellbeingScore(field(record,'motivation','motivacion','motivación')),
   });
 }
 function pairAverage(values){

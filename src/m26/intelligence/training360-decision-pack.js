@@ -65,6 +65,24 @@ function authorizedPrescription(row,clientId,role){
     modality:lower(field(row,'deliveryModality','delivery_modality')),
   });
 }
+function normalizedExecutionStatus(value){
+  const status=lower(value);
+  if(['completada','completado','completed','cerrada_confirmada'].includes(status))
+    return 'completada';
+  if(['en_curso','activa','active'].includes(status))
+    return 'en_curso';
+  return status;
+}
+function executionEvidenceHealth(row){
+  const status=normalizedExecutionStatus(field(row,'status','executionStatus','execution_status'));
+  const typed=lower(field(row,'execution_status'));
+  const typedConflict=Boolean(typed&&normalizedExecutionStatus(typed)!==status);
+  const remote=field(row,'remoteConfirmedAt','remote_confirmed_at');
+  const typedWithoutReceipt=typed==='cerrada_confirmada'
+    &&!(typeof remote==='string'&&remote.trim()
+      &&Number.isFinite(Date.parse(remote)));
+  return {status,typedConflict,typedWithoutReceipt};
+}
 function verifiedExecution(row,clientId,occurrence){
   if(!row||!occurrence)return null;
   const id=cleanId(field(row,'id','entityId','entity_id','executionId','execution_id'));
@@ -72,12 +90,54 @@ function verifiedExecution(row,clientId,occurrence){
   const sid=cleanId(field(row,'sessionId','session_id'));
   const oid=cleanId(field(row,'occurrenceId','occurrence_id'));
   const revision=Number(field(row,'revision')??-1);
+  const sync=lower(field(row,'syncStatus','sync_status'));
+  const confirmed=field(row,'serverConfirmed','server_confirmed');
+  const health=executionEvidenceHealth(row);
   if(!id||owner!==clientId||sid!==occurrence.sessionId
     ||oid!==occurrence.id||id!==occurrence.executionId
-    ||!Number.isSafeInteger(revision)||revision<1)return null;
-  return Object.freeze({id,status:lower(field(row,'status','executionStatus','execution_status')),
+    ||!Number.isSafeInteger(revision)||revision<1
+    ||(sync&&sync!=='clean')||confirmed===false
+    ||health.typedConflict||health.typedWithoutReceipt)return null;
+  return Object.freeze({id,status:health.status,
     revision,localDate:occurrence.localDate,sessionId:sid});
 }
+function evidenceIndex(records,idOf,signatureOf){
+  // Accept repeated identical projections; a contradictory same-ID record is
+  // untrusted regardless of arrival order. No private body is returned.
+  const values=new Map(),ambiguous=new Set();
+  for(const item of records){
+    const id=idOf(item);
+    if(!id||ambiguous.has(id))continue;
+    const signature=signatureOf(item);
+    const previous=values.get(id);
+    if(previous&&previous.signature!==signature){
+      values.delete(id);ambiguous.add(id);
+    }else if(!previous){
+      values.set(id,{item,signature});
+    }
+  }
+  return {byId:new Map([...values].map(([id,entry])=>[id,entry.item])),
+    ambiguous};
+}
+const appointmentEvidence=row=>JSON.stringify([
+  cleanId(field(row,'clientId','client_id')),
+  cleanId(field(row,'sessionId','session_id')),
+  lower(field(row,'status')),
+  String(field(row,'startAt','start_at','scheduledAt','scheduled_at')??''),
+  String(field(row,'endAt','end_at')??''),
+]);
+const executionEvidence=row=>{
+  const health=executionEvidenceHealth(row);
+  return JSON.stringify([
+    cleanId(field(row,'clientId','client_id')),
+    cleanId(field(row,'sessionId','session_id')),
+    cleanId(field(row,'occurrenceId','occurrence_id')),
+    health.status,field(row,'revision'),
+    lower(field(row,'syncStatus','sync_status'))||'clean',
+    field(row,'serverConfirmed','server_confirmed')===false?'denied':'not-denied',
+    health.typedConflict,health.typedWithoutReceipt,
+  ]);
+};
 const statusLabel={
   planificada:'Fecha por confirmar',confirmada:'Entrenamiento confirmado',
   en_curso:'Entrenamiento en curso',completada:'Entrenamiento realizado',
@@ -99,12 +159,24 @@ export function buildTraining360DecisionPack({
   if(![sessions,appointments,occurrences,executions].every(Array.isArray))
     throw new Error('U60_DECISION_COLLECTIONS_INVALID');
   const today=localToday(now);
-  const prescriptions=new Map(sessions.map(row=>authorizedPrescription(row,owner,role))
-    .filter(Boolean).map(row=>[row.id,row]));
-  const appointmentById=new Map(appointments.filter(row=>
-    cleanId(field(row,'clientId','client_id'))===owner)
-    .map(row=>[cleanId(field(row,'id','entityId','entity_id')),row])
-    .filter(([id])=>Boolean(id)));
+  // Resolve duplicates BEFORE applying Client visibility. A hidden and a
+  // published row with the same ID must not leave a visible source behind.
+  const {byId:sourcePrescriptions,ambiguous:conflictedPrescriptions}=evidenceIndex(
+    sessions.filter(row=>cleanId(field(row,'clientId','client_id'))===owner),
+    row=>cleanId(field(row,'id','entityId','entity_id')),
+    row=>JSON.stringify([
+      lower(field(row,'status')),
+      String(field(row,'visibleToClient','visible_to_client')??''),
+      lower(field(row,'clientVisibilityLevel','client_visibility_level')),
+      lower(field(row,'deliveryModality','delivery_modality')),
+      String(field(row,'title','name')??''),
+    ]));
+  const prescriptions=new Map([...sourcePrescriptions]
+    .map(([id,row])=>[id,authorizedPrescription(row,owner,role)])
+    .filter(([,value])=>Boolean(value)));
+  const {byId:appointmentById,ambiguous:conflictedAppointments}=evidenceIndex(
+    appointments.filter(row=>cleanId(field(row,'clientId','client_id'))===owner),
+    row=>cleanId(field(row,'id','entityId','entity_id')),appointmentEvidence);
   const rows=new Map();
   const ambiguousOccurrenceIds=new Set();
   for(const input of occurrences){
@@ -127,15 +199,31 @@ export function buildTraining360DecisionPack({
     }
     rows.set(o.id,o);
   }
-  const executionMap=new Map(executions.map(row=>
-    [cleanId(field(row,'id','entityId','entity_id','executionId','execution_id')),row])
-    .filter(([id])=>id));
+  const {byId:executionMap,ambiguous:conflictedExecutions}=evidenceIndex(
+    executions,row=>cleanId(field(row,'id','entityId','entity_id','executionId','execution_id')),
+    executionEvidence);
   const dates=[...rows.values()].sort((a,b)=>a.localDate.localeCompare(b.localDate)
     ||a.id.localeCompare(b.id));
+  // A single appointment cannot represent two different dated occurrences.
+  const seenAppointment=new Map(),reusedAppointmentIds=new Set();
+  for(const date of dates){
+    if(!date.appointmentId)continue;
+    const earlier=seenAppointment.get(date.appointmentId);
+    if(earlier&&earlier!==date.id)reusedAppointmentIds.add(date.appointmentId);
+    else if(!earlier)seenAppointment.set(date.appointmentId,date.id);
+  }
+  const invalidLinkedAppointments=new Set();
   const items=dates.map(o=>{
     const p=prescriptions.get(o.sessionId);
     const ap=o.appointmentId?appointmentById.get(o.appointmentId):null;
-    const authorizedAp=ap&&cleanId(field(ap,'sessionId','session_id'))===o.sessionId?ap:null;
+    const start=ap?field(ap,'startAt','start_at','scheduledAt','scheduled_at'):null;
+    const at=start==null?null:new Date(start);
+    const sameLocalDay=at===null||(
+      Number.isFinite(at.getTime())&&localToday(at)===o.localDate);
+    const authorizedAp=ap&&!reusedAppointmentIds.has(o.appointmentId)
+      &&sameLocalDay&&cleanId(field(ap,'sessionId','session_id'))===o.sessionId
+      ?ap:null;
+    if(o.appointmentId&&!authorizedAp)invalidLinkedAppointments.add(o.id);
     const appointmentStatus=authorizedAp?lower(field(authorizedAp,'status')):null;
     const exec=o.executionId?verifiedExecution(executionMap.get(o.executionId),owner,o):null;
     const executionVerified=o.executionId===null?!['en_curso','completada'].includes(o.status)
@@ -201,11 +289,18 @@ export function buildTraining360DecisionPack({
     ||x.status==='completada');
   const possibleAdherence=adherenceEligible.length>0
     &&!unverifiedCompletedDue&&!unresolvedInProgress
-    &&ambiguousOccurrenceIds.size===0
+    &&ambiguousOccurrenceIds.size===0&&invalidLinkedAppointments.size===0
     ?Math.round(100*adherenceEligible.filter(x=>
       x.status==='completada'&&x.executionVerified).length
       /adherenceEligible.length):null;
   const visibleIds=new Set(items.map(item=>item.id));
+  // Unrelated invalid records must not trigger alerts about this client's dates.
+  const relevantConflict=occurrences.some(row=>
+    cleanId(field(row,'clientId','client_id'))===owner
+      &&conflictedPrescriptions.has(cleanId(field(row,'sessionId','session_id'))))
+    ||dates.some(row=>Boolean(
+      (row.appointmentId&&conflictedAppointments.has(row.appointmentId))
+      ||(row.executionId&&conflictedExecutions.has(row.executionId))));
   const recommendation=needsRecovery.length
     ?Object.freeze({type:'verify-execution',label:'Verificar ejecución pendiente',
       reason:'Existe una fecha en curso sin correspondencia completa de ejecución.'})
@@ -230,7 +325,9 @@ export function buildTraining360DecisionPack({
       cancelled:items.filter(x=>x.status==='cancelada').length,
       verifiedAdherencePct:possibleAdherence,
       insufficientEvidence:unverifiedCompletedDue||unresolvedInProgress
-        ||ambiguousOccurrenceIds.size>0||dates.some(x=>!visibleIds.has(x.id)),
+        ||ambiguousOccurrenceIds.size>0||invalidLinkedAppointments.size>0
+        ||relevantConflict
+        ||dates.some(x=>!visibleIds.has(x.id)),
     }),
     days:Object.freeze(days),upcoming:Object.freeze(upcoming),
     needsRecovery:Object.freeze(needsRecovery),

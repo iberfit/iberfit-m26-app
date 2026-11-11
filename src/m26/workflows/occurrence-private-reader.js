@@ -57,6 +57,9 @@ function verifyResponse(raw,clientId,occurrenceId){
       ||!['en_curso','completada'].includes(o.status)
       ||b.status!==o.status||!Number.isSafeInteger(b.revision)||b.revision<1
       ||!obj(b.sourceSnapshot)
+      ||uuid(b.sourceSnapshot.clientId)!==clientId
+      ||uuid(b.sourceSnapshot.sessionId)!==uuid(o.sessionId)
+      ||String(b.sourceSnapshot.cycleId??'')!==String(p.cycleId??'')
       ||JSON.stringify(b.sourceSnapshot.queue)!==JSON.stringify(p.queue)
       ||JSON.stringify(b.sourceSnapshot.blocks)!==JSON.stringify(p.blocks))
       fail('EXECUTION_DRIFT');

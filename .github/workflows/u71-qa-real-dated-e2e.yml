@@ -13,6 +13,7 @@ on:
       - 'feat/u60-training360-r50-reconciled-20261104'
       - 'feat/iberfit-universal-360-one-release-20261106'
       - 'canary/rc74-4'
+      - 'feat/coach-a-verified-evidence-20261111'
     paths:
       - '.github/workflows/u71-qa-real-dated-e2e.yml'
       - 'scripts/remote-gates/qa_u60_real_dated_journey.mjs'
