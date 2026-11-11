@@ -448,7 +448,7 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
     card(document,'Calidad del dato',String(summary.dataQuality||'limitada'),summary.unconfirmedExecutions?`${summary.unconfirmedExecutions} sesión${summary.unconfirmedExecutions===1?'':'es'} fuera del cálculo hasta confirmar`:'Solo información confirmada'),
   );
 
-  // Coach: tres hechos diferentes, calculados desde el mismo snapshot.
+  // Profesional: tres hechos diferentes, calculados desde el mismo snapshot.
   // No etiquetar como inasistencia una confirmación técnica pendiente.
   const verification=createElement(document,'section','m27-cliente-360-verificacion');
   verification.setAttribute('aria-label','Evidencia de entrenamiento');
