@@ -107,7 +107,8 @@ jobs:
       - name: Install Chromium
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
+          node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({headless:true}); await browser.close();"
       - name: Certify PDF and layout at three viewport sizes
         run: npm run quality:m44:report:a4
       - name: Preserve browser evidence
