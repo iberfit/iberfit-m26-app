@@ -31,6 +31,7 @@ import {
   experienceNextAction,
 } from '../experience/client-experience.js';
 import { buildAdaptiveSessionContext } from '../intelligence/adaptive-context.js';
+import {reusableConfirmedSummary} from '../engagement/progress-continuity.js';
 import { deriveAdaptiveExperience } from '../experience/adaptive-experience.js';
 import { buildWearableViewModel } from '../wearables/view-model.js';
 import {buildClientDayContext} from '../experience/client-day-context.js';
@@ -247,7 +248,7 @@ function mergeProfileFallback(primary = {}, fallback = {}) {
   return out;
 }
 
-function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={}) {
+function compactSummary(summary, role = 'coach', {state=null,now=new Date(),progressSummary=null,adherenceAlerts=null}={}) {
   const client = summary.client || {};
   const profile = normalizeClientProfile(
     mergeProfileFallback(summary.profile || {}, profileFromIri(summary.iri)),
@@ -264,7 +265,7 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
     { role }
   );
   const adaptiveContext=experience.serviceKind==='training'&&state&&client.id
-    ?buildAdaptiveSessionContext(state,client.id,{now})
+    ?buildAdaptiveSessionContext(state,client.id,{now,summary:progressSummary,alerts:adherenceAlerts})
     :null;
   const adaptiveExperience=deriveAdaptiveExperience({
     experience,
@@ -516,18 +517,27 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     // No truncation or permissions inference. Reuse the owner-scoped directory
     // index so per-client 7/28/90 histories no longer rescan the full archive.
     const ownerState=(id)=>options.clientScopeIndex?.get(String(id||''))||state;
+    // The Client's 28-day confirmed evidence is a single snapshot per frame.
+    // Reuse it for alerts, adaptive next-action, and challenges. Coaches still
+    // compute their separate owner-scoped professional summaries as before.
+    const clientProgressSummary=
+      overview.role==='client'&&clientId&&selectedHasTraining
+        ?computeProgressSummary(state,clientId,{now,days:28})
+        :null;
     const alerts = clientId&&selectedHasTraining
-      ? deriveAdherenceAlerts(ownerState(clientId), clientId, { now })
+      ? deriveAdherenceAlerts(ownerState(clientId), clientId,
+          clientProgressSummary?{now,summary:clientProgressSummary}:{now})
       : [];
 
     qaStage('rc64-hoy-clients-start');
-    const clients=overview.summaries.map(
-      (summary)=>compactSummary(
-        summary,
-        overview.role,
-        {state:ownerState(summary?.client?.id),now}
-      )
-    );
+    const clients=overview.summaries.map((summary)=>{
+      const sameClient=overview.role==='client'
+        &&String(summary?.client?.id||'')===String(clientId||'');
+      return compactSummary(summary,overview.role,{
+        state:ownerState(summary?.client?.id),now,
+        ...(sameClient?{progressSummary:clientProgressSummary,adherenceAlerts:alerts}:{}),
+      });
+    });
     qaStage('rc64-hoy-clients-ready');
 
     qaStage('rc64-hoy-cockpit-start');
@@ -550,7 +560,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
 
     const challengeSnapshot=
       overview.role==='client'&&clientId&&selectedHasTraining
-        ?rc71ChallengeSnapshot(state,clientId,now)
+        ?rc71ChallengeSnapshot(state,clientId,now,{summary:clientProgressSummary})
         :null;
     const challengePreview=
       challengeSnapshot?.challenges?.find((item)=>
@@ -560,10 +570,6 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
           Number(item.current||0)>0
         )
       )||null;
-    const clientProgressSummary=
-      overview.role==='client'&&clientId&&selectedHasTraining
-        ?computeProgressSummary(state,clientId,{now,days:28})
-        :null;
     const clientGuide=
       overview.role==='client'
         ?Object.freeze({
@@ -1176,14 +1182,12 @@ function rc712SocialSnapshot(state){
 function rc71ChallengeSnapshot(
   state,
   clientId,
-  now=new Date()
+  now=new Date(),
+  {summary:providedSummary=null}={}
 ){
   const summary=clientId
-    ? computeProgressSummary(
-        state,
-        clientId,
-        {now,days:28}
-      )
+    ? reusableConfirmedSummary(providedSummary,clientId,28)
+      ??computeProgressSummary(state,clientId,{now,days:28})
     : null;
 
   const social=

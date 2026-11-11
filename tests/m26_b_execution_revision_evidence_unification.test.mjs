@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {reconcileSessionExecutionsForClient,confirmedSessionExecutionsForClient} from '../src/m26/domain/session-execution-truth.js';
 import {computeProgressSummary,buildExerciseLongitudinalProgress,buildProgressTimeline} from '../src/m26/engagement/progress-engine.js';
 import {confirmedAdherenceEvidence} from '../src/m26/engagement/confirmed-adherence.js';
+import {buildAdaptiveSessionContext} from '../src/m26/intelligence/adaptive-context.js';
+import {deriveAdherenceAlerts} from '../src/m26/engagement/index.js';
 
 const now=new Date('2026-11-11T12:00:00Z');
 const completion=(patch={})=>({
@@ -138,4 +140,26 @@ test('Client chronology excludes duplicate and contradictory same-revision execu
     state([a,conflict,completion({revision:5})]),'client-one',{now,days:28},
   );
   assert.equal(recovered.filter(row=>row.kind==='execution').length,1);
+});
+
+
+test('Client Today reuses one valid 28-day confirmed evidence projection across adaptive guidance without changing its decision',()=>{
+  const input=state([completion()]);
+  const summary=computeProgressSummary(input,'client-one',{now,days:28});
+  const alerts=deriveAdherenceAlerts(input,'client-one',{now,summary});
+  const canonical=buildAdaptiveSessionContext(input,'client-one',{now});
+  const reused=buildAdaptiveSessionContext(input,'client-one',{now,summary,alerts});
+  assert.strictEqual(reused.summary,summary,'valid owner-scoped snapshot must be reused');
+  assert.deepEqual(reused.alerts,canonical.alerts);
+  assert.deepEqual(reused.decision,canonical.decision);
+  assert.deepEqual(reused.evidence,canonical.evidence);
+});
+
+test('Client Today rejects supplied progress from another owner before adapting decisions',()=>{
+  const input=state([completion()]);
+  const forged={...computeProgressSummary(input,'client-one',{now,days:28}),clientId:'client-two'};
+  const result=buildAdaptiveSessionContext(input,'client-one',{now,summary:forged,alerts:[]});
+  assert.equal(result.summary.clientId,'client-one');
+  assert.notStrictEqual(result.summary,forged);
+  assert.deepEqual(result.alerts,buildAdaptiveSessionContext(input,'client-one',{now}).alerts);
 });

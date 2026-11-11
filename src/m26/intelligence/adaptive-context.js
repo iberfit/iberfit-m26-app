@@ -1,5 +1,6 @@
 import { confirmedSessionExecutionsForClient,sessionExecutionDate } from '../domain/session-execution-truth.js';
 import { computeProgressSummary,deriveAdherenceAlerts } from '../engagement/index.js';
+import {reusableConfirmedSummary} from '../engagement/progress-continuity.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
@@ -106,10 +107,15 @@ function profileContext(state,clientId){
     contraindications:Object.freeze(mergeLists(profile.contraindications,profile.contra_indications)),
   });
 }
-export function buildAdaptiveSessionContext(state,clientId,{now=new Date()}={}){
+export function buildAdaptiveSessionContext(state,clientId,{now=new Date(),summary:providedSummary=null,alerts:providedAlerts=null}={}){
   if(!clientId)throw new Error('M26_ADAPTIVE_CLIENT_REQUIRED');
-  const summary=computeProgressSummary(state,clientId,{now,days:28});
-  const alerts=deriveAdherenceAlerts(state,clientId,{now});
+  // Never reuse a different Client's, stale-window or unconfirmed projection.
+  // Without valid same-owner 28d evidence, recompute from canonical state.
+  const reused=reusableConfirmedSummary(providedSummary,clientId,28);
+  const summary=reused??computeProgressSummary(state,clientId,{now,days:28});
+  const alerts=reused&&Array.isArray(providedAlerts)
+    ?providedAlerts
+    :deriveAdherenceAlerts(state,clientId,{now,summary});
   const executions=latestExecutions(state,clientId);
   const history=extractSessionHistory(executions);
   const decision=deriveDecision(summary,alerts);
