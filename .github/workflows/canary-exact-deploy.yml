@@ -97,7 +97,7 @@ jobs:
   deploy-canary:
     needs: qa-auth-readonly-preflight
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY_CANARY_EXACT') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: m26-canary-readonly
     timeout-minutes: 45
     steps:
@@ -256,8 +256,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
-          npx playwright install --with-deps chromium
+npx playwright install chromium
+          node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({headless:true}); await browser.close();"
 
       - name: Certify deployed Canary desktop and mobile read-only
         env:

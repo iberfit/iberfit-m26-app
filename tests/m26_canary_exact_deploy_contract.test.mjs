@@ -175,7 +175,7 @@ test('Canary restored identity is QA-only and never production',()=>{
 });
 
 test('Canary workflow binds the same protected QA environment and runtime contract used by RC74.4 generator',()=>{
-  assert.match(workflow,/deploy-canary:[\s\S]*?runs-on: ubuntu-latest\n\s+environment: m26-canary-readonly/u);
+  assert.match(workflow,/deploy-canary:[\s\S]*?runs-on: ubuntu-24.04\n\s+environment: m26-canary-readonly/u);
   for(const envName of ['M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY']){
     assert.match(runtimeGenerator,new RegExp(`['\"]${envName}['\"]`,'u'));
   }
