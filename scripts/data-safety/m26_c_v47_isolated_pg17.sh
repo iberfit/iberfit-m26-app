@@ -10,7 +10,7 @@ if [[ "${IBERFIT_PG17_SYNTHETIC_ONLY:-}" != "YES" || "${PGHOST:-}" != "127.0.0.1
 fi
 : "${PGPASSWORD:?Synthetic local PostgreSQL password required}"
 psql_synthetic(){
-  docker run --rm --network host \
+  docker run --interactive --rm --network host \
     -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER -e PGDATABASE \
     -v "$PWD:/repo:ro" postgres:17-alpine psql -X -q -v ON_ERROR_STOP=1 "$@"
 }
