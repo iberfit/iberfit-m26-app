@@ -86,12 +86,13 @@ test('identity switch never coalesces with an earlier owner even with identical 
 });
 test('rendering remains microtask-ordered with synchronous navigation; no rAF delay on clicks',()=>{
   const shell=readFileSync(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
-  const start=shell.indexOf('  function renderSafely(state=store.getState())');
+  const start=shell.indexOf('  function renderSafely(state=readShellSnapshot())');
   const end=shell.indexOf('  function onPointerDown(',start);
   assert.ok(start>0&&end>start);
   const scheduler=shell.slice(start,end);
   assert.match(scheduler,/queueMicrotask\(\(\)=>\{/u);
   assert.match(scheduler,/renderNow\(next\);/u);
+  assert.match(scheduler,/const next=needsFreshState\?readShellSnapshot\(\):queuedState;/u);
   assert.doesNotMatch(scheduler,/requestAnimationFrame|scheduledRenderFrame|scheduledRenderFallback/u);
   assert.match(shell,/reconcileRouteRender\(decision\.area\);/u);
   assert.match(shell,/store\.navigate\(decision\.area\);/u);

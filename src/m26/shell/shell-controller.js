@@ -419,7 +419,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
     }
   }
 
-  function renderWorkspaceFrame(state=store.getState()){
+  function renderWorkspaceFrame(state=readShellSnapshot()){
     const viewModel=createShellViewModel(state);
     const markup=renderM26Shell(viewModel,'');
     if(markup===lastMarkup){clearClientSwitchBusy();return false;}
@@ -435,6 +435,19 @@ export function createShellController({ root, store, renderRoute = () => '', get
   // Records ONLY route stage names and duration in opted-in QA memory. No
   // identifiers, payloads, private text or network content are ever logged.
   // Production does not allocate the QA diagnostic structure.
+  function readShellSnapshot(){
+    const performanceLike=root.ownerDocument?.defaultView?.performance;
+    const started=performanceLike?.now?.()??0;
+    const snapshot=typeof store.getRenderSnapshot==='function'
+      ?store.getRenderSnapshot()
+      :store.getState();
+    const finished=performanceLike?.now?.()??started;
+    markQaShellStage('render-snapshot',
+      store.getNavigationSnapshot?.()?.activeArea||'',
+      finished-started);
+    return snapshot;
+  }
+
   function markQaShellStage(phase,area='',elapsedMs=null){
     const qa=globalThis.__IBERFIT_QA_AUTH_INPUT_EVENTS__;
     if(!qa||!Array.isArray(qa.appStageTimes))return;
@@ -447,7 +460,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
     if(rows.length>60)rows.splice(0,rows.length-60);
   }
 
-  function renderNow(state = store.getState(),{force=false}={}) {
+  function renderNow(state = readShellSnapshot(),{force=false}={}) {
     if(!force&&shellInteractionActive()){
       queuedState=state;
       return false;
@@ -512,7 +525,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
     return true;
   }
 
-  function renderSafely(state=store.getState()){
+  function renderSafely(state=readShellSnapshot()){
     if(shellInteractionActive()){
       queuedState=state;
       return false;
@@ -539,7 +552,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
       renderQueued=false;
       if(token!==generation)return;
       if(shellInteractionActive())return;
-      const next=needsFreshState?store.getState():queuedState;
+      const next=needsFreshState?readShellSnapshot():queuedState;
       needsFreshState=false;
       queuedState=null;
       renderNow(next);
@@ -640,7 +653,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
       // again or its authenticated DOM is already on the intended area.
       const active=store.getNavigationSnapshot?.()?.activeArea;
       if((active!==undefined&&String(active)!==expected)||renderedArea()===expected)return;
-      const state=store.getState();
+      const state=readShellSnapshot();
       if(String(state.activeArea||'')!==expected)return;
       queuedState=null;
       needsFreshState=false;
@@ -1095,7 +1108,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
       ?store.subscribeInvalidation(scheduleRender)
       :store.subscribe(scheduleRender);
     syncAdaptiveLayout();
-    const state=store.getState();
+    const state=readShellSnapshot();
     const authenticated=createShellViewModel(state).mode==='authenticated';
     if(progressive&&authenticated){
       renderWorkspaceFrame(state);

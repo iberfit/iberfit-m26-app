@@ -80,7 +80,8 @@ test('all buttons hold only the short pointer lease so click cannot be swallowed
 
 
 test('external shell render requests cannot bypass active form interaction leases',()=>{
-  assert.match(shell,/function renderSafely\(state=store\.getState\(\)\)\{[\s\S]*?if\(shellInteractionActive\(\)\)\{[\s\S]*?queuedState=state;[\s\S]*?return false;[\s\S]*?return renderNow\(state\);/u);
+  assert.match(shell,/function renderSafely\(state=readShellSnapshot\(\)\)\{[\s\S]*?if\(shellInteractionActive\(\)\)\{[\s\S]*?queuedState=state;[\s\S]*?return false;[\s\S]*?return renderNow\(state\);/u);
+  assert.match(shell,/function readShellSnapshot\(\)/u);
   assert.match(shell,/return Object\.freeze\(\{ mount, destroy, render:renderSafely, scheduleRender \}\);/u);
   assert.doesNotMatch(shell,/render:renderNow/u);
 });

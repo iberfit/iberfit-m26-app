@@ -90,7 +90,8 @@ test('UNIVERSAL: shell paints only latest state once per invalidation, strict QA
  const app=source('../src/m26/app/application.js');
  const qa=source('../qa/signature-u26-authenticated-professional-routes.mjs');
  assert.match(shell,/store\.subscribeInvalidation\(scheduleRender\)/u);
- assert.match(shell,/const next=needsFreshState\?store\.getState\(\):queuedState;/u);
+ assert.match(shell,/const next=needsFreshState\?readShellSnapshot\(\):queuedState;/u);
+ assert.match(shell,/store\.getRenderSnapshot\(\)/u);
  assert.match(shell,/if\(renderQueued\)return;/u);
  assert.match(shell,/token!==generation/u);
  assert.match(shell,/if\(shellInteractionActive\(\)\)return;/u);

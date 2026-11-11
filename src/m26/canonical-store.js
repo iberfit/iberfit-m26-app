@@ -42,6 +42,51 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return clone(state);
   }
 
+  // Rendering is not an authorization boundary. The normal getState() API
+  // still defensively clones on every call. Coach's verified U38 archive
+  // needs a distinct isolated snapshot for presentation: copying tens of MB
+  // on EVERY route click can stall the real main thread before first paint.
+  // Freeze a cloned collection once per owner/role/collection identity, then
+  // share only that defensive, immutable copy between Coach shell renders.
+  // Client/Admin and all command/authorization consumers remain unchanged.
+  let renderCollectionsReady=false;
+  let renderCollectionsSource=null;
+  let renderCollectionsOwnerScope='';
+  let renderCollectionsFrozen=null;
+
+  function freezeRenderCollections(value,seen=new WeakSet()){
+    if(value===null||typeof value!=='object'||seen.has(value))return value;
+    seen.add(value);
+    // A canonical JSON collection should not contain typed binary views.
+    // Preserve compatibility with historical structuredClone semantics.
+    if(ArrayBuffer.isView(value))return value;
+    for(const entry of Object.values(value))freezeRenderCollections(entry,seen);
+    return Object.freeze(value);
+  }
+
+  function getRenderSnapshot(){
+    if(String(state.identity?.role||'')!=='coach')return getState();
+    const ownerScope=[
+      String(state.identity?.id||''),
+      String(state.identity?.role||''),
+      String(state.identity?.clientId||''),
+    ].join('|');
+    const collections=state.collections||{};
+    if(!renderCollectionsReady
+      ||renderCollectionsSource!==collections
+      ||renderCollectionsOwnerScope!==ownerScope){
+      renderCollectionsFrozen=freezeRenderCollections(clone(collections));
+      renderCollectionsSource=collections;
+      renderCollectionsOwnerScope=ownerScope;
+      renderCollectionsReady=true;
+    }
+    // Only lightweight routing/identity/operation fields are recloned after
+    // an ordinary navigation. The frozen collection is a separate clone,
+    // never a reference to canonical mutable store data.
+    const {collections:discardedCollections,...outer}=state;
+    return Object.freeze({...clone(outer),collections:renderCollectionsFrozen});
+  }
+
   // Read-only, constant-size navigation evidence. The authenticated Coach
   // archive can contain thousands of events: copying it merely to read the
   // current route must never block physical input or QA route polling.
@@ -221,5 +266,5 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return ()=>selectionListeners.delete(listener);
   }
 
-  return Object.freeze({ getState, getNavigationSnapshot, getSessionActorSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection, getOnboardingAccessSnapshot, getCoachLaunchJourney });
+  return Object.freeze({ getState, getRenderSnapshot, getNavigationSnapshot, getSessionActorSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection, getOnboardingAccessSnapshot, getCoachLaunchJourney });
 }
