@@ -129,7 +129,8 @@ test('post-MFA mobile handoff overlaps catalog fetch with hydration but awaits i
 
 test('progressive shell mount never computes the heavy route before the first authenticated frame',()=>{
   const source=fs.readFileSync('src/m26/shell/shell-controller.js','utf8');
-  assert.match(source,/function renderWorkspaceFrame\(state=store\.getState\(\)\)/u);
+  assert.match(source,/function renderWorkspaceFrame\(state=readShellSnapshot\(\)\)/u);
+  assert.match(source,/function readShellSnapshot\(\)/u);
   assert.match(source,/renderM26Shell\(viewModel,''\)/u);
   assert.match(source,/m26:shell-frame-ready/u);
   assert.match(source,/function mount\(\{progressive=false\}=\{\}\)/u);
