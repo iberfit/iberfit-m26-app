@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {buildIberfitDecisionBrief} from '../src/m26/intelligence/decision-brief.js';
 import {__nextSessionPreparationInternals} from '../src/m26/intelligence/next-session-prep.js';
 import {buildPeriodizationSnapshot} from '../src/m26/planning/periodization-workbench.js';
+import {buildTraining360DecisionPack} from '../src/m26/intelligence/training360-decision-pack.js';
 
 const NOW=new Date('2026-11-11T12:00:00.000Z');
 const SAMPLE={plannedSessions:4,completedSessions:3,adherence:0.75,averageRpe:7.5,
