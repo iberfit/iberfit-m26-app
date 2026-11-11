@@ -110,6 +110,84 @@ export function unconfirmedSessionExecutionIds(state){
   return ids;
 }
 
+
+/**
+ * Un único identificador/revisión no puede acreditar dos resultados distintos.
+ * Reconcilia antes de que Progreso, Coach o recomendaciones consuman series,
+ * feedback o volúmenes. Las revisiones superiores sustituyen a las anteriores;
+ * una contradicción a la revisión máxima se aísla, sin depender del orden.
+ */
+function executionRevision(record){
+  const raw=first(unwrap(record),'revision','remoteRevision','remote_revision');
+  const number=Number(raw);
+  return (typeof raw==='number'||typeof raw==='string')&&Number.isSafeInteger(number)
+    &&number>=0?number:0;
+}
+function stableEvidenceJson(value){
+  if(Array.isArray(value))return '['+value.map(stableEvidenceJson).join(',')+']';
+  if(value&&typeof value==='object'){
+    return '{'+Object.keys(value).sort().map(key=>
+      JSON.stringify(key)+':'+stableEvidenceJson(value[key])).join(',')+'}';
+  }
+  return JSON.stringify(value??null);
+}
+function executionSignature(record){
+  const row=unwrap(record);
+  const evidence={
+    owner:sessionExecutionClientId(row),id:sessionExecutionId(row),
+    appointment:first(row,'appointmentId','appointment_id'),
+    session:first(row,'sessionId','session_id'),
+    occurrence:first(row,'occurrenceId','occurrence_id'),
+    status:first(row,'status','estado'),
+    executionStatus:first(row,'executionStatus','execution_status'),
+    syncStatus:first(row,'syncStatus','sync_status')||'clean',
+    serverConfirmed:first(row,'serverConfirmed','server_confirmed'),
+    remoteConfirmedAt:first(row,'remoteConfirmedAt','remote_confirmed_at'),
+    completedAt:first(row,'completedAt','completed_at','endedAt','ended_at'),
+    results:first(row,'results','setResults','set_results','progressSnapshot','progress_snapshot'),
+    feedback:first(row,'feedback'),
+    metrics:first(row,'metrics'),
+    planSnapshot:first(row,'planSnapshot','plan_snapshot'),
+  };
+  return stableEvidenceJson(evidence);
+}
+export function reconcileSessionExecutionsForClient(state,clientId){
+  const expected=String(clientId||'').trim();
+  if(!expected)return Object.freeze({
+    records:Object.freeze([]),conflicts:Object.freeze([]),withoutIdentity:0,
+  });
+  const selected=new Map();
+  let withoutIdentity=0;
+  for(const record of canonicalTrainingRecordsForClient(state,'executions',expected)){
+    if(sessionExecutionClientId(record)!==expected)continue;
+    const id=sessionExecutionId(record);
+    if(!id){withoutIdentity++;continue;}
+    const revision=executionRevision(record);
+    const previous=selected.get(id);
+    if(previous&&revision<previous.revision)continue;
+    if(!previous||revision>previous.revision){
+      selected.set(id,{record,revision,signature:null,conflict:false,records:[record]});
+      continue;
+    }
+    const signature=executionSignature(record);
+    const previousSignature=previous.signature??executionSignature(previous.record);
+    previous.signature=previousSignature;
+    if(signature!==previousSignature||previous.conflict){
+      previous.conflict=true;
+      previous.records.push(record);
+    }
+  }
+  // Stable ID order also makes same-revision presentation deterministic.
+  const values=[...selected].sort(([a],[b])=>a.localeCompare(b))
+    .map(([,value])=>value);
+  return Object.freeze({
+    records:Object.freeze(values.filter(value=>!value.conflict).map(value=>value.record)),
+    conflicts:Object.freeze(values.filter(value=>value.conflict)
+      .map(value=>Object.freeze([...value.records]))),
+    withoutIdentity,
+  });
+}
+
 export function sessionExecutionIsConfirmed(
   record,
   blockedIds=new Set(),
@@ -182,11 +260,7 @@ export function confirmedSessionExecutionsForClient(
   const blocked=unconfirmedSessionExecutionIds(state);
 
   return Object.freeze(
-    canonicalTrainingRecordsForClient(state,'executions',expected)
-      .filter(
-        (record)=>
-          sessionExecutionClientId(record)===expected,
-      )
+    reconcileSessionExecutionsForClient(state,expected).records
       .filter(
         (record)=>
           sessionExecutionIsConfirmed(record,blocked),

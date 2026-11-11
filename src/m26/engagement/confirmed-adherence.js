@@ -90,6 +90,10 @@ export function confirmedAdherenceEvidence({appointments=[],executions=[]}={}){
   }
 
   const plannedSessions=due.size;
+  // Sólo una ausencia explícita y no contradictoria es un incumplimiento.
+  // Una cita confirmada sin ACK de ejecución nunca se etiqueta como ausencia.
+  const missedAppointments=[...due.values()]
+    .filter(value=>value.status==='ausencia_cliente').length;
   const scheduledCompleted=fulfilled.size;
   const unlinkedCompletedAppointments=[...fulfilled].filter(id=>!matchedAppointmentIds.has(id)).length;
   const completedSessions=uniqueExecutions.length+unlinkedCompletedAppointments;
@@ -97,6 +101,7 @@ export function confirmedAdherenceEvidence({appointments=[],executions=[]}={}){
 
   return Object.freeze({
     plannedSessions,scheduledCompleted,completedSessions,adherence,
+    confirmedWorkouts:uniqueExecutions.length,missedAppointments,
     linkedExecutions,standaloneExecutions,
     completedAppointmentsWithoutExecution:unlinkedCompletedAppointments,
     unverifiedAppointments:source.withoutIdentity,
