@@ -96,13 +96,29 @@ test('RC64.1 quality fixture is explicitly synthetic and contains no backend or 
   assert.match(files,/Fixture determinista sin identidad, salud ni backend/u);
 });
 
-test('RC64.1 CI installs exact lockfile and Chromium only for the RC58-64 feature rail',()=>{
+test('RC64.1 CI installs pinned Chromium and proves real launch without broken apt preflight',()=>{
   const ci=read('.github/workflows/ci.yml');
   assert.match(ci,/Preparar Quality Platform RC64/u);
   assert.match(ci,/npm ci/u);
-  assert.match(ci,/npx playwright install --with-deps chromium/u);
+  assert.match(ci,/npx playwright install chromium/u);
+  assert.match(ci,/chromium\.launch\(\{headless:true\}\)/u);
+  assert.doesNotMatch(ci,/playwright install --with-deps chromium/u);
   assert.match(ci,/npm run quality:rc64:browser/u);
   assert.match(ci,/feature\/rc58-design-system/u);
+});
+
+test('all four browser gates require real headless Chromium launch without apt DNS reliance',()=>{
+  const paths=[
+    '.github/workflows/ci.yml',
+    '.github/workflows/m44-wip-report-quality.yml',
+    '.github/workflows/authenticated-client-interaction.yml',
+    '.github/workflows/qa-real-write-cert.yml',
+  ];
+  for(const path of paths){
+    const workflow=read(path);
+    assert.match(workflow,/chromium\.launch\(\{headless:true\}\)/u,path);
+    assert.doesNotMatch(workflow,/npx playwright install-deps chromium|npx playwright install --with-deps chromium/u,path);
+  }
 });
 
 test('RC64.1 ignores browser-generated reports instead of committing machine artifacts',()=>{
