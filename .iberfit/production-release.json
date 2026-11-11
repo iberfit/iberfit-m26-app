@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "2a41bc229007a78113eb3c408246445d4c40e783",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "d8f82511b455d1e07beb45fdf3bd63f38b5135df",
+  "notes": "IBERFIT UNIVERSAL 360 A+B protected frontend-only release. Canary exact source 2a41bc229007: seven required source-SHA gates and QA Real Write SUCCESS; M44 REAL encrypted PostgreSQL17+Storage backup/restore run 43018342253 SUCCESS, artifact id 13854665107, max age <=2h. No PROD SQL/Hosted Auth/Storage writes, U60 authenticated PROD remains disabled. Production previous SHA locked; fail closed on drift."
+}
