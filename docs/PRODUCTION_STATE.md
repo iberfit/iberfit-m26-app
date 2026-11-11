@@ -1,3 +1,8 @@
+## 11/11/2026 · Cierre evidencia TRAINING B · PR único pendiente de gates (NO PROD)
+- Base comprobada Canary `d577e5fb8ffb5d90f86e9e79981a0a5692c4409b`; C PR #1323 ya fusionado. PROD sigue A+B `2a41bc229007a78113eb3c408246445d4c40e783` en el último chequeo LIVE conocido; verificar antes de nueva promoción.
+- Corrección propuesta: reconciliación fail-closed por ID/revisión para progreso/Coach y tres estados de entrenamiento basados en evidencia compartida.
+- Sin SQL, permisos, Auth, U60 ni datos reales; requiere CI y QA exactos por HEAD, M44 fresco y E2E real antes de declarar LIVE. #1319 destructivo queda estrictamente separado.
+
 ## P0 LIVE client deletion privilege boundary · WIP 07/11/2026 (NOT YET MERGED OR PROD APPLIED)
 
 - **Base exacta:** Canary=PROD `f45fecc1d440ce500501ec05452614fedc1c9935`; QA and PROD currently have DELETE grant on `public.clients` for authenticated and anon, and RLS policy `clients_delete_coach`. Admin has a separate protected RPC `iberfit_admin_delete_client_v26(jsonb,jsonb)` with privileged WebAuthn/confirmation/history checks. The direct SQL path bypasses those checks where FKs permit deletion. This is a real privilege issue, not a demonstrated destructive exploit.

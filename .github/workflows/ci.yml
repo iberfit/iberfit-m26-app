@@ -26,7 +26,8 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    # Keep browser dependencies on the stable LTS runner during ubuntu-latest migration.
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - name: Descargar repositorio
@@ -103,7 +104,8 @@ jobs:
         if: ${{ github.ref == 'refs/heads/main' || github.head_ref == 'main' || github.base_ref == 'main' || github.ref == 'refs/heads/feature/rc58-design-system' || github.head_ref == 'feature/rc58-design-system' }}
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          ./node_modules/.bin/playwright install chromium
+          node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({headless:true}); await browser.close();"
 
       - name: Validar RC58 app integrity
         if: ${{ github.ref == 'refs/heads/main' || github.head_ref == 'main' || github.base_ref == 'main' || github.ref == 'refs/heads/feature/rc58-design-system' || github.head_ref == 'feature/rc58-design-system' }}
@@ -198,7 +200,8 @@ jobs:
         if: ${{ github.ref == 'refs/heads/canary/rc74-4' || github.head_ref == 'canary/rc74-4' || github.base_ref == 'canary/rc74-4' || github.ref == 'refs/heads/prep/final-production-rc74-4' || github.head_ref == 'prep/final-production-rc74-4' || github.base_ref == 'prep/final-production-rc74-4' }}
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          ./node_modules/.bin/playwright install chromium
+          node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({headless:true}); await browser.close();"
 
       - name: Certificar upgrade PWA N-1 a N sin bloqueos
         if: ${{ github.ref == 'refs/heads/canary/rc74-4' || github.head_ref == 'canary/rc74-4' || github.base_ref == 'canary/rc74-4' || github.ref == 'refs/heads/prep/final-production-rc74-4' || github.head_ref == 'prep/final-production-rc74-4' || github.base_ref == 'prep/final-production-rc74-4' }}

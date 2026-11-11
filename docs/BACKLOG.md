@@ -1,3 +1,9 @@
+## 11/11/2026 · UNIVERSAL evidence reconciliation · WIP candidate (NO LIVE)
+- Una sola fuente compartida para desduplicar ejecuciones por Cliente/ID/revisión con cuarentena de contradicciones al revision máximo, independientemente del orden. Progreso, evolución de ejercicios, Coach y recomendaciones no pueden consumir dos resultados discordantes.
+- Cliente 360 Coach distingue entrenamientos confirmados (ejecuciones reales), pendientes de confirmación (ACK o contradicción), y ausencias explícitas (no inferidas de falta de sincronización), en una misma lectura.
+- Alcance: JS, UI, tests con identidad sintética, documentación. **NO** modificar Supabase, RLS, U60, Auth, datos reales o PROD. Certificar gates exactos, QA de dos fechas sólo cuando los requisitos de U60 permitan pruebas aisladas.
+- B #1321 y C #1323 ya fusionados; el presente bloque no reabre esos PR. #919/#1078, #1209, #1262, Android físico, M44 integral y activación U60 siguen abiertos hasta pruebas LIVE específicas.
+
 ## MACROBLOQUE C · Connected360 histórico fiable + interfaz native-first (WIP 11/11/2026)
 
 **Fuente exacta:** Canary `2a41bc229007a78113eb3c408246445d4c40e783`, A+B promocionados y verificados LIVE en PROD con release #43022362179. **Este C NO está fusionado, desplegado ni aplicado en PROD.** La RPC productiva V47 ya devuelve solo los días de los últimos 30, pero existen 7 observaciones legítimas antiguas 06–12/10 que quedan excluidas el 11/11. QA aún no tiene tabla/RPC V47 y no acredita la prueba de migración real; producción sin SQL nuevo.

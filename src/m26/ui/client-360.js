@@ -53,6 +53,8 @@ const CLIENTE_360_CSS=`
 .m29-proof-meta{display:grid;gap:.12rem;color:#969087;font-size:.64rem;line-height:1.4}
 .m29-proof-next{margin:.08rem 0 0;padding:.5rem .58rem;border-left:2px solid rgba(216,185,111,.5);border-radius:.3rem;color:#b8b0a2;background:rgba(216,185,111,.035);font-size:.65rem;line-height:1.42}
 .m29-proof-baseline{margin:0;padding:.8rem;border-radius:.75rem;background:rgba(0,0,0,.1);color:#a9a397;font-size:.72rem;line-height:1.5}
+.m27-cliente-360-verificacion{display:grid;gap:.55rem;padding:.75rem .85rem;border-top:1px solid rgba(216,185,111,.18);border-bottom:1px solid rgba(216,185,111,.12)}
+.m27-cliente-360-verificacion h4{margin:0;color:#eee3cb;font-size:.8rem;font-weight:650}
 .m27-cliente-360-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.68rem}
 .m27-cliente-360-card{display:grid;align-content:start;gap:.25rem;min-height:7rem;padding:.82rem;border:1px solid rgba(216,185,111,.11);border-radius:.9rem;background:rgba(255,255,255,.022)}
 .m27-cliente-360-card span{color:#aaa397;font-size:.65rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
@@ -436,7 +438,7 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
 
   const grid=createElement(document,'div','m27-cliente-360-grid');
   grid.append(
-    card(document,'Adherencia',percent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones confirmadas`),
+    card(document,'Adherencia',percent(summary.adherence),`${summary.scheduledCompletedSessions} de ${summary.plannedSessions} citas cumplidas`),
     card(document,'Esfuerzo medio',number(summary.averageRpe),'RPE de ejecuciones confirmadas'),
     card(document,'Volumen medio',number(summary.volume),'Carga × repeticiones cuando existe dato comparable'),
     card(document,'Tendencia de volumen',Number.isFinite(summary.volumeDelta)?`${summary.volumeDelta>0?'+':''}${summary.volumeDelta}%`:'Sin comparación','Periodo reciente frente al anterior'),
@@ -446,6 +448,18 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
     card(document,'Calidad del dato',String(summary.dataQuality||'limitada'),summary.unconfirmedExecutions?`${summary.unconfirmedExecutions} sesión${summary.unconfirmedExecutions===1?'':'es'} fuera del cálculo hasta confirmar`:'Solo información confirmada'),
   );
 
+  // Profesional: tres hechos diferentes, calculados desde el mismo snapshot.
+  // No etiquetar como inasistencia una confirmación técnica pendiente.
+  const verification=createElement(document,'section','m27-cliente-360-verificacion');
+  verification.setAttribute('aria-label','Evidencia de entrenamiento');
+  verification.append(createElement(document,'h4','','Estado de entrenamientos · 28 días'));
+  const verificationCounts=createElement(document,'div','m27-cliente-360-mini');
+  verificationCounts.append(
+    mini(document,'Entrenamientos confirmados',String(summary.confirmedWorkoutExecutions)),
+    mini(document,'Pendientes de confirmación',String(summary.pendingConfirmationWorkouts)),
+    mini(document,'Ausencias registradas',String(summary.explicitlyMissedAppointments)),
+  );
+  verification.append(verificationCounts);
   const context=createElement(document,'div','m27-cliente-360-contexto');
   const wellbeing=createElement(document,'article');
   wellbeing.append(createElement(document,'h4','','Recuperación y bienestar'));
@@ -489,7 +503,7 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
     'Cliente 360 no crea una puntuación global ni atribuye causas. Cada área conserva su significado y solo utiliza datos confirmados; el entrenador interpreta el contexto y decide.',
   );
 
-  section.append(header,nowPanel,proof,grid,context,evolution,actions,note);
+  section.append(header,nowPanel,proof,verification,grid,context,evolution,actions,note);
   if(intro?.nextSibling)route.insertBefore(section,intro.nextSibling);
   else route.prepend(section);
   return true;

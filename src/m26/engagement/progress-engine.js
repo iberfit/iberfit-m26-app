@@ -9,6 +9,7 @@ import {
   sessionExecutionIsConfirmed as executionIsConfirmed,
   sessionExecutionIsCompleted as executionIsCompleted,
   sessionExecutionId,
+  reconcileSessionExecutionsForClient,
 } from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
@@ -345,9 +346,22 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   if(!clientId)return null;
   const window=progressWindow({now,days}),{start,end}=window;
   const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
-  const executionRows=forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
+  const reconciliation=reconcileSessionExecutionsForClient(state,clientId);
+  const executionRows=reconciliation.records.map(unwrap)
+    .filter((item)=>within(dateOf(item),start,end));
   const blockedExecutionIds=unconfirmedCompletionIds(state);
-  const executions=executionRows.filter((item)=>executionIsConfirmed(item,blockedExecutionIds));
+  const unconfirmedRows=executionRows
+    .filter((item)=>!executionIsConfirmed(item,blockedExecutionIds));
+  const conflictedRows=reconciliation.conflicts.filter((group)=>group.some(
+    (record)=>within(dateOf(unwrap(record)),start,end)));
+  // A completed but unacknowledged result is pending confirmation, not a
+  // completed training. A same-ID/revision contradiction also needs review.
+  const pendingConfirmationWorkouts=executionRows.filter((item)=>
+    (executionIsCompleted(item,{allowDatedFallback:false})
+      ||blockedExecutionIds.has(sessionExecutionId(item)))
+      &&!executionIsConfirmed(item,blockedExecutionIds)).length
+    +conflictedRows.filter(group=>group.some(record=>
+      executionIsCompleted(record,{allowDatedFallback:false}))).length;
   const completedExecutions=confirmedSessionExecutionsForClient(
     state,
     clientId,
@@ -355,7 +369,11 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   )
     .map(unwrap)
     .filter((item)=>within(dateOf(item),start,end));
-  const adherenceEvidence=confirmedAdherenceEvidence({appointments,executions:completedExecutions});
+  const verifiedAdherence=confirmedAdherenceEvidence({appointments,executions:completedExecutions});
+  const adherenceEvidence=Object.freeze({
+    ...verifiedAdherence,
+    conflictingExecutions:verifiedAdherence.conflictingExecutions+conflictedRows.length,
+  });
   const {plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence}=adherenceEvidence;
   const rpes=completedExecutions.flatMap(rpeValues);
   const volumeSeries=completedExecutions
@@ -401,6 +419,10 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
     plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence,
     scheduledCompletedSessions:adherenceEvidence.scheduledCompleted,
     standaloneCompletedSessions:adherenceEvidence.standaloneExecutions,
+    confirmedWorkoutExecutions:completedExecutions.length,
+    pendingConfirmationWorkouts,
+    explicitlyMissedAppointments:adherenceEvidence.missedAppointments,
+    evidenceConflicts:conflictedRows.length,
     adherenceEvidence,
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
     comparableVolumeSeries,
@@ -416,7 +438,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
     }),
     lastExecutionAt:dateOf(lastExecution)||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
     latestCheckinAt:dateOf(latestCheckin)||null,
-    unconfirmedExecutions:executionRows.length-executions.length,dataQuality,wearable,
+    unconfirmedExecutions:unconfirmedRows.length+conflictedRows.length,dataQuality,wearable,
   });
 }
 
@@ -439,8 +461,19 @@ export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,lim
   const {start,end}=progressWindow({now,days});
   const safeLimit=safePositiveInteger(limit,{fallback:24,min:1,max:200});
   const rows=[];
-  const blockedExecutionIds=unconfirmedCompletionIds(state);
-  for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>executionIsConfirmed(item,blockedExecutionIds)&&executionIsCompleted(item)))if(within(dateOf(item),start,end))rows.push({kind:'execution',executionId:sessionExecutionId(item)||null,date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
+  // History must apply the SAME owner/ID/revision/conflict truth as progress
+  // metrics and Coach; never show duplicate or quarantined workouts.
+  const verifiedExecutions=confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true});
+  for(const raw of verifiedExecutions){
+    const item=unwrap(raw);
+    if(!within(dateOf(item),start,end))continue;
+    rows.push({
+      kind:'execution',executionId:sessionExecutionId(item)||null,
+      date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',
+      status:statusOf(item),
+      detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada',
+    });
+  }
   // Client progress is a confirmed history; Coach still retains access to
   // provisional IRI events in their professional chronology.
   const iriBaseline=iriBaselineRecord(state,clientId,{confirmedOnly:confirmedIriOnly});

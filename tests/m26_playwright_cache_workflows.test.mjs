@@ -33,7 +33,7 @@ test('Playwright browser cache is lockfile-bound and preserves deterministic ins
     assert.match(workflow,/~\/\.cache\/ms-playwright/u,`${name}: Playwright cache path missing`);
     assert.match(workflow,/hashFiles\('package-lock\.json'\)/u,`${name}: lockfile cache key missing`);
     assert.match(workflow,/npm ci/u,`${name}: deterministic npm ci missing`);
-    assert.match(workflow,/playwright install-deps/u,`${name}: system dependency install missing`);
+    assert.match(workflow,/chromium\.launch\(\{headless:true\}\)/u,`${name}: real headless launch required`);
     assert.match(workflow,/cache-hit != 'true'/u,`${name}: cache-miss guard missing`);
     assert.doesNotMatch(workflow,/playwright install --with-deps/u,`${name}: browser download remains coupled to system deps`);
   }
@@ -44,7 +44,7 @@ test('Chromium-only visual and device gates remain fail-closed',()=>{
     const workflow=workflows[name];
     assert.match(workflow,/chromium\.executablePath\(\)/u,`${name}: Chromium readiness check missing`);
     if(name==='daily'){
-      assert.match(workflow,/playwright install-deps chromium/u,'daily: Chromium deps missing');
+      assert.doesNotMatch(workflow,/playwright install-deps chromium/u,'daily: unreliable apt preparation forbidden');
       assert.match(workflow,/playwright install chromium/u,'daily: Chromium miss install missing');
       assert.match(workflow,/-chromium/u,'daily: Chromium cache namespace missing');
     }else{
@@ -78,5 +78,23 @@ test('Remote gate preserves the full Chromium WebKit and Firefox bundle',()=>{
 test('Playwright cache optimization never caches node_modules',()=>{
   for(const [name,workflow] of Object.entries(workflows)){
     assert.doesNotMatch(workflow,/path:\s*(?:\.\/)?node_modules/u,`${name}: node_modules must not be cached`);
+  }
+});
+
+test('Postmerge and production browsers retain real Chromium execution without apt DNS',()=>{
+  const gates=[
+    '.github/workflows/canary-exact-deploy.yml',
+    '.github/workflows/coach-webauthn-recurring.yml',
+    '.github/workflows/admin-webauthn-recurring.yml',
+    '.github/workflows/production-promote.yml',
+    '.github/workflows/rc74-4-certification.yml',
+    '.github/workflows/daily-use-visual-evidence.yml',
+  ];
+  for(const path of gates){
+    const workflow=read(path);
+    assert.match(workflow,/runs-on: ubuntu-24\.04/u);
+    assert.match(workflow,/\.\/node_modules\/\.bin\/playwright install chromium/u);
+    assert.match(workflow,/chromium\.launch\(\{headless:true\}\)/u);
+    assert.doesNotMatch(workflow,/playwright install-deps chromium|playwright install --with-deps chromium/u);
   }
 });

@@ -20,6 +20,8 @@ on:
       - 'tests/m26_u71_qa_real_dated_journey.test.mjs'
       - 'src/m26/workflows/occurrence-qa-ui.js'
       - 'src/m26/workflows/occurrence-session-retirement-gate.js'
+      # Re-certify two real QA dates when the shared confirmed-execution source changes.
+      - 'src/m26/domain/session-execution-truth.js'
 
 permissions:
   contents: read

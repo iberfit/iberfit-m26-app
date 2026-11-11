@@ -410,6 +410,8 @@ test('production promotion fails closed on Lighthouse budgets before deployment 
   assert.match(production,/\.lighthouseci\/rc64-2a\/summary\.json/u);
   assert.match(production,/PROD_CHROMIUM_NOT_READY/u);
 
-  const installs=[...production.matchAll(/npx playwright install --with-deps chromium/gu)];
+  const installs=[...production.matchAll(/\.\/node_modules\/\.bin\/playwright install chromium/gu)];
   assert.equal(installs.length,1);
+  assert.match(production,/chromium\.launch\(\{headless:true\}\)/u);
+  assert.doesNotMatch(production,/npx playwright install --with-deps chromium/u);
 });

@@ -14,7 +14,8 @@ test('Cliente 360 derives its primary next action from the canonical client jour
   assert.ok(source.includes('const journey=deriveClientExperience(journeySummary||{});'));
   assert.ok(source.includes("const nextAction=experienceNextAction(journey,{role:String(viewModel.identity.role||'client')});"));
   assert.ok(source.includes("nowPanel.setAttribute('data-m30-cliente-360-now','true')"));
-  assert.ok(source.indexOf('section.append(header,nowPanel,proof,grid,context,evolution,actions,note)')>=0);
+  assert.ok(source.indexOf('section.append(header,nowPanel,proof,verification,grid,context,evolution,actions,note)')>=0);
+  assert.ok(source.includes("verificationCounts.append("),'the verified/pending/missed view precedes existing Client 360 sections');
 });
 
 test('Cliente 360 keeps all previous destinations while adding the decision block',()=>{

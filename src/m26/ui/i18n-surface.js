@@ -5,6 +5,12 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // UNIVERSAL B: Coach's three training evidence states, localized in every language.
+  ["Evidencia de entrenamiento","Training evidence","Preuves d'entraînement","Evidências de treino"],
+  ["Estado de entrenamientos · 28 días","Workout status · 28 days","Statut des entraînements · 28 jours","Estado dos treinos · 28 dias"],
+  ["Entrenamientos confirmados","Confirmed workouts","Entraînements confirmés","Treinos confirmados"],
+  ["Pendientes de confirmación","Awaiting confirmation","En attente de confirmation","A aguardar confirmação"],
+  ["Ausencias registradas","Recorded no-shows","Absences enregistrées","Faltas registadas"],
   // Server receipt truth for publication and workout completion.
   ["Publicación no confirmada por el servidor. Conservamos el borrador hasta verificar el resultado antes de reintentar.","Publication not confirmed by the server. The draft is kept until the result is verified before retrying.","Publication non confirmée par le serveur. Le brouillon est conservé jusqu'à vérification avant toute nouvelle tentative.","Publicação não confirmada pelo servidor. O rascunho é preservado até verificar o resultado antes de tentar novamente."],
   ["Finalización pendiente de confirmación del servidor. Conservamos tu registro y evitamos un cierre sin verificar.","Completion awaiting server confirmation. Your record is kept, and the workout will not be marked as verified.","Fin en attente de confirmation du serveur. Votre enregistrement est conservé sans valider prématurément la séance.","Conclusão a aguardar confirmação do servidor. O registo é preservado sem marcar a sessão como verificada."],

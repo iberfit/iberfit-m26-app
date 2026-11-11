@@ -388,7 +388,10 @@ jobs:
     needs: [pr-current-head, m43-real-coach-client-qa]
     if: ${{ needs.pr-current-head.outputs.current == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
     name: M43 real Client browser current-source
-    runs-on: ubuntu-latest
+    # Pin the LTS image during GitHub's ubuntu-latest 26.04 rollout.
+    # Ubuntu 26 failed before browser tests at Playwright install-deps/DNS.
+    # Keep the identical real auth, browser, artifact and fail-closed gates.
+    runs-on: ubuntu-24.04
     timeout-minutes: 18
     environment: m26-canary-readonly
     concurrency:
@@ -416,11 +419,11 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
-      - name: Install Chromium system dependencies
-        run: npx playwright install-deps chromium
       - name: Install Chromium if cache missed
         if: steps.chromium-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
+        run: ./node_modules/.bin/playwright install chromium
+      - name: Verify real Chromium headless launch
+        run: node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({headless:true}); await browser.close();"
       - name: Build current-source authenticated QA shell
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
