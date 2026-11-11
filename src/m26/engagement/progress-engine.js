@@ -461,8 +461,19 @@ export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,lim
   const {start,end}=progressWindow({now,days});
   const safeLimit=safePositiveInteger(limit,{fallback:24,min:1,max:200});
   const rows=[];
-  const blockedExecutionIds=unconfirmedCompletionIds(state);
-  for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>executionIsConfirmed(item,blockedExecutionIds)&&executionIsCompleted(item)))if(within(dateOf(item),start,end))rows.push({kind:'execution',executionId:sessionExecutionId(item)||null,date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
+  // History must apply the SAME owner/ID/revision/conflict truth as progress
+  // metrics and Coach; never show duplicate or quarantined workouts.
+  const verifiedExecutions=confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true});
+  for(const raw of verifiedExecutions){
+    const item=unwrap(raw);
+    if(!within(dateOf(item),start,end))continue;
+    rows.push({
+      kind:'execution',executionId:sessionExecutionId(item)||null,
+      date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',
+      status:statusOf(item),
+      detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada',
+    });
+  }
   // Client progress is a confirmed history; Coach still retains access to
   // provisional IRI events in their professional chronology.
   const iriBaseline=iriBaselineRecord(state,clientId,{confirmedOnly:confirmedIriOnly});

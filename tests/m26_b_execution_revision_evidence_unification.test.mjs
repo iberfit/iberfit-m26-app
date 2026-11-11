@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reconcileSessionExecutionsForClient,confirmedSessionExecutionsForClient} from '../src/m26/domain/session-execution-truth.js';
-import {computeProgressSummary,buildExerciseLongitudinalProgress} from '../src/m26/engagement/progress-engine.js';
+import {computeProgressSummary,buildExerciseLongitudinalProgress,buildProgressTimeline} from '../src/m26/engagement/progress-engine.js';
 import {confirmedAdherenceEvidence} from '../src/m26/engagement/confirmed-adherence.js';
 
 const now=new Date('2026-11-11T12:00:00Z');
@@ -120,4 +120,22 @@ test('pending completion receipt on an active local row must not be mistaken for
   assert.equal(summary.confirmedWorkoutExecutions,0);
   assert.equal(summary.pendingConfirmationWorkouts,1);
   assert.equal(summary.explicitlyMissedAppointments,0);
+});
+
+test('Client chronology excludes duplicate and contradictory same-revision executions in either order',()=>{
+  const a=completion();
+  const duplicate=completion({results:[{rpe:7,loadKg:40,reps:5,exerciseId:'squat'}]});
+  const conflict=completion({results:[{exerciseId:'squat',reps:5,loadKg:99,rpe:8}]});
+  for(const executions of [[a,duplicate],[duplicate,a]]){
+    const rows=buildProgressTimeline(state(executions),'client-one',{now,days:28});
+    assert.equal(rows.filter(row=>row.kind==='execution').length,1);
+  }
+  for(const executions of [[a,conflict],[conflict,a]]){
+    const rows=buildProgressTimeline(state(executions),'client-one',{now,days:28});
+    assert.equal(rows.filter(row=>row.kind==='execution').length,0);
+  }
+  const recovered=buildProgressTimeline(
+    state([a,conflict,completion({revision:5})]),'client-one',{now,days:28},
+  );
+  assert.equal(recovered.filter(row=>row.kind==='execution').length,1);
 });
