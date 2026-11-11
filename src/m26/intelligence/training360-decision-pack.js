@@ -78,6 +78,38 @@ function verifiedExecution(row,clientId,occurrence){
   return Object.freeze({id,status:lower(field(row,'status','executionStatus','execution_status')),
     revision,localDate:occurrence.localDate,sessionId:sid});
 }
+function evidenceIndex(records,idOf,signatureOf){
+  // Accept repeated identical projections; a contradictory same-ID record is
+  // untrusted regardless of arrival order. No private body is returned.
+  const values=new Map(),ambiguous=new Set();
+  for(const item of records){
+    const id=idOf(item);
+    if(!id||ambiguous.has(id))continue;
+    const signature=signatureOf(item);
+    const previous=values.get(id);
+    if(previous&&previous.signature!==signature){
+      values.delete(id);ambiguous.add(id);
+    }else if(!previous){
+      values.set(id,{item,signature});
+    }
+  }
+  return {byId:new Map([...values].map(([id,entry])=>[id,entry.item])),
+    ambiguous};
+}
+const appointmentEvidence=row=>JSON.stringify([
+  cleanId(field(row,'clientId','client_id')),
+  cleanId(field(row,'sessionId','session_id')),
+  lower(field(row,'status')),
+  String(field(row,'startAt','start_at','scheduledAt','scheduled_at')??''),
+  String(field(row,'endAt','end_at')??''),
+]);
+const executionEvidence=row=>JSON.stringify([
+  cleanId(field(row,'clientId','client_id')),
+  cleanId(field(row,'sessionId','session_id')),
+  cleanId(field(row,'occurrenceId','occurrence_id')),
+  lower(field(row,'status','executionStatus','execution_status')),
+  field(row,'revision'),
+]);
 const statusLabel={
   planificada:'Fecha por confirmar',confirmada:'Entrenamiento confirmado',
   en_curso:'Entrenamiento en curso',completada:'Entrenamiento realizado',
@@ -99,12 +131,12 @@ export function buildTraining360DecisionPack({
   if(![sessions,appointments,occurrences,executions].every(Array.isArray))
     throw new Error('U60_DECISION_COLLECTIONS_INVALID');
   const today=localToday(now);
-  const prescriptions=new Map(sessions.map(row=>authorizedPrescription(row,owner,role))
-    .filter(Boolean).map(row=>[row.id,row]));
-  const appointmentById=new Map(appointments.filter(row=>
-    cleanId(field(row,'clientId','client_id'))===owner)
-    .map(row=>[cleanId(field(row,'id','entityId','entity_id')),row])
-    .filter(([id])=>Boolean(id)));
+  const {byId:prescriptions,ambiguous:conflictedPrescriptions}=evidenceIndex(
+    sessions.map(row=>authorizedPrescription(row,owner,role)).filter(Boolean),
+    row=>row.id,row=>JSON.stringify([row.title,row.status,row.modality]));
+  const {byId:appointmentById,ambiguous:conflictedAppointments}=evidenceIndex(
+    appointments.filter(row=>cleanId(field(row,'clientId','client_id'))===owner),
+    row=>cleanId(field(row,'id','entityId','entity_id')),appointmentEvidence);
   const rows=new Map();
   const ambiguousOccurrenceIds=new Set();
   for(const input of occurrences){
@@ -127,9 +159,9 @@ export function buildTraining360DecisionPack({
     }
     rows.set(o.id,o);
   }
-  const executionMap=new Map(executions.map(row=>
-    [cleanId(field(row,'id','entityId','entity_id','executionId','execution_id')),row])
-    .filter(([id])=>id));
+  const {byId:executionMap,ambiguous:conflictedExecutions}=evidenceIndex(
+    executions,row=>cleanId(field(row,'id','entityId','entity_id','executionId','execution_id')),
+    executionEvidence);
   const dates=[...rows.values()].sort((a,b)=>a.localDate.localeCompare(b.localDate)
     ||a.id.localeCompare(b.id));
   const items=dates.map(o=>{
@@ -230,7 +262,9 @@ export function buildTraining360DecisionPack({
       cancelled:items.filter(x=>x.status==='cancelada').length,
       verifiedAdherencePct:possibleAdherence,
       insufficientEvidence:unverifiedCompletedDue||unresolvedInProgress
-        ||ambiguousOccurrenceIds.size>0||dates.some(x=>!visibleIds.has(x.id)),
+        ||ambiguousOccurrenceIds.size>0||conflictedPrescriptions.size>0
+        ||conflictedAppointments.size>0||conflictedExecutions.size>0
+        ||dates.some(x=>!visibleIds.has(x.id)),
     }),
     days:Object.freeze(days),upcoming:Object.freeze(upcoming),
     needsRecovery:Object.freeze(needsRecovery),

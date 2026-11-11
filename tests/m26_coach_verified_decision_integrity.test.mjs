@@ -84,3 +84,37 @@ test('weekly Coach volume excludes omitted and contradictory kg loads without lo
  assert.equal(result.weeks[1].strengthVolume,350);
  assert.equal(result.weeks[1].rpe,7);
 });
+
+test('U60: contradictory duplicate execution cannot certify an occurred workout',()=>{
+ const CLIENT='10000000-0000-4000-8000-000000000101';
+ const S='10000000-0000-4000-8000-000000000103';
+ const O='10000000-0000-4000-8000-000000000104';
+ const E='10000000-0000-4000-8000-000000000107';
+ const AP='10000000-0000-4000-8000-000000000108';
+ const session={id:S,clientId:CLIENT,title:'Fuerza',status:'disponible',
+  deliveryModality:'guiada_en_app',visibleToClient:true,clientVisibilityLevel:'full'};
+ const appointment={id:AP,clientId:CLIENT,sessionId:S,status:'completada'};
+ const occurrence={id:O,clientId:CLIENT,sessionId:S,localDate:'2026-11-10',
+  timeZone:'America/Santiago',status:'completada',revision:3,executionId:E,appointmentId:AP};
+ const good={id:E,clientId:CLIENT,sessionId:S,occurrenceId:O,status:'completada',revision:3};
+ const run=(executions,appointments=[appointment],sessions=[session])=>
+  buildTraining360DecisionPack({role:'coach',clientId:CLIENT,now:NOW,
+   sessions,appointments,occurrences:[occurrence],executions});
+ const ok=run([good,{...good}]);
+ assert.equal(ok.summary.completedDue,1,'identical canonical snapshots are safe');
+ assert.equal(ok.summary.verifiedAdherencePct,100);
+ for(const arr of [[good,{...good,status:'en_curso'}],
+                    [{...good,status:'en_curso'},good],
+                    [good,{...good,clientId:'10000000-0000-4000-8000-000000000102'}]]){
+  const result=run(arr);
+  assert.equal(result.summary.completedDue,0);
+  assert.equal(result.summary.verifiedAdherencePct,null);
+  assert.equal(result.summary.insufficientEvidence,true);
+  assert.equal(result.needsRecovery.length,1);
+ }
+ const conflictingAppointment=run([good],[appointment,{...appointment,status:'cancelada'}]);
+ assert.equal(conflictingAppointment.summary.insufficientEvidence,true);
+ const conflictingPrescription=run([good],[appointment],[session,{...session,title:'Borrador contradictorio'}]);
+ assert.equal(conflictingPrescription.summary.scheduledDates,0);
+ assert.equal(conflictingPrescription.summary.insufficientEvidence,true);
+});
