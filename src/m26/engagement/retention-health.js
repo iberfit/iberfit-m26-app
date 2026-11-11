@@ -15,9 +15,13 @@ function factor(id,label,status,evidence,source,quality='media',detail=null){ret
 
 function adherenceFactor(summary){
   const planned=Number(summary?.plannedSessions||0);
-  const completed=Number(summary?.completedSessions||0);
+  // Autonomous sessions count as activity, not attendance to a booked date.
+  const completed=Number(summary?.scheduledCompletedSessions??summary?.completedSessions??0);
   const adherence=finite(summary?.adherence);
-  if(planned<3||adherence===null){
+  if(!Number.isSafeInteger(planned)||!Number.isSafeInteger(completed)
+    ||planned<3||completed<0||completed>planned
+    ||adherence===null||adherence<0||adherence>1
+    ||Math.abs(adherence-completed/planned)>0.01){
     return factor('adherence','Adherencia','insufficient','Se necesitan al menos 3 sesiones planificadas comparables en 28 días.','appointments+sessionExecutions','limitada');
   }
   const status=completed===0||adherence<0.4?'red':adherence<0.7?'yellow':'green';
