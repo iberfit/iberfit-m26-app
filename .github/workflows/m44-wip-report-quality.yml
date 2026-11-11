@@ -93,7 +93,8 @@ jobs:
 
   report-a4-chromium:
     name: M44 premium A4 Chromium desktop tablet mobile
-    runs-on: ubuntu-latest
+    # Preserve real Chromium checks; avoid ubuntu-latest transitional DNS failures.
+    runs-on: ubuntu-24.04
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4

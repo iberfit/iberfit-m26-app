@@ -26,7 +26,8 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    # Keep browser dependencies on the stable LTS runner during ubuntu-latest migration.
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - name: Descargar repositorio

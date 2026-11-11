@@ -126,7 +126,7 @@ function executionRevision(record){
 function stableEvidenceJson(value){
   if(Array.isArray(value))return '['+value.map(stableEvidenceJson).join(',')+']';
   if(value&&typeof value==='object'){
-    return '{'+Object.keys(value).sort().map(key=>
+    return '{'+Object.keys(value).sort((left,right)=>left.localeCompare(right)).map(key=>
       JSON.stringify(key)+':'+stableEvidenceJson(value[key])).join(',')+'}';
   }
   return JSON.stringify(value??null);

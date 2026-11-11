@@ -89,7 +89,8 @@ jobs:
   authenticated-client-controls:
     needs: pr-current-head
     if: ${{ needs.pr-current-head.outputs.current == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
-    runs-on: ubuntu-latest
+    # Keep real authenticated Chromium checks on the proven LTS image.
+    runs-on: ubuntu-24.04
     concurrency:
       group: iberfit-authenticated-client-interaction-readonly
       cancel-in-progress: false
