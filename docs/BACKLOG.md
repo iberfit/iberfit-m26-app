@@ -1,3 +1,13 @@
+## MACROBLOQUE A · U71 real QA aprobado, activación PROD aún cerrada · 11/11/2026
+
+**Evidencia real en QA, SHA exacto `115cd58f8a9b8514882564a7b8e4e73af41c664b`:** [workflow U71 #42940200564](https://github.com/iberfit/iberfit-m26-app/actions/runs/42940200564), intento 1 READ-ONLY SUCCESS y reejecución explícita del job intento 2 SUCCESS. Flujo autenticado Coach→dos citas confirmadas→lote de dos fechas→Cliente A ve ambas→Client B no ve datos de A→inicio/guardado/finalización de la primera ejecución→rechazo del inicio anticipado de la segunda→Coach readback. Nueva selección determinista de prescripción desocupada: en QA había 17 candidatas sintéticas y 16 sin colisión; no eliminó historial anterior. Readback SQL adicional: 2 citas sintéticas, 1 prescripción, 2 ocurrencias distintas en días distintos, 1 ocurrencia completada, 1 futura confirmada, 1 ejecución vinculada con estado tipado `cerrada_confirmada` y `remote_confirmed_at` presente, aislamiento correcto. **NO** se han completado todavía las dos ejecuciones en sus respectivos días: esa prueba longitudinal sigue pendiente.
+
+**Paridad real schema QA vs PROD (solo SELECT):** las 8 versiones U30–U60 están instaladas en ambos, RLS/denegación directa/granular, trigger receipt, bloqueo legacy y FK validada. Las dos RPC `iberfit_occurrence_api_u60_v1` y `iberfit_occurrence_detail_v1` son ejecutables por authenticated en QA, pero **no en PROD**; anon denegado en ambos. La PR A incluye gate específico de activación que comprueba los permisos autenticados sin interferir con el gate genérico de releases frontend. No ejecutar GRANT ni abrir permisos de PROD hasta completar circuito de activación/reversión y dispositivo.
+
+**Próximos gates:** QA navegador real/Coach WebAuthn completo/Client touch 320–390/tablet, segundo día longitudinal y recuperación, migración/grant explícitamente protegidos con rollback, pruebas negativa IDOR, QA+PROD exact-SHA, smoke y rollback. Esta evidencia no autoriza afirmar U60 LIVE ni cierre del bloque A; PR #1320 sigue DRAFT.
+
+---
+
 ## RADAR FREE AI DESIGN + QUALITY 360 · incorporación al roadmap (10/11/2026)
 
 **Decisión:** integrar oportunidades gratuitas de IA visual, UX, programación y aseguramiento de calidad como instrumentos de la hoja de ruta A → B → C, **sin abrir WIP ni PR independientes**, sin sustituir SIGNATURE MASTER VISUAL R49 ni copiar interfaces de competidores. La auditoría de Perplexity Free aportó hipótesis de producto y benchmark pero **NO pudo leer el código**; contrastar cada hallazgo con GitHub/QA/LIVE antes de modificar. Esta sección registra investigación, no capacidades desplegadas ni permisos a terceros.

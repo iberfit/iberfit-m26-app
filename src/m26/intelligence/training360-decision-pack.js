@@ -65,6 +65,24 @@ function authorizedPrescription(row,clientId,role){
     modality:lower(field(row,'deliveryModality','delivery_modality')),
   });
 }
+function normalizedExecutionStatus(value){
+  const status=lower(value);
+  if(['completada','completado','completed','cerrada_confirmada'].includes(status))
+    return 'completada';
+  if(['en_curso','activa','active'].includes(status))
+    return 'en_curso';
+  return status;
+}
+function executionEvidenceHealth(row){
+  const status=normalizedExecutionStatus(field(row,'status','executionStatus','execution_status'));
+  const typed=lower(field(row,'execution_status'));
+  const typedConflict=Boolean(typed&&normalizedExecutionStatus(typed)!==status);
+  const remote=field(row,'remoteConfirmedAt','remote_confirmed_at');
+  const typedWithoutReceipt=typed==='cerrada_confirmada'
+    &&!(typeof remote==='string'&&remote.trim()
+      &&Number.isFinite(Date.parse(remote)));
+  return {status,typedConflict,typedWithoutReceipt};
+}
 function verifiedExecution(row,clientId,occurrence){
   if(!row||!occurrence)return null;
   const id=cleanId(field(row,'id','entityId','entity_id','executionId','execution_id'));
@@ -74,11 +92,13 @@ function verifiedExecution(row,clientId,occurrence){
   const revision=Number(field(row,'revision')??-1);
   const sync=lower(field(row,'syncStatus','sync_status'));
   const confirmed=field(row,'serverConfirmed','server_confirmed');
+  const health=executionEvidenceHealth(row);
   if(!id||owner!==clientId||sid!==occurrence.sessionId
     ||oid!==occurrence.id||id!==occurrence.executionId
     ||!Number.isSafeInteger(revision)||revision<1
-    ||(sync&&sync!=='clean')||confirmed===false)return null;
-  return Object.freeze({id,status:lower(field(row,'status','executionStatus','execution_status')),
+    ||(sync&&sync!=='clean')||confirmed===false
+    ||health.typedConflict||health.typedWithoutReceipt)return null;
+  return Object.freeze({id,status:health.status,
     revision,localDate:occurrence.localDate,sessionId:sid});
 }
 function evidenceIndex(records,idOf,signatureOf){
@@ -106,13 +126,18 @@ const appointmentEvidence=row=>JSON.stringify([
   String(field(row,'startAt','start_at','scheduledAt','scheduled_at')??''),
   String(field(row,'endAt','end_at')??''),
 ]);
-const executionEvidence=row=>JSON.stringify([
-  cleanId(field(row,'clientId','client_id')),
-  cleanId(field(row,'sessionId','session_id')),
-  cleanId(field(row,'occurrenceId','occurrence_id')),
-  lower(field(row,'status','executionStatus','execution_status')),
-  field(row,'revision'),
-]);
+const executionEvidence=row=>{
+  const health=executionEvidenceHealth(row);
+  return JSON.stringify([
+    cleanId(field(row,'clientId','client_id')),
+    cleanId(field(row,'sessionId','session_id')),
+    cleanId(field(row,'occurrenceId','occurrence_id')),
+    health.status,field(row,'revision'),
+    lower(field(row,'syncStatus','sync_status'))||'clean',
+    field(row,'serverConfirmed','server_confirmed')===false?'denied':'not-denied',
+    health.typedConflict,health.typedWithoutReceipt,
+  ]);
+};
 const statusLabel={
   planificada:'Fecha por confirmar',confirmada:'Entrenamiento confirmado',
   en_curso:'Entrenamiento en curso',completada:'Entrenamiento realizado',

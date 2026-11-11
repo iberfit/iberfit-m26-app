@@ -201,3 +201,21 @@ test('U60 rejects a reused appointment ID or wrong Chile civil date',()=>{
  const coach=buildTraining360DecisionPack({...original,role:'coach',occurrences:[original.occurrences[0],{...original.occurrences[1],appointmentId:AP1}]});
  assert.equal(coach.summary.scheduledDates,2);assert.equal(coach.summary.insufficientEvidence,true);
 });
+
+test('U60 raw typed confirmed receipt and canonical mirror normalize to identical verified outcome',()=>{
+ const C='10000000-0000-4000-8000-000000000301',S='10000000-0000-4000-8000-000000000302';
+ const O='10000000-0000-4000-8000-000000000303',E='10000000-0000-4000-8000-000000000304',AP='10000000-0000-4000-8000-000000000305';
+ const appointment={id:AP,clientId:C,sessionId:S,status:'completada',startAt:'2026-11-10T15:00:00Z'};
+ const occurrence={id:O,clientId:C,sessionId:S,appointmentId:AP,localDate:'2026-11-10',timeZone:'America/Santiago',status:'completada',revision:3,executionId:E};
+ const completed={id:E,clientId:C,sessionId:S,occurrenceId:O,revision:3,status:'completada',syncStatus:'clean'};
+ const typed={...completed,status:'completed',execution_status:'cerrada_confirmada',remote_confirmed_at:'2026-11-10T16:00:00Z'};
+ const input={role:'coach',clientId:C,now:NOW,sessions:[{id:S,clientId:C,title:'Fuerza',status:'disponible',deliveryModality:'guiada_en_app',visibleToClient:true,clientVisibilityLevel:'full'}],appointments:[appointment],occurrences:[occurrence],executions:[completed,typed]};
+ const ok=buildTraining360DecisionPack(input);
+ assert.equal(ok.summary.completedDue,1);assert.equal(ok.summary.verifiedAdherencePct,100);
+ for(const malformed of [{...typed,remote_confirmed_at:null},{...typed,execution_status:'en_curso'},{...typed,syncStatus:'pending'},{...typed,serverConfirmed:false}]){
+  for(const order of [[completed,malformed],[malformed,completed]]){
+   const result=buildTraining360DecisionPack({...input,executions:order});
+   assert.equal(result.summary.completedDue,0);assert.equal(result.summary.verifiedAdherencePct,null);assert.equal(result.summary.insufficientEvidence,true);
+  }
+ }
+});
