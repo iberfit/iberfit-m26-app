@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "0cf9a9e978e256642e5adbf6332160834d32a668",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "d8f82511b455d1e07beb45fdf3bd63f38b5135df",
+  "notes": "IBERFIT Macrobloque A frontend-only. Exact seven Canary source-SHA gates GREEN; M44 encrypted offsite PG17/Storage backup run 42804469624 GREEN; U60 authenticated PROD RPC remains disabled. No SQL/Auth/RLS/Storage changes."
+}
