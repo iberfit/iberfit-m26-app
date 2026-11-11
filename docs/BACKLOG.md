@@ -1,3 +1,13 @@
+## MACROBLOQUE C · Connected360 histórico fiable + interfaz native-first (WIP 11/11/2026)
+
+**Fuente exacta:** Canary `2a41bc229007a78113eb3c408246445d4c40e783`, A+B promocionados y verificados LIVE en PROD con release #43022362179. **Este C NO está fusionado, desplegado ni aplicado en PROD.** La RPC productiva V47 ya devuelve solo los días de los últimos 30, pero existen 7 observaciones legítimas antiguas 06–12/10 que quedan excluidas el 11/11. QA aún no tiene tabla/RPC V47 y no acredita la prueba de migración real; producción sin SQL nuevo.
+
+**Entrega coherente:** reemplazo reversible de la lectura owner-scoped para mostrar siete observaciones reales más recientes sin caducidad arbitraria, con índice existente por (owner, client, provider, date); UI historia sin caducidad con fecha explícita, sin confundirla con últimos siete días ni con decisiones de entrenamiento; pruebas de propiedad, ACK de fuente, antigüedad, futuras, separación de datos y rollback. Mantener importación nativa de 30 días y permisos de OS **intactos**; histórico conservado no concede nuevo acceso a Health Connect.
+
+**Gates NO-GO:** paridad QA V47, M44 fresco restaurado, prueba real rol/owner y WebAuthn, SQL release protegido, Canary/PROD exact SHA y readback de Cliente real. No aplicar SQL directamente por conectores. No confundir PR #1255 (basada en un estado antiguo de 30 días) con un cambio todavía pendiente de esa misma ventana; mantener privacidad #1319 bloqueada e independiente.
+
+---
+
 ## MACROBLOQUE B · Cliente · Progreso y retención con evidencia confirmada (WIP 11/11/2026)
 
 **Base:** Canary integrado `0cf9a9e978e256642e5adbf6332160834d32a668`, PR A #1320 fusionada con checks de PR verdes. La promoción LIVE de A no debe declararse certificada hasta que los workflows exact-SHA de Canary y PROD concluyan; U60 authenticated PROD sigue cerrado. No mezclar con limpieza destructiva #1319.
