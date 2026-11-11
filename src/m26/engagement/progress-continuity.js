@@ -17,11 +17,31 @@ function windowLabel(days){
   return `${days} días`;
 }
 
+/**
+ * Canonical counts and ratios are inseparable. Never reuse a mismatched
+ * summary cache for a different Client, date window or booked denominator.
+ * Completed autonomous workouts remain activity, not booked attendance.
+ */
+export function reusableConfirmedSummary(candidate,clientId,days){
+  if(!candidate||typeof candidate!=='object'||Array.isArray(candidate)
+    ||String(candidate.clientId||'')!==String(clientId||'')
+    ||Number(candidate.days)!==days)return null;
+  const planned=Number(candidate.plannedSessions);
+  const completed=Number(candidate.scheduledCompletedSessions
+    ??candidate.completedSessions);
+  const pct=candidate.adherence;
+  if(!Number.isSafeInteger(planned)||planned<0
+    ||!Number.isSafeInteger(completed)||completed<0||completed>planned)
+    return null;
+  if(planned===0)return pct===null?candidate:null;
+  if(typeof pct!=='number'||!Number.isFinite(pct)||pct<0||pct>1
+    ||Math.abs(pct-completed/planned)>0.01)return null;
+  return candidate;
+}
 function reusableSummary(summaries,clientId,days){
   if(!summaries||typeof summaries!=='object')return null;
   const candidate=summaries?.[days]??summaries?.[`d${days}`]??null;
-  if(!candidate||String(candidate.clientId||'')!==String(clientId||''))return null;
-  return Number(candidate.days)===days?candidate:null;
+  return reusableConfirmedSummary(candidate,clientId,days);
 }
 
 export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26_ADHERENCE_WINDOWS,summaries=null}={}){
@@ -32,7 +52,11 @@ export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26
       const summary=reusableSummary(summaries,clientId,days)
         ??computeProgressSummary(state,clientId,{now,days});
       const plannedSessions=Number(summary?.plannedSessions||0);
-      const completedSessions=Number(summary?.completedSessions||0);
+      const activityCompletedSessions=Number(summary?.completedSessions||0);
+      // The Constancia numerator is booked sessions fulfilled, not every
+      // autonomous training performed in the same 7/28/90 day period.
+      const completedSessions=Number(summary?.scheduledCompletedSessions
+        ??summary?.completedSessions??0);
       const adherence=Number.isFinite(summary?.adherence)?summary.adherence:null;
 
       return Object.freeze({
@@ -40,6 +64,7 @@ export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26
         label:windowLabel(days),
         plannedSessions,
         completedSessions,
+        activityCompletedSessions,
         adherence,
         hasPlan:plannedSessions>0,
         dataQuality:String(summary?.dataQuality||'limitada'),

@@ -1,4 +1,5 @@
 import { computeProgressSummary, progressWindow } from './progress-engine.js';
+import {reusableConfirmedSummary} from './progress-continuity.js';
 import {
   confirmedSessionExecutionsForClient,
   sessionExecutionDate,
@@ -167,27 +168,22 @@ export function deriveAdherenceTrajectoryFromSummaries({d7=null,d28=null,d90=nul
 export function deriveAdherenceTrajectory(state,clientId,{now=new Date(),summaries=null,summary:providedSummary=null}={}){
   if(!clientId)return deriveAdherenceTrajectoryFromSummaries();
   const d28=
-    summaries?.d28?.clientId===clientId&&Number(summaries?.d28?.days)===28
-      ?summaries.d28
-      :providedSummary?.clientId===clientId&&Number(providedSummary?.days)===28
-        ?providedSummary
-        :computeProgressSummary(state,clientId,{now,days:28});
+    reusableConfirmedSummary(summaries?.d28,clientId,28)
+    ??reusableConfirmedSummary(providedSummary,clientId,28)
+    ??computeProgressSummary(state,clientId,{now,days:28});
   const d7=
-    summaries?.d7?.clientId===clientId&&Number(summaries?.d7?.days)===7
-      ?summaries.d7
-      :computeProgressSummary(state,clientId,{now,days:7});
+    reusableConfirmedSummary(summaries?.d7,clientId,7)
+    ??computeProgressSummary(state,clientId,{now,days:7});
   const d90=
-    summaries?.d90?.clientId===clientId&&Number(summaries?.d90?.days)===90
-      ?summaries.d90
-      :computeProgressSummary(state,clientId,{now,days:90});
+    reusableConfirmedSummary(summaries?.d90,clientId,90)
+    ??computeProgressSummary(state,clientId,{now,days:90});
   return deriveAdherenceTrajectoryFromSummaries({d7,d28,d90});
 }
 
 export function deriveAdherenceAlerts(state,clientId,{now=new Date(),summary:providedSummary=null,trajectory:providedTrajectory=null,summaries=null}={}){
   const summary=
-    providedSummary?.clientId===clientId&&Number(providedSummary?.days)===28
-      ?providedSummary
-      :computeProgressSummary(state,clientId,{now,days:28});
+    reusableConfirmedSummary(providedSummary,clientId,28)
+    ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary)return [];
   const trajectory=providedTrajectory||deriveAdherenceTrajectory(state,clientId,{now,summaries,summary});
   const alerts=[];

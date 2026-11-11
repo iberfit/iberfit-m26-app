@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {confirmedAdherenceEvidence} from '../src/m26/engagement/confirmed-adherence.js';
 import {__retentionHealthInternals} from '../src/m26/engagement/retention-health.js';
 import {buildProgressHub} from '../src/m26/engagement/progress-hub.js';
+import {buildAdherenceWindows,reusableConfirmedSummary} from '../src/m26/engagement/progress-continuity.js';
 
 const appointment=(id,status='confirmada')=>({id,sessionId:'session-a',status,revision:2});
 const completion=(id,more={})=>({
@@ -185,4 +186,43 @@ test('B: 7/28/90 trajectory quarantines counts and ratios that do not agree',()=
  assert.equal(actual.windows.d28.adherence,null);
  assert.equal(actual.windows.d7.adherence,1);
  assert.equal(actual.windows.d90.adherence,0.625);
+});
+
+test('B: booked 7/28/90 adherence cannot be inflated by autonomous activity',()=>{
+ const now=new Date('2026-11-10T20:00:00Z');
+ const execution=idx=>({id:'e'+idx,clientId:'c1',status:'completed',syncStatus:'clean',
+  completedAt:'2026-11-09T11:00:00Z',appointmentId:null});
+ const state={collections:{appointments:[{id:'a1',clientId:'c1',status:'confirmada',
+   startAt:'2026-11-09T10:00:00Z'}],sessionExecutions:[1,2,3,4].map(execution),
+   iriAssessments:[],checkins:[],wearableDailySummaries:[],sessions:[],trainingCycles:[]}};
+ const windows=buildAdherenceWindows(state,'c1',{now});
+ assert.deepEqual(windows.map(x=>x.plannedSessions),[1,1,1]);
+ assert.deepEqual(windows.map(x=>x.completedSessions),[0,0,0]);
+ assert.deepEqual(windows.map(x=>x.activityCompletedSessions),[4,4,4]);
+ assert.deepEqual(windows.map(x=>x.adherence),[0,0,0]);
+ const hub=buildProgressHub(state,'c1',{now});
+ const consistency=hub.pillars.find(x=>x.id==='consistency');
+ assert.equal(consistency.value,0);assert.match(consistency.evidence,/0 de 1 citas programadas cumplidas/);
+});
+test('B: wrong-client or contradictory cached 28-day progress is ignored and recomputed',()=>{
+ const base={clientId:'c1',days:28,plannedSessions:2,completedSessions:2,scheduledCompletedSessions:1,adherence:0.5};
+ assert.equal(reusableConfirmedSummary(base,'c1',28),base);
+ for(const candidate of [
+  {...base,clientId:'c2'}, {...base,days:90}, {...base,adherence:1},
+  {...base,scheduledCompletedSessions:3}, {...base,plannedSessions:true},
+  {...base,adherence:NaN}, {...base,adherence:2},
+ ])assert.equal(reusableConfirmedSummary(candidate,'c1',28),null);
+ const state={collections:{appointments:[],sessionExecutions:[],iriAssessments:[],
+  checkins:[],wearableDailySummaries:[],sessions:[],trainingCycles:[]}};
+ const now=new Date('2026-11-10T20:00:00Z');
+ const forged={...base,scheduledCompletedSessions:2,adherence:1};
+ const windows=buildAdherenceWindows(state,'c1',{now,windows:[28],summaries:{28:forged}});
+ // Internally consistent but stale cache is acceptable: freshness is governed by
+ // the caller's snapshot revision. Contradictory data must never be accepted.
+ assert.equal(windows[0].adherence,1);
+ const inconsistent={...base,scheduledCompletedSessions:2,adherence:0.25};
+ const rejected=buildAdherenceWindows(state,'c1',{now,windows:[28],summaries:{28:inconsistent}});
+ assert.equal(rejected[0].adherence,null);assert.equal(rejected[0].hasPlan,false);
+ const hub=buildProgressHub(state,'c1',{now,summaries:{28:inconsistent}});
+ assert.equal(hub.pillars.find(x=>x.id==='consistency').status,'insufficient');
 });
