@@ -119,3 +119,35 @@ test('U60: contradictory duplicate execution cannot certify an occurred workout'
  assert.equal(conflictingPrescription.summary.scheduledDates,0);
  assert.equal(conflictingPrescription.summary.insufficientEvidence,true);
 });
+
+test('U60 unrelated duplicate does not inflate an honest client integrity warning',()=>{
+ const ids={
+  client:'10000000-0000-4000-8000-000000000111',
+  other:'10000000-0000-4000-8000-000000000112',
+  session:'10000000-0000-4000-8000-000000000113',
+  occurrence:'10000000-0000-4000-8000-000000000114',
+  appointment:'10000000-0000-4000-8000-000000000115',
+  unrelated:'10000000-0000-4000-8000-000000000116',
+ };
+ const presc={id:ids.session,clientId:ids.client,title:'Fuerza',
+  status:'disponible',deliveryModality:'guiada_en_app',
+  visibleToClient:true,clientVisibilityLevel:'full'};
+ const original={role:'client',clientId:ids.client,now:NOW,
+  sessions:[presc],
+  appointments:[{id:ids.appointment,clientId:ids.client,
+   sessionId:ids.session,status:'confirmada'}],
+  occurrences:[{id:ids.occurrence,clientId:ids.client,sessionId:ids.session,
+   timeZone:'America/Santiago',localDate:'2026-11-13',status:'confirmada',
+   revision:1,appointmentId:ids.appointment}],
+  executions:[{id:ids.unrelated,clientId:ids.other,status:'completed',revision:1},
+   {id:ids.unrelated,clientId:ids.other,status:'en_curso',revision:1}],
+ };
+ const clean=buildTraining360DecisionPack(original);
+ assert.equal(clean.summary.scheduledDates,1);
+ assert.equal(clean.summary.insufficientEvidence,false,'unlinked foreign collision is not client evidence');
+ const crossVisibility=buildTraining360DecisionPack({...original,sessions:[
+  presc,{...presc,visibleToClient:false}
+ ]});
+ assert.equal(crossVisibility.summary.scheduledDates,0);
+ assert.equal(crossVisibility.summary.insufficientEvidence,true);
+});
