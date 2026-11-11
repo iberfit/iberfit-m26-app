@@ -84,3 +84,50 @@ test('U81: no invented data, no hidden truncation and normal short snapshots unc
  assert.deepEqual(empty,src);
  assert.equal(empty.data.domainEvents.length,0);
 });
+
+
+test('U82 QA scoped Coach nested same-record aliases are lossless, revision-preserving and strictly opt-in',()=>{
+ const sessionId='44444444-4444-4444-8444-444444444444';
+ const repeated=Array.from({length:12},(_,i)=>({exerciseId:String(i),sets:Array.from({length:5},(_,j)=>({rep:j+4,loadKg:35,timeSec:60,feedback:'confirmed'}))}));
+ const queue=structuredClone(repeated),results=structuredClone(repeated);
+ const sourceSnapshot=structuredClone(repeated);
+ const planSnapshot={queue:structuredClone(queue),blocks:structuredClone(sourceSnapshot),title:'QA scoped snapshot'};
+ const progressSnapshot={planSnapshot:structuredClone(planSnapshot),queue:structuredClone(queue),results:structuredClone(results)};
+ const exec={id:ENTITY,clientId:ID,sessionId,revision:4,queue,results,sourceSnapshot,planSnapshot,progressSnapshot};
+ const plan={id:sessionId,clientId:ID,blocks:structuredClone(repeated),publishedSnapshot:structuredClone(repeated)};
+ const src=snapshot();
+ src.data.m26Entities=[
+   {entityType:'session',entityId:sessionId,clientId:ID,revision:2,body:plan},
+   {entityType:'session_execution',entityId:ENTITY,clientId:ID,revision:4,body:exec},
+ ];
+ src.data.sessionExecutions=[
+   {id:ENTITY,client_id:ID,session_id:sessionId,revision:4,summary:structuredClone(exec)},
+ ];
+ const saved=compactQaCanonicalExecutionSummaries(src);
+ assert.equal(saved.data.__iberfitQaHistoryNestedRefsV1,1);
+ assert.ok(JSON.stringify(saved).length<JSON.stringify(src).length*0.62);
+ assert.deepEqual(expandQaCanonicalExecutionSummaries(saved),src);
+ assert.deepEqual(src.data.m26Entities[1].body.progressSnapshot,progressSnapshot);
+ assert.equal(saved.data.sessionExecutions[0].summary.__iberfitQaCanonicalExecutionSummaryRefV1,ENTITY);
+ const client={...saved,user:{role:'client'}};
+ assert.throws(()=>expandQaCanonicalExecutionSummaries(client),/U82_QA_HISTORY_NESTED_INVALID/);
+ const tamper=structuredClone(saved);
+ tamper.data.m26Entities[1].body.planSnapshot.queue.__iberfitQaHistoryNestedRefV1='wrong';
+ assert.throws(()=>expandQaCanonicalExecutionSummaries(tamper),/U82_QA_HISTORY_NESTED_INVALID/);
+ const missing=structuredClone(saved);
+ delete missing.data.m26Entities[1].body.queue;
+ assert.throws(()=>expandQaCanonicalExecutionSummaries(missing),/U82_QA_HISTORY_NESTED_INVALID/);
+});
+
+test('U82 never aliases mismatched progress or plan content and does not alter normal Client/PROD transport',()=>{
+ const original=snapshot();
+ original.data.m26Entities=[{entityType:'session',entityId:ENTITY,clientId:ID,body:{
+    blocks:[{reps:6,load:35}],publishedSnapshot:[{reps:5,load:35}],
+ }}];
+ const encoded=compactQaCanonicalExecutionSummaries(original);
+ assert.deepEqual(encoded,original);
+ const prod={...original,environment:'PRODUCTION'};
+ const client={...original,user:{role:'client'}};
+ assert.deepEqual(compactQaCanonicalExecutionSummaries(prod),prod);
+ assert.deepEqual(compactQaCanonicalExecutionSummaries(client),client);
+});
