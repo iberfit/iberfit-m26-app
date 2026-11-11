@@ -93,7 +93,7 @@ test('Postmerge and production browsers retain real Chromium execution without a
   for(const path of gates){
     const workflow=read(path);
     assert.match(workflow,/runs-on: ubuntu-24\.04/u);
-    assert.match(workflow,/npx playwright install chromium/u);
+    assert.match(workflow,/\.\/node_modules\/\.bin\/playwright install chromium/u);
     assert.match(workflow,/chromium\.launch\(\{headless:true\}\)/u);
     assert.doesNotMatch(workflow,/playwright install-deps chromium|playwright install --with-deps chromium/u);
   }

@@ -421,7 +421,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
       - name: Install Chromium if cache missed
         if: steps.chromium-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
+        run: ./node_modules/.bin/playwright install chromium
       - name: Verify real Chromium headless launch
         run: node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({headless:true}); await browser.close();"
       - name: Build current-source authenticated QA shell

@@ -100,7 +100,7 @@ test('RC64.1 CI installs pinned Chromium and proves real launch without broken a
   const ci=read('.github/workflows/ci.yml');
   assert.match(ci,/Preparar Quality Platform RC64/u);
   assert.match(ci,/npm ci/u);
-  assert.match(ci,/npx playwright install chromium/u);
+  assert.match(ci,/\.\/node_modules\/\.bin\/playwright install chromium/u);
   assert.match(ci,/chromium\.launch\(\{headless:true\}\)/u);
   assert.doesNotMatch(ci,/playwright install --with-deps chromium/u);
   assert.match(ci,/npm run quality:rc64:browser/u);

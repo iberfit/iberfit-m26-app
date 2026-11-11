@@ -38,7 +38,7 @@ jobs:
       - name: Instalar dependencias y Chromium hermético
         run: |
           npm ci
-          npx playwright install chromium
+          ./node_modules/.bin/playwright install chromium
           node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({headless:true}); await browser.close();"
 
       - name: Contrato de gobernanza de nombres de ejercicios

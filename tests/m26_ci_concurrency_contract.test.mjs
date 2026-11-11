@@ -55,7 +55,7 @@ test('concurrency optimization retains deterministic cached or SHA-pinned browse
       }
     }else{
       assert.match(workflow,/actions\/cache@v4/u,`${name}: Playwright cache missing`);
-      assert.match(workflow,/npx playwright install chromium/u,'daily: cached Chromium or lockfile-bound download required');
+      assert.match(workflow,/\.\/node_modules\/\.bin\/playwright install chromium/u,'daily: cached Chromium or lockfile-bound download required');
       assert.match(workflow,/chromium\.launch\(\{headless:true\}\)/u,'daily: actual Chromium launch required');
       assert.doesNotMatch(workflow,/playwright install-deps/u,'daily: apt DNS dependency forbidden');
     }
