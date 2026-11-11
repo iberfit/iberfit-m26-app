@@ -108,3 +108,75 @@ test('B: two old wearable days are not proof of recent activity or loss of adher
  assert.match(a.evidence,/disponibles/);
  assert.equal(__retentionHealthInternals.feedbackFactor({checkins:true},[]).status,'insufficient');
 });
+
+import {sessionExecutionIsConfirmed,confirmedSessionExecutionsForClient} from '../src/m26/domain/session-execution-truth.js';
+import {deriveAdherenceAlerts,deriveAdherenceTrajectoryFromSummaries} from '../src/m26/engagement/adherence-engine.js';
+
+const NOW_B=new Date('2026-11-10T20:00:00Z');
+function bState(executions,appointments=[],pendingOperations=[]){
+ return {collections:{appointments,sessionExecutions:executions,sessions:[],trainingCycles:[],
+   checkins:[],iriAssessments:[],wearableDailySummaries:[],wearableConnections:[]},
+   pendingOperations,conflicts:[],rejectedOperations:[]};
+}
+test('B: canonical truth rejects explicitly unconfirmed, contradictory typed and unacknowledged closures',()=>{
+ const one={id:'e1',clientId:'c1',status:'completed',syncStatus:'clean',
+  completedAt:'2026-11-09T10:00:00Z'};
+ assert.equal(sessionExecutionIsConfirmed(one),true);
+ for(const patch of [
+  {serverConfirmed:false},{execution_status:'en_curso'},
+  {execution_status:'cerrada_confirmada'},
+  {execution_status:'cerrada_confirmada',remote_confirmed_at:'not-a-time'},
+ ]){
+  const wrong={...one,...patch};
+  assert.equal(sessionExecutionIsConfirmed(wrong),false,JSON.stringify(patch));
+  assert.equal(confirmedSessionExecutionsForClient(
+    bState([wrong]),'c1',{requireCompleted:true}).length,0,JSON.stringify(patch));
+ }
+ const real={...one,execution_status:'cerrada_confirmada',
+  remote_confirmed_at:'2026-11-09T11:00:00Z'};
+ assert.equal(sessionExecutionIsConfirmed(real),true);
+ assert.equal(confirmedSessionExecutionsForClient(bState([real]),'c1',{requireCompleted:true}).length,1);
+});
+test('B: pending, rejected and other-client feedback cannot produce a Coach pain alert',()=>{
+ const base={id:'e1',clientId:'c1',status:'completed',syncStatus:'clean',
+  completedAt:'2026-11-09T10:00:00Z',feedback:{pain:true}};
+ for(const patch of [{syncStatus:'pending'},{serverConfirmed:false},
+   {execution_status:'cerrada_confirmada'},
+   {execution_status:'en_curso'},
+ ]){
+  const alerts=deriveAdherenceAlerts(bState([{...base,...patch}]),'c1',{now:NOW_B});
+  assert.equal(alerts.some(a=>a.id==='post-session-discomfort'),false,JSON.stringify(patch));
+ }
+ const foreign={...base,id:'other',clientId:'c2'};
+ assert.equal(deriveAdherenceAlerts(bState([foreign]),'c1',{now:NOW_B})
+   .some(a=>a.id==='post-session-discomfort'),false);
+ const real={...base,execution_status:'cerrada_confirmada',
+  remote_confirmed_at:'2026-11-09T10:10:00Z'};
+ assert.equal(deriveAdherenceAlerts(bState([real]),'c1',{now:NOW_B})
+   .some(a=>a.id==='post-session-discomfort'),true);
+ assert.equal(deriveAdherenceAlerts(bState([real],[{
+   id:'a1',clientId:'c1',status:'confirmada',scheduledAt:'2026-11-08T08:00:00Z'
+ }]),'c1',{now:NOW_B}).some(a=>a.id==='no-completions'),true,
+ 'an autonomous training must not hide missed scheduled commitments');
+});
+test('B: pending completion command prevents fabricated post-session feedback',()=>{
+ const execution={id:'e1',clientId:'c1',status:'completed',syncStatus:'clean',
+  completedAt:'2026-11-09T10:00:00Z',feedback:{pain:true}};
+ const blocked=bState([execution],[],[{type:'EJECUCION_COMPLETAR',entityId:'e1'}]);
+ assert.equal(deriveAdherenceAlerts(blocked,'c1',{now:NOW_B})
+  .some(a=>a.id==='post-session-discomfort'),false);
+});
+test('B: 7/28/90 trajectory quarantines counts and ratios that do not agree',()=>{
+ const s=(days,completed,planned,adherence)=>({
+  clientId:'c1',days,scheduledCompletedSessions:completed,
+  completedSessions:completed+5,plannedSessions:planned,adherence,
+ });
+ const actual=deriveAdherenceTrajectoryFromSummaries({
+  d7:s(7,1,1,1),d28:s(28,4,4,0.2),d90:s(90,5,8,0.625),
+ });
+ assert.equal(actual.status,'insufficient');
+ assert.equal(actual.windows.d28.evidence,false);
+ assert.equal(actual.windows.d28.adherence,null);
+ assert.equal(actual.windows.d7.adherence,1);
+ assert.equal(actual.windows.d90.adherence,0.625);
+});

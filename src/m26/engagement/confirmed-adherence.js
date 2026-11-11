@@ -19,22 +19,7 @@ function appointmentKind(row){
   return raw==='planned'?'planned':normalizeAppointmentStatus(raw);
 }
 function verifiedExecution(row){
-  if(!sessionExecutionIsConfirmed(row)||!sessionExecutionIsCompleted(row))
-    return false;
-  if(field(row,'serverConfirmed','server_confirmed')===false)return false;
-  const typed=String(field(row,'executionStatus','execution_status')||'').trim().toLowerCase();
-  const legacy=String(field(row,'status','estado')||'').trim().toLowerCase();
-  if(typed&&legacy){
-    const typedComplete=sessionExecutionIsCompleted({status:typed},{allowDatedFallback:false});
-    const legacyComplete=sessionExecutionIsCompleted({status:legacy},{allowDatedFallback:false});
-    if(typedComplete!==legacyComplete)return false;
-  }
-  if(typed==='cerrada_confirmada'){
-    const receipt=field(row,'remoteConfirmedAt','remote_confirmed_at');
-    if(typeof receipt!=='string'||!receipt.trim()||
-      !Number.isFinite(Date.parse(receipt)))return false;
-  }
-  return true;
+  return sessionExecutionIsConfirmed(row)&&sessionExecutionIsCompleted(row);
 }
 // A merely planned proposal is not a confirmed commitment or a valid denominator.
 const DUE_STATUSES=new Set(['confirmada','realizada','ausencia_cliente','ausencia_coach']);

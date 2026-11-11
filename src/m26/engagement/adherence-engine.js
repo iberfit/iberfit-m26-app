@@ -1,4 +1,9 @@
 import { computeProgressSummary, progressWindow } from './progress-engine.js';
+import {
+  confirmedSessionExecutionsForClient,
+  sessionExecutionDate,
+  sessionExecutionIsCompleted,
+} from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
@@ -10,36 +15,22 @@ function daysBetween(a,b){return Math.ceil((b.getTime()-a.getTime())/86400000);}
 function makeSignal(id,severity,title,detail,action,source){return Object.freeze({id,severity,title,detail,action,source});}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record;}
 function executionDate(record){return first(record,'completedAt','completed_at','endedAt','ended_at','recordedAt','recorded_at','createdAt','created_at','date','fecha');}
-function blockedCompletionIds(state){
-  const ids=new Set();
-  for(const key of ['pendingOperations','conflicts','rejectedOperations']){
-    for(const operation of arr(state?.[key])){
-      const item=unwrap(operation)||{};
-      const type=String(first(item,'type','commandType','command_type')||'').trim().toUpperCase();
-      if(type!=='EJECUCION_COMPLETAR')continue;
-      const entityId=first(item,'entityId','entity_id','executionId','execution_id');
-      if(entityId)ids.add(String(entityId));
-    }
-  }
-  return ids;
-}
 function latestConfirmedExecution(state,clientId,{now=new Date()}={}){
   const {start,end}=progressWindow({now,days:28});
-  const blocked=blockedCompletionIds(state);
-  return arr(state?.collections?.sessionExecutions)
+  return confirmedSessionExecutionsForClient(state,clientId,{
+    requireCompleted:true,requireDate:true,
+  })
     .map(unwrap)
-    .filter((item)=>clientIdOf(item)===clientId)
-    .filter((item)=>['completed','complete','completado'].includes(statusOf(item)))
-    .filter((item)=>{
-      const id=String(first(item,'id','executionId','execution_id')||'');
-      const sync=String(first(item,'syncStatus','sync_status')||'').trim().toLowerCase();
-      return (!sync||sync==='clean')&&!blocked.has(id);
+    // Historical rows lacking a status never become a post-session pain alert
+    // merely because they have a creation timestamp.
+    .filter(item=>sessionExecutionIsCompleted(item,{allowDatedFallback:false}))
+    .filter(item=>{
+      const date=safeDate(sessionExecutionDate(item));
+      return Boolean(date&&date.getTime()>=start.getTime()
+        &&date.getTime()<=end.getTime());
     })
-    .filter((item)=>{
-      const date=safeDate(executionDate(item));
-      return date&&date.getTime()>=start.getTime()&&date.getTime()<=end.getTime();
-    })
-    .sort((a,b)=>(safeDate(executionDate(b))?.getTime()||0)-(safeDate(executionDate(a))?.getTime()||0))[0]||null;
+    .sort((a,b)=>(safeDate(sessionExecutionDate(b))?.getTime()||0)
+      -(safeDate(sessionExecutionDate(a))?.getTime()||0))[0]||null;
 }
 function postSessionFeedbackSignal(state,clientId,{now=new Date()}={}){
   const execution=latestConfirmedExecution(state,clientId,{now});
@@ -61,15 +52,21 @@ function round(value,digits=3){if(!Number.isFinite(value))return null;const powe
 function percentText(value){return Number.isFinite(value)?`${Math.round(value*100)}%`:'—';}
 function trajectoryWindow(summary,days){
   const planned=Number(summary?.plannedSessions||0);
-  const completed=Number(summary?.completedSessions||0);
-  const adherence=Number.isFinite(summary?.adherence)?summary.adherence:null;
+  const completed=Number(summary?.scheduledCompletedSessions
+    ??summary?.completedSessions??0);
+  const value=summary?.adherence;
+  const adherence=typeof value==='number'&&Number.isFinite(value)?value:null;
+  const coherent=Number.isSafeInteger(planned)&&planned>=0
+    &&Number.isSafeInteger(completed)&&completed>=0&&completed<=planned
+    &&adherence!==null&&adherence>=0&&adherence<=1
+    &&(planned===0?false:Math.abs(adherence-completed/planned)<=0.01);
   return Object.freeze({
     days,
-    adherence,
-    plannedSessions:Number.isFinite(planned)?planned:0,
-    completedSessions:Number.isFinite(completed)?completed:0,
+    adherence:coherent?adherence:null,
+    plannedSessions:Number.isSafeInteger(planned)&&planned>=0?planned:0,
+    completedSessions:Number.isSafeInteger(completed)&&completed>=0?completed:0,
     dataQuality:summary?.dataQuality||null,
-    evidence:adherence!==null&&planned>=ADHERENCE_TRAJECTORY_EVIDENCE[`d${days}`],
+    evidence:coherent&&planned>=ADHERENCE_TRAJECTORY_EVIDENCE[`d${days}`],
   });
 }
 function trajectoryCopy(status){
@@ -201,7 +198,11 @@ export function deriveAdherenceAlerts(state,clientId,{now=new Date(),summary:pro
   if(postSession)alerts.push(postSession);
   if(trajectory.status==='slipping')alerts.push(makeSignal('adherence-slipping','warning','Caída reciente de continuidad',`${trajectory.summary}. La referencia de 7 días está al menos 15 puntos porcentuales por debajo de la de 28 días; las ventanas se solapan y se usa como señal temprana, no como explicación causal.`,trajectory.coachAction,'sessions'));
   if(Number.isFinite(summary.adherence)&&summary.plannedSessions>=3&&summary.adherence<0.6)alerts.push(makeSignal('adherence-low','warning','Adherencia por debajo de lo previsto',`Se completó el ${Math.round(summary.adherence*100)}% de las sesiones planificadas en 28 días.`,'Revisar barreras de agenda, comprensión o tolerancia.','sessions'));
-  if(summary.plannedSessions>0&&summary.completedSessions===0)alerts.push(makeSignal('no-completions','critical','Sin sesiones completadas en el periodo','Existen sesiones planificadas, pero ninguna ejecución confirmada durante la ventana analizada.','Contactar y verificar continuidad del plan.','sessions'));
+  if(summary.plannedSessions>0
+    &&(summary.scheduledCompletedSessions??summary.completedSessions)===0)
+    alerts.push(makeSignal('no-completions','critical','Sin citas de entrenamiento cumplidas en el periodo',
+      'Existen citas planificadas, pero ninguna se ha cumplido en la ventana analizada. Un entrenamiento autónomo no equivale a asistencia a una cita.',
+      'Contactar y verificar continuidad del plan.','sessions'));
   if(!summary.lastExecutionAt)alerts.push(makeSignal('execution-missing','info','Sin historial suficiente de ejecución','Todavía no hay una ejecución confirmada para interpretar progreso o carga.','Mantener el dato como ausente; no convertirlo en cero.','data-quality'));
   const cycles=arr(state?.collections?.trainingCycles).filter((item)=>clientIdOf(item)===clientId&&!['archivado','archived','cancelado','cancelled'].includes(statusOf(item)));
   for(const cycle of cycles){const end=safeDate(endDateOf(cycle));if(!end)continue;const remaining=daysBetween(now,end);if(remaining>=0&&remaining<=7){alerts.push(makeSignal(`cycle-ending-${first(cycle,'id')||remaining}`,'info','Ciclo próximo a finalizar',`El ciclo activo termina en ${remaining} día${remaining===1?'':'s'}.`,'Preparar revisión, informe o siguiente ciclo.','planning'));break;}}
