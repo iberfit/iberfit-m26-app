@@ -16,6 +16,7 @@ const BRANCHES=new Set([
  'feat/u60-training360-r50-reconciled-20261104',
  'feat/iberfit-universal-360-one-release-20261106',
  'canary/rc74-4',
+ 'feat/coach-a-verified-evidence-20261111',
 ]);
 const branchFromRef=ref=>{
  const prefix='refs/heads/';
@@ -55,6 +56,27 @@ export function sameClientCalendar(response,owner){
   &&Array.isArray(body.occurrences)
   &&body.occurrences.every(o=>o.clientId===owner
     &&!/publishedSnapshot|requestHash|coachPrivateNote|prescriptionSnapshot/.test(JSON.stringify(o)));
+}
+/**
+ * Candidate selection never retires, cancels or reuses an existing QA date.
+ * Keep the deterministic source order; only skip a prescription which already
+ * owns an occurrence on either requested day (including cancelled dates).
+ * Called after authenticated, complete calendar readback.
+ */
+export function firstAvailableDatedCandidate(candidates,calendar,today,future){
+ assert(Array.isArray(candidates)&&Array.isArray(calendar)
+   &&/^\d{4}-\d{2}-\d{2}$/.test(String(today))
+   &&/^\d{4}-\d{2}-\d{2}$/.test(String(future))
+   &&today!==future,'CANDIDATE_READ_INVALID');
+ const reserved=new Set();
+ for(const row of calendar){
+  assert(row&&typeof row==='object'&&!Array.isArray(row)
+    &&typeof row.localDate==='string'&&typeof row.sessionId==='string'
+    &&UUID.test(row.sessionId),'CANDIDATE_CALENDAR_INVALID');
+  if(row.localDate===today||row.localDate===future)
+    reserved.add(row.sessionId);
+ }
+ return candidates.find(row=>row&&UUID.test(row.id)&&!reserved.has(row.id))||null;
 }
 export function denied(x){
  return [401,403,404].includes(x?.status)||
@@ -160,7 +182,7 @@ async function authenticatedStage(ctx,certified=null){
   .filter(x=>x.clientId===clientA).sort((x,y)=>x.id.localeCompare(y.id));
  assert(candidates.length>0,'NO_SUITABLE_SYNTHETIC_PRESCRIPTION');
  // Each date must be a valid exact local instant (never DST guessed).
- const chosen=candidates[0],minute=certified
+ const minute=certified
   ? Number(certified.localTime.slice(0,2))*60+Number(certified.localTime.slice(3,5))
   : Math.ceil((clock.minute+25)/5)*5;
  assert(Number.isInteger(minute)&&minute>=0&&minute<1440,'NO_SAFE_TODAY_APPOINTMENT_WINDOW');
@@ -169,8 +191,6 @@ async function authenticatedStage(ctx,certified=null){
  const time=hh+':'+mm;
  const start1=santiagoAppointmentInstant(today+'T'+time);
  const start2=santiagoAppointmentInstant(future+'T'+time);
- const end1=new Date(Date.parse(start1)+chosen.duration*60000).toISOString();
- const end2=new Date(Date.parse(start2)+chosen.duration*60000).toISOString();
  assert(Date.parse(start1)>Date.now()&&Date.parse(start1)-Date.now()<3600000,'APPOINTMENT_CLOCK_DRIFT');
  const old=await checkedCalendar(ctx,coach.jwt,clientA,today,future);
  // A real QA portfolio legitimately contains prior dates from other plans.
@@ -178,8 +198,10 @@ async function authenticatedStage(ctx,certified=null){
  // intended dates for the chosen prescription, and never start if an
  // unrelated workout is already active for this Client.
  assert(!old.some(row=>row.status==='en_curso'),'QA_CLIENT_ACTIVE_EXECUTION');
- assert(!old.some(row=>row.sessionId===chosen.id&&
-   [today,future].includes(row.localDate)),'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
+ const chosen=firstAvailableDatedCandidate(candidates,old,today,future);
+ assert(chosen,'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
+ const end1=new Date(Date.parse(start1)+chosen.duration*60000).toISOString();
+ const end2=new Date(Date.parse(start2)+chosen.duration*60000).toISOString();
  const foreign=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:2});
  assert(denied(foreign),'CROSS_CLIENT_SCOPE_BROKEN');
  const appointments=[{date:today,startAt:start1,endAt:end1},{date:future,startAt:start2,endAt:end2}];

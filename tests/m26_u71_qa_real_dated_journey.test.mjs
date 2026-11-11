@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,denied} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -93,5 +93,33 @@ test('UNIVERSAL U71 protected Canary only enables existing two-phase signed QA p
  assert.match(source,/ENV_ISOLATION/u);
  assert.match(source,/BRANCH_NOT_ALLOWLISTED/u);
  assert.match(source,/NON_EXPLICIT_ATTEMPT/u);
+ assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
+});
+
+test('U71 chooses an unoccupied synthetic prescription rather than resetting prior dated training',()=>{
+ const now='2026-11-10',future='2026-11-17';
+ const ids=Array.from({length:3},(_,i)=>'10000000-0000-4000-8000-0000000000'+String(i+10));
+ const candidates=ids.map(id=>({id,duration:45}));
+ const calendar=[{sessionId:ids[0],localDate:now,status:'completada'},{sessionId:ids[0],localDate:future,status:'confirmada'}];
+ const before=structuredClone({candidates,calendar});
+ const winner=firstAvailableDatedCandidate(candidates,calendar,now,future);
+ assert.equal(winner.id,ids[1]);
+ assert.deepEqual({candidates,calendar},before,'selection is read-only and does not delete prior dates');
+ assert.equal(firstAvailableDatedCandidate(candidates,[...calendar,{sessionId:ids[1],localDate:now}],now,future).id,ids[2]);
+ assert.equal(firstAvailableDatedCandidate(candidates,[...calendar,{sessionId:ids[1],localDate:now},{sessionId:ids[2],localDate:future}],now,future),null);
+ assert.equal(firstAvailableDatedCandidate(candidates,[{sessionId:ids[0],localDate:'2026-11-01'}],now,future).id,ids[0]);
+ assert.throws(()=>firstAvailableDatedCandidate(candidates,[{sessionId:null,localDate:now}],now,future),/U71_CANDIDATE_CALENDAR_INVALID/);
+ assert.throws(()=>firstAvailableDatedCandidate(candidates,calendar,now,now),/U71_CANDIDATE_READ_INVALID/);
+});
+test('U71 exact branch preflight is allowlisted but never writes on first attempt',()=>{
+ const script=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const workflow=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ assert.match(script,/feat\/coach-a-verified-evidence-20261111/u);
+ assert.match(workflow,/feat\/coach-a-verified-evidence-20261111/u);
+ assert.match(workflow,/github\.run_attempt == 1/u);
+ assert.match(workflow,/github\.run_attempt == 2/u);
+ assert.match(script,/firstAvailableDatedCandidate\(candidates,old,today,future\)/u);
+ assert.match(script,/old\.sha===proof\.sha/u);
+ assert.match(script,/old\.fingerprint===proof\.fingerprint/u);
  assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
 });
