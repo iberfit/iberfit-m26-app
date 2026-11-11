@@ -131,7 +131,7 @@ function stableEvidenceJson(value){
   }
   return JSON.stringify(value??null);
 }
-function executionSignature(record){
+export function sessionExecutionEvidenceSignature(record){
   const row=unwrap(record);
   const evidence={
     owner:sessionExecutionClientId(row),id:sessionExecutionId(row),
@@ -144,6 +144,9 @@ function executionSignature(record){
     serverConfirmed:first(row,'serverConfirmed','server_confirmed'),
     remoteConfirmedAt:first(row,'remoteConfirmedAt','remote_confirmed_at'),
     completedAt:first(row,'completedAt','completed_at','endedAt','ended_at'),
+    // All date fallbacks can affect report windows, so they cannot depend on
+    // which same-revision response arrived first.
+    effectiveDate:sessionExecutionDate(row),
     results:first(row,'results','setResults','set_results','progressSnapshot','progress_snapshot'),
     feedback:first(row,'feedback'),
     metrics:first(row,'metrics'),
@@ -169,8 +172,8 @@ export function reconcileSessionExecutionsForClient(state,clientId){
       selected.set(id,{record,revision,signature:null,conflict:false,records:[record]});
       continue;
     }
-    const signature=executionSignature(record);
-    const previousSignature=previous.signature??executionSignature(previous.record);
+    const signature=sessionExecutionEvidenceSignature(record);
+    const previousSignature=previous.signature??sessionExecutionEvidenceSignature(previous.record);
     previous.signature=previousSignature;
     if(signature!==previousSignature||previous.conflict){
       previous.conflict=true;

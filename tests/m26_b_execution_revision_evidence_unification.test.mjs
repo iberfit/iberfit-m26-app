@@ -91,3 +91,33 @@ test('client scope prevents identical IDs belonging to another Client from conta
   assert.equal(computeProgressSummary(input,'client-one',{now}).confirmedWorkoutExecutions,1);
   assert.equal(computeProgressSummary(input,'client-two',{now}).confirmedWorkoutExecutions,1);
 });
+
+test('direct adherence projection quarantines same-revision disagreement in real set results',()=>{
+  const a=completion(),b=completion({results:[{exerciseId:'squat',reps:5,loadKg:100,rpe:9}]});
+  for(const executions of [[a,b],[b,a]]){
+    const result=confirmedAdherenceEvidence({
+      appointments:[appointment()],executions,
+    });
+    assert.equal(result.confirmedWorkouts,0);
+    assert.equal(result.scheduledCompleted,0);
+    assert.equal(result.conflictingExecutions,1);
+  }
+});
+test('same-revision disagreement on legacy timestamp cannot change reporting window by arrival order',()=>{
+  const a=completion({completedAt:null,createdAt:'2026-11-10T08:00:00Z'});
+  const b=completion({completedAt:null,createdAt:'2026-10-01T08:00:00Z'});
+  for(const executions of [[a,b],[b,a]]){
+    const input=state(executions);
+    assert.equal(reconcileSessionExecutionsForClient(input,'client-one').conflicts.length,1);
+    assert.equal(computeProgressSummary(input,'client-one',{now,days:28}).confirmedWorkoutExecutions,0);
+  }
+});
+test('pending completion receipt on an active local row must not be mistaken for attendance or absence',()=>{
+  const current=completion({status:'active',completedAt:null,createdAt:'2026-11-10T09:00:00Z'});
+  const input=state([current]);
+  input.pendingOperations=[{type:'EJECUCION_COMPLETAR',entityId:'execution-one'}];
+  const summary=computeProgressSummary(input,'client-one',{now,days:28});
+  assert.equal(summary.confirmedWorkoutExecutions,0);
+  assert.equal(summary.pendingConfirmationWorkouts,1);
+  assert.equal(summary.explicitlyMissedAppointments,0);
+});

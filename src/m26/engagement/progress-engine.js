@@ -357,7 +357,8 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   // A completed but unacknowledged result is pending confirmation, not a
   // completed training. A same-ID/revision contradiction also needs review.
   const pendingConfirmationWorkouts=executionRows.filter((item)=>
-    executionIsCompleted(item,{allowDatedFallback:false})
+    (executionIsCompleted(item,{allowDatedFallback:false})
+      ||blockedExecutionIds.has(sessionExecutionId(item)))
       &&!executionIsConfirmed(item,blockedExecutionIds)).length
     +conflictedRows.filter(group=>group.some(record=>
       executionIsCompleted(record,{allowDatedFallback:false}))).length;

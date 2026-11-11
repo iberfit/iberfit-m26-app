@@ -1,5 +1,5 @@
 import {normalizeAppointmentStatus} from '../domain/appointment.js';
-import {sessionExecutionIsConfirmed,sessionExecutionIsCompleted} from '../domain/session-execution-truth.js';
+import {sessionExecutionIsConfirmed,sessionExecutionIsCompleted,sessionExecutionEvidenceSignature} from '../domain/session-execution-truth.js';
 
 /**
  * M44: confirmed attendance is not the same thing as adherence to a schedule.
@@ -52,6 +52,7 @@ export function confirmedAdherenceEvidence({appointments=[],executions=[]}={}){
     if(!id){executionsWithoutIdentity++;continue;}
     const value={
       row,revision:revision(row),verified:verifiedExecution(row),
+      signature:sessionExecutionEvidenceSignature(row),
       appointmentId:stableId(field(row,'appointmentId','appointment_id')),
       sessionId:stableId(field(row,'sessionId','session_id')),
     };
@@ -59,7 +60,8 @@ export function confirmedAdherenceEvidence({appointments=[],executions=[]}={}){
     if(!previous||value.revision>previous.revision)executionsById.set(id,value);
     else if(value.revision===previous.revision&&(
       previous.conflict||value.appointmentId!==previous.appointmentId||
-      value.sessionId!==previous.sessionId||value.verified!==previous.verified
+      value.sessionId!==previous.sessionId||value.verified!==previous.verified||
+      value.signature!==previous.signature
     ))executionsById.set(id,{...value,conflict:true});
   }
   const uniqueExecutions=[...executionsById.values()]
