@@ -72,9 +72,12 @@ function verifiedExecution(row,clientId,occurrence){
   const sid=cleanId(field(row,'sessionId','session_id'));
   const oid=cleanId(field(row,'occurrenceId','occurrence_id'));
   const revision=Number(field(row,'revision')??-1);
+  const sync=lower(field(row,'syncStatus','sync_status'));
+  const confirmed=field(row,'serverConfirmed','server_confirmed');
   if(!id||owner!==clientId||sid!==occurrence.sessionId
     ||oid!==occurrence.id||id!==occurrence.executionId
-    ||!Number.isSafeInteger(revision)||revision<1)return null;
+    ||!Number.isSafeInteger(revision)||revision<1
+    ||(sync&&sync!=='clean')||confirmed===false)return null;
   return Object.freeze({id,status:lower(field(row,'status','executionStatus','execution_status')),
     revision,localDate:occurrence.localDate,sessionId:sid});
 }

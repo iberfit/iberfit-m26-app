@@ -4,6 +4,7 @@ import {buildIberfitDecisionBrief} from '../src/m26/intelligence/decision-brief.
 import {__nextSessionPreparationInternals} from '../src/m26/intelligence/next-session-prep.js';
 import {buildPeriodizationSnapshot} from '../src/m26/planning/periodization-workbench.js';
 import {buildTraining360DecisionPack} from '../src/m26/intelligence/training360-decision-pack.js';
+import {createOccurrencePrivateReader} from '../src/m26/workflows/occurrence-private-reader.js';
 
 const NOW=new Date('2026-11-11T12:00:00.000Z');
 const SAMPLE={plannedSessions:4,completedSessions:3,adherence:0.75,averageRpe:7.5,
@@ -150,4 +151,35 @@ test('U60 unrelated duplicate does not inflate an honest client integrity warnin
  ]});
  assert.equal(crossVisibility.summary.scheduledDates,0);
  assert.equal(crossVisibility.summary.insufficientEvidence,true);
+});
+
+test('two independent dates count only independently confirmed executions',()=>{
+ const C='10000000-0000-4000-8000-000000000211',S='10000000-0000-4000-8000-000000000212';
+ const O1='10000000-0000-4000-8000-000000000213',O2='10000000-0000-4000-8000-000000000214';
+ const E1='10000000-0000-4000-8000-000000000215',E2='10000000-0000-4000-8000-000000000216';
+ const AP='10000000-0000-4000-8000-000000000217';
+ const s={id:S,clientId:C,status:'disponible',deliveryModality:'guiada_en_app',visibleToClient:true,clientVisibilityLevel:'full'};
+ const o=(id,date,executionId)=>({id,clientId:C,sessionId:S,localDate:date,timeZone:'America/Santiago',status:'completada',revision:3,appointmentId:AP,executionId});
+ const e=(id,occurrenceId)=>({id,clientId:C,sessionId:S,occurrenceId,status:'completada',revision:3,syncStatus:'clean',serverConfirmed:true});
+ const input={role:'coach',clientId:C,now:new Date('2026-11-15T16:00:00Z'),sessions:[s],appointments:[{id:AP,clientId:C,sessionId:S,status:'completada'}],occurrences:[o(O1,'2026-11-12',E1),o(O2,'2026-11-13',E2)],executions:[e(E1,O1),e(E2,O2)]};
+ const good=buildTraining360DecisionPack(input);
+ assert.equal(good.summary.prescriptions,1);assert.equal(good.summary.completedDue,2);assert.equal(good.summary.verifiedAdherencePct,100);
+ for(const bad of [{syncStatus:'pending'},{serverConfirmed:false},{occurrenceId:O1}]){
+  const broken=buildTraining360DecisionPack({...input,executions:[e(E1,O1),{...e(E2,O2),...bad}]});
+  assert.equal(broken.summary.completedDue,1);assert.equal(broken.summary.verifiedAdherencePct,null);assert.equal(broken.needsRecovery.length,1);
+ }
+});
+test('dated reader rejects foreign source snapshot with matching queue and blocks',async()=>{
+ const C='10000000-0000-4000-8000-000000000211',S='10000000-0000-4000-8000-000000000212';
+ const O='10000000-0000-4000-8000-000000000213',E='10000000-0000-4000-8000-000000000215';
+ const queue=[{exerciseId:'squat',sets:2}],blocks=[{id:'b',exerciseId:'squat',sets:2}];
+ const p={clientId:C,sessionId:S,queue,blocks};
+ const fixture={kind:'private-occurrence',occurrence:{id:O,clientId:C,sessionId:S,appointmentId:O,localDate:'2026-11-11',timeZone:'America/Santiago',status:'en_curso',revision:2,executionId:E},prescriptionSnapshot:p,executionBody:{id:E,clientId:C,sessionId:S,occurrenceId:O,status:'en_curso',revision:1,queue,sourceSnapshot:{...p}}};
+ const getAuthContext=async()=>({userId:'10000000-0000-4000-8000-000000000219',clientId:C,role:'client',accessToken:'test-jwt'});
+ const read=data=>createOccurrencePrivateReader({enabled:true,getAuthContext,transport:{occurrencePrivateRead:async()=>data}}).read({clientId:C,occurrenceId:O});
+ assert.equal((await read(fixture)).executionBody.id,E);
+ for(const invalid of [{clientId:'10000000-0000-4000-8000-000000000220'},{sessionId:'10000000-0000-4000-8000-000000000221'}]){
+  const changed=structuredClone(fixture);changed.executionBody.sourceSnapshot={...p,...invalid};
+  await assert.rejects(read(changed),/U60_PRIVATE_EXECUTION_DRIFT/);
+ }
 });
