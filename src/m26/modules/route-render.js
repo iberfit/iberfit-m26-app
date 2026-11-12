@@ -4558,6 +4558,7 @@ export function renderPlanningRoute(vm){
       </section>
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Sesiones del ciclo'}</h2></div>${!isClient?badge(`${publishedSessions} publicadas`,'success'):''}</div>
+        ${vm.role==='coach'?'<p class="m26-field-help m26-coach-planning-order">Entrenamientos ordenados por fecha, del más reciente al más antiguo. Abre uno para revisar, reutilizar o eliminar del plan. La retirada conserva las ejecuciones confirmadas.</p>':''}
         ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:vm.serviceActive!==false,coachPlanning:vm.role==='coach'})}
       </section>
     </section>
