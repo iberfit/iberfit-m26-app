@@ -62,7 +62,9 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
           const mark=document.querySelector('img[src="/public/isotipo-iberfit.png"]');
           const mobileBrand=document.querySelector('.m26-topbar-brand-mark');
           const shell=document.querySelector('.m26-shell');
-          const route=document.querySelector('.m26-main .m26-route');
+          // The real Admin Command Center renders .m26-admin-route, not .m26-route.
+          // Measure the actual role-native workspace; never accept a placeholder.
+          const route=document.querySelector('.m26-main :is(.m26-route,.m26-admin-route)');
           const heading=document.querySelector('.m26-main h1,.m26-main h2,.m26-main h3');
           return {
             role:shell?.getAttribute('data-m26-role')||null,
