@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "7790bf66e93edb01faf98a1ebdcbd8e410d998bb",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "a1ed1e7a3e547756ed7b238d44f2d0234413c2ff",
+  "notes": "IBERFIT UNIVERSAL 360: protected exact SHA source, postmerge Canary deployment and current release gates required. Fresh M44 encrypted PROD DB+Storage PG17 restore proof run 41953622105 attempt 2. No PROD SQL/Hosted Auth/Edge mutations. U60 authenticated PROD API remains gated pending full two-date QA certification."
+}
