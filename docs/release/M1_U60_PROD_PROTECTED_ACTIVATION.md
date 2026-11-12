@@ -29,6 +29,6 @@
 
 ### Prueba visual U60 con fuente exacta en QA
 
-- U71 attempt 1 ahora ejecuta, después del preflight autenticado, Playwright Chromium sobre el código del mismo SHA (no una página de Canary obsoleta). Verifica la UI Cliente A a 320/390/1024/1440 px y el aislamiento Cliente A/B.
+- El job autenticado READ-ONLY de la PR #1335 (también en Draft) ejecuta Playwright Chromium sobre el código del mismo SHA (no una página de Canary obsoleta). Verifica la UI Cliente A a 320/390/1024/1440 px y el aislamiento Cliente A/B.
 - La política HTTP de este recorrido permite **solo** CALENDARIO y lectura privada de ocurrencia, más las lecturas ordinarias de login. Rechaza cualquier transición o escritura U60, por diseño. El resultado no equivale a certificación de iniciar/pausar/finalizar: la aceptación con escrituras requiere un segundo ensayo aislado y controlado.
 - Las métricas y artefactos solo contienen número de ocurrencias y resultado técnico, nunca token, body, identidad o ID de fecha.
