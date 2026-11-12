@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -134,4 +134,59 @@ test('the single launch branch uses signed two-step QA evidence and never PROD c
   assert.match(workflow,/github\.run_attempt == 2/u);
   assert.match(workflow,/environment: m26-canary-readonly/u);
   assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
+});
+
+test('U71 handles only provider PGRST303 newly minted JWT skew with one bounded read-only retry',async()=>{
+ const skew={status:401,body:{code:'PGRST303',message:'JWT issued at future'}};
+ assert.equal(isFutureIssuedJwtClockSkew(skew),true);
+ let attempts=0,pauses=0;
+ const got=await boundedReadOnlyJwtClockSkewRecovery(
+  async()=>++attempts===1?skew:{status:200,body:'coach'},
+  async()=>{pauses++}
+ );
+ assert.deepEqual(got,{status:200,body:'coach'});
+ assert.equal(attempts,2);
+ assert.equal(pauses,1);
+});
+test('U71 never retries invalid audience, expired token, forbidden role, network/server fault, or a second 401',async()=>{
+ const cases=[
+  {status:401,body:{code:'PGRST303',message:'JWT expired'}},
+  {status:401,body:{code:'PGRST303',message:'JWT audience claim failed'}},
+  {status:401,body:{code:'PGRST301',message:'JWT issued at future'}},
+  {status:403,body:{code:'PGRST303',message:'JWT issued at future'}},
+  {status:500,body:{code:'PGRST303',message:'JWT issued at future'}},
+  {status:200,body:'coach'},
+ ];
+ for(const given of cases){
+  assert.equal(isFutureIssuedJwtClockSkew(given),false);
+  let attempts=0,pauses=0;
+  const result=await boundedReadOnlyJwtClockSkewRecovery(
+   async()=>{attempts++;return given;},async()=>{pauses++}
+  );
+  assert.equal(result,given);
+  assert.equal(attempts,1);
+  assert.equal(pauses,0);
+ }
+ let attempts=0,pauses=0;
+ const stillSkew={status:401,body:{code:'PGRST303',message:'JWT issued at future'}};
+ const result=await boundedReadOnlyJwtClockSkewRecovery(
+  async()=>{attempts++;return stillSkew;},async()=>{pauses++}
+ );
+ assert.equal(result,stillSkew);
+ assert.equal(attempts,2);
+ assert.equal(pauses,1);
+});
+test('U71 skew recovery is restricted to read-only identity and cannot reissue writes',()=>{
+ const source=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const first=source.indexOf('async function value(ctx,jwt,name');
+ const last=source.indexOf('async function checkedCalendar(ctx,jwt',first);
+ const section=source.slice(first,last);
+ assert.match(section,/READ_ONLY_IDENTITY_RPCS\.has\(name\)/u);
+ assert.match(section,/boundedReadOnlyJwtClockSkewRecovery\(\(\)=>rpc\(ctx,jwt,name,params\)\)/u);
+ for(const forbidden of ['iberfit_execute_command_v26','iberfit_occurrence_api_u60_v1']){
+  assert.doesNotMatch(source.slice(source.indexOf('const READ_ONLY_IDENTITY_RPCS=new Set('),first),new RegExp(forbidden));
+ }
+ const write=source.slice(source.indexOf("proof.status='QA_SYNTHETIC_WRITE_STARTED'"));
+ assert.doesNotMatch(write,/boundedReadOnlyJwtClockSkewRecovery/u);
+ assert.match(source,/GITHUB_RUN_ATTEMPT==='2'/u);
 });

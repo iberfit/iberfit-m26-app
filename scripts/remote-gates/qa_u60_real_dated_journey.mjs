@@ -129,8 +129,29 @@ async function login(ctx,email,password){
 }
 const rpc=(ctx,jwt,name,params)=>http(ctx,'/rest/v1/rpc/'+name,params,jwt);
 const u60=(ctx,jwt,action,payload)=>rpc(ctx,jwt,'iberfit_occurrence_api_u60_v1',{p_action:action,p_payload:payload});
+// PostgREST may reject a freshly issued Auth JWT as PGRST303 due to clock
+// skew (Supabase KB 2026-11-06, fixed upstream in PostgREST >=14.18).
+// Do not generalize this to authorization denial or any business writes.
+export function isFutureIssuedJwtClockSkew(response){
+ return response?.status===401
+  &&response?.body?.code==='PGRST303'
+  &&/^JWT issued at future\.?$/i.test(String(response?.body?.message||'').trim());
+}
+export async function boundedReadOnlyJwtClockSkewRecovery(request,wait=async()=>new Promise(
+ resolve=>setTimeout(resolve,2500)
+)){
+ const first=await request();
+ if(!isFutureIssuedJwtClockSkew(first))return first;
+ await wait();
+ return request(); // Exactly one additional READ-ONLY attempt with unchanged JWT.
+}
+const READ_ONLY_IDENTITY_RPCS=new Set([
+ 'iberfit_current_role_v26','iberfit_client_id',
+ 'iberfit_environment','iberfit_bootstrap_v26',
+]);
 async function value(ctx,jwt,name,params={}){
- const r=await rpc(ctx,jwt,name,params);
+ assert(READ_ONLY_IDENTITY_RPCS.has(name),'NON_IDENTITY_READ_BLOCKED');
+ const r=await boundedReadOnlyJwtClockSkewRecovery(()=>rpc(ctx,jwt,name,params));
  assert(r.status===200,'IDENTITY_RPC_'+name.toUpperCase()+'_'+r.status);
  return r.body;
 }
