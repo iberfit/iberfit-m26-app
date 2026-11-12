@@ -4139,7 +4139,18 @@ function publicationCard(item,entity){
   const canWithdrawSession=entity==='session'&&actions.some(action=>action.action==='withdraw');
   const controlsTitle=canWithdrawSession?'Gestionar publicación · Quitar esta sesión de la planificación · conservar historial'
     :`Gestionar publicación${preferredAction?` · ${preferredAction.label}`:''}`;
-  const controls=actions.length?`<details class="m26-publication-actions"><summary>${escapeHtml(controlsTitle)}</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
+  const publicationActions=canWithdrawSession?actions.filter(action=>action.action!=='withdraw'):actions;
+  const controls=publicationActions.length?`<details class="m26-publication-actions"><summary>${escapeHtml(controlsTitle)}</summary><div class="m26-stack">${publicationActions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
+  // The Coach must be able to find removal from the session itself, without
+  // navigating nested publication settings. Reuse the EXACT guarded
+  // SESION_CANCELAR action; never issue a raw DELETE or remove confirmed logs.
+  const withdrawal=canWithdrawSession
+    ?`<details class="m26-publication-actions m26-coach-session-remove" data-coach-session-remove>
+      <summary>Eliminar entrenamiento del plan</summary>
+      <div class="m26-stack"><p class="m26-field-help">Retira la sesión de la planificación activa sin borrar el historial ni las ejecuciones confirmadas. Antes de retirarla, finaliza o cancela cualquier entrenamiento en curso.</p>
+        ${publicationActionControl({...actions.find(action=>action.action==='withdraw'),label:'Confirmar retirada del plan'},entity,item)}
+      </div></details>`
+    :'';
   const issued=entity==='report'&&String(item.statusRaw||'').toLowerCase()==='publicado'
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="issue-evolution-pdf" data-entity-id="${escapeHtml(item.id||'')}">Emitir y archivar PDF para el Cliente</button></div>`
     :'';
@@ -4147,7 +4158,7 @@ function publicationCard(item,entity){
     ?`<section class="m26-pdf-history" aria-label="Versiones de informes emitidos"><button type="button" data-workflow-action="show-issued-evolution-history" data-entity-id="${escapeHtml(item.id||'')}">Consultar versiones PDF</button><div data-m44-pdf-history aria-live="polite"></div></section>`
     :'';
   const reuse=entity==='session'?`<div class="m26-inline-actions"><button type="button" data-workflow-action="reuse-session" data-entity-id="${escapeHtml(item.id||'')}">Reutilizar como borrador</button><small>Crea una copia independiente; la sesión original permanece intacta.</small></div>`:'';
-  return `<article class="m26-publication-card" ${entity==='report'?'data-m44-pdf-card':''} data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${pdfHistory}${controls}</article>`;
+  return `<article class="m26-publication-card" ${entity==='report'?'data-m44-pdf-card':''} data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${pdfHistory}${controls}${withdrawal}</article>`;
 }
 
 /* SIGNATURE Coach · A visible working set, then all previous sessions grouped
