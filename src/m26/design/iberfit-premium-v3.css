@@ -4108,3 +4108,219 @@
   color:ButtonText;background:ButtonFace;border:1px solid ButtonText;
  }
 }
+
+
+/* IBERFIT SIGNATURE 360 - Approved three-role experience, 2026-11-12.
+ * Source-based presentation only. Never invent data, access or confirmation.
+ * Keep navigation, permissions, commands and Client fixed dock intact.
+ */
+.m26-shell[data-m26-role] .m26-workspace{
+ --signature-border:color-mix(in srgb,var(--iberfit-color-gold-300) 19%,transparent);
+ --signature-border-focus:color-mix(in srgb,var(--iberfit-color-gold-300) 50%,transparent);
+}
+.m26-shell[data-m26-role] .m26-main{
+ min-inline-size:0;padding-inline:clamp(.8rem,2.2vw,2.4rem);
+}
+.m26-shell[data-m26-role] .m26-main :is(.m26-route,.m26-admin-route){
+ min-inline-size:0;max-inline-size:100%;
+}
+.m26-shell[data-m26-role] .m26-main :is(.m26-panel,.m26-admin-panel,.m26-library-card,.m26-coach-home-command,.m26-client-card){
+ border-color:var(--signature-border);
+ box-shadow:0 8px 24px rgba(0,0,0,.10);
+}
+.m26-shell[data-m26-role] .m26-main :is(.m26-panel,.m26-admin-panel,.m26-library-card):hover{
+ transform:none;
+}
+.m26-shell[data-m26-role] .m26-main :is(button,summary,a,input,select,textarea,[role="button"]):focus-visible{
+ outline:3px solid var(--iberfit-color-focus);outline-offset:3px;
+}
+.m26-shell[data-m26-role] .m26-main :is(button,[role="button"]):not(:disabled){
+ touch-action:manipulation;
+}
+/* Admin · operational density and hierarchy, never fake business states. */
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-route{
+ gap:clamp(.65rem,1vw,1rem);
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-hero{
+ padding:clamp(1rem,1.6vw,1.4rem);
+ border-radius:1rem;
+ background:color-mix(in srgb,var(--iberfit-color-forest-800) 55%,var(--iberfit-color-forest-900));
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-hero :is(h1,h2){
+ font-family:var(--iberfit-font-family-ui);
+ font-size:clamp(1.45rem,2.1vw,2.1rem);
+ line-height:1.15;letter-spacing:-.028em;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-panel{
+ padding:clamp(.9rem,1.4vw,1.25rem);
+ background:var(--iberfit-color-forest-900);
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-stats{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10.5rem),1fr));gap:.65rem;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-stat{
+ min-inline-size:0;padding:clamp(.75rem,1vw,1rem);background:var(--iberfit-color-forest-800);
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-form,
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-form :is(label,input,select,textarea,button){
+ min-inline-size:0;max-inline-size:100%;
+}
+.m26-shell[data-m26-role="admin"] .m26-main :is(.m26-admin-table,.m26-table-wrapper){
+ min-inline-size:0;max-inline-size:100%;overflow-x:auto;
+ overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table table{
+ width:100%;max-width:none;border-spacing:0;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table :is(th,td){
+ padding:.7rem .65rem;vertical-align:middle;word-break:normal;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-table :is(button,a,select){
+ min-block-size:44px;max-inline-size:100%;white-space:normal;
+}
+.m26-shell[data-m26-role="admin"] .m26-main .m26-admin-empty{
+ text-align:start;padding:clamp(.85rem,1.4vw,1.15rem);
+}
+/* Coach · actual cockpit, not sample appointments or simulated customers. */
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-command{
+ display:grid;grid-template-columns:minmax(0,1.5fr) minmax(min(100%,17rem),.85fr);
+ align-items:center;gap:clamp(1rem,2vw,2rem);
+ padding:clamp(1.2rem,2.3vw,2.2rem);
+ border-radius:1.05rem;
+ background:color-mix(in srgb,var(--iberfit-color-forest-800) 73%,var(--iberfit-color-forest-900));
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-command-copy h2{
+ font-family:var(--iberfit-font-family-editorial);
+ font-size:clamp(2rem,3vw,3.05rem);font-weight:570;
+ line-height:1.1;letter-spacing:-.035em;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-command-copy > p{
+ max-inline-size:58ch;line-height:1.5;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-glance{
+ min-inline-size:0;border:1px solid var(--signature-border);border-radius:.85rem;
+ background:var(--iberfit-color-forest-900);
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-glance > *{
+ min-inline-size:0;overflow-wrap:break-word;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-quick{
+ min-inline-size:0;gap:.7rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-quick > button{
+ min-inline-size:0;min-block-size:64px;border:1px solid var(--signature-border);
+ border-radius:.85rem;background:var(--iberfit-color-forest-800);
+ color:var(--iberfit-color-cream-100);
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-quick > button:hover{
+ border-color:var(--signature-border-focus);
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-grid{
+ display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.9fr);gap:.85rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-section{
+ min-inline-size:0;padding:clamp(.95rem,1.5vw,1.25rem);border-radius:1rem;
+}
+.m26-shell[data-m26-role="coach"] .m26-main :is(.m26-coach-planning-compact,.m26-session-builder-v2,.m26-builder-editor){
+ min-inline-size:0;max-inline-size:100%;
+}
+.m26-shell[data-m26-role="coach"] .m26-main .m26-coach-planning-compact > summary{
+ min-block-size:48px;
+}
+/* Library · responsive real catalog cards with legible titles and actions. */
+.m26-shell[data-m26-role] .m26-main .m26-library-grid{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));
+ align-items:start;gap:clamp(.7rem,1.2vw,1rem);min-inline-size:0;
+}
+.m26-shell[data-m26-role] .m26-main .m26-library-card{
+ display:grid;grid-template-columns:minmax(6.25rem,8rem) minmax(0,1fr);
+ align-items:start;gap:clamp(.65rem,1vw,.9rem);
+ min-inline-size:0;padding:clamp(.8rem,1.25vw,1rem);
+ border-radius:.95rem;background:var(--iberfit-color-forest-800);transform:none;
+}
+.m26-shell[data-m26-role] .m26-main .m26-library-card .m26-library-copy{
+ display:grid;min-inline-size:0;align-content:start;gap:.3rem;
+}
+.m26-shell[data-m26-role] .m26-main .m26-library-copy > h3{
+ margin:0;font-size:clamp(.94rem,1.05vw,1.04rem);
+ line-height:1.32;overflow-wrap:break-word;word-break:normal;hyphens:auto;
+}
+.m26-shell[data-m26-role] .m26-main .m26-library-copy > :is(p,small){
+ line-height:1.45;overflow-wrap:break-word;word-break:normal;
+}
+.m26-shell[data-m26-role] .m26-main .m26-library-card .m26-exercise-media{
+ min-inline-size:0;max-inline-size:100%;margin:0;
+ border:1px solid var(--signature-border);border-radius:.8rem;
+}
+.m26-shell[data-m26-role] .m26-main .m26-library-card .m26-exercise-media-image{
+ max-inline-size:100%;object-fit:contain;
+}
+.m26-shell[data-m26-role] .m26-main .m26-library-details summary{
+ min-block-size:44px;display:flex;align-items:center;gap:.4rem;
+ max-inline-size:100%;color:var(--iberfit-color-gold-300);
+ font-size:.83rem;line-height:1.36;font-weight:700;
+ white-space:normal;overflow-wrap:break-word;word-break:normal;
+}
+.m26-shell[data-m26-role] .m26-main .m26-library-details-panel,
+.m26-shell[data-m26-role] .m26-main .m26-library-details-panel form :is(input,select,textarea,button){
+ min-inline-size:0;max-inline-size:100%;
+}
+.m26-shell[data-m26-role] .m26-main .m26-library-details-panel form :is(input,select,textarea,button){
+ min-block-size:44px;
+}
+/* Client · first authorized action and existing native dock are preserved. */
+.m26-shell[data-m26-role="client"] .m26-main .m26-rc39-session-card[data-client-session-editorial="true"]{
+ border-radius:var(--iberfit-radius-xl);border-color:var(--signature-border);
+}
+.m26-shell[data-m26-role="client"] .m26-main .m26-rc39-session-card[data-client-session-editorial="true"]
+ > .m26-session-preview-actions[data-client-session-primary] > button{
+ min-block-size:56px;border-radius:.8rem;
+}
+@media(max-width:1199px){
+ .m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-command,
+ .m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-grid{
+  grid-template-columns:minmax(0,1fr);
+ }
+}
+@media(max-width:900px){
+ .m26-shell[data-m26-role="admin"] .m26-main .m26-admin-grid{
+  grid-template-columns:minmax(0,1fr);
+ }
+}
+@media(max-width:680px){
+ .m26-shell[data-m26-role] .m26-main{padding-inline:clamp(.7rem,3vw,1rem)}
+ .m26-shell[data-m26-role] .m26-main .m26-library-grid{
+  grid-template-columns:minmax(0,1fr);
+ }
+ .m26-shell[data-m26-role] .m26-main .m26-library-card{
+  grid-template-columns:minmax(5.8rem,7rem) minmax(0,1fr);
+ }
+ .m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-quick{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-command-copy h2{
+  font-size:clamp(1.7rem,6.5vw,2.25rem);
+ }
+}
+@media(max-width:390px){
+ .m26-shell[data-m26-role] .m26-main .m26-library-card{
+  grid-template-columns:minmax(0,1fr);
+ }
+ .m26-shell[data-m26-role] .m26-main .m26-library-card > .m26-exercise-media{
+  max-inline-size:12rem;
+ }
+ .m26-shell[data-m26-role="coach"] .m26-main .m26-coach-home-quick{
+  grid-template-columns:minmax(0,1fr);
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ .m26-shell[data-m26-role] .m26-main :is(.m26-library-card,.m26-admin-panel,.m26-coach-home-command){
+  transition:none;
+ }
+}
+@media(forced-colors:active){
+ .m26-shell[data-m26-role] .m26-main :is(.m26-library-card,.m26-admin-panel,.m26-coach-home-command){
+  background:Canvas;color:CanvasText;border-color:CanvasText;box-shadow:none;
+ }
+}
+

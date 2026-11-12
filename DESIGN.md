@@ -327,3 +327,28 @@ autorizan por sí mismos `start-published-session`.
 - **Tres familias obligatorias por cada ruta/estado:** móvil 320/360/390/430, tablet 768/820/1024 y ordenador 1280/1440/1920 CSS px. Diferenciar disposición y comportamiento (no sólo escalar), probar touch, teclado, scroll, orientación, safe areas, zoom, WCAG 2.2 AA, DPR2/3, imágenes autorizadas y original isotipo. Probar carga, vacío, permisos, offline, error, conflicto, caducidad y recuperación según operación.
 - **Herencia para funcionalidades futuras:** primero emplear primitives y tokens semánticos de la app autenticada por rol, preservando las acciones reales. Las experiencias nuevas o cambios de interacción mayores regresan al Stitch existente, se evalúan con matriz de acciones/estados y se integran vía pruebas y despliegue reversible. No introducir CSS paralelo ni HTML DEMO como atajo.
 - Referencia privada versionada: `iberfit/Iberfit-platform`, contrato R40 del 01/11/2026. La aprobación artística completa de las 43 rutas sigue pendiente; documentación y tests sintéticos no sustituyen QA auténtica de la app.
+
+
+## IBERFIT SIGNATURE 360 · aprobación del 12/11/2026
+
+Dirección de producto y estética **aprobada** para Admin, Coach y Cliente. Las referencias
+de escritorio proporcionadas en la conversación son el estándar de calidad. No son código
+LIVE ni evidencia de sesiones, clientes, fotografías o métricas reales. Usar siempre los
+componentes, isotipo oficial de public/isotipo-iberfit.png, tokens y datos auténticos.
+
+Admin: jerarquía de mando, operaciones, CRM, usuarios, IRI inicial, biblioteca, media,
+comunicación, auditoría y formularios. Coach: Hoy, agenda, cartera, expedientes, planificación,
+constructor, ejecución, evidencia y mensajes. Cliente: acciones autorizadas y sencillas,
+entrenamiento real, feedback, progreso y seguimiento separado de IRI inicial.
+
+La visualización debe funcionar por tarea en escritorio, portátil, tablet vertical/horizontal,
+320/390/430 px y PWA. La certificación exige flujos reales, accesibilidad, touch, foco,
+scroll, formularios, offline/retry, safe areas y pruebas de regresión. Ningún estilo nuevo
+modifica control de acceso, WebAuthn, RLS, comandos, datos o recibos de confirmación.
+Las imágenes aprobadas no autorizan inventar isotipos ni avatares. La supresión de personas
+de PR #1319 permanece fuera de alcance.
+
+La implementación incremental de esta decisión comienza en la hoja canónica existente
+src/m26/design/iberfit-premium-v3.css. No confundir el contrato documentado ni un commit
+con la entrega final completa; producción requiere gates, respaldo M44 fresco, restauración,
+Canary exacto, promoción protegida y readback real de los tres roles.
