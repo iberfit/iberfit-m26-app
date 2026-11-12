@@ -15,6 +15,7 @@ const BASE='https://'+QA+'.supabase.co';
 const BRANCHES=new Set([
  'feat/u60-training360-r50-reconciled-20261104',
  'feat/iberfit-universal-360-one-release-20261106',
+ 'feat/iberfit-universal-launch-360-20261112',
  'canary/rc74-4',
  'feat/coach-a-verified-evidence-20261111',
 ]);

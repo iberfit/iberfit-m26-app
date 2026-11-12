@@ -122,6 +122,22 @@ test('SIGNATURE U14 builder review: real CSS, synthetic Coach shell, all respons
     return y>=0&&y<innerHeight&&node.contains(document.elementFromPoint(x,y));
   });
   expect(hit,'Review action must be tappable and not obscured by mobile dock').toBe(true);
+  // Genuine QA screenshot showed an intercepted Save below a sticky task
+  // bar at 390px. Verify the real target and computed mobile geometry.
+  if((page.viewportSize()?.width||0)<=690){
+    const jumpBar=page.locator('[data-session-task-navigation]');
+    await expect(jumpBar).toHaveCount(1);
+    const position=await jumpBar.evaluate(node=>getComputedStyle(node).position);
+    expect(position).not.toMatch(/sticky|fixed/u);
+    const save=finish.locator('[data-session-action="save-draft"]').first();
+    await save.scrollIntoViewIfNeeded();
+    const touch=await save.evaluate(node=>{
+      const b=node.getBoundingClientRect();
+      const x=Math.round(b.left+b.width/2),y=Math.round(b.top+b.height/2);
+      return y>=0&&y<innerHeight&&node.contains(document.elementFromPoint(x,y));
+    });
+    expect(touch,'mobile Coach Save must be physically tappable').toBe(true);
+  }
   const name=testInfo.project.name;
   await page.screenshot({path:`${OUT}/coach-builder-editing-${name}.png`,fullPage:true,animations:'disabled',caret:'hide'});
 

@@ -2225,6 +2225,21 @@
   }
 }
 
+/* Universal 360: keep phone Coach quick jumps in-flow, not over Save
+   or Review. Tablet retains sticky shortcuts and all genuine commands. */
+@media (max-width:690px){
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"]) .m26-builder-mobile-nav{
+    position:relative;
+    top:auto;
+    z-index:auto;
+    box-shadow:none;
+  }
+  .m26-builder-library,
+  .m26-builder-program{
+    scroll-margin-top:calc(var(--m26-session-sticky-top,.4rem) + .75rem);
+  }
+}
+
 @media (max-width:520px){
   .m26-planning-next-metrics{
     grid-template-columns:repeat(3,minmax(0,1fr));

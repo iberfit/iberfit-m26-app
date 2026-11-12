@@ -123,3 +123,15 @@ test('U71 exact branch preflight is allowlisted but never writes on first attemp
  assert.match(script,/old\.fingerprint===proof\.fingerprint/u);
  assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
 });
+
+test('the single launch branch uses signed two-step QA evidence and never PROD credentials',()=>{
+  const script=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+  const workflow=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+  for(const src of [script,workflow])assert.ok(src.includes('feat/iberfit-universal-launch-360-20261112'));
+  assert.match(script,/GITHUB_RUN_ATTEMPT==='2'/u);
+  assert.match(script,/BRANCH_HEAD_MOVED/u);
+  assert.match(workflow,/github\.run_attempt == 1/u);
+  assert.match(workflow,/github\.run_attempt == 2/u);
+  assert.match(workflow,/environment: m26-canary-readonly/u);
+  assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
+});

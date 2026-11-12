@@ -39,3 +39,11 @@ test('los saltos rápidos son navegación local y no pasan por acciones de domin
   assert.match(controller,/focus\?\.\(\{preventScroll:true\}\)/u);
   assert.match(controller,/const jump=[\s\S]*?return;[\s\S]*?const button=event\.target\.closest\?\.\('\[data-session-action\]'\)/u);
 });
+test('mobile Coach shortcut bar remains in layout and does not overlap form buttons',()=>{
+  const css=fs.readFileSync('src/m26/design/dark-iberfit-v2.css','utf8');
+  const phone=css.split('/* Universal 360: keep phone')[1]?.split('@media (max-width:520px)')[0]||'';
+  assert.ok(phone);
+  assert.match(phone,/@media \(max-width:690px\)/u);
+  assert.match(phone,/\.m26-builder-mobile-nav\{[\s\S]*?position:relative;[\s\S]*?top:auto;[\s\S]*?z-index:auto;/u);
+  assert.doesNotMatch(phone,/position:sticky|position:fixed/u);
+});
