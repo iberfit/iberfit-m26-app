@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 import {
   resolveM26Runtime,createM26Transport,
   M26_QA_PROJECT_REF,M26_PRODUCTION_PROJECT_REF,
@@ -52,6 +53,18 @@ test('M1 disabled production transport rejects both date and private reads befor
     entityId:'20000000-0000-4000-8000-000000000001',baseRevision:0,
   }),/M26_OCCURRENCE_PRODUCTION_NOT_RELEASED/);
   assert.equal(calls,0);
+});
+
+test('M1 paused-admission and production workout copy is localized EN/FR/PT',()=>{
+  for(const label of [
+    'Temporalmente no se admiten nuevos inicios. Puedes recuperar, guardar y finalizar un entrenamiento que ya esté en curso.',
+    'Los nuevos inicios están temporalmente pausados. Puedes seguir guardando y recuperar sesiones ya iniciadas.',
+    'Training360 · Entrenamiento',
+  ])for(const language of ['en','fr','pt']){
+    const value=iberfitSurfaceTranslate(label,{language});
+    assert.notEqual(value,label,language+': '+label);
+    assert.ok(value.length>=8);
+  }
 });
 
 test('M1 production UI refuses a project mismatch before owner/network initialization',()=>{

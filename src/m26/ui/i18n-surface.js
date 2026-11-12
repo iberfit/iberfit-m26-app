@@ -5,6 +5,17 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // M1 U60 protected release: freeze NEW admissions while existing workouts
+  // remain recoverable, savable and finishable; no false completion.
+  ['Temporalmente no se admiten nuevos inicios. Puedes recuperar, guardar y finalizar un entrenamiento que ya esté en curso.',
+    'New workout starts are temporarily paused. You can recover, save and finish a workout already in progress.',
+    'Les nouveaux entraînements sont temporairement suspendus. Vous pouvez récupérer, enregistrer et terminer une séance déjà commencée.',
+    'O início de novos treinos está temporariamente suspenso. Pode recuperar, guardar e terminar um treino já em curso.'],
+  ['Los nuevos inicios están temporalmente pausados. Puedes seguir guardando y recuperar sesiones ya iniciadas.',
+    'New starts are temporarily paused. You can still save and recover workouts already started.',
+    'Les nouveaux démarrages sont temporairement suspendus. Vous pouvez toujours enregistrer et récupérer les séances commencées.',
+    'Os novos inícios estão temporariamente suspensos. Pode continuar a guardar e a recuperar treinos já iniciados.'],
+  ['Training360 · Entrenamiento','Training360 · Workout','Training360 · Entraînement','Training360 · Treino'],
   // UNIVERSAL B: Coach's three training evidence states, localized in every language.
   ["Evidencia de entrenamiento","Training evidence","Preuves d'entraînement","Evidências de treino"],
   ["Estado de entrenamientos · 28 días","Workout status · 28 days","Statut des entraînements · 28 jours","Estado dos treinos · 28 dias"],
