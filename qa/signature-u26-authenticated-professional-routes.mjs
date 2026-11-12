@@ -141,6 +141,68 @@ async function installTrustedRoutePaintProbe(page,role){
   },role);
 }
 
+
+/**
+ * Read-only, failing-route-only CDP CPU attribution. The first genuine
+ * trusted navigation is always measured without profiler overhead and
+ * keeps its hard <=5s acceptance. If it fails, repeat only the two
+ * read-only route clicks to capture bounded anonymous function self-time.
+ * Raw CPU profiles, source URLs, frames, snippets and private data are
+ * never written to logs or to any artifact.
+ */
+async function diagnoseSlowCoachRouteCpu(page){
+  let session=null,started=false,profile=null,completed=false;
+  try{
+    session=await page.context().newCDPSession(page);
+    await session.send('Profiler.enable');
+    await session.send('Profiler.start');
+    started=true;
+    for(const area of ['hoy','clientes']){
+      const option=page.locator('.m26-shell[data-m26-role="coach"] [data-m26-area="'+area+'"]:visible:not([disabled])').first();
+      if(!await option.count())break;
+      await option.click({noWaitAfter:true,timeout:12000});
+      await page.waitForFunction(expected=>{
+        const current=globalThis.__IBERFIT_M26_APP__?.getNavigationSnapshot?.();
+        const proof=globalThis.__IBERFIT_QA_U26_NAV_PAINT__?.read?.();
+        return String(current?.activeArea||'')===expected
+          &&proof?.trusted===true&&proof.area===expected;
+      },area,{timeout:12000,polling:'raf'});
+      if(area==='clientes')completed=true;
+    }
+  }catch{
+    // The primary SLA failure remains authoritative; a diagnostic failure
+    // cannot turn it green, nor reveal an exception containing private data.
+  }finally{
+    if(session&&started){
+      try{profile=(await session.send('Profiler.stop')).profile||null;}catch{}
+    }
+    try{await session?.send('Profiler.disable');}catch{}
+    try{await session?.detach();}catch{}
+  }
+  if(!profile)return {status:'unavailable'};
+  const nodes=new Map((profile.nodes||[]).map(node=>[
+    Number(node.id),String(node.callFrame?.functionName||''),
+  ]));
+  const stats=new Map();
+  const samples=Array.isArray(profile.samples)?profile.samples:[];
+  const deltas=Array.isArray(profile.timeDeltas)?profile.timeDeltas:[];
+  // Only bounded static JS names (never URL, source text or user payloads).
+  for(let i=0;i<Math.min(60_000,samples.length);i++){
+    const raw=nodes.get(Number(samples[i]))||'';
+    const name=raw==='(garbage collector)'?'GC'
+      :raw==='(idle)'?'IDLE'
+      :/^[A-Za-z_$][\w$]{0,55}$/u.test(raw)?raw:'other';
+    const ms=Math.max(0,Math.min(250,Number(deltas[i]||0)/1000));
+    if(!Number.isFinite(ms))continue;
+    stats.set(name,(stats.get(name)||0)+ms);
+  }
+  const top=[...stats.entries()]
+    .sort((a,b)=>b[1]-a[1]).slice(0,12)
+    .map(([fn,ms])=>({fn,selfMs:Math.round(ms)}));
+  return {status:completed?'complete':'partial',
+    samples:Math.min(60_000,samples.length),top};
+}
+
 async function navigateViaActualControl(page,role,area){
   const shell=page.locator('.m26-shell[data-m26-role="'+role+'"]');
   if(await activeArea(page)===area)return true;
@@ -233,6 +295,14 @@ async function navigateViaActualControl(page,role,area){
       Math.round(painted.elapsedMs)+'ms '+
       JSON.stringify({eligibleElapsedMs:Math.round(painted.eligibleElapsedMs),
         frameWaitMs:Math.round(painted.frameWaitMs),longTasks,...phases}));
+    // The measured failure above is immutable. CPU profiling starts only
+    // now, on a second read-only Coach route traversal, never during the
+    // original SLA measurement or a successful run.
+    if(role==='coach'&&area==='clientes'
+      &&Number(page.viewportSize()?.width||0)>=1000){
+      const cpu=await diagnoseSlowCoachRouteCpu(page);
+      console.log('SIGNATURE_U89_COACH_CPU_DIAGNOSTIC '+JSON.stringify(cpu));
+    }
   }
   expect(painted.elapsedMs,area+': trusted touch-to-paint must not exceed 5s')
     .toBeLessThanOrEqual(5_000);

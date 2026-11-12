@@ -954,8 +954,18 @@ export function createShellController({ root, store, renderRoute = () => '', get
           // Avoid the unused full-history clone returned by navigate().
           if(typeof store.navigateFast==='function')store.navigateFast(decision.area);
           else store.navigate(decision.area);
+          markQaShellStage('route-store-updated',decision.area);
           reconcileRouteRender(decision.area);
+          markQaShellStage('route-reconcile-queued',decision.area);
           focusMain();
+          markQaShellStage('route-focus-queued',decision.area);
+          // Distinguish the synchronous trusted task from the subsequent
+          // microtask/render and browser work, without touching the CAS,
+          // security decisions, route commit or paint benchmark.
+          queueMicrotask(()=>{
+            if(store.getNavigationSnapshot?.()?.activeArea===decision.area)
+              markQaShellStage('route-microtask-tail',decision.area);
+          });
         },
         {documentLike,windowLike,forceSync:String(current.identity?.role||'')==='coach'},
       );
