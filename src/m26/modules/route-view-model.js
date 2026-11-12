@@ -482,17 +482,58 @@ function compactActivity(record) {
 // Coach planning must behave as a usable chronological list, not depend on
 // whichever order a paged bootstrap happened to deliver. This is presentation
 // only: all records and their original server revisions are preserved.
+// Coach worklist: the appointment is a planned date, not an execution.
+// Read only authoritative, confirmed appointments owned by this Client.
+// Keep independent dates; never mutate their state or synthesize occurrences.
+export function withCoachPlanningSchedule(items=[],appointments=[],now=new Date()){
+  const instant=now instanceof Date?now.getTime():Date.parse(String(now));
+  const today=Number.isFinite(instant)?instant:Date.now();
+  const perSession=new Map();
+  for(const original of appointments){
+    const ap=normalizeAppointmentRecord(original);
+    if(ap.status!=='confirmada'||!ap.sessionId||!ap.clientId)continue;
+    const starts=Date.parse(String(ap.startAt||''));
+    if(!Number.isFinite(starts))continue;
+    const key=ap.clientId+'|'+ap.sessionId;
+    let slot=perSession.get(key);
+    if(!slot){slot={upcoming:null,past:null};perSession.set(key,slot);}
+    if(starts>=today-60_000){
+      if(!slot.upcoming||starts<slot.upcoming.time)
+        slot.upcoming={time:starts,value:String(ap.startAt)};
+    }else if(!slot.past||starts>slot.past.time){
+      slot.past={time:starts,value:String(ap.startAt)};
+    }
+  }
+  return items.map(item=>{
+    const slot=perSession.get(String(item.clientId||'')+'|'+String(item.id||''));
+    const appointment=slot?.upcoming||slot?.past;
+    if(!appointment)return item;
+    const upcoming=slot?.upcoming===appointment;
+    const date=formatIberfitDate(appointment.value,{
+      locale:IBERFIT_UI_LOCALE,includeTime:'auto',
+    })||'Fecha confirmada';
+    return Object.freeze({...item,
+      plannedDateLabel:(upcoming?'Próxima fecha confirmada':'Última fecha confirmada')+' · '+date,
+      scheduledDateAt:appointment.value,
+      scheduledDateKind:upcoming?'upcoming':'past',
+    });
+  });
+}
 export function orderCoachPlanningSessions(items=[]) {
   const dateOf=item=>{
-    const ms=Date.parse(String(item?.date||''));
+    const ms=Date.parse(String(item?.scheduledDateAt||item?.date||''));
     return Number.isFinite(ms)?ms:null;
   };
+  const priority=item=>item?.scheduledDateKind==='upcoming'?0
+    :item?.scheduledDateKind==='past'?1:2;
   return [...items].sort((a,b)=>{
+    const groupA=priority(a),groupB=priority(b);
+    if(groupA!==groupB)return groupA-groupB;
     const left=dateOf(a),right=dateOf(b);
     if(left===null&&right===null)return 0;
     if(left===null)return 1;
     if(right===null)return -1;
-    return right-left;
+    return groupA===0?left-right:right-left;
   });
 }
 
@@ -944,7 +985,9 @@ if (area === 'clientes') {
       clientContext:['admin','coach'].includes(role)?professionalClientContext(state,clientId):null,
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),
       sessions: Object.freeze(role==='coach'
-        ?orderCoachPlanningSessions(publicationItems(sessions, 'session', role))
+        ?orderCoachPlanningSessions(withCoachPlanningSchedule(
+            publicationItems(sessions, 'session', role),
+            recordsForClient(state,'appointments',clientId),now))
         :publicationItems(sessions, 'session', role)),
       cycleCounts: publicationCounts(cycles),
       sessionCounts: publicationCounts(sessions),
