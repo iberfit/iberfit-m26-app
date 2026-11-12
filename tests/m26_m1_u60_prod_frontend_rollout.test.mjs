@@ -67,6 +67,18 @@ test('M1 paused-admission and production workout copy is localized EN/FR/PT',()=
   }
 });
 
+test('M1 production runtime generator defaults closed and demands explicit SHA/operator authorization',()=>{
+  const generator=readFileSync(new URL('../scripts/generate_final_production_runtime_config.mjs',import.meta.url),'utf8');
+  const promotion=readFileSync(new URL('../.github/workflows/production-promote.yml',import.meta.url),'utf8');
+  assert.match(generator,/M26_U60_PROD_MODE\|\|'closed'/u);
+  assert.match(generator,/FINAL_PROD_U60_MODE_INVALID/u);
+  assert.match(generator,/M26_U60_CERTIFIED_SOURCE_SHA!==sourceSha/u);
+  assert.match(generator,/M26_U60_OPERATOR_APPROVAL!=='approved'/u);
+  assert.match(generator,/datedTrainingProductionReleased:datedTrainingMode!=='closed'/u);
+  assert.match(generator,/datedTrainingProductionStartsEnabled:datedTrainingMode==='active'/u);
+  assert.doesNotMatch(promotion,/M26_U60_PROD_MODE:\s*(?:active|recovery)/u);
+});
+
 test('M1 production UI refuses a project mismatch before owner/network initialization',()=>{
   assert.throws(()=>createDatedOccurrenceQaUi({enabled:true,
     projectRef:M26_PRODUCTION_PROJECT_REF}),/U60_UI_QA_PROJECT_REQUIRED/);
