@@ -4338,7 +4338,6 @@
  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
  gap:.6rem;list-style:none;min-block-size:48px;cursor:pointer;
 }
-.m26-shell[data-m26-role] .m26-main .m26-library-create-trigger::-webkit-details-marker{display:none}
 .m26-shell[data-m26-role] .m26-main .m26-library-create-trigger > span:first-child{display:grid;gap:.15rem}
 .m26-shell[data-m26-role] .m26-main .m26-library-create-trigger small{
  color:var(--iberfit-color-gold-300);font-size:.69rem;
@@ -4354,9 +4353,6 @@
 }
 .m26-shell[data-m26-role] .m26-main .m26-library-create-disclosure[open] .m26-library-create-trigger{
  padding-block-end:.75rem;border-block-end:1px solid var(--signature-border);
-}
-.m26-shell[data-m26-role] .m26-main .m26-library-create-disclosure[open] .m26-library-create-open{
- visibility:hidden;
 }
 .m26-shell[data-m26-role] .m26-main .m26-library-create-body{padding-block-start:.9rem;min-inline-size:0}
 .m26-shell[data-m26-role] .m26-main .m26-library-create-body .m26-panel-heading{align-items:start}
