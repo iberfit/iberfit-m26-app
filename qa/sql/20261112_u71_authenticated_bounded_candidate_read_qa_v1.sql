@@ -64,6 +64,7 @@ BEGIN
       AND s.body->>'clientId'=v_owner::text
       AND s.body->>'id'=s.entity_id::text
       AND s.body->>'deliveryModality'='guiada_en_app'
+      AND s.body->>'deliveryOwnership'='guided_in_app'
       AND s.body->>'visibleToClient'='true'
       AND s.body->>'clientVisibilityLevel'='full'
       AND CASE WHEN jsonb_typeof(s.body->'blocks')='array'
