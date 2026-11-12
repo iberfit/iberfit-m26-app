@@ -135,7 +135,10 @@ test('UNIVERSAL session withdraw requires fresh authenticated U60 date proof bef
   const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
   const workflow=readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
   const ui=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
-  assert.match(app,/verifySessionDateRetirement:runtime.qaOnly===true&&runtime.canary===true/u);
+  assert.match(app,/verifySessionDateRetirement:datedUi\?\.enabled===true/u,
+    'both QA and released PROD must verify all U60 dates before Coach withdrawal');
+  assert.match(app,/if\(!datedUi\?\.enabled\|\|typeof datedUi\.verifySessionRetirement!=='function'\)/u,
+    'missing calendar verifier must fail closed instead of allowing withdrawal');
   assert.match(ui,/assertNoPendingSessionOccurrences/u);
   assert.match(ui,/readCalendar:range=>runtime.calendar\(range\)/u);
   const manage=workflow.slice(workflow.indexOf('async function managePublication('),
