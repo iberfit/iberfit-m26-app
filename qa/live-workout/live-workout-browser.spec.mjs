@@ -270,7 +270,15 @@ test('Cliente conserva flujo limpio, puede sustituir antes de progresar y omitir
 
   const skipDetails=page.locator('[data-session-live-entry] details.m26-session-options').filter({hasText:'No realizar esta serie'});
   await skipDetails.locator('summary').click();
-  await expect(skipDetails,'Skipping a set must open its actual native disclosure in WebKit').toHaveAttribute('open','');
+  await expect(skipDetails,'Safari/WebKit must open the actual native disclosure').toHaveAttribute('open','');
+  // Native summary must remain reachable with keyboard; a custom double
+  // toggle would close it again and hide the reason from the client.
+  const skipSummary=skipDetails.locator('summary');
+  await skipSummary.focus();
+  await skipSummary.press('Enter');
+  await expect(skipDetails,'Enter closes the native summary').not.toHaveAttribute('open','');
+  await skipSummary.press('Enter');
+  await expect(skipDetails,'Enter reopens the native summary').toHaveAttribute('open','');
   await expect(skipDetails.locator('[data-session-skip-set-reason]')).toBeVisible();
   await skipDetails.locator('[data-session-skip-set-reason]').fill('Molestia puntual QA');
   await skipDetails.locator('[data-session-action="skip-set"]').click();

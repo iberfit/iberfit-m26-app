@@ -105,8 +105,11 @@ function sessionForPreparation(state,clientId,appointment){
   const sessions=forClient(state,'sessions',clientId);
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim();
   if(appointmentSessionId){
-    const exact=sessions.find(item=>idOf(item)===appointmentSessionId);
-    if(exact)return exact;
+    // A confirmed appointment references one exact prescription. Never
+    // substitute the newest unrelated session (even for the same client):
+    // the Coach could review or adapt the wrong training instructions.
+    // Missing, revoked or cross-client references must remain unresolved.
+    return sessions.find(item=>idOf(item)===appointmentSessionId)||null;
   }
   let newestPublished=null,publishedTime=-Infinity;
   let newestAny=null,anyTime=-Infinity;

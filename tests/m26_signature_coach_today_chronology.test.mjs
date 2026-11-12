@@ -77,3 +77,26 @@ test('Coach and Client Today stay separate; Cliente never inherits Coach priorit
   assert.match(clientHtml,/m26-client-home-feature/u);
   assert.match(clientHtml,/Hola, Cliente A/u);
 });
+
+test('Coach hero presents one decision and keeps the exact source evidence inside native disclosure',()=>{
+  const focus=Object.freeze({kind:'warning',clientId:'a',clientName:'Cliente A',reason:'Revisar feedback',detail:'Observación confirmada',guidance:'Revisar antes de ajustar'});
+  const other=Object.freeze({kind:'process',clientId:'b',clientName:'Cliente B',reason:'Actualizar planificación'});
+  const vm=coach({coachCockpit:{totalClients:2,attentionCount:2,items:[focus,other],riskFocus:focus}});
+  const html=renderHoyRoute(vm);
+  assert.match(command(vm),/Revisar feedback/u);
+  assert.match(html,/<details class="m26-coach-records-archive" data-coach-hero-context>/u);
+  for(const s of ['Observación confirmada','Revisar antes de ajustar','Actualizar planificación'])assert.ok(html.includes(s));
+  assert.equal((html.match(/class="m26-list-card m26-coach-priority-card"/gu)||[]).length,2);
+  assert.match(html,/data-m26-client-id="a"/u);
+  assert.match(html,/data-m26-select-client="b"/u);
+});
+test('Coach never collapses distinct follow-up or the operational conflict instead of the risk',()=>{
+  const first={kind:'critical',clientId:'a',clientName:'Cliente A',reason:'Primera prioridad'};
+  const second={kind:'warning',clientId:'a',clientName:'Cliente A',reason:'Segunda prioridad'};
+  const cockpit={totalClients:2,attentionCount:2,items:[first,second],riskFocus:first};
+  const html=renderHoyRoute(coach({coachCockpit:cockpit}));
+  assert.match(html,/Segunda prioridad/u);
+  assert.equal((html.match(/class="m26-list-card m26-coach-priority-card"/gu)||[]).length,2);
+  const conflict=renderHoyRoute(coach({operations:{conflicts:1},coachCockpit:cockpit}));
+  assert.doesNotMatch(conflict,/data-coach-hero-context/u);
+});

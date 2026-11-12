@@ -26,10 +26,14 @@ test('U360 WebKit: preserves original post-render set validation and all control
    assert.ok(rendered.includes(token),token);
 });
 
-test('U360 WebKit: skip-set reason disclosure toggles synchronously without native double toggle',()=>{
+test('U360 WebKit: skip-set uses the actual native disclosure without delegated double inversion',()=>{
  const ui=readFileSync(new URL('../src/m26/workflows/session-ui.js',import.meta.url),'utf8');
  assert.ok(ui.includes('data-session-skip-set-disclosure'));
- assert.ok(file.includes("event.target.closest?.('details[data-session-skip-set-disclosure] > summary')"));
- assert.ok(file.includes("if(details?.tagName==='DETAILS')details.open=!details.open"));
- assert.ok(file.includes('event.preventDefault?.()'));
+ assert.ok(ui.includes('<summary>No realizar esta serie</summary>'));
+ const start=file.indexOf('// Trust native <details>/<summary>');
+ const end=file.indexOf('const openSubstitution=',start);
+ assert.ok(start>=0&&end>start,'native summary default is deliberately protected');
+ const handler=file.slice(start,end);
+ assert.doesNotMatch(handler,/event\.preventDefault\?\.\(|details\.open\s*=|if\s*\(skipSummary\)/u);
+ assert.ok(casePart.includes('restoreLiveDisclosure'),'repaint preservation remains intact');
 });

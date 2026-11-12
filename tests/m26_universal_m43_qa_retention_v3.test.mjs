@@ -1,0 +1,36 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {assessM43SyntheticFixtureBudget,M43_SYNTHETIC_SESSION_LIMIT} from '../scripts/remote-gates/m43-qa-fixture-safety.mjs';
+const v2=JSON.parse(readFileSync(new URL('../scripts/remote-gates/m43-qa-retained-history-v2.json',import.meta.url),'utf8'));
+const v3=JSON.parse(readFileSync(new URL('../scripts/remote-gates/m43-qa-retained-history-v3.json',import.meta.url),'utf8'));
+const safety=readFileSync(new URL('../scripts/remote-gates/m43-qa-fixture-safety.mjs',import.meta.url),'utf8');
+test('M43 QA 2026-11-12 ledger v3 appends only 40 strict completed records, retains v2 561 unchanged',()=>{
+ assert.equal(v3.schema,'iberfit.qa.m43.retained-historical-v3');
+ assert.equal(v3.sourceProject,'gjztkdwfmunnzhtvxrsu');
+ assert.equal(v3.qaOnly,true);
+ assert.equal(v3.frozenBeforeUtc,'2026-11-12T05:00:00Z');
+ assert.equal(v3.parentLedger,'m43-qa-retained-history-v2.json');
+ assert.equal(v3.parentBlobSha,'eeff214fb84b036c423d68b302a1749b58c91353');
+ assert.equal(v3.mode,'logical_retention_only_no_database_mutation');
+ assert.equal(v2.sha256EntityScopeRevisionAndTitle.length,561);
+ assert.equal(v3.sha256EntityScopeRevisionAndTitle.length,601);
+ assert.equal(new Set(v3.sha256EntityScopeRevisionAndTitle).size,601);
+ assert.deepEqual(v3.sha256EntityScopeRevisionAndTitle,[...v3.sha256EntityScopeRevisionAndTitle].sort());
+ const old=new Set(v2.sha256EntityScopeRevisionAndTitle);
+ assert.equal(v3.sha256EntityScopeRevisionAndTitle.filter(x=>old.has(x)).length,561);
+ assert.equal(v3.sha256EntityScopeRevisionAndTitle.filter(x=>!old.has(x)).length,40);
+ assert.ok(v3.sha256EntityScopeRevisionAndTitle.every(x=>/^[0-9a-f]{64}$/u.test(x)));
+ assert.match(v3.selection,/no appointment, active execution lock or foreign-client domain event/u);
+ assert.match(v3.selection,/exactly one completed same-owner canonical execution/u);
+ assert.match(safety,/m43-qa-retained-history-v3\.json/u);
+});
+test('M43 protects 150 concurrent QA fixture ceiling, does not erase or grant cross-owner access',()=>{
+ assert.equal(M43_SYNTHETIC_SESSION_LIMIT,150);
+ assert.match(safety,/status!=='completada'/u);
+ assert.match(safety,/clientId\+':'\+id\+':'\+item\.status\+':'\+revision\+':'\+title/u);
+ const row={entityType:'session',status:'en_curso',body:{title:'IBERFIT QA M43 · multideporte'}};
+ assert.equal(assessM43SyntheticFixtureBudget({data:{m26Entities:Array.from({length:150},()=>row)}}).exhausted,true);
+ assert.equal(assessM43SyntheticFixtureBudget({data:{m26Entities:null}}).exhausted,true);
+ assert.doesNotMatch(JSON.stringify(v3),/\b(DELETE FROM|TRUNCATE|UPDATE public\.|DROP TABLE)\b/iu);
+});

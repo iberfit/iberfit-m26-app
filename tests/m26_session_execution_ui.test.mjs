@@ -46,17 +46,19 @@ test('cierre de sesión distingue feedback del Cliente y registro profesional de
 
   assert.match(clientHtml,/Cuéntanos cómo te fue/);
   assert.match(clientHtml,/Tuve dolor o molestia/);
-  assert.match(clientHtml,/Tu ejecución ya está registrada/);
+  assert.match(clientHtml,/Has terminado los ejercicios/);
   assert.doesNotMatch(clientHtml,/Registra el feedback del cliente/);
 
   assert.match(coachHtml,/Registra el feedback del cliente/);
-  assert.match(coachHtml,/RPE del cliente/);
-  assert.match(coachHtml,/Feedback \/ percepción del cliente/);
+  assert.match(coachHtml,/Esfuerzo percibido por el cliente \(1 a 10\)/);
+  assert.match(coachHtml,/Observaciones del cliente/);
   assert.match(coachHtml,/data-session-coach-feedback-privacy/);
   assert.match(coachHtml,/Para observaciones internas utiliza Notas privadas del entrenador/);
   assert.doesNotMatch(clientHtml,/data-session-coach-feedback-privacy/);
   assert.match(coachHtml,/El cliente reportó dolor o molestia/);
-  assert.match(coachHtml,/La ejecución ya está registrada/);
+  assert.match(coachHtml,/Esfuerzo referido por el cliente/u);
+  assert.doesNotMatch(coachHtml,/¿Qué esfuerzo te supuso/u);
+  assert.match(coachHtml,/El trabajo realizado está registrado/);
   assert.doesNotMatch(coachHtml,/Cuéntanos cómo te fue/);
   assert.doesNotMatch(coachHtml,/Tuve dolor o molestia/);
 
@@ -95,7 +97,7 @@ test('cierre avisa cuando el feedback conservado requiere revisión por cambios 
 
   let html=renderGuidedExecution({execution:x,session:s,catalog,role:'coach'});
   assert.match(html,/data-session-feedback-review-required/);
-  assert.match(html,/El entrenamiento cambió después de escribir este feedback/);
+  assert.match(html,/El entrenamiento cambió después de escribir esta valoración/);
 
   x.finalFeedbackDraft.needsReview=false;
   html=renderGuidedExecution({execution:x,session:s,catalog,role:'coach'});

@@ -5766,16 +5766,22 @@ m26-echart[data-density="compact"]{
   }
 }
 
-/* SIGNATURE EXCELLENCE UHD · retain reading measure while using genuinely
- * useful horizontal room on 2560–3840 CSS px workstations. Mobile, tablet,
- * laptop and standard desktop layouts deliberately remain untouched. */
-@media (min-width:2560px){
+/* SIGNATURE EXCELLENCE UHD · 4K physical at DPR2 is 1920 CSS px,
+ * not 3840 CSS px. Use the wider editorial layout on true high-density 4K
+ * workstations, but keep standard 1920px DPR1 and laptop measures untouched. */
+@media (min-width:2560px), (min-width:1900px) and (min-resolution:2dppx){
   .m26-shell[data-m26-role="client"] .m26-route{
     max-width:min(1640px,100%);
   }
   .m26-shell[data-m26-role="coach"] .m26-route,
   .m26-shell[data-m26-role="admin"] .m26-route{
     max-width:min(1920px,100%);
+  }
+  /* Admin uses its own native route wrapper. Override the regular
+   * workspace's 100% cap only in the UHD media query; the standard
+   * laptop/tablet/mobile reading width must remain unchanged. */
+  .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route{
+    max-inline-size:min(1920px,100%);
   }
 }
 

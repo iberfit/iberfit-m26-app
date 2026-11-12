@@ -26,6 +26,18 @@ Evitar:
 
 Usar siempre el logo/isotipo real de IBERFIT. No inventar variantes de marca.
 
+## Voz propia IBERFIT · lenguaje humano y preciso
+
+La interfaz, los informes y las notificaciones hablan exclusivamente con voz **IBERFIT**: cercana, clara, sobria y profesional. No copiar el tono ni la terminología de otra marca. Mostrar criterio, cuidado y confianza sin jerga interna ni promesas no acreditadas.
+
+- **Cliente:** hablar de «tu entrenamiento», «lo que hiciste», «tu esfuerzo», «cómo te sentiste» y «qué sigue». Evitar «RPC», «snapshot», «ACK» o «RPE» sin explicación. Si una escala técnica es útil, explicar su significado en el momento (p. ej. esfuerzo percibido, de 1 a 10).
+- **Coach:** lenguaje operativo con conceptos profesionales cuando ayudan a decidir, siempre con contexto: series, carga, intensidad, progresiones, planificación, adherencia y motivo de los cambios. No ocultar prescripción, datos reales o incidencias.
+- **Admin:** mensajes exactos de acceso, estado, impacto y recuperación. Diferenciar cuenta, cliente activo, evaluación IRI aislada y entrenamiento registrado; nunca sugerir permisos que el servidor no ha concedido.
+- **Todas las áreas:** priorizar verbo + consecuencia («Guardar y salir», «Finalizar y guardar», «Revisar antes de publicar»); en un error explicar qué pasó, qué datos están conservados y cuál es el siguiente paso. Nunca decir «guardado», «sincronizado» o «completado» antes de confirmación real; distinguir siempre registro local, pendiente y confirmado.
+- **Ayuda y tono:** frases breves, castellano natural, voz humana sin infantilizar, exagerar resultados ni culpar al usuario. Las instrucciones de molestia o dolor deben invitar a registrarlo sin hacer diagnóstico automático. El diagnóstico IRI inicial no es una gráfica de evolución.
+
+La aceptación de microcopy incluye teclado, lector de pantalla, móvil estrecho, estados vacíos, carga, éxito, error y recuperación. Cambiar copy nunca debe romper nombres accesibles, comandos, RLS ni semántica de formularios.
+
 ## SIGNATURE 360 · Calidez visual, redondez y excelencia
 
 - Las grandes superficies de Cliente, Coach y Admin deben usar bosque oscuro cálido, oliva y capas profundas; **no** blanco puro o gris azulado de aspecto clínico. Marfil y arena son colores de lectura, no fondos dominantes.

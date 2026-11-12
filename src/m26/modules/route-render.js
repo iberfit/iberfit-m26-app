@@ -270,7 +270,7 @@ function renderCoachHoyRoute(vm) {
   const appointments=Array.isArray(vm.appointments)?vm.appointments:[];
   const upcoming=Array.isArray(vm.upcoming)?vm.upcoming:[];
   const clients=Array.isArray(vm.clients)?vm.clients:[];
-  const queueItems=(cockpit?.items||[]).slice(0,4);
+  const allAttentionItems=Array.isArray(cockpit?.items)?cockpit.items:[];
   const riskFocus=cockpit?.riskFocus||null;
   const processFocus=(cockpit?.items||[]).find((item)=>item?.kind==='process')||null;
   const fallbackClientAction=!cockpit
@@ -387,6 +387,21 @@ function renderCoachHoyRoute(vm) {
     {area:'agenda',label:'Agenda',glyph:'calendar-days'},
   ].filter(({area})=>Boolean(primary.clientId)||area!==primary.area);
 
+  // One visible decision: preserve the original full item in an accessible
+  // disclosure while retaining all other independent follow-up entries.
+  const heroAttentionItem=primary.area==='expediente'&&primary.clientId
+    &&riskFocus&&allAttentionItems.includes(riskFocus)
+    &&String(riskFocus.clientId||'')===String(primary.clientId)
+      ?riskFocus:null;
+  const supportingAttentionItems=heroAttentionItem
+    ?allAttentionItems.filter(item=>item!==heroAttentionItem)
+    :allAttentionItems;
+  const heroAttentionDetails=heroAttentionItem
+    ?`<details class="m26-coach-records-archive" data-coach-hero-context>
+      <summary>Contexto de la prioridad destacada<span aria-hidden="true">+</span></summary>
+      <div class="m26-stack">${coachPriorityCard(heroAttentionItem)}</div>
+    </details>`:'';
+
   const attentionCount=Number(cockpit?.attentionCount||0);
   const attentionStatus=attentionCount
     ?countLabel(attentionCount,'requiere atención','requieren atención')
@@ -422,8 +437,10 @@ function renderCoachHoyRoute(vm) {
         <span aria-hidden="true">+</span>
         <div><strong>Empieza por tu cartera</strong><small>Añade o recibe tu primer cliente.</small></div>
       </div>`
-    :queueItems.length
-      ?`<div class="m26-stack">${renderCoachProgressiveRecords(cockpit?.items||[],coachPriorityCard,{visible:4,batch:18,kind:'prioridades',label:'Prioridades'})}</div>`
+    :allAttentionItems.length
+      ?`<div class="m26-stack">${heroAttentionDetails}${supportingAttentionItems.length
+        ?renderCoachProgressiveRecords(supportingAttentionItems,coachPriorityCard,{visible:4,batch:18,kind:'prioridades',label:'Prioridades'})
+        :''}</div>`
       :`<div class="m26-coach-home-clear">
           <span aria-hidden="true">✓</span>
           <div><strong>Cartera al día</strong><small>Sin revisiones prioritarias.</small></div>
@@ -4705,7 +4722,7 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
       <article>
         <span>Adherencia · 28 días</span>
         <strong>${escapeHtml(adherence)}</strong>
-        <small>${escapeHtml(`${prep.progress.completedSessions} de ${prep.progress.plannedSessions} sesiones confirmadas`)}</small>
+        <small>${escapeHtml(`${prep.progress.completedSessions} completadas de ${prep.progress.plannedSessions} planificadas`)}</small>
       </article>
       <article>
         <span>Calidad de contexto</span>
