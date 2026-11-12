@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,validatedDatedCandidates} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -189,4 +189,57 @@ test('U71 skew recovery is restricted to read-only identity and cannot reissue w
  const write=source.slice(source.indexOf("proof.status='QA_SYNTHETIC_WRITE_STARTED'"));
  assert.doesNotMatch(write,/boundedReadOnlyJwtClockSkewRecovery/u);
  assert.match(source,/GITHUB_RUN_ATTEMPT==='2'/u);
+});
+
+
+test('U71 avoids full Client historical bootstrap while keeping real QA owner, session and grant checks',()=>{
+ const gate=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const sql=readFileSync(new URL('../qa/sql/20261112_u71_authenticated_bounded_candidate_read_qa_v1.sql',import.meta.url),'utf8');
+ const workflow=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ assert.match(gate,/value\(ctx,a\.jwt,'iberfit_u71_dated_candidates_qa_v1'\)/u);
+ assert.doesNotMatch(gate,/value\(ctx,a\.jwt,'iberfit_bootstrap_v26'\)/u);
+ assert.match(gate,/CANDIDATE_CROSS_CLIENT_EXPOSED/u);
+ assert.match(gate,/validatedDatedCandidates\(raw,clientA,today\)/u);
+ assert.match(sql,/SECURITY DEFINER/u);
+ assert.match(sql,/SET search_path TO ''/u);
+ assert.match(sql,/auth\.uid\(\)/u);
+ assert.match(sql,/iberfit_current_role_v26\(\) <> 'cliente'/u);
+ assert.match(sql,/iberfit_client_id\(\)/u);
+ assert.match(sql,/iberfit_can_access_client_v26\(v_owner\)/u);
+ assert.match(sql,/IS DISTINCT FROM 'QA'/u);
+ assert.match(sql,/REVOKE ALL ON FUNCTION [\s\S]*?FROM PUBLIC,anon,authenticated/u);
+ assert.match(sql,/GRANT EXECUTE ON FUNCTION [\s\S]*?TO authenticated/u);
+ assert.doesNotMatch(sql,/INSERT INTO|UPDATE public\.|DELETE FROM|TRUNCATE|DROP TABLE|service_role/u);
+ assert.match(workflow,/feat\/iberfit-m1-training-reliability-20261112/u);
+});
+test('U71 bounded QA candidate reader accepts only current-day owner-scoped source, never raw training bodies',()=>{
+ const owner=derivedUuid('qa-owner','A');
+ const session=derivedUuid('qa-source','S');
+ const cycle=derivedUuid('qa-source','C');
+ const item={id:session,clientId:owner,revision:3,duration:45,cycleId:cycle,sets:2};
+ const payload={schema:'iberfit.u71.qa.dated-candidates.v1',
+  project:'QA',day:'2026-11-12',clientId:owner,count:1,candidates:[item]};
+ assert.deepEqual(validatedDatedCandidates(payload,owner,payload.day),[item]);
+ const invalid=[
+  {...payload,project:'PROD'},
+  {...payload,day:'2026-11-11'},
+  {...payload,clientId:derivedUuid('other','client')},
+  {...payload,count:2},
+  {...payload,candidates:[item,item],count:2},
+  {...payload,candidates:[{...item,clientId:derivedUuid('other','owner')}]},
+  {...payload,candidates:[{...item,publishedSnapshot:{}}]},
+  {...payload,candidates:[{...item,history:[]}]},
+  {...payload,candidates:[{...item,sets:16}]},
+  {...payload,candidates:[{...item,revision:0}]},
+  {...payload,candidates:[{...item,duration:241}]},
+  {...payload,candidates:[{...item,id:'not-a-uuid'}]},
+  {...payload,token:'forbidden'},
+  {...payload,candidates:Array.from({length:51},(_,i)=>({
+    ...item,id:derivedUuid('overlimit',String(i))
+  })),count:51}
+ ];
+ for(const bad of invalid){
+  assert.throws(()=>validatedDatedCandidates(bad,owner,payload.day),
+   /U71_BOUNDED_CANDIDATE_(RESPONSE|SCOPE)_INVALID/u);
+ }
 });
