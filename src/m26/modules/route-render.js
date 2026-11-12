@@ -4722,7 +4722,7 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
       <article>
         <span>Adherencia · 28 días</span>
         <strong>${escapeHtml(adherence)}</strong>
-        <small>${escapeHtml(`${prep.progress.completedSessions} de ${prep.progress.plannedSessions} sesiones confirmadas`)}</small>
+        <small>${escapeHtml(`${prep.progress.completedSessions} completadas de ${prep.progress.plannedSessions} planificadas`)}</small>
       </article>
       <article>
         <span>Calidad de contexto</span>

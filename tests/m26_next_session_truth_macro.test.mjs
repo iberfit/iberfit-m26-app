@@ -91,10 +91,13 @@ test('una cita confirmada vinculada a otra sesión no inicia un plan incorrecto'
  });
  const context=buildNextSessionPreparation(prepared,clientId,{now});
  assert.equal(context.appointment.id,'appointment-mismatch');
- assert.equal(context.session.id,'unrelated-session');
+ assert.equal(context.session.id,null,'no other published session may impersonate the appointment');
+ assert.equal(context.session.title,null);
  assert.equal(context.session.source,'appointment-mismatch');
  assert.equal(context.session.startable,false);
  assert.ok(context.reviewReasons.some((reason)=>reason.kind==='appointment-session-mismatch'));
+ const html=renderSessionsRoute({role:'coach',nextSessionPreparation:context,sessions:prepared.collections.sessions,actor:{role:'coach'},selectedClientId:clientId});
+ assert.doesNotMatch(html,/Próxima sesión<\/span>\s*<strong>Plan distinto/u);
 });
 
 test('una cita que vincula correctamente una sesión publicada sigue siendo iniciable',()=>{
@@ -123,7 +126,8 @@ test('una cita vinculada a una sesión de otra persona no permite iniciar esa se
    ],
  });
  const context=buildNextSessionPreparation(prepared,clientId,{now});
- assert.equal(context.session.id,'local-session');
+ assert.equal(context.session.id,null,'do not offer unrelated same-owner prescription for a foreign link');
+ assert.equal(context.session.title,null);
  assert.equal(context.session.startable,false);
  assert.equal(context.session.source,'appointment-mismatch');
  assert.ok(context.reviewRequired);
