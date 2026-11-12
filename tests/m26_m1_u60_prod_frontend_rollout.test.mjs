@@ -101,6 +101,12 @@ test('M1 rollout never authorizes execution through frontend configuration alone
   assert.match(ui,/if\(receipt\.hasUncertain\|\|receipt\.unsavedWork\)/u);
   assert.match(ui,/await runtime\.workout\.complete\(\)/u);
   assert.match(app,/if\(datedQa\|\|datedProd\)/u);
+  assert.match(app,/const datedPanel=\(runtime\.qaOnly===true\|\|runtime\.datedTrainingProductionReleased===true\)&&/u,
+    'released U60 recovery+active modes must be visible on the real production route');
+  assert.match(app,/verifySessionDateRetirement:datedUi\?\.enabled===true/u,
+    'a dated training must not be removed in PROD without authoritative occurrence checks');
+  assert.match(app,/\{\.\.\.routeVm,qaDatedPanel:datedPanel\}/u,
+    'Client U60 must be inserted into its existing session scroller, not after mobile dock');
   assert.match(app,/M26_OCCURRENCE_EXECUTOR_REQUIRED/u);
 });
 function readApplication(){

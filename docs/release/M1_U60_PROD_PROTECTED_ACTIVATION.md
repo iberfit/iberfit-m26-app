@@ -32,3 +32,8 @@
 - El job autenticado READ-ONLY de la PR #1335 (también en Draft) ejecuta Playwright Chromium sobre el código del mismo SHA (no una página de Canary obsoleta). Verifica la UI Cliente A a 320/390/1024/1440 px y el aislamiento Cliente A/B.
 - La política HTTP de este recorrido permite **solo** CALENDARIO y lectura privada de ocurrencia, más las lecturas ordinarias de login. Rechaza cualquier transición o escritura U60, por diseño. El resultado no equivale a certificación de iniciar/pausar/finalizar: la aceptación con escrituras requiere un segundo ensayo aislado y controlado.
 - Las métricas y artefactos solo contienen número de ocurrencias y resultado técnico, nunca token, body, identidad o ID de fecha.
+
+### Corrección de montaje del reproductor con RC39 (M1)
+- La pantalla Cliente vigente es RC39. El panel de fechas U60 debe renderizarse **dentro** de `data-m27-session-surface="sessions"`, antes de la barra inferior; la ruta M26 antigua ya no es suficiente. Hay prueba de render y Chromium real con Client A/B.
+- La presentación está habilitada en QA real y, en PROD, **solo** si `datedTrainingProductionReleased` supera las comprobaciones exactas de host/origen/proyecto y los permisos SQL autorizados. `recovery` mantiene acceso al reproductor para recuperar/guardar/finalizar, aunque nuevos inicios estén pausados.
+- Si U60 está habilitado, la retirada de una prescripción desde Coach debe verificar el calendario de sus ocurrencias con lectura privada autoritativa. Cualquier error de lectura bloquea la retirada. No cambiar la política de borrado de clientes.
