@@ -99,6 +99,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'u60-record':{roles:['coach','client'],domain:'training360'},
   'u60-skip':{roles:['coach','client'],domain:'training360'},
   'u60-save':{roles:['coach','client'],domain:'training360'},
+  'u60-save-close':{roles:['coach','client'],domain:'training360'},
   'u60-complete':{roles:['coach','client'],domain:'training360'},
   'u60-retry-complete':{roles:['coach','client'],domain:'training360'},
   'u60-reconcile':{roles:['coach','client'],domain:'training360'},

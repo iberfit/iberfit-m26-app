@@ -163,6 +163,18 @@ function humanError(error){
     return 'Revisa las fechas, el ciclo publicado y las citas confirmadas: deben coincidir exactamente antes de publicar.';
   return 'No se pudo confirmar el cambio. El progreso local cifrado se conserva; comprueba la conexión y reintenta.';
 }
+// DOM drafts are newer than persisted checkpoints. An exit action must not
+// discard a typed set or final feedback before it is explicitly submitted.
+export function datedHasUnsubmittedInputs(panel){
+  const selector='[data-u60-entry] input, [data-u60-entry] textarea, '+
+    '[data-u60-feedback-entry] input, [data-u60-feedback-entry] textarea';
+  const inputs=panel?.querySelectorAll?.(selector);
+  if(!inputs)return false;
+  return [...inputs].some(input=>input?.type==='checkbox'
+    ?input.checked===true
+    :String(input?.value??'').trim().length>0);
+}
+
 export function createDatedOccurrenceQaUi({
   enabled=false,productionReleased=false,newStartsEnabled=true,
   root,ownerId,projectRef,transport,getAuthContext,
@@ -323,7 +335,7 @@ export function createDatedOccurrenceQaUi({
          '<button type="button" data-iberdates-action="u60-skip">Omitir serie y sincronizar</button></div>'
         :'';
       const feedbackForm=phase==='active'&&view.executionStatus==='awaiting_feedback'
-        ?'<div class="m26-field-grid"><label>RPE de la sesión<input name="u60FinalRpe" type="number" min="1" max="10" step="0.5" required></label>'+
+        ?'<div class="m26-field-grid" data-u60-feedback-entry><label>RPE de la sesión<input name="u60FinalRpe" type="number" min="1" max="10" step="0.5" required></label>'+
          '<label class="m26-wide">Comentario final<textarea name="u60FinalComment" maxlength="2000" required></textarea></label>'+
          '<label>¿Hubo dolor?<input type="checkbox" name="u60Pain"></label>'+
          '<label>Detalles si hubo dolor<input name="u60PainNotes" maxlength="1000"></label>'+
@@ -345,7 +357,11 @@ export function createDatedOccurrenceQaUi({
       body='<section class="m26-panel" data-u60-workout><h3>Fecha independiente</h3>'+
         summary+stepMarkup+buttons+recordForm+feedbackForm+save+retryComplete+
         (view.startedAt?'<p class="m26-field-help">Tiempo transcurrido desde el inicio confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.startedAt)+'">'+escape(formatDatedElapsed(Date.now()-Date.parse(view.startedAt)))+'</strong></p>':'')+
-        '<button type="button" data-iberdates-action="u60-close">Volver al calendario</button></section>';
+        '<p role="alert" data-u60-input-warning hidden></p>'+
+        (phase==='active'&&['active','awaiting_feedback'].includes(view.executionStatus)
+          ?'<button type="button" data-iberdates-action="u60-save-close">Guardar y salir</button>'
+          :'<button type="button" data-iberdates-action="u60-close">Volver al calendario</button>')+
+        '</section>';
     }else{
       const cards=isCurrent?entries.map(row=>{
         const canConfirm=coach&&canStartNew&&row.status==='planificada';
@@ -628,6 +644,19 @@ export function createDatedOccurrenceQaUi({
         runtime.workout.view().unsavedWork)fail('UNSAVED_WORKOUT');
       focus=null;message='Calendario disponible.';return;
     }
+    if(action==='u60-save-close'){
+      const active=runtime.workout.view();
+      if(active.phase!=='active'||!['active','awaiting_feedback'].includes(active.executionStatus)
+        ||active.busy||active.hasUncertain)fail('RECOVERY_REQUIRED');
+      if(active.unsavedWork){
+        // Save through the SAME encrypted journal and real server CAS. Never
+        // close from a speculative checkpoint or an uncertain server receipt.
+        const receipt=await runtime.workout.save();
+        if(receipt.phase!=='active'||receipt.hasUncertain||receipt.unsavedWork)
+          fail('RECOVERY_REQUIRED');
+      }
+      focus=null;message='Progreso confirmado en servidor.';return;
+    }
     if(action==='u60-start'){
       const reply=await runtime.workout.start();
       if(reply.phase!=='active')fail('START_NOT_ACKNOWLEDGED');
@@ -760,6 +789,18 @@ export function createDatedOccurrenceQaUi({
     event.stopPropagation?.();
     if(busy||button.disabled)return;
     const action=button.getAttribute('data-iberdates-action');
+    // Do not repaint unsubmitted inputs while exiting the active workout.
+    if(['u60-close','u60-save-close'].includes(action)){
+      const panel=button.closest?.('[data-u60-panel]');
+      if(datedHasUnsubmittedInputs(panel)){
+        const warning=panel?.querySelector?.('[data-u60-input-warning]');
+        if(warning){
+          warning.hidden=false;
+          warning.textContent='Hay datos escritos sin registrar. Confirma la serie o el feedback antes de salir.';
+        }
+        return;
+      }
+    }
     let payload={phrase:''};
     busy=true;failure='';
     try{

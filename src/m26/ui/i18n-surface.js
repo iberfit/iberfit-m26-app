@@ -5,6 +5,11 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // M1: a typed (not yet submitted) set or final feedback must survive exit.
+  ['Hay datos escritos sin registrar. Confirma la serie o el feedback antes de salir.',
+    'There are unsubmitted inputs. Confirm the set or final feedback before leaving.',
+    'Des données saisies ne sont pas enregistrées. Confirmez la série ou le bilan avant de quitter.',
+    'Existem dados escritos ainda não registados. Confirme a série ou o feedback antes de sair.'],
   // M1 U60 protected release: freeze NEW admissions while existing workouts
   // remain recoverable, savable and finishable; no false completion.
   ['Temporalmente no se admiten nuevos inicios. Puedes recuperar, guardar y finalizar un entrenamiento que ya esté en curso.',
