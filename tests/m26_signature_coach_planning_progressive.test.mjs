@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {COACH_PLANNING_VISIBLE_SESSIONS,COACH_PLANNING_ARCHIVE_GROUP,
   renderCoachPlanningSessionsProgressive} from '../src/m26/modules/route-render.js';
 import {orderCoachPlanningSessions,withCoachPlanningSchedule} from '../src/m26/modules/route-view-model.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 const session=i=>({
   id:'qa-session-'+i,title:'Entrenamiento '+i,status:'publicado',
   publication:{status:'published',statusLabel:'Publicada',actions:[{action:'publish',label:'Publicar'}]},
@@ -208,4 +209,25 @@ test('Coach planning ignores invalid, cancelled and cross-client appointments; s
    'equal schedule times must keep original stable ordering');
  assert.ok(planned[0].plannedDateLabel.includes('Próxima fecha confirmada'));
  assert.equal(planned[0].scheduledDateKind,'upcoming');
+});
+
+test('Coach verified appointment chronology is translated without inventing completion or a second date',()=>{
+ const spanish=[
+  'Próxima fecha confirmada · 13 de noviembre, 10:00',
+  'Última fecha confirmada · 10 de noviembre, 09:30',
+ ];
+ const expected={
+  en:['Next confirmed date','Last confirmed date'],
+  fr:['Prochaine date confirmée','Dernière date confirmée'],
+  pt:['Próxima data confirmada','Última data confirmada'],
+ };
+ for(const [language,prefixes] of Object.entries(expected)){
+  for(let i=0;i<2;i++){
+   const actual=iberfitSurfaceTranslate(spanish[i],{language});
+   assert.ok(actual.startsWith(prefixes[i]),language+': '+actual);
+   assert.match(actual,/noviembre/u,'date value is formatted separately and never synthesized');
+   assert.doesNotMatch(actual,/completed|terminé|concluído/u);
+  }
+  assert.notEqual(iberfitSurfaceTranslate('Fecha confirmada',{language}),'Fecha confirmada');
+ }
 });
