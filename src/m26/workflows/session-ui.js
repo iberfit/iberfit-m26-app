@@ -1580,7 +1580,10 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const feedbackPrivacyNote=isCoach
       ?'Esta valoración forma parte del registro del cliente. Para observaciones internas utiliza Notas privadas del entrenador.'
       :'';
-    const feedbackQuickRpe='<div class="m26-session-feedback-rpe-quick" data-session-feedback-rpe-quick role="group" aria-label="Esfuerzo percibido al finalizar"><span>¿Qué esfuerzo te supuso? 1 = muy suave · 10 = máximo</span>'+Array.from({length:10},(_,index)=>index+1).map((value)=>'<button type="button" data-session-action="set-session-rpe-quick" data-rpe-value="'+e(value)+'" aria-label="Esfuerzo '+e(value)+' de 10" aria-pressed="false">'+e(value)+'</button>').join('')+'</div>';
+    const feedbackQuickPrompt=isCoach
+      ?'Esfuerzo referido por el cliente · 1 = muy suave · 10 = máximo'
+      :'¿Qué esfuerzo te supuso? 1 = muy suave · 10 = máximo';
+    const feedbackQuickRpe='<div class="m26-session-feedback-rpe-quick" data-session-feedback-rpe-quick role="group" aria-label="'+(isCoach?'Esfuerzo referido por el cliente':'Tu esfuerzo al finalizar')+'"><span>'+e(feedbackQuickPrompt)+'</span>'+Array.from({length:10},(_,index)=>index+1).map((value)=>'<button type="button" data-session-action="set-session-rpe-quick" data-rpe-value="'+e(value)+'" aria-label="Esfuerzo '+e(value)+' de 10" aria-pressed="false">'+e(value)+'</button>').join('')+'</div>';
     const reviewLastSetAction=Array.isArray(execution?.queue)&&execution.queue.length
       ?'<button type="button" data-session-action="previous">Revisar última serie</button>'
       :'';
