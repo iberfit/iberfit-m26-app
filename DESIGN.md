@@ -364,7 +364,7 @@ isotipo, las superficies auténticas o el contenido real de cada pantalla.
 Esta decisión se consolida para los tres roles en el único CSS de acabado
 \`src/m26/design/iberfit-premium-v3.css\` (SIGNATURE 360 QUIET GOLD).
 Principios: profundidad verde esmeralda con contraste WCAG, tipografía
-editorial selectiva, isotipo oficial real en hero bajo velo oscuro, borde
+editorial selectiva, fondos e isotipo oficial conservados sin recreación, borde
 dorado tenue, botones de decisión inequívocos, cero halo dorado neón.
 Los estados de error/conexión/confirmación siguen informados por la verdad de
 backend; una referencia visual no autoriza datos, clientes ni sesiones ficticias.

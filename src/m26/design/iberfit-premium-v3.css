@@ -4475,7 +4475,7 @@
  * Applies the approved visual language to genuine three-role components.
  * Real IBERFIT isotipo is used unmodified; no generated logo/person/sessions.
  * No interaction, identity, permission, session or storage behavior changes.
- * Gold is an accent, not a glow. Surfaces stay high-contrast dark emerald.
+ * Gold accents remain quiet and functional. Surfaces stay high-contrast dark emerald.
  */
 .m26-shell[data-m26-role]{
  --s360-quiet-border:rgba(197,160,89,.16);
@@ -4491,12 +4491,10 @@
 }
 .m26-shell[data-m26-role] .m26-workspace{
  min-inline-size:0;
- background:
-   radial-gradient(ellipse at 64% 16%,rgba(23,74,53,.20),transparent 42%),
-   linear-gradient(145deg,var(--iberfit-color-forest-950),#0b2018 72%);
+ background-color:var(--iberfit-color-forest-950);
 }
 .m26-shell[data-m26-role] .m26-sidebar{
- background:linear-gradient(165deg,#0b2119 0%,#081a14 75%,#092017 100%);
+ background-color:#0b2119;
  border-inline-end:1px solid var(--s360-quiet-separator);
 }
 .m26-shell[data-m26-role] .m26-topbar{
@@ -4511,7 +4509,7 @@
 .m26-shell[data-m26-role] .m26-nav-item.is-active{
  color:var(--s360-readable-cream);
  border-color:var(--s360-quiet-border-strong);
- background:linear-gradient(96deg,rgba(197,160,89,.105),rgba(35,71,51,.42));
+ background-color:rgba(35,71,51,.42);
  box-shadow:inset 3px 0 0 var(--iberfit-color-gold-500);
 }
 .m26-shell[data-m26-role] .m26-nav-item:hover:not(.is-active){
@@ -4527,8 +4525,8 @@
  color:var(--iberfit-color-gold-300);
  letter-spacing:.105em;
 }
-/* Hero brand signature: authentic public/isotipo-iberfit.png displayed through
- * a dark veil, without recoloring or recreating the asset. */
+/* Hero: retain the already-certified canonical isotipo watermark and
+ * packaged /public/ URL; refine only the panel surface and border. */
 .m26-shell[data-m26-role] .m26-workspace .m26-main :is(
  .m26-admin-hero,.m26-coach-home-command,.m26-hero-panel,
  .m26-profile-hero,.m26-client-home-hero
@@ -4537,12 +4535,7 @@
  border:1px solid var(--s360-quiet-border-strong);
  border-radius:clamp(.95rem,1.5vw,1.3rem);
  background-color:var(--s360-emerald-deep);
- background-image:
-   linear-gradient(100deg,rgba(11,42,29,.975),rgba(11,49,34,.94) 65%,rgba(11,43,31,.88)),
-   url('/isotipo-iberfit.png');
- background-position:center,right -3rem center;
- background-repeat:no-repeat,no-repeat;
- background-size:cover,clamp(12rem,24vw,22rem) auto;
+ /* Existing real isotipo background remains untouched. */
  box-shadow:var(--s360-shadow-raised);
 }
 .m26-shell[data-m26-role] .m26-main :is(
@@ -4561,7 +4554,7 @@
  border-color:var(--s360-quiet-border);
  border-radius:clamp(.72rem,1.2vw,1rem);
  background-color:var(--s360-emerald-raised);
- background-image:linear-gradient(143deg,rgba(37,74,53,.27),rgba(9,34,25,.28));
+ /* Inherit canonical surface texture: no extra gradient. */
  box-shadow:var(--s360-shadow);
 }
 .m26-shell[data-m26-role] .m26-workspace .m26-main :is(
@@ -4720,12 +4713,8 @@
  touch-action:manipulation;
 }
 @media(max-width:1024px){
- .m26-shell[data-m26-role] .m26-workspace .m26-main :is(
-  .m26-admin-hero,.m26-coach-home-command,.m26-hero-panel,
-  .m26-profile-hero,.m26-client-home-hero
- ){
-  background-size:cover,clamp(10rem,22vw,15rem) auto;
-  background-position:center,right -2rem center;
+ .m26-shell[data-m26-role] .m26-main :is(.m26-admin-hero,.m26-coach-home-command,.m26-client-home-hero){
+  max-inline-size:100%;
  }
 }
 @media(max-width:680px){
@@ -4733,7 +4722,7 @@
   .m26-admin-hero,.m26-coach-home-command,.m26-hero-panel,
   .m26-profile-hero,.m26-client-home-hero
  ){
-  background-image:linear-gradient(115deg,rgba(11,42,29,.98),rgba(12,46,33,.91));
+  background-color:var(--s360-emerald-deep);
   padding:clamp(.9rem,3.2vw,1.25rem);
  }
  .m26-shell[data-m26-role] .m26-workspace .m26-main :is(

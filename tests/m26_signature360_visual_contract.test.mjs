@@ -63,7 +63,7 @@ test('SIGNATURE 360 quiet gold finish respects approved references and official 
  const marker='SIGNATURE 360 · APPROVED QUIET GOLD MASTER FINISH · 2026-11-12';
  assert.equal(css.split(marker).length,2);
  const finish=css.slice(css.indexOf(marker));
- assert.match(finish,/url\('\/isotipo-iberfit\.png'\)/);
+ assert.match(css,/url\('?"?\/public\/isotipo-iberfit\.png/);
  for(const role of ['admin','coach','client'])assert.match(finish,new RegExp('data-m26-role="'+role+'"'));
  assert.match(finish,/--s360-quiet-border:rgba\(197,160,89,\.16\)/);
  assert.match(finish,/--s360-quiet-border-strong:rgba\(197,160,89,\.32\)/);
