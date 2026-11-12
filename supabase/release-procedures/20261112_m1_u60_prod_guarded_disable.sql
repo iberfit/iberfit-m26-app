@@ -10,6 +10,16 @@ BEGIN
       WHERE key='environment') IS DISTINCT FROM 'PRODUCTION' THEN
     RAISE EXCEPTION 'U60_ROLLBACK_PROD_ONLY' USING errcode='42501';
   END IF;
+  -- Never revoke the only authenticated save/finish RPC during a live
+  -- dated workout. The release operator must freeze new starts first, drain
+  -- uncertain encrypted journals, and verify recovery before rollback.
+  IF EXISTS (
+    SELECT 1 FROM public.training_session_occurrences_v1
+    WHERE status='en_curso'
+  ) THEN
+    RAISE EXCEPTION 'U60_ROLLBACK_ACTIVE_TRAINING_FORBIDDEN'
+      USING errcode='42501';
+  END IF;
   FOR v_source IN
     SELECT req.signature,req.expected_hash,p.oid
     FROM (VALUES

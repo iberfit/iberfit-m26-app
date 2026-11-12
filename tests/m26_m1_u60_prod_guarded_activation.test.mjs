@@ -48,3 +48,12 @@ test('M1 activation remains non-live, production SQL has no user targeting and i
  const workflow=readFileSync(new URL('../.github/workflows/production-promote.yml',import.meta.url),'utf8');
  assert.doesNotMatch(workflow,/m1_u60_prod_guarded_enable|20261112_m1_u60_prod_guarded_enable/u);
 });
+
+test('U60 rollback stops before revocation if any dated workout remains active',()=>{
+ assert.ok(disable.includes("status='en_curso'"));
+ assert.ok(disable.includes('U60_ROLLBACK_ACTIVE_TRAINING_FORBIDDEN'));
+ assert.ok(disable.indexOf('U60_ROLLBACK_ACTIVE_TRAINING_FORBIDDEN') <
+   disable.indexOf('REVOKE EXECUTE ON FUNCTION'),
+   'the active-workout guard must precede both revocations');
+ assert.doesNotMatch(disable,/DELETE FROM|TRUNCATE|DROP TABLE|ALTER TABLE|UPDATE public\./u);
+});
