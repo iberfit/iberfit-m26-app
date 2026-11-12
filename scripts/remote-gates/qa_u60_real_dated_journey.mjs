@@ -7,8 +7,6 @@
  */
 import {createHash} from 'node:crypto';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
-import {candidateList} from './qa_u60_dated_fixture_preflight.mjs';
-import {expandQaClientCanonicalBodyEnvelope} from '../../src/m26/production-state.js';
 import {buildAppointmentCommand,buildConfirmAppointmentCommand,santiagoAppointmentInstant} from '../../src/m26/workflows/agenda-workflow.js';
 const QA='gjztkdwfmunnzhtvxrsu';
 const BASE='https://'+QA+'.supabase.co';
@@ -18,6 +16,7 @@ const BRANCHES=new Set([
  'feat/iberfit-universal-launch-360-20261112',
  'canary/rc74-4',
  'feat/coach-a-verified-evidence-20261111',
+ 'feat/iberfit-m1-training-reliability-20261112',
 ]);
 const branchFromRef=ref=>{
  const prefix='refs/heads/';
@@ -84,6 +83,33 @@ export function denied(x){
   (x?.status===200&&['rejected','conflict'].includes(x.body?.kind)
   &&/DENIED|FORBIDDEN|ACCESS|ROLE|OWNER|NOT_FOUND|NOT_ALLOWED/.test(x.body?.reason||''));
 }
+// This QA-only reader returns ONLY bounded, owner-scoped test metadata.
+// It cannot replace real app bootstrap, nor provide a Client UI bypass.
+// Reject unexpected keys, other owners, wrong date, duplicates and raw bodies.
+export function validatedDatedCandidates(raw,owner,day){
+ assert(raw&&typeof raw==='object'&&!Array.isArray(raw)
+   &&Object.keys(raw).sort().join(',')==='candidates,clientId,count,day,project,schema'
+   &&raw.schema==='iberfit.u71.qa.dated-candidates.v1'
+   &&raw.project==='QA'&&raw.clientId===owner&&raw.day===day
+   &&UUID.test(owner)
+   &&Array.isArray(raw.candidates)&&raw.candidates.length<=50
+   &&Number.isSafeInteger(raw.count)&&raw.count===raw.candidates.length,
+   'BOUNDED_CANDIDATE_RESPONSE_INVALID');
+ const seen=new Set();
+ for(const item of raw.candidates){
+  assert(item&&typeof item==='object'&&!Array.isArray(item)
+   &&Object.keys(item).sort().join(',')==='clientId,cycleId,duration,id,revision,sets'
+   &&UUID.test(item.id)&&UUID.test(item.cycleId)
+   &&item.clientId===owner
+   &&Number.isSafeInteger(item.revision)&&item.revision>=1
+   &&Number.isFinite(item.duration)&&item.duration>=10&&item.duration<=240
+   &&Number.isSafeInteger(item.sets)&&item.sets>=1&&item.sets<=15
+   &&!seen.has(item.id),'BOUNDED_CANDIDATE_SCOPE_INVALID');
+  seen.add(item.id);
+ }
+ return Object.freeze([...raw.candidates].sort((a,b)=>a.id.localeCompare(b.id))
+  .map(item=>Object.freeze({...item})));
+}
 function context(mode){
  const e=process.env;
  for(const name of ['M26_QA_ONLY','M26_PROJECT_REF','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -148,6 +174,7 @@ export async function boundedReadOnlyJwtClockSkewRecovery(request,wait=async()=>
 const READ_ONLY_IDENTITY_RPCS=new Set([
  'iberfit_current_role_v26','iberfit_client_id',
  'iberfit_environment','iberfit_bootstrap_v26',
+ 'iberfit_u71_dated_candidates_qa_v1',
 ]);
 async function value(ctx,jwt,name,params={}){
  assert(READ_ONLY_IDENTITY_RPCS.has(name),'NON_IDENTITY_READ_BLOCKED');
@@ -192,7 +219,7 @@ async function authenticatedStage(ctx,certified=null){
   value(ctx,b.jwt,'iberfit_current_role_v26'),
   value(ctx,a.jwt,'iberfit_client_id'),value(ctx,b.jwt,'iberfit_client_id'),
   value(ctx,a.jwt,'iberfit_environment'),
-  value(ctx,a.jwt,'iberfit_bootstrap_v26'),
+  value(ctx,a.jwt,'iberfit_u71_dated_candidates_qa_v1'),
  ]);
  assert(roleCoach==='coach'&&['client','cliente'].includes(roleA)
   &&['client','cliente'].includes(roleB),'ROLE_MISMATCH');
@@ -200,8 +227,7 @@ async function authenticatedStage(ctx,certified=null){
  assert(environment?.environment==='QA'&&environment.realDataAllowed===false
   &&environment.productionBlocked===true,'ENV_ISOLATION');
  const clock=chileanClock(),today=clock.day,future=dayOffset(today,7);
- const candidates=candidateList(expandQaClientCanonicalBodyEnvelope(raw),today)
-  .filter(x=>x.clientId===clientA).sort((x,y)=>x.id.localeCompare(y.id));
+ const candidates=validatedDatedCandidates(raw,clientA,today);
  assert(candidates.length>0,'NO_SUITABLE_SYNTHETIC_PRESCRIPTION');
  // Each date must be a valid exact local instant (never DST guessed).
  const minute=certified
@@ -214,6 +240,8 @@ async function authenticatedStage(ctx,certified=null){
  const start1=santiagoAppointmentInstant(today+'T'+time);
  const start2=santiagoAppointmentInstant(future+'T'+time);
  assert(Date.parse(start1)>Date.now()&&Date.parse(start1)-Date.now()<3600000,'APPOINTMENT_CLOCK_DRIFT');
+ const foreignCandidates=await rpc(ctx,b.jwt,'iberfit_u71_dated_candidates_qa_v1',{});
+ assert(denied(foreignCandidates),'CANDIDATE_CROSS_CLIENT_EXPOSED');
  const old=await checkedCalendar(ctx,coach.jwt,clientA,today,future);
  // A real QA portfolio legitimately contains prior dates from other plans.
  // Never erase them or require an empty calendar. Reserve only the TWO
