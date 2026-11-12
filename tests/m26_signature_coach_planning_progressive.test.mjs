@@ -129,3 +129,27 @@ test('Coach can discover explicit safe removal within the published training wit
   assert.match(src,/m26-coach-planning-order/u);
   assert.match(src,/ordenados por fecha/u);
 });
+
+test('Withdrawn Coach sessions leave active plan, remain in lazy history with full reusable source',()=>{
+  const active={...session('active'),title:'Entrenamiento vigente',publication:{
+    status:'published',statusLabel:'Publicado',actions:[]}};
+  const withdrawn={...session('withdrawn'),title:'Entrenamiento retirado',publication:{
+    status:'withdrawn',statusLabel:'Retirado',actions:[]}};
+  const html=renderCoachPlanningSessionsProgressive([withdrawn,active]);
+  const archivedAt=html.indexOf('data-coach-planning-retired');
+  assert.ok(archivedAt>0);
+  assert.ok(html.indexOf('Entrenamiento vigente')<archivedAt,
+    'active plan never hides behind removed historical prescriptions');
+  assert.ok(html.indexOf('Entrenamiento retirado')>archivedAt,
+    'removed workout remains recoverable and available for read or reuse');
+  assert.match(html,/Historial de entrenamientos retirados \(1\)/u);
+  assert.equal((html.match(/data-publication-card(?:>| )/gu)||[]).length,2);
+  assert.match(html,/data-coach-planning-total="2"/u);
+  assert.equal((html.match(/data-coach-planning-batch/g)||[]).length,1);
+  assert.match(html,/data-coach-planning-template/u,'history is lazy like other 231-item archives');
+  const noActive=renderCoachPlanningSessionsProgressive([withdrawn]);
+  assert.match(noActive,/Sin entrenamientos activos/u);
+  assert.match(noActive,/Historial de entrenamientos retirados/u);
+  assert.doesNotMatch(noActive,/data-coach-session-remove/u,
+    'already withdrawn session must not be withdrawn again');
+});
