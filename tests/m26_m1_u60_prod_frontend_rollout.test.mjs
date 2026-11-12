@@ -22,6 +22,9 @@ test('M1 U60 PROD UI is default-off and cannot be enabled by QA, other hosts or 
   assert.equal(onHost('app.iberfit.cl').datedTrainingProductionReleased,false);
   assert.equal(onHost('app.iberfit.cl',{datedTrainingProductionReleased:'true'}).datedTrainingProductionReleased,false);
   assert.equal(onHost('app.iberfit.cl',{datedTrainingProductionReleased:true}).datedTrainingProductionReleased,true);
+  assert.equal(onHost('app.iberfit.cl',{datedTrainingProductionReleased:true}).datedTrainingProductionStartsEnabled,false);
+  assert.equal(onHost('app.iberfit.cl',{datedTrainingProductionReleased:true,datedTrainingProductionStartsEnabled:true}).datedTrainingProductionStartsEnabled,true);
+  assert.equal(onHost('app.iberfit.cl',{datedTrainingProductionStartsEnabled:true}).datedTrainingProductionStartsEnabled,false);
   for(const host of ['coach.iberfit.cl','m26-canary.iberfit.cl','localhost','example.com'])
     assert.equal(onHost(host,{datedTrainingProductionReleased:true}).datedTrainingProductionReleased,false,host);
   for(const overrides of [
@@ -66,6 +69,12 @@ test('M1 rollout never authorizes execution through frontend configuration alone
   assert.match(app,/runtime\.qaOnly===true&&runtime\.canary===true/u);
   assert.match(app,/const datedProd=runtime\.datedTrainingProductionReleased===true/u);
   assert.match(app,/enabled:true,productionReleased:datedProd/u);
+  assert.match(app,/newStartsEnabled:datedQa\|\|runtime\.datedTrainingProductionStartsEnabled===true/u);
+  const ui=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
+  assert.match(ui,/\['u60-preview','u60-publish','u60-confirm','u60-start'\]/u);
+  assert.match(ui,/newStartsEnabled!==true/u);
+  assert.match(ui,/if\(receipt\.hasUncertain\|\|receipt\.unsavedWork\)/u);
+  assert.match(ui,/await runtime\.workout\.complete\(\)/u);
   assert.match(app,/if\(datedQa\|\|datedProd\)/u);
   assert.match(app,/M26_OCCURRENCE_EXECUTOR_REQUIRED/u);
 });

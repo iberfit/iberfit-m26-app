@@ -1594,6 +1594,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       try{
         datedUi=createDatedOccurrenceQaUi({
           enabled:true,productionReleased:datedProd,
+          newStartsEnabled:datedQa||runtime.datedTrainingProductionStartsEnabled===true,
           root,ownerId,projectRef:runtime.projectRef,transport,
           getState:()=>store.getState(),onRender:render,
           getAuthContext:async()=>{

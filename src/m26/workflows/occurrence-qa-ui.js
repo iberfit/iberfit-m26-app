@@ -143,6 +143,8 @@ function formValue(target,name){
 }
 function humanError(error){
   const code=String(error?.message||'');
+  if(/NEW_STARTS_PAUSED/u.test(code))
+    return 'Temporalmente no se admiten nuevos inicios. Puedes recuperar, guardar y finalizar un entrenamiento que ya esté en curso.';
   if(/RPE_REQUIRED|RPE_INVALID/u.test(code))
     return 'Registra el RPE real de esta serie, entre 1 y 10, en pasos de 0,5. Puedes seleccionarlo o escribirlo.';
   if(/METRIC_INVALID/u.test(code))
@@ -162,7 +164,8 @@ function humanError(error){
   return 'No se pudo confirmar el cambio. El progreso local cifrado se conserva; comprueba la conexión y reintenta.';
 }
 export function createDatedOccurrenceQaUi({
-  enabled=false,productionReleased=false,root,ownerId,projectRef,transport,getAuthContext,
+  enabled=false,productionReleased=false,newStartsEnabled=true,
+  root,ownerId,projectRef,transport,getAuthContext,
   getState,onRender=()=>{},cryptoImpl=globalThis.crypto,
 }={}){
   if(enabled!==true)return Object.freeze({
@@ -260,6 +263,7 @@ export function createDatedOccurrenceQaUi({
     const scope=visibleOwner();
     if(!scope)return '';
     const coach=scope.role==='coach';
+    const canStartNew=productionReleased!==true||newStartsEnabled===true;
     const isCurrent=loadedFor===roleScope(scope);
     const entries=dateRows(scope);
     const view=focus?.clientId===scope.clientId&&focus?.role===scope.role
@@ -326,7 +330,9 @@ export function createDatedOccurrenceQaUi({
          '<button type="button" data-iberdates-action="u60-complete">Finalizar y confirmar en servidor</button></div>'
         :'';
       const buttons=phase==='ready'
-        ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-start">Comenzar fecha confirmada</button>'
+        ?(canStartNew
+          ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-start">Comenzar fecha confirmada</button>'
+          :'<p role="status" class="m26-field-help">Los nuevos inicios están temporalmente pausados. Puedes seguir guardando y recuperar sesiones ya iniciadas.</p>')
         :phase==='pending-recovery'
           ?'<button type="button" data-iberdates-action="u60-reconcile">Recuperar operación original</button>'
           :phase==='needs-refresh'
@@ -342,7 +348,7 @@ export function createDatedOccurrenceQaUi({
         '<button type="button" data-iberdates-action="u60-close">Volver al calendario</button></section>';
     }else{
       const cards=isCurrent?entries.map(row=>{
-        const canConfirm=coach&&row.status==='planificada';
+        const canConfirm=coach&&canStartNew&&row.status==='planificada';
         const canOpen=['confirmada','en_curso','completada','cancelada'].includes(row.status)
           &&(coach||Boolean(row.appointmentId&&row.appointmentStatus));
         return '<article class="m26-list-card"><div><p class="m26-eyebrow">'+
@@ -365,7 +371,7 @@ export function createDatedOccurrenceQaUi({
         .map(s=>'<option value="'+escape(field(s,'id'))+'"'+
           (activePreview?.sessionId===uid(field(s,'id'))?' selected':'')+'>'+
           escape(String(field(s,'title')||'Entrenamiento').slice(0,90))+'</option>').join(''):'';
-      const publisher=coach&&sessions
+      const publisher=coach&&canStartNew&&sessions
         ?'<details class="m26-panel"><summary>Programar varias fechas de una sesión publicada</summary>'+
          '<label>Sesión publicada<select name="u60Session">'+sessions+'</select></label>'+
          '<label>Fechas y horas en Chile, una por línea (AAAA-MM-DD HH:mm)'+
@@ -502,6 +508,11 @@ export function createDatedOccurrenceQaUi({
   async function perform(action,button,payload){
     if(disposed)fail('DESTROYED');
     const scope=await authenticated();
+    // Operational two-stage rollback: stop admission first while keeping
+    // private read, recovery, save and completion reachable for active dates.
+    if(productionReleased===true&&newStartsEnabled!==true
+      &&['u60-preview','u60-publish','u60-confirm','u60-start'].includes(action))
+      fail('NEW_STARTS_PAUSED');
     if(action==='u60-unlock'){
       await vault.unlock(payload.phrase);
       message='Clave privada desbloqueada. No se ha almacenado.';

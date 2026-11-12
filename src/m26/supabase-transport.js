@@ -178,6 +178,14 @@ export function resolveM26Runtime(raw, locationLike = globalThis.location) {
       &&qaOnly===false&&canary===false&&host==='app.iberfit.cl'
       &&raw?.projectRef===M26_PRODUCTION_PROJECT_REF
       &&raw?.url===M26_PRODUCTION_SUPABASE_ORIGIN,
+    // Freeze NEW starts independently of the existing workout/save/recovery
+    // transport. Disabling the whole U60 UI during an active session is unsafe.
+    datedTrainingProductionStartsEnabled: enabled
+      &&raw?.datedTrainingProductionReleased===true
+      &&raw?.datedTrainingProductionStartsEnabled===true
+      &&qaOnly===false&&canary===false&&host==='app.iberfit.cl'
+      &&raw?.projectRef===M26_PRODUCTION_PROJECT_REF
+      &&raw?.url===M26_PRODUCTION_SUPABASE_ORIGIN,
     environment:expected.environment,
     version:String(raw?.version||'26.0.0').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,80)||'26.0.0',
     rpc: Object.freeze({
