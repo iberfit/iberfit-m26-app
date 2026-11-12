@@ -62,11 +62,14 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
           const mark=document.querySelector('img[src="/public/isotipo-iberfit.png"]');
           const mobileBrand=document.querySelector('.m26-topbar-brand-mark');
           const shell=document.querySelector('.m26-shell');
+          const route=document.querySelector('.m26-main .m26-route');
           const heading=document.querySelector('.m26-main h1,.m26-main h2,.m26-main h3');
           return {
             role:shell?.getAttribute('data-m26-role')||null,
             width:document.documentElement.clientWidth,
             overflow:Math.max(0,document.documentElement.scrollWidth-innerWidth,document.body.scrollWidth-innerWidth),
+            routeMaxInlineSize:route?getComputedStyle(route).maxInlineSize:null,
+            routeWidth:route?route.getBoundingClientRect().width:0,
             heading:heading?.textContent?.trim()||'',
             headingFont:heading?getComputedStyle(heading).fontFamily:'',
             svgIcons:document.querySelectorAll('svg[viewBox]').length,
@@ -78,6 +81,11 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
         expect(status.role).toBe(role);
         expect(status.width).toBe(device.width);
         expect(status.overflow,role+' '+device.key+' overflow').toBeLessThanOrEqual(2);
+        if(device.key==='desktop4k'){
+          expect(status.routeWidth,role+' genuinely composed 4K route').toBeGreaterThan(600);
+          expect(parseFloat(status.routeMaxInlineSize),role+' must not fall back to 74/90/94rem CSS max at DPR2')
+            .toBeGreaterThanOrEqual(role==='client'?1600:1800);
+        }
         expect(status.heading.length,role+' '+device.key+' actual route title').toBeGreaterThan(2);
         expect(status.svgIcons,role+' '+device.key+' vector UI icons').toBeGreaterThan(0);
         expect(status.mark,role+' '+device.key+' official logo element').not.toBeNull();
@@ -142,7 +150,8 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
         await writeFile(path.join(root,filename),png);
         rows.push({role,device:device.key,css:{width:device.width,height:device.height},dpr:device.dpr,
           physical,vectorIcons:status.svgIcons,fontsLoaded:true,officialIsotipo:true,
-          overflowPx:status.overflow,screenshot:filename,authenticated:false,stitchParityCertified:false,
+          overflowPx:status.overflow,routeWidthCssPx:status.routeWidth,routeMaxInlineSize:status.routeMaxInlineSize,
+          screenshot:filename,authenticated:false,stitchParityCertified:false,
           adminSurface:role==='admin'?'authorized-synthetic':'not-applicable'});
         expect(errors,role+' '+device.key+' JS errors').toEqual([]);
         expect(writes,role+' '+device.key+' no network writes').toEqual([]);

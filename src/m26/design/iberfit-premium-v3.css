@@ -3612,12 +3612,18 @@
   max-inline-size:74rem;
   gap:clamp(1rem,2.2vw,1.7rem);
 }
-/* UHD: the original 74rem reading measure remains at normal desktop sizes.
- * Above 2560px, the actual master max-inline-size must also expand; changing
- * max-width alone cannot override a separate max-inline-size constraint. */
-@media(min-width:2560px){
+/* UHD true 4K (1920 CSS px at DPR2) and ultra-wide CSS workstations.
+ * Override max-inline-size, not just max-width: the two are independent.
+ * Editorial Client, operational Coach and administrative workbench each keep
+ * their distinct, readable proportions without scaling imagery or fonts. */
+@media (min-width:2560px), (min-width:1900px) and (min-resolution:2dppx){
   .m26-shell[data-m26-role="client"] .m26-route{
     max-inline-size:min(1640px,100%);
+  }
+  .m26-shell[data-m26-role="coach"] .m26-route,
+  .m26-shell[data-m26-role="admin"] .m26-route,
+  .m26-shell[data-m26-role="admin"] .m26-admin-route{
+    max-inline-size:min(1920px,100%);
   }
 }
 .m26-shell[data-m26-role="client"] .m26-main :is(.m26-route-intro,.m26-hero-panel,.m26-profile-hero){
