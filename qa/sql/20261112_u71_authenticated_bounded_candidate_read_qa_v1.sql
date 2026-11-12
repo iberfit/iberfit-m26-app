@@ -77,8 +77,8 @@ BEGIN
          THEN (s.body->>'durationMinutes')::numeric BETWEEN 10 AND 240
          ELSE false END
       AND p.status='publicado'
-      AND p.body->>'startDate' ~ '^\\d{4}-\\d{2}-\\d{2}$'
-      AND p.body->>'endDate' ~ '^\\d{4}-\\d{2}-\\d{2}$'
+      AND p.body->>'startDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+      AND p.body->>'endDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
       AND p.body->>'startDate'<=v_today::text
       AND p.body->>'endDate'>=(v_today+8)::text
     ORDER BY s.entity_id
