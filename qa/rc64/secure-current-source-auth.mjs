@@ -127,7 +127,7 @@ export function unexpectedQaResourceErrors(errors,missingAvatarCount=0,provenFut
  */
 export function isQaReadonlyDatedRequest(request,rpc){
   const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-  const date=/^\\d{4}-\\d{2}-\\d{2}$/u;
+  const date=/^\d{4}-\d{2}-\d{2}$/u;
   if(request?.method?.().toUpperCase()!=='POST')return false;
   let body;
   try{body=request.postDataJSON();}catch{return false;}

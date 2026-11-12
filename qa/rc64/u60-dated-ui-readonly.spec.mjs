@@ -139,6 +139,7 @@ test('QA U60 Client B never inherits Client A rendered occurrence cards',async({
     const other=await ctxB.newPage();
     await login(other,'B');
     await other.locator('[data-iberdates-action="u60-calendar"]').click();
+    await expect(other.locator('[data-u60-panel]')).toContainText('Calendario confirmado:',{timeout:20000});
     const idsB=await other.locator('[data-u60-panel] [data-iberdates-action="u60-open"]')
       .evaluateAll(nodes=>nodes.map(n=>String(n.dataset.u60Id||'')).filter(Boolean));
     expect(idsB.filter(id=>idsA.has(id)),'No cross-owner calendar IDs').toEqual([]);
