@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {COACH_PLANNING_VISIBLE_SESSIONS,COACH_PLANNING_ARCHIVE_GROUP,
   renderCoachPlanningSessionsProgressive} from '../src/m26/modules/route-render.js';
-import {orderCoachPlanningSessions} from '../src/m26/modules/route-view-model.js';
+import {orderCoachPlanningSessions,withCoachPlanningSchedule} from '../src/m26/modules/route-view-model.js';
 const session=i=>({
   id:'qa-session-'+i,title:'Entrenamiento '+i,status:'publicado',
   publication:{status:'published',statusLabel:'Publicada',actions:[{action:'publish',label:'Publicar'}]},
@@ -152,4 +152,60 @@ test('Withdrawn Coach sessions leave active plan, remain in lazy history with fu
   assert.match(noActive,/Historial de entrenamientos retirados/u);
   assert.doesNotMatch(noActive,/data-coach-session-remove/u,
     'already withdrawn session must not be withdrawn again');
+});
+
+
+test('Coach planning uses nearest upcoming confirmed day, then past and finally unplanned; no client/role leakage',()=>{
+  const now=new Date('2026-11-12T12:00:00Z');
+  const rows=[
+    {...session('undated'),clientId:'owner-A',date:'2026-11-12T11:00:00Z'},
+    {...session('past'),clientId:'owner-A',date:'2026-11-12T09:00:00Z'},
+    {...session('next'),clientId:'owner-A',date:'2026-11-10T09:00:00Z'},
+    {...session('soon'),clientId:'owner-A',date:'2026-11-09T09:00:00Z'},
+    {...session('foreign'),clientId:'owner-A',date:'2026-11-12T08:00:00Z'},
+  ];
+  const events=[
+    {clientId:'owner-A',sessionId:'qa-session-next',status:'confirmada',startAt:'2026-11-15T14:00:00Z'},
+    {clientId:'owner-A',sessionId:'qa-session-next',status:'confirmada',startAt:'2026-11-17T14:00:00Z'},
+    {clientId:'owner-A',sessionId:'qa-session-soon',status:'confirmada',startAt:'2026-11-14T14:00:00Z'},
+    {clientId:'owner-A',sessionId:'qa-session-past',status:'confirmada',startAt:'2026-11-11T14:00:00Z'},
+    {clientId:'owner-A',sessionId:'qa-session-undated',status:'propuesta',startAt:'2026-11-13T14:00:00Z'},
+    {clientId:'owner-B',sessionId:'qa-session-foreign',status:'confirmada',startAt:'2026-11-13T14:00:00Z'},
+  ];
+  const original=structuredClone({rows,events});
+  const enriched=withCoachPlanningSchedule(rows,events,now);
+  const sorted=orderCoachPlanningSessions(enriched);
+  assert.deepEqual(sorted.map(x=>x.id),[
+    'qa-session-soon','qa-session-next','qa-session-past',
+    'qa-session-undated','qa-session-foreign']);
+  assert.equal(enriched.find(x=>x.id==='qa-session-next').scheduledDateAt,'2026-11-15T14:00:00Z');
+  assert.match(enriched.find(x=>x.id==='qa-session-next').plannedDateLabel,/Próxima fecha confirmada/u);
+  assert.match(enriched.find(x=>x.id==='qa-session-past').plannedDateLabel,/Última fecha confirmada/u);
+  assert.equal(enriched.find(x=>x.id==='qa-session-undated').scheduledDateAt,undefined);
+  assert.equal(enriched.find(x=>x.id==='qa-session-foreign').scheduledDateAt,undefined);
+  assert.deepEqual({rows,events},original,'planning projection must never mutate server state');
+  const html=renderCoachPlanningSessionsProgressive(sorted);
+  assert.match(html,/Próxima fecha confirmada/u);
+  assert.match(html,/Última fecha confirmada/u);
+  assert.match(html,/qa-session-soon|Entrenamiento soon/u);
+  assert.doesNotMatch(html,/owner-B/u);
+  assert.match(readFileSync(new URL('../src/m26/modules/route-view-model.js',import.meta.url),'utf8'),
+    /role==='coach'[\\s\\S]*?orderCoachPlanningSessions\\(withCoachPlanningSchedule/u);
+});
+
+test('Coach planning ignores invalid, cancelled and cross-client appointments; stable duplicate dates',()=>{
+ const now=new Date('2026-11-12T12:00:00Z');
+ const records=[{...session(1),clientId:'A',date:'2026-11-10T12:00:00Z'},
+   {...session(2),clientId:'A',date:'2026-11-10T13:00:00Z'}];
+ const planned=withCoachPlanningSchedule(records,[
+   {clientId:'A',sessionId:'qa-session-1',status:'cancelada',startAt:'2026-11-13T12:00:00Z'},
+   {clientId:'B',sessionId:'qa-session-1',status:'confirmada',startAt:'2026-11-14T12:00:00Z'},
+   {clientId:'A',sessionId:'qa-session-1',status:'confirmada',startAt:'not-a-date'},
+   {clientId:'A',sessionId:'qa-session-1',status:'confirmada',startAt:'2026-11-13T12:00:00Z'},
+   {clientId:'A',sessionId:'qa-session-2',status:'confirmada',startAt:'2026-11-13T12:00:00Z'},
+ ],now);
+ assert.deepEqual(orderCoachPlanningSessions(planned).map(x=>x.id),['qa-session-1','qa-session-2'],
+   'equal schedule times must keep original stable ordering');
+ assert.ok(planned[0].plannedDateLabel.includes('Próxima fecha confirmada'));
+ assert.equal(planned[0].scheduledDateKind,'upcoming');
 });
