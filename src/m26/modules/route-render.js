@@ -4147,7 +4147,7 @@ function publicationCard(item,entity){
   const withdrawal=canWithdrawSession
     ?`<details class="m26-publication-actions m26-coach-session-remove" data-coach-session-remove>
       <summary>Eliminar entrenamiento del plan</summary>
-      <div class="m26-stack"><p class="m26-field-help">Retira la sesión de la planificación activa sin borrar el historial ni las ejecuciones confirmadas. Antes de retirarla, finaliza o cancela cualquier entrenamiento en curso.</p>
+      <div class="m26-stack"><p class="m26-eyebrow">Gestionar publicación</p><p class="m26-field-help">Retira la sesión de la planificación activa sin borrar el historial ni las ejecuciones confirmadas. Antes de retirarla, finaliza o cancela cualquier entrenamiento en curso.</p>
         ${publicationActionControl({...actions.find(action=>action.action==='withdraw'),label:'Confirmar retirada del plan'},entity,item)}
       </div></details>`
     :'';
