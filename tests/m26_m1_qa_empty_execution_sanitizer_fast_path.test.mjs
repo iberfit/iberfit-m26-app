@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-const f=readFileSync(new URL('../supabase/qa-migrations/20261112233000_m1_qa_empty_execution_sanitizer_fast_path.sql',import.meta.url),'utf8');
-const r=readFileSync(new URL('../supabase/qa-rollbacks/20261112233000_m1_qa_empty_execution_sanitizer_fast_path.rollback.sql',import.meta.url),'utf8');
+const f=readFileSync(new URL('../supabase/qa-migrations/20261112225518_m1_qa_empty_execution_sanitizer_fast_path.sql',import.meta.url),'utf8');
+const r=readFileSync(new URL('../supabase/qa-rollbacks/20261112225518_m1_qa_empty_execution_sanitizer_fast_path.rollback.sql',import.meta.url),'utf8');
 test('M1 optimization is QA-only, synthetic-only, exact-SHA guarded and reversible',()=>{
   for(const sql of [f,r]){
     assert.match(sql,/s.key='environment' AND s.value#>>'\{\}'='QA'/u);
