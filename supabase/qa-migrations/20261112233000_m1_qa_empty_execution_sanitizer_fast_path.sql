@@ -78,15 +78,16 @@ begin$m1_replacement0$;
   THEN RAISE EXCEPTION 'M1_QA_EMPTY_EXECUTION_PATCH_ANCHOR_%',3;
   END IF;
   v_changed := replace(v_changed,v_needle,v_replacement);
-  IF position('M1_QA_FAST_EMPTY_EXECUTION_V1' in v_changed)=0 THEN
-    RAISE EXCEPTION 'M1_QA_EMPTY_EXECUTION_MARKER_MISSING';
+  IF position('M1_QA_FAST_EMPTY_EXECUTION_V1' in v_changed)=0
+    OR md5(v_changed)<>'5d3e13ffc4f00c1e5f29d61fb81cd6e3' THEN
+    RAISE EXCEPTION 'M1_QA_EMPTY_EXECUTION_CANDIDATE_DRIFT';
   END IF;
   EXECUTE v_changed;
   IF EXISTS (SELECT 1 FROM pg_proc WHERE oid=v_oid
     AND (proowner IS DISTINCT FROM v_owner OR proacl IS DISTINCT FROM v_acl))
   THEN RAISE EXCEPTION 'M1_QA_EMPTY_EXECUTION_OWNER_OR_ACL_CHANGED';
   END IF;
-  IF position('M1_QA_FAST_EMPTY_EXECUTION_V1' in pg_get_functiondef(v_oid))=0 THEN
+  IF md5(pg_get_functiondef(v_oid))<>'5d3e13ffc4f00c1e5f29d61fb81cd6e3' THEN
     RAISE EXCEPTION 'M1_QA_EMPTY_EXECUTION_PATCH_READBACK_FAILED';
   END IF;
 END

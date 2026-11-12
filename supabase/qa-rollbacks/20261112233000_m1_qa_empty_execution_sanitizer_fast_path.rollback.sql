@@ -17,8 +17,8 @@ BEGIN
   END IF;
   SELECT proacl,proowner INTO v_acl,v_owner FROM pg_proc WHERE oid=v_oid;
   v_changed := pg_get_functiondef(v_oid);
-  IF position('M1_QA_FAST_EMPTY_EXECUTION_V1' in v_changed)=0
-     THEN RAISE EXCEPTION 'M1_QA_EMPTY_EXECUTION_MARKER_MISSING';
+  IF md5(v_changed)<>'5d3e13ffc4f00c1e5f29d61fb81cd6e3' THEN
+    RAISE EXCEPTION 'M1_QA_EMPTY_EXECUTION_ROLLBACK_HEAD_DRIFT';
   END IF;
   v_needle := $m1_needle0$select jsonb_agg(
         case
