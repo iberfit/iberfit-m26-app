@@ -10,6 +10,12 @@ BEGIN
       WHERE key='environment') IS DISTINCT FROM 'PRODUCTION' THEN
     RAISE EXCEPTION 'U60_ROLLBACK_PROD_ONLY' USING errcode='42501';
   END IF;
+  -- Serialize with every date transition before testing for active rows.
+  -- NOWAIT aborts instead of waiting behind an in-flight start/save, so no
+  -- transaction can slip between the active check and the EXECUTE revocation.
+  -- Any concurrent writer leaves permissions unchanged by atomic rollback.
+  LOCK TABLE public.training_session_occurrences_v1
+    IN SHARE ROW EXCLUSIVE MODE NOWAIT;
   -- Never revoke the only authenticated save/finish RPC during a live
   -- dated workout. The release operator must freeze new starts first, drain
   -- uncertain encrypted journals, and verify recovery before rollback.

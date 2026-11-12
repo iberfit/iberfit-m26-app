@@ -51,6 +51,10 @@ test('M1 activation remains non-live, production SQL has no user targeting and i
 
 test('U60 rollback stops before revocation if any dated workout remains active',()=>{
  assert.ok(disable.includes("status='en_curso'"));
+ assert.match(disable,/LOCK TABLE public\\.training_session_occurrences_v1\\s+IN SHARE ROW EXCLUSIVE MODE NOWAIT/u);
+ assert.ok(disable.indexOf('LOCK TABLE public.training_session_occurrences_v1')
+   <disable.indexOf("status='en_curso'"),
+   'the rollback must serialize against new starts BEFORE checking active rows');
  assert.ok(disable.includes('U60_ROLLBACK_ACTIVE_TRAINING_FORBIDDEN'));
  assert.ok(disable.indexOf('U60_ROLLBACK_ACTIVE_TRAINING_FORBIDDEN') <
    disable.indexOf('REVOKE EXECUTE ON FUNCTION'),
