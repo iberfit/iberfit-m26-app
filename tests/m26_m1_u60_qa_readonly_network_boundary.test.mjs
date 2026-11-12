@@ -18,7 +18,7 @@ test('U60 visual QA network gate allows only bounded read-only calendar queries'
     {...calendar.p_payload,clientId:'bad'},
     {...calendar.p_payload,startDate:'2026-12-03'},
     {...calendar.p_payload,extra:'danger'},
-  ])assert.equal(isQaReadonlyDatedRequest(req({...calendar,p_payload}),'iberfit_occurrence_api_u60_v1'),false);
+  ])assert.equal(isQaReadonlyDatedRequest(req({...calendar,p_payload:payload}),'iberfit_occurrence_api_u60_v1'),false);
   assert.equal(isQaReadonlyDatedRequest(req(calendar,'GET'),'iberfit_occurrence_api_u60_v1'),false);
 });
 test('U60 visual QA may read private owner ID but cannot issue arbitrary RPC or malformed detail',()=>{
