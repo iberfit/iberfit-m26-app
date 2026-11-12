@@ -189,8 +189,8 @@ test('Coach planning uses nearest upcoming confirmed day, then past and finally 
   assert.match(html,/Última fecha confirmada/u);
   assert.match(html,/qa-session-soon|Entrenamiento soon/u);
   assert.doesNotMatch(html,/owner-B/u);
-  assert.match(readFileSync(new URL('../src/m26/modules/route-view-model.js',import.meta.url),'utf8'),
-    /role==='coach'[\\s\\S]*?orderCoachPlanningSessions\\(withCoachPlanningSchedule/u);
+  const vmSource=readFileSync(new URL('../src/m26/modules/route-view-model.js',import.meta.url),'utf8');
+  assert.ok(vmSource.includes("role==='coach'")&&vmSource.includes('orderCoachPlanningSessions(withCoachPlanningSchedule('));
 });
 
 test('Coach planning ignores invalid, cancelled and cross-client appointments; stable duplicate dates',()=>{
