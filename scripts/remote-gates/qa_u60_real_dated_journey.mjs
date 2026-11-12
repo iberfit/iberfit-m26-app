@@ -173,8 +173,7 @@ export async function boundedReadOnlyJwtClockSkewRecovery(request,wait=async()=>
 }
 const READ_ONLY_IDENTITY_RPCS=new Set([
  'iberfit_current_role_v26','iberfit_client_id',
- 'iberfit_environment','iberfit_bootstrap_v26',
- 'iberfit_u71_dated_candidates_qa_v1',
+ 'iberfit_environment','iberfit_u71_dated_candidates_qa_v1',
 ]);
 async function value(ctx,jwt,name,params={}){
  assert(READ_ONLY_IDENTITY_RPCS.has(name),'NON_IDENTITY_READ_BLOCKED');
