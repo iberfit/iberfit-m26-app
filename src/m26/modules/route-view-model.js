@@ -479,6 +479,23 @@ function compactActivity(record) {
   };
 }
 
+// Coach planning must behave as a usable chronological list, not depend on
+// whichever order a paged bootstrap happened to deliver. This is presentation
+// only: all records and their original server revisions are preserved.
+export function orderCoachPlanningSessions(items=[]) {
+  const dateOf=item=>{
+    const ms=Date.parse(String(item?.date||''));
+    return Number.isFinite(ms)?ms:null;
+  };
+  return [...items].sort((a,b)=>{
+    const left=dateOf(a),right=dateOf(b);
+    if(left===null&&right===null)return 0;
+    if(left===null)return 1;
+    if(right===null)return -1;
+    return right-left;
+  });
+}
+
 function publicationItems(records, entity, role) {
   return records.map((record) => {
     const clientContent = clientContentView(entity, record, {previewForPublication:role!=='client'});
@@ -926,7 +943,9 @@ if (area === 'clientes') {
       profile,
       clientContext:['admin','coach'].includes(role)?professionalClientContext(state,clientId):null,
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),
-      sessions: Object.freeze(publicationItems(sessions, 'session', role)),
+      sessions: Object.freeze(role==='coach'
+        ?orderCoachPlanningSessions(publicationItems(sessions, 'session', role))
+        :publicationItems(sessions, 'session', role)),
       cycleCounts: publicationCounts(cycles),
       sessionCounts: publicationCounts(sessions),
       currentCycle: clone(currentCycle || cycles[0] || null),
