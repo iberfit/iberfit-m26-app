@@ -1,8 +1,9 @@
-// IBERFIT UNIVERSAL 360 · QA-only, real occurrence-scoped Coach/Client player.
+// IBERFIT UNIVERSAL 360 · occurrence-scoped Coach/Client player.
+// QA canary is always isolated; PROD requires a separate protected release.
 // Neither a calendar row nor an optimistic local draft starts a workout.
 // All writes use U60 authenticated private read + U40 idempotent journal,
 // encrypted U51 checkpoint and the independent U31/U32 CAS executor.
-// Production is unavailable until versioned U30-U60 + recovery gates exist.
+// A frontend switch is NEVER an alternative to backend JWT/ACL/RLS + M44.
 import {createTraining360OccurrenceRuntime} from './occurrence-runtime.js';
 import {createOccurrenceOwnerKeyVault} from './occurrence-owner-key.js';
 import {createAtomicOccurrenceIndexedDbStore} from './occurrence-indexeddb-store.js';
@@ -161,12 +162,18 @@ function humanError(error){
   return 'No se pudo confirmar el cambio. El progreso local cifrado se conserva; comprueba la conexión y reintenta.';
 }
 export function createDatedOccurrenceQaUi({
-  enabled=false,root,ownerId,projectRef,transport,getAuthContext,
+  enabled=false,productionReleased=false,root,ownerId,projectRef,transport,getAuthContext,
   getState,onRender=()=>{},cryptoImpl=globalThis.crypto,
 }={}){
   if(enabled!==true)return Object.freeze({
     enabled:false,mount:()=>{},destroy:()=>{},renderPanel:()=>'',hasBlockingWorkout:()=>false,
   });
+  // Production requires an explicit second decision independent of enabled.
+  // A mismatched project must fail before any owner-key/network activity.
+  if(productionReleased===true&&projectRef!=='pjhmrhejsoofmouedavw')
+    fail('PRODUCTION_PROJECT_MISMATCH');
+  if(productionReleased!==true&&projectRef!=='gjztkdwfmunnzhtvxrsu')
+    fail('QA_PROJECT_REQUIRED');
   // Distinct machine-readable validation errors prevent masking a broken
   // DOM harness as a backend permission problem. Never report user IDs.
   if(typeof root?.addEventListener!=='function'||
@@ -377,9 +384,9 @@ export function createDatedOccurrenceQaUi({
         :'<p class="m26-empty-copy">Consulta el calendario autorizado para elegir una fecha.</p>')+
         publisher;
     }
-    return '<section class="m26-panel" data-u60-panel data-u60-qa-only="true"'+
+    return '<section class="m26-panel" data-u60-panel data-u60-qa-only="'+(!productionReleased)+'"'+
       (busy?' aria-busy="true"':'')+'><div class="m26-panel-heading"><div>'+
-      '<p class="m26-eyebrow">Training360 · Canary</p>'+
+      '<p class="m26-eyebrow">'+(productionReleased?'Training360 · Entrenamiento':'Training360 · Canary')+'</p>'+
       '<h2>Entrenamiento por fechas independientes</h2>'+
       '<p>Cada fecha tiene su ejecución y confirmación propias. Nunca se reutiliza el inicio de la sesión original.</p>'+
       '</div></div>'+status+lockedMarkup+controls+body+'</section>';

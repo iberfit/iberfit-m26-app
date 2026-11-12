@@ -1584,14 +1584,17 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-setup-catalog-ready');
 
     const ownerId=session.user.id;
-    // U60 rollout remains QA-only until PROD has versioned migrations,
-    // restored offsite data and an exact-SHA hardware/authenticated gate.
-    // No network call, unlock or calendar read is performed on login.
-    if(runtime.qaOnly===true&&runtime.canary===true
-      &&runtime.projectRef==='gjztkdwfmunnzhtvxrsu'){
+    // One rollout surface: QA stays available; PROD requires an explicit
+    // exact-host/project runtime switch only AFTER backend grants and M44.
+    // Neither branch queries the date calendar automatically at login.
+    const datedQa=runtime.qaOnly===true&&runtime.canary===true
+      &&runtime.projectRef==='gjztkdwfmunnzhtvxrsu';
+    const datedProd=runtime.datedTrainingProductionReleased===true;
+    if(datedQa||datedProd){
       try{
         datedUi=createDatedOccurrenceQaUi({
-          enabled:true,root,ownerId,projectRef:runtime.projectRef,transport,
+          enabled:true,productionReleased:datedProd,
+          root,ownerId,projectRef:runtime.projectRef,transport,
           getState:()=>store.getState(),onRender:render,
           getAuthContext:async()=>{
             await refreshSessionIfNeeded();
@@ -1606,7 +1609,7 @@ export async function createM26Application({root=document.querySelector('#app'),
         datedUi.mount();
       }catch(error){
         datedUi?.destroy?.();datedUi=null;
-        reportSoftDiagnostic('u60-qa-closed-unavailable',error);
+        reportSoftDiagnostic('u60-dated-closed-unavailable',error);
       }
     }
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});sessionTemplateRepository=createSessionTemplateRepository({ownerId});telemetryOutbox=createTelemetryDurableOutbox({ownerId});
