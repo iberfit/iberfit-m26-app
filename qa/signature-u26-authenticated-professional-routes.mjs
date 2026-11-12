@@ -61,8 +61,21 @@ async function installTrustedRoutePaintProbe(page,role){
             if(entry.entryType==='long-animation-frame'){
               // Bounded duration-only script evidence, never a source URL,
               // user identity, token, health payload or request metadata.
-              trace.scriptDurationsMs=Array.from(entry.scripts||[])
-                .slice(0,6).map(script=>Math.round(Number(script.duration)||0));
+              const scriptRows=Array.from(entry.scripts||[]).slice(0,6);
+              trace.scriptDurationsMs=scriptRows.map(script=>Math.round(Number(script.duration)||0));
+              // Safe QA attribution: static JS function labels and numeric
+              // forced-layout durations only; never source URLs, files,
+              // source text, user input, token, or network metadata.
+              trace.scripts=scriptRows.map(script=>{
+                const name=String(script.sourceFunctionName||'');
+                const invoker=String(script.invokerType||'');
+                return {
+                  name:/^[A-Za-z_$][\w$]{0,55}$/u.test(name)?name:'anonymous',
+                  invoker:['user-callback','event-listener','resolve-promise','reject-promise','classic-script','module-script'].includes(invoker)?invoker:'other',
+                  forcedLayoutMs:Math.round(Number(script.forcedStyleAndLayoutDuration)||0),
+                  durationMs:Math.round(Number(script.duration)||0),
+                };
+              });
             }
             longTasks.push(trace);
           }
@@ -72,7 +85,7 @@ async function installTrustedRoutePaintProbe(page,role){
       }
     }catch{}
     const shellSelector='.m26-shell[data-m26-role="'+expectedRole+'"]';
-    function routeIsPaintable(area){
+    function routeIsPaintable(area,{checkGeometry=true}={}){
       const shell=document.querySelector(shellSelector);
       const nav=Array.from(shell?.querySelectorAll('[data-m26-area][aria-current="page"]')||[])
         .some(node=>node.getAttribute('data-m26-area')===area);
@@ -82,12 +95,17 @@ async function installTrustedRoutePaintProbe(page,role){
         ||main.querySelector('.m26-route-placeholder')
         ||!main.querySelector('h1,h2,h3')
         ||String(main.textContent||'').trim().length<=30)return false;
+      // Do NOT synchronously force document layout inside MutationObserver:
+      // a route with the full U38 archive can turn the measurement observer
+      // itself into the long task under investigation. Geometry is checked
+      // once in the real rendering frame, before accepting the paint.
+      if(!checkGeometry)return true;
       const rect=main.getBoundingClientRect();
       return rect.width>20&&rect.height>20
         &&getComputedStyle(main).visibility!=='hidden';
     }
     function check(){
-      if(!pending||paintQueued||!routeIsPaintable(pending.area))return;
+      if(!pending||paintQueued||!routeIsPaintable(pending.area,{checkGeometry:false}))return;
       if(firstEligibleMs===null)firstEligibleMs=performance.now();
       paintQueued=true;
       requestAnimationFrame(()=>{
