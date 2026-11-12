@@ -31,7 +31,7 @@ test('U89 CDP profiling repeats only two read-only routed clicks and never logs 
 
 test('U89 stage checkpoints preserve owner CAS and queued render/focus behaviour',()=>{
   assert.match(shell,/ticket!==touchRouteTicket\|\|version!==generation\|\|!unsubscribe/u);
-  assert.match(shell,/String\(latest\.identity\?\.id\|\|'')!==ownerId/u);
+  assert.ok(shell.includes("String(latest.identity?.id||'')!==ownerId"));
   assert.match(shell,/store\.navigateFast\(decision\.area\)/u);
   assert.match(shell,/markQaShellStage\('route-store-updated',decision\.area\)/u);
   assert.match(shell,/markQaShellStage\('route-reconcile-queued',decision\.area\)/u);
