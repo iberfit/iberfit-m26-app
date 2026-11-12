@@ -4169,7 +4169,16 @@ export const COACH_PLANNING_VISIBLE_SESSIONS=6;
 export const COACH_PLANNING_ARCHIVE_GROUP=18;
 export function renderCoachPlanningSessionsProgressive(items=[],entity='session'){
   if(!['planning','session'].includes(entity))throw new Error('COACH_PLANNING_ENTITY_INVALID');
-  const visible=items.slice(0,COACH_PLANNING_VISIBLE_SESSIONS)
+  // Withdrawn sessions are not active prescriptions. Keep their complete
+  // records and reuse actions under a separate history disclosure, rather
+  // than leaving an "eliminated" workout in the working list.
+  const retired=entity==='session'
+    ?items.filter(item=>['withdrawn','archived'].includes(item?.publication?.status))
+    :[];
+  const active=retired.length
+    ?items.filter(item=>!['withdrawn','archived'].includes(item?.publication?.status))
+    :items;
+  const visible=active.slice(0,COACH_PLANNING_VISIBLE_SESSIONS)
     .map((item,index)=>{
       const card=publicationCard(item,entity);
       if(index<COACH_PLANNING_FOCUS_SESSIONS)return card;
@@ -4179,8 +4188,8 @@ export function renderCoachPlanningSessionsProgressive(items=[],entity='session'
         </summary>${card}
       </details>`;
     }).join('');
-  const remaining=items.slice(COACH_PLANNING_VISIBLE_SESSIONS);
-  if(!remaining.length)return `<div class="m26-stack">${visible}</div>`;
+  const remaining=active.slice(COACH_PLANNING_VISIBLE_SESSIONS);
+  if(!remaining.length&&!retired.length)return `<div class="m26-stack">${visible}</div>`;
   const groups=[];
   const noun=entity==='planning'?'ciclos':'sesiones';
   const groupNoun=entity==='planning'?'Ciclos':'Sesiones';
@@ -4194,14 +4203,29 @@ export function renderCoachPlanningSessionsProgressive(items=[],entity='session'
       <template data-coach-planning-template>${slice.map(item=>publicationCard(item,entity)).join('')}</template>
     </details>`);
   }
-  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive data-coach-planning-entity="${entity}" data-coach-planning-total="${items.length}">
-    ${visible}
-    <details class="m26-coach-planning-archive" data-coach-planning-archive>
+  const archive=remaining.length?`<details class="m26-coach-planning-archive" data-coach-planning-archive>
       <summary><span><strong>Consultar ${entity==='planning'?'otros':'otras'} ${remaining.length} ${noun}</strong>
         <small>Historial completo, dividido en grupos. Todas las acciones siguen disponibles.</small></span>
         <span aria-hidden="true">+</span></summary>
       <div class="m26-coach-planning-archive-groups">${groups.join('')}</div>
-    </details>
+    </details>`:'';
+  const retiredGroups=[];
+  for(let offset=0;offset<retired.length;offset+=COACH_PLANNING_ARCHIVE_GROUP){
+    const slice=retired.slice(offset,offset+COACH_PLANNING_ARCHIVE_GROUP);
+    retiredGroups.push(`<details class="m26-coach-planning-batch" data-coach-planning-batch data-coach-archive-size="${slice.length}">
+      <summary>Retirados ${offset+1}–${offset+slice.length}<span aria-hidden="true">+</span></summary>
+      <div class="m26-stack" data-coach-planning-content></div>
+      <template data-coach-planning-template>${slice.map(item=>publicationCard(item,entity)).join('')}</template>
+    </details>`);
+  }
+  const retiredHistory=retired.length?`<details class="m26-coach-planning-archive" data-coach-planning-retired>
+      <summary><span><strong>Historial de entrenamientos retirados (${retired.length})</strong>
+        <small>Fuera del plan activo. Se conservan las ejecuciones y el contexto para consulta y reutilización.</small></span><span aria-hidden="true">+</span></summary>
+      <div class="m26-coach-planning-archive-groups">${retiredGroups.join('')}</div>
+    </details>`:'';
+  const empty=active.length?'':'<p class="m26-field-help" data-coach-planning-no-active>Sin entrenamientos activos en este plan. Los retirados siguen disponibles en el historial.</p>';
+  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive data-coach-planning-entity="${entity}" data-coach-planning-total="${items.length}">
+    ${visible}${empty}${archive}${retiredHistory}
   </div>`;
 }
 // Inert HTML templates keep hundreds of historical publication controls out of
