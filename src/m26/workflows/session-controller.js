@@ -1391,16 +1391,12 @@ async function click(event){
     }
     return;
   }
-  // WebKit can dispatch a native summary click across an asynchronous live
-  // repaint. Commit disclosure state synchronously and suppress the second
-  // native toggle so the reason field remains reachable by touch/keyboard.
-  const skipSummary=event.target.closest?.('details[data-session-skip-set-disclosure] > summary');
-  if(skipSummary){
-    event.preventDefault?.();
-    const details=skipSummary.parentElement;
-    if(details?.tagName==='DETAILS')details.open=!details.open;
-    return;
-  }
+  // Trust native <details>/<summary> click and keyboard activation.
+  // WebKit may already toggle 'open' before delegated click handlers run:
+  // preventDefault() plus an explicit inversion double-closes the disclosure,
+  // hiding the skip reason. The render wrapper above preserves disclosure
+  // state through asynchronous shell paints for the SAME execution and set.
+  // Do not intercept native summary clicks here.
   const openSubstitution=event.target.closest?.('[data-session-open-substitution]');
   if(openSubstitution){
     event.preventDefault?.();

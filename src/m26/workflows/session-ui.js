@@ -1571,22 +1571,22 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   if(execution.status==='awaiting_feedback'){
     const feedbackIntro=isCoach
-      ?'La ejecución ya está registrada. Completa el cierre con el feedback del cliente.'
-      :'Tu ejecución ya está registrada. Añade el feedback final para completar el seguimiento.';
+      ?'El trabajo realizado está registrado. Añade cómo se sintió el cliente antes de cerrar la sesión.'
+      :'Has terminado los ejercicios. Cuéntanos cómo te sentiste para cerrar la sesión.';
     const feedbackTitle=isCoach?'Registra el feedback del cliente':'Cuéntanos cómo te fue';
-    const rpeLabel=isCoach?'RPE del cliente':'RPE de la sesión';
-    const commentLabel=isCoach?'Feedback / percepción del cliente':'Comentario';
+    const rpeLabel=isCoach?'Esfuerzo percibido por el cliente (1 a 10)':'Tu esfuerzo (1 a 10)';
+    const commentLabel=isCoach?'Observaciones del cliente':'¿Cómo te sentiste?';
     const painLabel=isCoach?'El cliente reportó dolor o molestia':'Tuve dolor o molestia';
     const feedbackPrivacyNote=isCoach
-      ?'Este feedback forma parte del registro del cliente. Para observaciones internas utiliza Notas privadas del entrenador.'
+      ?'Esta valoración forma parte del registro del cliente. Para observaciones internas utiliza Notas privadas del entrenador.'
       :'';
-    const feedbackQuickRpe='<div class="m26-session-feedback-rpe-quick" data-session-feedback-rpe-quick role="group" aria-label="RPE real al finalizar la sesión"><span>Esfuerzo global real · del 1 al 10</span>'+Array.from({length:10},(_,index)=>index+1).map((value)=>'<button type="button" data-session-action="set-session-rpe-quick" data-rpe-value="'+e(value)+'" aria-label="RPE '+e(value)+'" aria-pressed="false">'+e(value)+'</button>').join('')+'</div>';
+    const feedbackQuickRpe='<div class="m26-session-feedback-rpe-quick" data-session-feedback-rpe-quick role="group" aria-label="Esfuerzo percibido al finalizar"><span>¿Qué esfuerzo te supuso? 1 = muy suave · 10 = máximo</span>'+Array.from({length:10},(_,index)=>index+1).map((value)=>'<button type="button" data-session-action="set-session-rpe-quick" data-rpe-value="'+e(value)+'" aria-label="Esfuerzo '+e(value)+' de 10" aria-pressed="false">'+e(value)+'</button>').join('')+'</div>';
     const reviewLastSetAction=Array.isArray(execution?.queue)&&execution.queue.length
       ?'<button type="button" data-session-action="previous">Revisar última serie</button>'
       :'';
     const feedbackNeedsReview=Boolean(execution?.finalFeedbackDraft?.needsReview);
     const feedbackReviewNotice=feedbackNeedsReview
-      ?'<p class="m26-notice" data-session-feedback-review-required>El entrenamiento cambió después de escribir este feedback. Revísalo antes de finalizar para confirmar que sigue representando la sesión completa.</p>'
+      ?'<p class="m26-notice" data-session-feedback-review-required>El entrenamiento cambió después de escribir esta valoración. Revísala antes de finalizar para que refleje lo que realmente hiciste.</p>'
       :'';
     return `<section class="m26-guided m26-session-live" data-session-live-state="feedback">
       ${professionalClientContext}${state}
@@ -1594,7 +1594,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ${renderSessionLiveAttention(baseCue)}
       ${timerStrip(execution)}
       <div class="m26-panel" data-session-live-feedback>
-        <p class="m26-eyebrow">Feedback final</p>
+        <p class="m26-eyebrow">Cierre del entrenamiento</p>
         <h2>${e(feedbackTitle)}</h2>
         <div class="m26-field-grid">
           <label>${e(rpeLabel)}<input type="number" min="1" max="10" inputmode="numeric" data-session-feedback-rpe required></label>
@@ -1605,7 +1605,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         </div>
         ${feedbackPrivacyNote?`<p class="m26-notice" data-session-coach-feedback-privacy>${e(feedbackPrivacyNote)}</p>`:''}
         ${feedbackReviewNotice}
-        <p class="m26-notice">Puedes salir y terminar después. El feedback escrito se conserva en este dispositivo y la sesión no se marcará como completada hasta confirmar el cierre.</p>
+        <p class="m26-notice">Puedes guardar y salir para terminar después. Lo que escribiste queda en este dispositivo; el entrenamiento solo se marca como completado cuando confirmas «Finalizar y guardar».</p>
         <div class="m26-session-live-actions">
           ${reviewLastSetAction}
           <button type="button" data-session-action="exit-session">Guardar y salir</button>
@@ -1725,7 +1725,7 @@ const coachQuickRpe=isCoach
   ?`<div class="m26-session-coach-rpe-quick" role="group" aria-label="Registrar RPE real rápido"><span>RPE real</span>${coachQuickRpeValues(planned.targetRpe).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
   :'';
 const clientQuickRpe=!isCoach
-  ?`<div class="m26-session-client-rpe-quick" data-session-client-rpe-quick role="group" aria-label="Registrar esfuerzo real de la serie"><span>Selecciona tu RPE real · del 1 al 10</span>${Array.from({length:10},(_,index)=>index+1).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
+  ?`<div class="m26-session-client-rpe-quick" data-session-client-rpe-quick role="group" aria-label="Registrar esfuerzo real de la serie"><span>¿Qué esfuerzo te supuso esta serie? Del 1 al 10</span>${Array.from({length:10},(_,index)=>index+1).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
   :'';
 const setEntryRule=executionProfile.sport==='swimming'
   ?'Registra tiempo y metros nadados. Si mides el ritmo, utiliza min/100 m; el RPE real es obligatorio.'
@@ -1947,9 +1947,9 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         <button type="button" class="m26-primary-action" data-session-action="complete-set" data-rest-seconds="${e(planned.restSeconds??60)}">Completar serie</button>
         <details class="m26-session-options" data-session-skip-set-disclosure>
           <summary>No realizar esta serie</summary>
-          <label>Motivo<input maxlength="500" data-session-skip-set-reason placeholder="Ej. molestia, fatiga o ajuste técnico"></label>
+          <label>¿Por qué no hiciste esta serie?<input maxlength="500" data-session-skip-set-reason placeholder="Por ejemplo: molestia, cansancio o cambio de ejercicio"></label>
           ${coachReasonPresets('skip-set',isCoach)}
-          <button type="button" data-session-action="skip-set">Omitir serie con motivo</button>
+          <button type="button" data-session-action="skip-set">Guardar motivo y omitir serie</button>
         </details>
       </article>`;
 
