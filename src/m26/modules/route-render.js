@@ -4158,7 +4158,7 @@ function publicationCard(item,entity){
     ?`<section class="m26-pdf-history" aria-label="Versiones de informes emitidos"><button type="button" data-workflow-action="show-issued-evolution-history" data-entity-id="${escapeHtml(item.id||'')}">Consultar versiones PDF</button><div data-m44-pdf-history aria-live="polite"></div></section>`
     :'';
   const reuse=entity==='session'?`<div class="m26-inline-actions"><button type="button" data-workflow-action="reuse-session" data-entity-id="${escapeHtml(item.id||'')}">Reutilizar como borrador</button><small>Crea una copia independiente; la sesión original permanece intacta.</small></div>`:'';
-  return `<article class="m26-publication-card" ${entity==='report'?'data-m44-pdf-card':''} data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${pdfHistory}${controls}${withdrawal}</article>`;
+  return `<article class="m26-publication-card" ${entity==='report'?'data-m44-pdf-card':''} data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.plannedDateLabel||item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${pdfHistory}${controls}${withdrawal}</article>`;
 }
 
 /* SIGNATURE Coach · A visible working set, then all previous sessions grouped
@@ -4183,7 +4183,7 @@ export function renderCoachPlanningSessionsProgressive(items=[],entity='session'
       const card=publicationCard(item,entity);
       if(index<COACH_PLANNING_FOCUS_SESSIONS)return card;
       return `<details class="m26-coach-planning-compact" data-coach-planning-compact>
-        <summary><span class="m26-coach-planning-compact-title"><small>${escapeHtml(item.dateLabel||'IBERFIT')}</small><strong>${escapeHtml(item.title||'Contenido IBERFIT')}</strong></span>
+        <summary><span class="m26-coach-planning-compact-title"><small>${escapeHtml(item.plannedDateLabel||item.dateLabel||'IBERFIT')}</small><strong>${escapeHtml(item.title||'Contenido IBERFIT')}</strong></span>
           <span class="m26-coach-planning-compact-meta">${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}<span aria-hidden="true">+</span></span>
         </summary>${card}
       </details>`;
@@ -4582,7 +4582,7 @@ export function renderPlanningRoute(vm){
       </section>
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Sesiones del ciclo'}</h2></div>${!isClient?badge(`${publishedSessions} publicadas`,'success'):''}</div>
-        ${vm.role==='coach'?'<p class="m26-field-help m26-coach-planning-order">Entrenamientos ordenados por fecha, del más reciente al más antiguo. Abre uno para revisar, reutilizar o eliminar del plan. La retirada conserva las ejecuciones confirmadas.</p>':''}
+        ${vm.role==='coach'?'<p class="m26-field-help m26-coach-planning-order">Entrenamientos ordenados por fecha: primero las próximas citas confirmadas, después las fechas pasadas y los que aún no están programados. Abre uno para revisarlo, reutilizarlo o eliminarlo del plan sin perder ejecuciones confirmadas.</p>':''}
         ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:vm.serviceActive!==false,coachPlanning:vm.role==='coach'})}
       </section>
     </section>
