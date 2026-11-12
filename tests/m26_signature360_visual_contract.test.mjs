@@ -53,3 +53,32 @@ test('SIGNATURE 360 keeps the real three-role home and workout surfaces',()=>{
  assert.match(css,/m26-library-create-disclosure/);
  assert.match(css,/m26-client-home-compass-actions/);
 });
+
+
+test('SIGNATURE 360 quiet gold finish respects approved references and official identity',()=>{
+ const brand=JSON.parse(read('src/m26/design/brand-truth.json'));
+ assert.equal(brand.officialAsset.path,'public/isotipo-iberfit.png');
+ assert.equal(brand.officialAsset.useAsIs,true);
+ assert.equal(brand.officialAsset.recolorFromUiTokens,false);
+ const marker='SIGNATURE 360 · APPROVED QUIET GOLD MASTER FINISH · 2026-11-12';
+ assert.equal(css.split(marker).length,2);
+ const finish=css.slice(css.indexOf(marker));
+ assert.match(finish,/url\('\/isotipo-iberfit\.png'\)/);
+ for(const role of ['admin','coach','client'])assert.match(finish,new RegExp('data-m26-role="'+role+'"'));
+ assert.match(finish,/--s360-quiet-border:rgba\(197,160,89,\.16\)/);
+ assert.match(finish,/--s360-quiet-border-strong:rgba\(197,160,89,\.32\)/);
+ assert.doesNotMatch(finish,/text-shadow:0 0|box-shadow:0 0|drop-shadow\(0 0/);
+ for(const required of ['.m26-admin-table','.m26-session-builder-v2','.m26-session-live-v3','.m26-client-home-primary-zone','.m26-library-card']){
+   assert.ok(finish.includes(required),required);
+ }
+});
+test('SIGNATURE 360 responsive finish does not replace interactions or introduce fictitious records',()=>{
+ const marker='SIGNATURE 360 · APPROVED QUIET GOLD MASTER FINISH · 2026-11-12';
+ const finish=css.slice(css.indexOf(marker));
+ for(const breakpoint of [1024,680])assert.match(finish,new RegExp('@media\\(max-width:'+breakpoint+'px\\)'));
+ assert.match(finish,/@media\(forced-colors:active\)/);
+ assert.match(finish,/@media\(prefers-reduced-motion:reduce\)/);
+ assert.doesNotMatch(finish,/content:url\(|pointer-events:none|visibility:hidden|display:none|!important/);
+ assert.match(render,/data-workflow-action="start-published-session"/);
+ assert.match(html,/\/src\/m26\/design\/iberfit-premium-v3\.css/);
+});

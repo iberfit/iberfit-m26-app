@@ -352,3 +352,24 @@ La implementación incremental de esta decisión comienza en la hoja canónica e
 src/m26/design/iberfit-premium-v3.css. No confundir el contrato documentado ni un commit
 con la entrega final completa; producción requiere gates, respaldo M44 fresco, restauración,
 Canary exacto, promoción protegida y readback real de los tres roles.
+
+
+## SIGNATURE 360 · acabado definitivo aprobado: dorado más discreto
+
+El propietario aprueba el estándar de las capturas «Analítica Admin» y «Coach
+Clientes/Planificación/Constructor/Hoy», con la única corrección de disminuir el
+brillo y la saturación visual del dorado. **No bajar el nivel**, ni sustituir el
+isotipo, las superficies auténticas o el contenido real de cada pantalla.
+
+Esta decisión se consolida para los tres roles en el único CSS de acabado
+\`src/m26/design/iberfit-premium-v3.css\` (SIGNATURE 360 QUIET GOLD).
+Principios: profundidad verde esmeralda con contraste WCAG, tipografía
+editorial selectiva, isotipo oficial real en hero bajo velo oscuro, borde
+dorado tenue, botones de decisión inequívocos, cero halo dorado neón.
+Los estados de error/conexión/confirmación siguen informados por la verdad de
+backend; una referencia visual no autoriza datos, clientes ni sesiones ficticias.
+
+Esto es un contrato de calidad visual; **no equivalencia automática con
+capturas ni certificación productiva**. Debe acreditarse E2E y comparación
+por rol y viewport en SHA congelado, seguidos de M44 restore/rollback,
+Canary exacto y un único corte protegido a PROD.
