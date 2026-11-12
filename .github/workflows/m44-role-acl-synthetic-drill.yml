@@ -7,12 +7,16 @@ on:
       - '.github/workflows/m44-role-acl-synthetic-drill.yml'
       - 'scripts/ops/m44_synthetic_acl_restore_drill.sh'
       - 'tests/m44_synthetic_acl_restore_drill.test.mjs'
+      - 'scripts/ops/m44_fresh_cluster_role_restore_drill.sh'
+      - 'tests/m44_fresh_cluster_role_restore_drill.test.mjs'
   push:
     branches: ['canary/rc74-4']
     paths:
       - '.github/workflows/m44-role-acl-synthetic-drill.yml'
       - 'scripts/ops/m44_synthetic_acl_restore_drill.sh'
       - 'tests/m44_synthetic_acl_restore_drill.test.mjs'
+      - 'scripts/ops/m44_fresh_cluster_role_restore_drill.sh'
+      - 'tests/m44_fresh_cluster_role_restore_drill.test.mjs'
   workflow_dispatch:
 
 permissions:
@@ -27,19 +31,6 @@ jobs:
     name: m44-isolated-role-acl-recovery-proof
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    services:
-      postgres:
-        image: supabase/postgres:17.6.1.147
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: m44-local-fixture-only
-          POSTGRES_DB: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd=pg_isready
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,19 +40,71 @@ jobs:
           node-version: '22'
       - name: Verify guard and regression contracts without database access
         run: node --test tests/m44_synthetic_acl_restore_drill.test.mjs
-      - name: Prove data-only restore loses access until owners ACL defaults reconciled
+      - name: Prove DB restore and tenant RLS inside one networkless container
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           scratch="$(mktemp -d)"
-          trap 'rm -rf "$scratch"' EXIT
           chmod 700 "$scratch"
-          docker run --rm --network host \
+          container="iberfit-m44-acl-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cleanup() {
+            docker rm -f "$container" >/dev/null 2>&1 || true
+            rm -rf "$scratch"
+          }
+          trap cleanup EXIT
+          # The image may be pulled by the Docker daemon beforehand;
+          # the running database and pg_dump/pg_restore share ONE container
+          # whose network is disabled. No host or runner ports are published.
+          docker run --detach --name "$container" --network none \
+            -e POSTGRES_USER=supabase_admin \
+            -e POSTGRES_PASSWORD=m44-local-fixture-only \
+            -e POSTGRES_DB=postgres \
+            -v "$scratch:/work" \
+            -v "$PWD/scripts/ops/m44_synthetic_acl_restore_drill.sh:/drill.sh:ro" \
+            supabase/postgres:17.6.1.147 >/dev/null
+          test "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$container")" = none
+          test -z "$(docker port "$container")"
+          ready=false
+          for attempt in $(seq 1 90); do
+            if docker exec -e PGPASSWORD=m44-local-fixture-only "$container" \
+              psql -X -A -t -h 127.0.0.1 -p 5432 -U supabase_admin -d postgres \
+              -v ON_ERROR_STOP=1 -c 'SELECT 1' 2>/dev/null | grep -qx 1; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then
+            echo 'IBERFIT_M44_OFFLINE_POSTGRES_START_FAILED'
+            exit 61
+          fi
+          docker exec "$container" sh -n /drill.sh
+          docker exec \
             -e IBERFIT_M44_SYNTHETIC_ONLY=true \
             -e PGHOST=127.0.0.1 -e PGPORT=5432 \
             -e PGDATABASE=postgres -e PGUSER=supabase_admin \
             -e PGPASSWORD=m44-local-fixture-only \
             -e IBERFIT_M44_DRILL_DIR=/work \
-            -v "$scratch:/work" \
-            -v "$PWD/scripts/ops/m44_synthetic_acl_restore_drill.sh:/drill.sh:ro" \
-            postgres:17-alpine sh /drill.sh
+            "$container" sh /drill.sh
+          echo 'IBERFIT_M44_SYNTHETIC_DATABASE_NETWORK_NONE_NO_PORTS_VERIFIED'
+
+  postgres17-fresh-cluster-role-recovery:
+    name: m44-fresh-cluster-roles-acl-rls-proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check isolation guards and syntax before Docker
+        run: |
+          bash -n scripts/ops/m44_fresh_cluster_role_restore_drill.sh
+          node --test tests/m44_fresh_cluster_role_restore_drill.test.mjs
+      - name: Restore synthetic roles and permissions into a fresh isolated cluster
+        env:
+          IBERFIT_M44_FRESH_CLUSTER_SYNTHETIC_ONLY: 'true'
+        run: bash scripts/ops/m44_fresh_cluster_role_restore_drill.sh
