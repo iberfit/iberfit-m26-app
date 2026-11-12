@@ -159,6 +159,20 @@ function friendlyError(error){
   if(/M26_PRIVILEGED_ACTION_TIMEOUT|M26_WEBAUTHN_BACKEND_TIMEOUT/.test(code))return 'La confirmación segura tardó demasiado. El expediente no se ha creado; puedes reintentarlo sin perder el formulario.';
   if(/M26_WEBAUTHN_UNSUPPORTED/.test(code))return 'Este dispositivo no permite la confirmación segura necesaria para crear el expediente. Tu formulario permanece guardado.';
   if(/M26_PRIVILEGED_ACTION_(?:IDENTITY_MISMATCH|ASSURANCE_INVALID|FACTOR_INVALID|CHALLENGE_INVALID|CEREMONY_INVALID|NOT_CONFIRMED|AUTH_REQUIRED)/.test(code))return 'No se pudo confirmar de forma segura tu identidad. El expediente no se ha creado y el formulario permanece guardado.';
+  // A safe training removal is not a database DELETE. Fail closed with a
+  // human, recoverable reason; never hide the blocker behind a raw RPC code.
+  if(/M26_SESSION_WITHDRAW_(EXECUTION|OCCURRENCE|APPOINTMENT)_OPEN|M26_SESSION_ACTIVE_WITHDRAW_FORBIDDEN|U60_RETIRE_ACTIVE_OCCURRENCE_EXISTS/.test(code))
+    return 'Hay una ejecución, fecha o cita pendiente. Finalízala o cancélala antes de quitar este entrenamiento del plan. Los registros confirmados se conservarán.';
+  if(/M26_SESSION_WITHDRAW_PREFLIGHT_|M26_SESSION_DATED_PREFLIGHT_|U60_RETIRE_/.test(code))
+    return 'No se pudo comprobar de forma segura si este entrenamiento tiene fechas o sesiones abiertas. No se ha retirado: revisa la conexión y actualiza la planificación antes de reintentarlo.';
+  if(/M26_SESSION_WITHDRAW_ACTOR_CHANGED|M26_SESSION_WITHDRAW_SCOPE_REQUIRED/.test(code))
+    return 'Ha cambiado el cliente o el entrenamiento seleccionado. No se ha retirado nada; vuelve a abrir su planificación.';
+  if(/M26_PUBLICATION_REASON_REQUIRED/.test(code))
+    return 'Indica el motivo de la retirada para conservar la trazabilidad del entrenamiento.';
+  if(/M26_PUBLICATION_TRANSITION_INVALID/.test(code))
+    return 'El estado de este entrenamiento ha cambiado. Actualiza su ficha antes de retirarlo.';
+  if(/M26_OFFLINE_PUBLICATION_NOT_ALLOWED/.test(code))
+    return 'Necesitas conexión para retirar una sesión del plan. Ningún entrenamiento se ha eliminado de forma local.';
   if(/M42_WORKSPACE_ENTRY_BUSY/.test(code))return 'Ya se está preparando una sesión. Espera a que termine antes de abrir otra.';
   if(/M42_WORKSPACE_ALREADY_ACTIVE/.test(code))return 'Tienes una sesión o un borrador abierto. Termínalo o sal de él antes de abrir otro.';
   if(/M42_SESSION_(?:NO_LONGER_VISIBLE|NO_LONGER_AVAILABLE)/.test(code))return 'La sesión ya no está disponible. Actualiza tu planificación y selecciona una sesión habilitada.';
