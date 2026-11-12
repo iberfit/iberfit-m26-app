@@ -15,9 +15,11 @@ on:
       - 'feat/iberfit-universal-launch-360-20261112'
       - 'canary/rc74-4'
       - 'feat/coach-a-verified-evidence-20261111'
+      - 'feat/iberfit-m1-training-reliability-20261112'
     paths:
       - '.github/workflows/u71-qa-real-dated-e2e.yml'
       - 'scripts/remote-gates/qa_u60_real_dated_journey.mjs'
+      - 'qa/sql/20261112_u71_authenticated_bounded_candidate_read_qa_v1.sql'
       - 'tests/m26_u71_qa_real_dated_journey.test.mjs'
       - 'src/m26/workflows/occurrence-qa-ui.js'
       - 'src/m26/workflows/occurrence-session-retirement-gate.js'
