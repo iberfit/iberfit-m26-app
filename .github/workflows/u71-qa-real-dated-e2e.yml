@@ -128,7 +128,7 @@ jobs:
         run: node qa/rc64/build-authenticated-surface.mjs
       - name: Verify that U60 QA network allows ONLY calendar and private detail reads
         run: node --test tests/m26_m1_u60_qa_readonly_network_boundary.test.mjs
-      - name: Real Chromium: Client A private U60 and cross-owner isolation
+      - name: Real Chromium Client A private U60 and cross-owner isolation
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
           M26_QA_ONLY: 'true'
