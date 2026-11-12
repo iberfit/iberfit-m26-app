@@ -16,6 +16,8 @@ test('physical 4K at 1920 CSS pixels DPR2 enters authentic UHD editorial breakpo
   assert.match(visual,/width:1920,height:1080,dpr:2/u);
   assert.match(visual,/routeMaxInlineSize/u);
   assert.match(visual,/routeWidthCssPx/u);
+  assert.match(visual,/real DPR2 UHD CSS cap/u);
+  assert.match(visual,/route must fit its role-specific cap/u);
 });
 
 test('UHD rule does not accidentally expand normal 1920 CSS DPR1 or 1728 CSS DPR2 laptop',()=>{

@@ -23,7 +23,7 @@ test('M43 U92 only archives 84 additional QA completed sessions, leaving the ori
  assert.deepEqual(next.sha256EntityScopeRevisionAndTitle,[...next.sha256EntityScopeRevisionAndTitle].sort());
  assert.match(next.selection,/no linked appointment or active execution lock/i);
  assert.match(next.selection,/exactly one completed canonical execution/i);
- assert.match(source,/m43-qa-retained-history-v2\.json/u);
+ assert.match(source,/m43-qa-retained-history-v3\.json/u);
  assert.equal(M43_SYNTHETIC_SESSION_LIMIT,150);
  assert.match(source,/status!=='completada'/u);
  assert.match(source,/item\.body\?\.clientId/u);

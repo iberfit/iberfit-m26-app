@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import retainedHistory from './m43-qa-retained-history-v2.json' with {type:'json'};
+import retainedHistory from './m43-qa-retained-history-v3.json' with {type:'json'};
 /**
  * M43 QA-only acceptance controls. Never relax Coach/Client server authorization.
  * Observe the existing synthetic fixture, do not mutate or delete prior history.
@@ -7,9 +7,9 @@ import retainedHistory from './m43-qa-retained-history-v2.json' with {type:'json
 export const M43_SYNTHETIC_SESSION_LIMIT=150;
 const MARKER='IBERFIT QA M43';
 const RETAINED_HISTORY_DIGESTS=new Set(retainedHistory.sha256EntityScopeRevisionAndTitle);
-if(retainedHistory.schema!=='iberfit.qa.m43.retained-historical-v2'||retainedHistory.parentLedger!=='m43-qa-retained-history-v1.json'||retainedHistory.parentBlobSha!=='c10fb0b22afdab4560ed3065b6b8953fab392934'||retainedHistory.qaOnly!==true||retainedHistory.sourceProject!=='gjztkdwfmunnzhtvxrsu'
+if(retainedHistory.schema!=='iberfit.qa.m43.retained-historical-v3'||retainedHistory.parentLedger!=='m43-qa-retained-history-v2.json'||retainedHistory.parentBlobSha!=='eeff214fb84b036c423d68b302a1749b58c91353'||retainedHistory.frozenBeforeUtc!=='2026-11-12T05:00:00Z'||retainedHistory.qaOnly!==true||retainedHistory.sourceProject!=='gjztkdwfmunnzhtvxrsu'
   ||retainedHistory.mode!=='logical_retention_only_no_database_mutation'
-  ||RETAINED_HISTORY_DIGESTS.size!==retainedHistory.sha256EntityScopeRevisionAndTitle.length
+  ||RETAINED_HISTORY_DIGESTS.size!==601 ||RETAINED_HISTORY_DIGESTS.size!==retainedHistory.sha256EntityScopeRevisionAndTitle.length
   ||[...RETAINED_HISTORY_DIGESTS].some(d=>!/^[a-f0-9]{64}$/u.test(d)))
   throw Error('M43_RETENTION_CHECKPOINT_INVALID');
 

@@ -83,8 +83,16 @@ test('SIGNATURE U96 · 3 roles × 3 devices at native Retina/4K without rasteriz
         expect(status.overflow,role+' '+device.key+' overflow').toBeLessThanOrEqual(2);
         if(device.key==='desktop4k'){
           expect(status.routeWidth,role+' genuinely composed 4K route').toBeGreaterThan(600);
-          expect(parseFloat(status.routeMaxInlineSize),role+' must not fall back to 74/90/94rem CSS max at DPR2')
-            .toBeGreaterThanOrEqual(role==='client'?1600:1800);
+          // Computed CSS can legally retain max-inline-size:min(1640px,100%).
+          // parseFloat('min(...)') is NaN even when Retina 4K is working.
+          const intendedCap=role==='client'?1640:1920;
+          expect(status.routeMaxInlineSize,role+' real DPR2 UHD CSS cap')
+            .toContain(intendedCap+'px');
+          // Validate actual painted geometry (not just the CSS string).
+          expect(Number.isFinite(status.routeWidth),role+' real CSS box is measurable').toBe(true);
+          expect(status.routeWidth,role+' route must fit its role-specific cap').toBeLessThanOrEqual(intendedCap+2);
+          expect(status.routeWidth,role+' 4K route occupies useful workspace')
+            .toBeGreaterThan(role==='client'?1200:1250);
         }
         expect(status.heading.length,role+' '+device.key+' actual route title').toBeGreaterThan(2);
         expect(status.svgIcons,role+' '+device.key+' vector UI icons').toBeGreaterThan(0);
