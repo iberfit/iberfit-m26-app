@@ -16,6 +16,9 @@ test('physical 4K at 1920 CSS pixels DPR2 enters authentic UHD editorial breakpo
   assert.match(visual,/width:1920,height:1080,dpr:2/u);
   assert.match(visual,/routeMaxInlineSize/u);
   assert.match(visual,/routeWidthCssPx/u);
+  const uhd= premium.indexOf('@media (min-width:2560px), (min-width:1900px) and (min-resolution:2dppx)');
+  assert.ok(uhd>premium.indexOf('max-inline-size:90rem;'),'Coach 4K must override later Coach base width');
+  assert.ok(uhd>premium.indexOf('max-inline-size:94rem;'),'Admin 4K must override later Admin base width');
   assert.match(visual,/real DPR2 UHD CSS cap/u);
   assert.match(visual,/route must fit its role-specific cap/u);
 });
