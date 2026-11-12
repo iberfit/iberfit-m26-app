@@ -73,8 +73,12 @@ async function login(page,label){
   await expect(session).toBeVisible({timeout:15000});
   await session.click();
   await expect(page.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25000});
-  await expect(page.locator('[data-u60-panel]')).toBeVisible({timeout:15000});
-  await expect(page.locator('[data-u60-panel]')).toHaveAttribute('data-u60-qa-only','true');
+  const dated=page.locator('[data-m27-session-surface="sessions"] [data-u60-panel]');
+  await expect(dated).toHaveCount(1,{timeout:15000});
+  await expect(dated).toBeVisible();
+  await expect(dated).toHaveAttribute('data-u60-qa-only','true');
+  await expect(page.locator('.m26-client-route-shell [data-u60-panel]')).toHaveCount(1);
+  await expect(page.locator('.m26-client-bottom-nav [data-u60-panel]')).toHaveCount(0);
 }
 async function calendar(page){
   await page.locator('[data-iberdates-action="u60-calendar"]').click();
@@ -83,13 +87,15 @@ async function calendar(page){
   return page.locator('[data-u60-panel] [data-iberdates-action="u60-open"]')
     .evaluateAll(nodes=>nodes.map(n=>String(n.dataset.u60Id||'')).filter(Boolean));
 }
-for(const width of [1440,1024,390,320]){
-  test('QA U60 client real private calendar and player, no writes · '+width,async({page,context},info)=>{
+test('QA U60 client real private calendar and player, no writes',async({page,context},info)=>{
+    const width=info.project.use.viewport?.width;
+    expect([1440,1024,390,320]).toContain(width);
     environment();
     const proof=await sealNetwork(context);
     const errors=[];
     page.on('pageerror',e=>errors.push(String(e?.name||'PageError').slice(0,70)));
     await login(page,'A');
+    await expect(page.locator('[data-m27-session-surface="sessions"] [data-u60-panel]')).toHaveCount(1);
     const rows=await calendar(page);
     expect(rows.length).toBeGreaterThan(0);
     const password=page.locator('[name="u60Phrase"]');
@@ -124,8 +130,7 @@ for(const width of [1440,1024,390,320]){
       noServerWrites:true,noServer500:true,unhandledErrors:errors.length,
       sourceSha:process.env.GITHUB_SHA||'local',
     })+'\n',{mode:0o600});
-  });
-}
+});
 test('QA U60 Client B never inherits Client A rendered occurrence cards',async({page,context,browser},info)=>{
   test.skip(info.project.name!=='u60-readonly-desktop','Cross-owner pair once on desktop');
   environment();
