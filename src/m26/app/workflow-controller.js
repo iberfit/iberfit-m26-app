@@ -159,6 +159,14 @@ function friendlyError(error){
   if(/M26_PRIVILEGED_ACTION_TIMEOUT|M26_WEBAUTHN_BACKEND_TIMEOUT/.test(code))return 'La confirmación segura tardó demasiado. El expediente no se ha creado; puedes reintentarlo sin perder el formulario.';
   if(/M26_WEBAUTHN_UNSUPPORTED/.test(code))return 'Este dispositivo no permite la confirmación segura necesaria para crear el expediente. Tu formulario permanece guardado.';
   if(/M26_PRIVILEGED_ACTION_(?:IDENTITY_MISMATCH|ASSURANCE_INVALID|FACTOR_INVALID|CHALLENGE_INVALID|CEREMONY_INVALID|NOT_CONFIRMED|AUTH_REQUIRED)/.test(code))return 'No se pudo confirmar de forma segura tu identidad. El expediente no se ha creado y el formulario permanece guardado.';
+  if(/M42_WORKSPACE_ENTRY_BUSY/.test(code))return 'Ya se está preparando una sesión. Espera a que termine antes de abrir otra.';
+  if(/M42_WORKSPACE_ALREADY_ACTIVE/.test(code))return 'Tienes una sesión o un borrador abierto. Termínalo o sal de él antes de abrir otro.';
+  if(/M42_SESSION_(?:NO_LONGER_VISIBLE|NO_LONGER_AVAILABLE)/.test(code))return 'La sesión ya no está disponible. Actualiza tu planificación y selecciona una sesión habilitada.';
+  if(/M42_SESSION_UPDATED_REOPEN/.test(code))return 'Tu Coach ha actualizado esta sesión. Abre de nuevo la versión más reciente antes de empezar.';
+  if(/M42_SESSION_ENTRY_HANDLER_MISSING/.test(code))return 'El reproductor no está preparado. Actualiza IBERFIT y vuelve a intentarlo; no se ha iniciado ningún entrenamiento.';
+  if(/M42_SESSION_WORKSPACE_UNAVAILABLE/.test(code))return 'No se pudo abrir la sesión. Comprueba su disponibilidad y vuelve a intentarlo.';
+  if(/M26_SESSION_ACTIVE_WITHDRAW_FORBIDDEN/.test(code))return 'No puedes retirar este entrenamiento mientras esté en curso. Primero finaliza o cancela la ejecución; su historial se conserva.';
+  if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   // A safe training removal is not a database DELETE. Fail closed with a
   // human, recoverable reason; never hide the blocker behind a raw RPC code.
   if(/M26_SESSION_WITHDRAW_(EXECUTION|OCCURRENCE|APPOINTMENT)_OPEN|M26_SESSION_ACTIVE_WITHDRAW_FORBIDDEN|U60_RETIRE_ACTIVE_OCCURRENCE_EXISTS/.test(code))
@@ -173,13 +181,7 @@ function friendlyError(error){
     return 'El estado de este entrenamiento ha cambiado. Actualiza su ficha antes de retirarlo.';
   if(/M26_OFFLINE_PUBLICATION_NOT_ALLOWED/.test(code))
     return 'Necesitas conexión para retirar una sesión del plan. Ningún entrenamiento se ha eliminado de forma local.';
-  if(/M42_WORKSPACE_ENTRY_BUSY/.test(code))return 'Ya se está preparando una sesión. Espera a que termine antes de abrir otra.';
-  if(/M42_WORKSPACE_ALREADY_ACTIVE/.test(code))return 'Tienes una sesión o un borrador abierto. Termínalo o sal de él antes de abrir otro.';
-  if(/M42_SESSION_(?:NO_LONGER_VISIBLE|NO_LONGER_AVAILABLE)/.test(code))return 'La sesión ya no está disponible. Actualiza tu planificación y selecciona una sesión habilitada.';
-  if(/M42_SESSION_UPDATED_REOPEN/.test(code))return 'Tu Coach ha actualizado esta sesión. Abre de nuevo la versión más reciente antes de empezar.';
-  if(/M42_SESSION_ENTRY_HANDLER_MISSING/.test(code))return 'El reproductor no está preparado. Actualiza IBERFIT y vuelve a intentarlo; no se ha iniciado ningún entrenamiento.';
-  if(/M42_SESSION_WORKSPACE_UNAVAILABLE/.test(code))return 'No se pudo abrir la sesión. Comprueba su disponibilidad y vuelve a intentarlo.';
-  if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
+
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
   if(/CLIENT_ONBOARDING_BACKEND_REQUIRED/.test(code))return 'La actualización segura del alta todavía no está instalada en el backend. El borrador permanece guardado y no se ha creado ningún expediente.';
   if(/CLIENT_ONBOARDING_BACKEND_NOT_READY/.test(code))return 'El backend de altas no superó su comprobación de seguridad. El borrador permanece guardado y no se enviaron datos.';
