@@ -31,3 +31,25 @@ test('SIGNATURE 360 keeps real Coach and Client controls accessible',()=>{
  assert.match(css,/data-client-session-primary/);
  for(const re of [/:focus-visible/,/prefers-reduced-motion/,/forced-colors:active/,/max-width:680px/])assert.match(css,re);
 });
+
+
+test('SIGNATURE 360 preserves searchable real library and collapses only secondary creation form',()=>{
+ const render=read('src/m26/modules/route-render.js');
+ assert.match(render,/class="m26-panel m26-panel-soft m26-library-create-disclosure"/);
+ assert.match(render,/data-exercise-create-form data-guided-required-form/);
+ assert.match(render,/data-library-search/);
+ assert.match(render,/data-library-grid/);
+ assert.match(render,/data-library-status/);
+ assert.match(render,/data-exercise-create-status/);
+ const scope=render.slice(render.indexOf("const creation=canCreate?"));
+ assert.ok(scope.indexOf("data-exercise-create-form")<scope.indexOf("</form></div></details>"));
+ assert.match(css,/m26-exercise-media-open-label/);
+});
+test('SIGNATURE 360 keeps the real three-role home and workout surfaces',()=>{
+ assert.match(render,/m26-client-home-primary-zone/);
+ assert.match(render,/m26-client-home-hero/);
+ assert.match(render,/m26-coach-home-command/);
+ assert.match(render,/m26-planning-workbench-v2/);
+ assert.match(css,/m26-library-create-disclosure/);
+ assert.match(css,/m26-client-home-compass-actions/);
+});
