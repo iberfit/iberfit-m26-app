@@ -4121,8 +4121,11 @@
 .m26-shell[data-m26-role] .m26-main{
  min-inline-size:0;padding-inline:clamp(.8rem,2.2vw,2.4rem);
 }
+/* Preserve U96's role-specific 1640px/1920px UHD route caps.
+ * Only min-inline-size needs normalization here: the later SIGNATURE rule
+ * must never replace the real 4K cap with max-inline-size:100%. */
 .m26-shell[data-m26-role] .m26-main :is(.m26-route,.m26-admin-route){
- min-inline-size:0;max-inline-size:100%;
+ min-inline-size:0;
 }
 .m26-shell[data-m26-role] .m26-main :is(.m26-panel,.m26-admin-panel,.m26-library-card,.m26-coach-home-command,.m26-client-card){
  border-color:var(--signature-border);

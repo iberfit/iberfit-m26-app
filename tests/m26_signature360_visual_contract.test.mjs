@@ -82,3 +82,16 @@ test('SIGNATURE 360 responsive finish does not replace interactions or introduce
  assert.match(render,/data-workflow-action="start-published-session"/);
  assert.match(html,/\/src\/m26\/design\/iberfit-premium-v3\.css/);
 });
+
+test('SIGNATURE 360 never overrides the certified U96 Client 1640px/Coach 1920px UHD route caps',()=>{
+ const source=readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
+ const cap=source.indexOf('max-inline-size:min(1640px,100%)');
+ const master=source.indexOf('/* IBERFIT SIGNATURE 360 - Approved three-role experience');
+ assert.ok(cap>0&&master>cap);
+ const universal=source.slice(master).match(/\.m26-shell\[data-m26-role\] \.m26-main :is\(\.m26-route,\.m26-admin-route\)\{([^}]*)\}/u);
+ assert.ok(universal,'SIGNATURE must retain the real route normalization selector');
+ assert.match(universal[1],/min-inline-size:0/u);
+ assert.doesNotMatch(universal[1],/max-inline-size|max-width/u,
+   'The later generic CSS must not overwrite Client 1640px / Coach Admin 1920px 4K caps');
+ assert.match(source,/max-inline-size:min\(1920px,100%\)/u);
+});
