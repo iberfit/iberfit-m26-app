@@ -25,6 +25,15 @@ export const FROZEN_QA_INERT_BLOBS=Object.freeze({
   "supabase/qa-rollouts/20261102015500_p0_free_qa_client_body_envelope_dedup_v1.enable.sql": "860a8b5f87f93e353e85f182899a39d2bff3a76f",
   "supabase/qa-rollouts/20261102051000_p0_free_qa_client_body_envelope_dedup_v2.enable.sql": "2e1273ff2dfe5a441d85edf77c0e81a50be7afc6",
 });
+// M1: these four SQL source files are out-of-band *procedures*, not migrations
+// and never run by production-promote. Allow only immutable Git blob identities.
+// Unknown/changed Supabase paths still block a frontend-only release.
+export const FROZEN_M1_RELEASE_PROCEDURE_BLOBS=Object.freeze({
+  "supabase/release-procedures/20261112_m1_u60_prod_guarded_disable.sql": "3c10bfce644084f7b98de67904e0293ff0e344fd",
+  "supabase/release-procedures/20261112_m1_u60_prod_guarded_enable.sql": "64280b198675aa8477fb65328717e991a8bc324e",
+  "supabase/release-procedures/20261113_m1_u72_prod_guarded_install.sql": "bde59872f1c039e0b582f2a2a6c21d1009477ab1",
+  "supabase/release-procedures/20261113_m1_u72_prod_guarded_rollback.sql": "e011d73030afb586f40908b2ca65ce2c3ba457fd"
+});
 const QA_BLOB_SHA=/^[0-9a-f]{40}$/u;
 
 // Validate *exact source commit* blob identities. Do not rely on the working
@@ -44,6 +53,23 @@ export function verifyFrozenQaArtifacts({sourceSha,changedPaths,blobAtSource}={}
 }
 
 
+export function verifyFrozenM1ReleaseProcedures({sourceSha,changedPaths,blobAtSource}={}){
+  if(!SHA.test(sourceSha||'')||!Array.isArray(changedPaths))
+    throw Error('FRONTEND_ONLY_M1_SQL_BLOB_INPUT_INVALID');
+  const procedures=changedPaths.filter(path=>
+    Object.hasOwn(FROZEN_M1_RELEASE_PROCEDURE_BLOBS,path));
+  if(procedures.length>0&&typeof blobAtSource!=='function')
+    throw Error('FRONTEND_ONLY_M1_SQL_BLOB_READER_REQUIRED');
+  for(const path of procedures){
+    const actual=String(blobAtSource(sourceSha,path)||'').trim();
+    if(!QA_BLOB_SHA.test(actual)||
+      actual!==FROZEN_M1_RELEASE_PROCEDURE_BLOBS[path])
+      throw Error('FRONTEND_ONLY_M1_SQL_SOURCE_DRIFT:'+path);
+  }
+  return Object.freeze({verified:procedures.length,
+    paths:Object.freeze([...procedures])});
+}
+
 // A frontend-only release does not run SQL. New migration/rollback source files
 // remain unapplied and must never be mistaken for a completed DB migration.
 export function evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,changedPaths}={}){
@@ -60,6 +86,7 @@ export function evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,c
       throw Error('FRONTEND_ONLY_DIFF_PATH_INVALID');
     }
     if(!Object.hasOwn(FROZEN_QA_INERT_BLOBS,path)&&
+       !Object.hasOwn(FROZEN_M1_RELEASE_PROCEDURE_BLOBS,path)&&
        (REJECTED_PATHS.has(path)||REJECTED_PREFIXES.some(prefix=>path.startsWith(prefix))||
         (path.startsWith('supabase/')&&
          !/^supabase\/(?:migrations|rollbacks)\//u.test(path)&&
@@ -122,6 +149,11 @@ async function main(){
     blobAtSource:(source,path)=>execFileSync('git',['rev-parse',source+':'+path],
       {encoding:'utf8',timeout:10000}).trim(),
   });
+  const m1Procedures=verifyFrozenM1ReleaseProcedures({
+    sourceSha,changedPaths,
+    blobAtSource:(source,path)=>execFileSync('git',['rev-parse',source+':'+path],
+      {encoding:'utf8',timeout:10000}).trim(),
+  });
   const response=await fetch('https://'+process.env.APP_DOMAIN+'/m26/version.json',{
     method:'GET',cache:'no-store',redirect:'follow',
     headers:{'cache-control':'no-cache','pragma':'no-cache'},
@@ -133,7 +165,8 @@ async function main(){
   catch{throw Error('FRONTEND_ONLY_PROD_IDENTITY_NOT_JSON');}
   verifyFrontendOnlyLiveIdentity(version,{expectedPreviousLiveSha,prodRef});
   writeFileSync('FRONTEND_ONLY_SCOPE_EVIDENCE.json',
-    JSON.stringify({...proof,frozenQaInertArtifactsVerified:qaArtifacts.verified,liveIdentityVerified:true},null,2)+'\n',{encoding:'utf8',flag:'w',mode:0o600});
+    JSON.stringify({...proof,frozenQaInertArtifactsVerified:qaArtifacts.verified,
+      stagedM1SqlProceduresVerified:m1Procedures.verified,liveIdentityVerified:true},null,2)+'\n',{encoding:'utf8',flag:'w',mode:0o600});
   console.log('FRONTEND_ONLY_PROD_SCOPE_CERTIFIED source='+sourceSha+
     ' previous='+expectedPreviousLiveSha+' changed='+proof.changedFileCount+
     ' unappliedMigrations='+proof.unappliedMigrationFileCount+
