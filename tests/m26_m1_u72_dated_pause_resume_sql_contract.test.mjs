@@ -5,7 +5,7 @@ const sql=readFileSync(new URL('../supabase/qa-migrations/20261113013000_m1_u72_
 const reverse=readFileSync(new URL('../supabase/qa-rollbacks/20261113013000_m1_u72_dated_pause_resume_qa_v1.rollback.sql',import.meta.url),'utf8');
 test('U72 pause/resume migration is QA-only and preserves U31 receipts and old SQL contracts',()=>{
  assert.match(sql,/M1_U72_QA_SOURCE_OR_STATE_DRIFT/u);
- assert.match(sql,/value#>>'\\{\\}'='QA'/u);
+ assert.ok(sql.includes("value#>>'{}'='QA'"));
  assert.match(sql,/OCURRENCIA_PAUSAR/u);
  assert.match(sql,/OCURRENCIA_REANUDAR/u);
  assert.match(sql,/active_execution_client:/u);
@@ -20,5 +20,5 @@ test('U72 pause/resume migration is QA-only and preserves U31 receipts and old S
  for(const role of ['PUBLIC','anon','authenticated','service_role'])assert.ok(sql.includes(role));
  assert.match(reverse,/M1_U72_QA_ROLLBACK_UNSAFE/u);
  assert.match(reverse,/M1_U72_QA_ROLLBACK_DRIFT/u);
- assert.match(reverse,/DROP FUNCTION private\\.iberfit_u72_occurrence_pause_resume_v1/u);
+ assert.ok(reverse.includes('DROP FUNCTION private.iberfit_u72_occurrence_pause_resume_v1'));
 });
