@@ -5,7 +5,7 @@ const DATE=/^\d{4}-\d{2}-\d{2}$/u;
 const ROLE=new Set(['client','cliente','coach']);
 const OCCURRENCE_KEYS=new Set(['id','clientId','sessionId','appointmentId','localDate','localTime','timeZone','startsAt','endsAt','durationMinutes','status','revision','executionId']);
 const SNAPSHOT_KEYS=new Set(['clientId','sessionId','cycleId','title','queue','blocks']);
-const EXECUTION_KEYS=new Set(['id','clientId','sessionId','occurrenceId','status','revision','startedAt','completedAt','sourceSnapshot','queue','results','skippedSets','events','feedback']);
+const EXECUTION_KEYS=new Set(['id','clientId','sessionId','occurrenceId','status','revision','startedAt','completedAt','sourceSnapshot','queue','results','skippedSets','events','feedback','activeSince','pausedAt','accumulatedActiveMs']);
 const TOP_KEYS=new Set(['kind','occurrence','prescriptionSnapshot','executionBody']);
 const fail=reason=>{throw new Error('U60_PRIVATE_'+reason);};
 const uuid=value=>{
@@ -23,6 +23,23 @@ const actorFrom=value=>{
     clientId:value.clientId?uuid(value.clientId):null,accessToken:value.accessToken};
   if(actor.role!=='coach'&&!actor.clientId)fail('CLIENT_SCOPE_MISSING');
   return actor;
+};
+const isoTimestamp=value=>typeof value==='string'&&
+  /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$/u.test(value)&&
+  Number.isFinite(Date.parse(value));
+const nullableInstant=value=>value==null||isoTimestamp(value);
+const clockFieldsValid=body=>{
+  if(!nullableInstant(body.activeSince)||!nullableInstant(body.pausedAt))
+    return false;
+  if(body.accumulatedActiveMs!=null&&
+    (!Number.isSafeInteger(body.accumulatedActiveMs)||
+      body.accumulatedActiveMs<0||body.accumulatedActiveMs>604800000))
+    return false;
+  if(body.status==='pausada'&&
+    (body.activeSince!=null||!isoTimestamp(body.pausedAt)||
+      !Number.isSafeInteger(body.accumulatedActiveMs)))return false;
+  if(body.status==='en_curso'&&body.pausedAt!=null)return false;
+  return true;
 };
 const sameActor=(before,after)=>
   before.userId===after.userId&&before.role===after.role&&
@@ -55,7 +72,10 @@ function verifyResponse(raw,clientId,occurrenceId){
       ||uuid(b.clientId)!==clientId||uuid(b.sessionId)!==uuid(o.sessionId)
       ||uuid(b.occurrenceId)!==occurrenceId
       ||!['en_curso','completada'].includes(o.status)
-      ||b.status!==o.status||!Number.isSafeInteger(b.revision)||b.revision<1
+      ||!(b.status===o.status||
+        (o.status==='en_curso'&&b.status==='pausada'))
+      ||!clockFieldsValid(b)
+      ||!Number.isSafeInteger(b.revision)||b.revision<1
       ||!obj(b.sourceSnapshot)
       ||uuid(b.sourceSnapshot.clientId)!==clientId
       ||uuid(b.sourceSnapshot.sessionId)!==uuid(o.sessionId)

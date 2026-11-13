@@ -323,3 +323,56 @@ test('U62 verified completion today counts without penalizing another pending da
  assert.equal(result.summary.completedDue,1);
  assert.equal(result.summary.verifiedAdherencePct,100);
 });
+
+test('U72 private reader admits only verified server time fields without leaking private extras',async()=>{
+ const sample=privateFixture();
+ sample.occurrence.status='completada';
+ sample.occurrence.executionId=EXEC;
+ sample.occurrence.revision=3;
+ sample.executionBody={id:EXEC,clientId:CLIENT,sessionId:SESSION,occurrenceId:OCC_B,
+   status:'completada',revision:3,
+   queue:structuredClone(sample.prescriptionSnapshot.queue),
+   sourceSnapshot:structuredClone(sample.prescriptionSnapshot),
+   startedAt:'2026-11-12T15:00:00+00:00',completedAt:'2026-11-12T16:00:00+00:00',
+   activeSince:null,pausedAt:null,accumulatedActiveMs:null,
+   results:{},skippedSets:{},events:[],feedback:{}};
+ const read=async()=>sample;
+ const svc=privateReader({read});
+ assert.equal((await svc.read({clientId:CLIENT,occurrenceId:OCC_B}))
+   .executionBody.status,'completada');
+ sample.executionBody.extraPrivateField='secret';
+ await assert.rejects(svc.read({clientId:CLIENT,occurrenceId:OCC_B}),
+   /U60_PRIVATE_RESPONSE_INVALID/);
+ delete sample.executionBody.extraPrivateField;
+ sample.executionBody.accumulatedActiveMs=-20;
+ await assert.rejects(svc.read({clientId:CLIENT,occurrenceId:OCC_B}),
+   /U60_PRIVATE_EXECUTION_DRIFT/);
+});
+test('U72 paused date remains private to owner, with intact active occurrence identity',async()=>{
+ const sample=privateFixture();
+ sample.occurrence.status='en_curso';
+ sample.occurrence.executionId=EXEC;
+ sample.occurrence.revision=2;
+ sample.executionBody={id:EXEC,clientId:CLIENT,sessionId:SESSION,occurrenceId:OCC_B,
+   status:'pausada',revision:4,
+   queue:structuredClone(sample.prescriptionSnapshot.queue),
+   sourceSnapshot:structuredClone(sample.prescriptionSnapshot),
+   startedAt:'2026-11-12T15:00:00Z',completedAt:null,
+   activeSince:null,pausedAt:'2026-11-12T15:20:00+00:00',
+   accumulatedActiveMs:1200000,results:{},skippedSets:{},events:[],feedback:null};
+ const svc=privateReader({read:async()=>sample});
+ assert.equal((await svc.read({clientId:CLIENT,occurrenceId:OCC_B}))
+  .executionBody.status,'pausada');
+ for(const mutation of [
+  x=>{x.executionBody.activeSince='2026-11-12T15:00:00Z';},
+  x=>{x.executionBody.pausedAt=null;},
+  x=>{x.executionBody.accumulatedActiveMs='1200000';},
+  x=>{x.occurrence.status='confirmada';},
+ ]){
+  const invalid=structuredClone(sample);mutation(invalid);
+  await assert.rejects(privateReader({read:async()=>invalid})
+    .read({clientId:CLIENT,occurrenceId:OCC_B}),/U60_PRIVATE_/);
+ }
+ await assert.rejects(svc.read({clientId:OTHER,occurrenceId:OCC_B}),
+   /U60_PRIVATE_CLIENT_SCOPE_FORBIDDEN/);
+});
