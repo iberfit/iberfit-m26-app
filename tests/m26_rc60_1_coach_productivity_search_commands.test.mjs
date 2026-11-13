@@ -10,6 +10,7 @@ import {
   rankCoachCommandEntries,
   normalizeCoachSavedView,
   coachProductivityStorageKey,
+  createCoachProductivityController,
 } from '../src/m26/productivity/coach-productivity.js';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
@@ -119,4 +120,77 @@ test('RC60.1 conserva cierre histórico de Search Command Surface y rails transv
   assert.match(roadmap,/RC60_1=CLOSED_SEARCH_COMMAND_SURFACE/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
+});
+
+test('P1 Coach productividad no clona el historial completo al navegar, renderizar ni abrir la paleta', async ()=>{
+  let fullReads=0, legacySubscriptions=0, directoryReads=0;
+  const listeners=new Map();
+  const recents={innerHTML:''},results={innerHTML:''},status={textContent:''};
+  const root={
+    addEventListener(name,listener){listeners.set(name,listener);},
+    removeEventListener(name,listener){if(listeners.get(name)===listener)listeners.delete(name);},
+    querySelector(selector){
+      if(selector==='[data-coach-recents]')return recents;
+      if(selector==='[data-coach-command-results]')return results;
+      if(selector==='[data-coach-command-status]')return status;
+      return null;
+    },
+    querySelectorAll(){return [];},
+  };
+  let invalidation=null;
+  const store={
+    getState(){fullReads+=1;throw Error('U38_FULL_ARCHIVE_CLONE_FORBIDDEN_ON_NAVIGATION');},
+    getNavigationSnapshot(){return Object.freeze({identity:Object.freeze({role:'coach',id:'coach-1'})});},
+    getRouteAuthorizationSnapshot(){
+      directoryReads+=1;
+      return {
+        identity:{id:'coach-1',role:'coach'},
+        selectedClientId:'C1',
+        collections:{clients:[{id:'C1',name:'Laura Pérez',modality:'presencial'}]},
+      };
+    },
+    subscribeInvalidation(fn){invalidation=fn;return ()=>{invalidation=null;};},
+    subscribe(){legacySubscriptions+=1;throw Error('UNBOUNDED_SUBSCRIBE_FORBIDDEN');},
+  };
+  const storage={
+    getItem:()=>JSON.stringify({recents:['C1']}),
+    setItem:()=>{},
+    removeItem:()=>{},
+  };
+  const controller=createCoachProductivityController({root,store,ownerId:'coach-1',storage});
+  controller.mount();
+  await Promise.resolve();
+  assert.match(recents.innerHTML,/Laura Pérez/u);
+  assert.ok(controller.renderPalette('Laura').length>0);
+  assert.match(results.innerHTML,/Laura Pérez/u);
+  listeners.get('m26:shell-rendered')?.();
+  invalidation?.();
+  await Promise.resolve();
+  assert.match(recents.innerHTML,/Laura Pérez/u);
+  assert.ok(directoryReads>=2);
+  assert.equal(fullReads,0);
+  assert.equal(legacySubscriptions,0);
+  controller.destroy();
+  assert.equal(invalidation,null);
+});
+
+test('P1 productividad conserva fallback de store legacy sin proyecciones',async()=>{
+  const listeners=new Map();
+  let reads=0,unsubscribed=false;
+  const root={
+    addEventListener(name,handler){listeners.set(name,handler);},
+    removeEventListener(name,handler){if(listeners.get(name)===handler)listeners.delete(name);},
+    querySelector:()=>null,
+    querySelectorAll:()=>[],
+  };
+  const store={
+    getState(){reads+=1;return {identity:{role:'coach'},collections:{clients:[]},selectedClientId:null};},
+    subscribe(){return ()=>{unsubscribed=true;};},
+  };
+  const controller=createCoachProductivityController({root,store,ownerId:'legacy-coach',storage:{getItem:()=>null}});
+  controller.mount();
+  await Promise.resolve();
+  assert.ok(reads>=1);
+  controller.destroy();
+  assert.equal(unsubscribed,true);
 });
