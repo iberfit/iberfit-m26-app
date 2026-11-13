@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "8e19ab6062e3558893db572b1bce4465c35f60f4",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "7790bf66e93edb01faf98a1ebdcbd8e410d998bb",
+  "notes": "SIGNATURE 360 visual aprobado: frontend-only, sin Edge/Hosted Auth/DDL. M44 real, siete gates exactos y rollback obligatorio. Fail closed si PROD ya no coincide."
+}
