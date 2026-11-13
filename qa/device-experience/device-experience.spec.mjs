@@ -224,6 +224,7 @@ async function exerciseAdminTask(page,task){
     return;
   }
 
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
   await form.locator('input[name="name"]').fill('Cliente QA Device Gate');

@@ -1,3 +1,4 @@
+import {createAdminController} from '../../src/m26/admin/controller.js';
 // Synthetic identity, real canonical store + shell + navigation + current styles.
 // This fixture proves navigation composition and recovery, NOT real authentication
 // or functional acceptance of the 43 route bodies.
@@ -7,11 +8,13 @@ import {createShellController} from '../../src/m26/shell/shell-controller.js';
 import {renderClientBottomNav} from '../../src/m26/modules/route-render.js';
 import {createRouteViewModel} from '../../src/m26/modules/route-view-model.js';
 import {renderRouteView} from '../../src/m26/modules/route-render.js';
-import {ADMIN_ROUTE_CAPABILITIES,normalizeAdminPermissions} from '../../src/m26/admin/permission-policy.js';
+import {ADMIN_CAPABILITIES,ADMIN_ROUTE_CAPABILITIES,normalizeAdminPermissions} from '../../src/m26/admin/permission-policy.js';
 
 const params=new URLSearchParams(location.search);
 const role=params.get('role');
 const realBodies=params.get('body')==='real';
+const emptyPortfolio=params.get('portfolio')==='empty';
+const manageSynthetic=params.get('management')==='synthetic';
 // Explicitly opted-in QA only: grant synthetic capabilities to an invented
 // Admin identity for ART-DIRECTION coverage. The default stays fail-closed.
 const authorizedAdminSynthetic=role==='admin'&&realBodies&&params.get('adminSurface')==='authorized-synthetic';
@@ -26,7 +29,7 @@ const enabledAdminMediaReview=role==='admin'?{
   reason:null,
   permissions:authorizedAdminSynthetic
     ?normalizeAdminPermissions({
-      capabilities:Object.values(ADMIN_ROUTE_CAPABILITIES),
+      capabilities:Object.values(manageSynthetic?ADMIN_CAPABILITIES:ADMIN_ROUTE_CAPABILITIES),
       scopeType:'organization',organizationId:'00000000-0000-4000-8000-000000000140',
       issuedAt:'2026-10-20T12:00:00.000Z',
     })
@@ -40,7 +43,7 @@ const enabledAdminMediaReview=role==='admin'?{
 const initial=createProductionState({
   hydration:{status:'ready',error:null,confirmedAt:'2026-10-20T07:00:00Z',serverTime:'2026-10-20T07:00:00Z'},
   identity:{id:'11111111-1111-4111-8111-111111111111',role,name:'SIGNATURE navegación QA',email:'signature.qa@example.test',authorizedRoles:[role],...(role==='client'?{clientId}:{})},
-  selectedClientId:clientId,
+  selectedClientId:emptyPortfolio&&role!=='client'?null:clientId,
   activeArea:role==='admin'?'admin-inicio':'hoy',
   environment:'QA',
   // Production Media Factory is explicitly feature-gated. This synthetic
@@ -48,7 +51,7 @@ const initial=createProductionState({
   // it never changes the application's fail-closed policy or backend access.
   admin:enabledAdminMediaReview,
   canary:{active:true,scope:'allowlist',version:'SIGNATURE-U22-SHELL-QA'},
-  collections:{...createProductionState().collections,clients:[{id:clientId,name:'Cliente sintético U22',modalidad:'Híbrido'}]},
+  collections:{...createProductionState().collections,clients:emptyPortfolio&&role!=='client'?[]:[{id:clientId,name:'Cliente sintético U22',modalidad:'Híbrido'}]},
 });
 const store=createCanonicalStore(initial);
 const controller=createShellController({
@@ -66,6 +69,7 @@ const controller=createShellController({
   },
 });
 controller.mount();
+if(role==='admin')createAdminController({root,store,service:{execute:async()=>{throw new Error('SYNTHETIC_QA_WRITES_DISABLED');}},render:()=>controller.render()}).mount();
 globalThis.__IBERFIT_SIGNATURE_ROUTE_QA__=Object.freeze({
   role,bodyMode:realBodies?'real-synthetic':'placeholder',
   adminSurface:authorizedAdminSynthetic?'authorized-synthetic':'permission-denied',

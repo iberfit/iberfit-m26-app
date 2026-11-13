@@ -1428,6 +1428,8 @@ async function click(event){
     const targetKey=String(jump.getAttribute('data-session-jump')||'').trim();
     const target=targetKey?root.querySelector?.(`[data-session-jump-target="${targetKey}"]`):null;
     if(target){
+      if(target.matches?.('details'))target.open=true;
+      const disclosure=target.closest?.('details');if(disclosure)disclosure.open=true;
       try{target.scrollIntoView?.({behavior:'smooth',block:'start'});}catch{target.scrollIntoView?.();}
       try{target.focus?.({preventScroll:true});}catch{target.focus?.();}
     }

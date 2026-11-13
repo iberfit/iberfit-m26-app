@@ -39,14 +39,14 @@ test('M41 standard surfaces are quiet, matte and role-specific, not layered SaaS
     assert.ok(css.v3.includes('.m26-shell[data-m26-role="'+role+'"]'));
     assert.ok(css.v3.includes('--iberfit-v3-panel:'+panel));
   }
-  assert.match(css.v3,/background:var\(--iberfit-v3-panel\)!important/);
+  assert.match(css.v3,/background:var\(--iberfit-v3-panel\)/);
   assert.match(css.v3,/box-shadow:inset 0 1px 0 rgba\(245,245,240,.025\)!important/);
   assert.ok(count(css.v3,/gradient\(/g)<=15,'Do not reinstate excessive gradients in the terminal layer');
   assert.ok(count(css.role,/gradient\(/g)<=80,'Role navigation and heroes must stay restrained');
   assert.equal(count(css.nav,/gradient\(/g),0,'Compact Client navigation must not look like a neon dock');
   const overview=css.v3.slice(css.v3.indexOf('.m26-admin-user360-overview .m26-admin-stat{'));
   assert.ok(overview.startsWith('.m26-admin-user360-overview .m26-admin-stat{'));
-  assert.ok(overview.slice(0,450).includes('background:var(--iberfit-v3-panel)!important'));
+  assert.ok(overview.slice(0,450).includes('background:var(--iberfit-v3-panel)'));
   assert.ok(!css.v3.includes('linear-gradient(180deg,rgba(23,40,32,.34),rgba(16,29,24,.18))'));
   assert.doesNotMatch(css.shell,/radial-gradient\(circle at 85% 8%/);
   assert.doesNotMatch(css.auth,/radial-gradient\(circle at 50% -10%/);
@@ -185,7 +185,7 @@ test('M41 Admin visual certification validates the actual matte UI instead of re
   assert.match(qa,/expect\(vision\.workspaceBackground\)\.toBe\('none'\)/);
   assert.match(qa,/expect\(vision\.surfaceBackgroundImage\)\.toBe\('none'\)/);
   // B12 stays matte, with exact approved warmer forest canvas in Admin.
-  assert.match(qa,/expect\(vision\.workspaceBackgroundColor\)\.toBe\('rgb\(13, 25, 19\)'\)/);
+  assert.match(qa,/expect\(vision\.workspaceBackgroundColor\)\.toBe\('rgb\(5, 30, 21\)'\)/);
   assert.match(qa,/expect\(vision\.navBackgroundColor\)\.toMatch/);
   assert.match(qa,/not\.toMatch\(\/rgb\\\(255/);
 });

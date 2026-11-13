@@ -256,7 +256,7 @@ test('M42 Client Hoy suppresses supplementary training CTAs during a paused serv
 test('SIGNATURE Hoy groups orientation and primary action into one editorial region',()=>{
   const html=renderHoyRoute(vm());
   const start=html.indexOf('<section class="m26-client-home-feature"');
-  const action=html.indexOf('<div class="m26-client-home-primary-zone"');
+  const action=html.indexOf('<section class="m26-client-home-primary-zone"');
   const glance=html.indexOf('<section class="m26-client-home-glance"');
   assert.ok(start>=0&&action>start&&glance>action,'feature must precede the daily context');
   assert.match(html,/<span class="m26-client-home-kicker">Hoy · IBERFIT<\/span>/u);

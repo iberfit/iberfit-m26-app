@@ -890,7 +890,7 @@ function exerciseMemorySparkline(memory){
       class="m26-exercise-chart-figure"
       aria-label="${escapeHtml(aria)}"
     >
-      <m26-echart
+      <m26-echart role="group"
         class="m26-echart"
         data-density="compact"
         data-tone="${escapeHtml(visual.tone)}"

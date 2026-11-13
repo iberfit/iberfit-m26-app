@@ -1,3 +1,22 @@
+## SIGNATURE 360 · evidencia QA sintética por RUN · 13/11/2026
+
+- PR visual aislada #1336, SHA candidato anterior `d4294499841d4c6035272fe09a5738b0e94703e4`, sin cambios de producto desplegados.
+- Canary Policy, SonarCloud, CI, Device Experience, evidencia visual, WebAuthn Coach/Admin, matriz Admin y sesiones aisladas **SUCCESS** en ese SHA.
+- QA Real Write workflow `43510763626`: el recorrido autenticado M43 Cliente reportó un HTTP `500` de `iberfit_bootstrap_v26` tras una ejecución sintética en su primer intento. El rerun del job dentro del MISMO run fue rechazado de forma esperada por `M43_SYNTHETIC_FIXTURE_ALREADY_COMPLETED_NEW_RUN_REQUIRED`, sin repetir writes sobre la sesión ya confirmada.
+- Se exige una certificación completa nueva con **nuevo run_id y nueva fixture sintética**; no editar tests, datos QA ni backend, no omitir el gate, y no fusionar si el 500 se reproduce.
+- Evidencia M44 previa independiente y cifrada run `43509486165`: backup PROD DB+137 objetos Storage, PG17 restauración aislada y verificación de hashes; aplicar además vencimiento estricto y verificación exacta al promover. No acredita recuperación completa de Auth alojado.
+- Este checkpoint documental NO altera archivos desplegables, CSS, Auth, SQL, permisos, sesiones ni el diseño aprobado `d8f5e210cbac5a2bf529cd4497f073e805f22c04`.
+
+## SIGNATURE 360 · entrega exclusivamente visual · 13/11/2026 · NO DESPLEGADA
+
+- Base LIVE y Canary verificadas: `7790bf66e93edb01faf98a1ebdcbd8e410d998bb`. Rama aislada `design/signature-360-visual-only-20261113`; no fusionar #1335 para publicar este diseño.
+- Recupera solo los parches visuales c21a451e, 08290bbf, 89ac9479, 3215ffb5, 4a606ffd, 197289f7 y la parte UI/pruebas de 8d7da1df. Excluye U72, lógica funcional pendiente, SQL, backend, Auth, infraestructura y cambios de scripts/workflows de #1335.
+- Componentes: CRM directorio/expediente, búsqueda y alta progresiva con continuidad del borrador; composición Coach agenda/clientes y constructor biblioteca/prescripción; catálogo real, jerarquía Cliente y acabados esmeralda/dorado discreto compartidos. Semántica accesible de gráficos y nombres de navegación compacta; conserva bloqueo por cliente y permisos.
+- Evidencia local aislada: 301 comprobaciones geométricas; 43 rutas en escritorio/tablet/móvil, 139 capturas del código real con datos sintéticos identificados. Sin incidencias pendientes en la revisión automatizada de cuerpos de ruta; revalidación adicional del shell Coach y gráficos.
+- Pruebas: Admin visual 5/5; constructor 4/4; navegación/shell 133/133; gráficos/longitudinal 49/49; contratos visuales/gráficos 38/38. Batería Windows: 6.447 aprobadas, 21 fallos, 1 omitida; dos fallos de finales de línea corregidos localmente y 5/5 revalidados. Los otros 19 requieren entorno Linux/Python/Bash/symlinks; no se declaran aprobados. Build QA canónica correcta.
+- Primer CI Linux aislado: 6.467 aprobadas, 1 omitida y un único contrato de orden de atributos HTML fallido; corregido sin rebajar la comprobación de nombres accesibles y revalidado localmente (63/63). Se requiere certificación final del nuevo SHA.
+- Pendiente: visto bueno visual del usuario sobre galería aislada; después certificación del SHA exacto, controles de seguridad, M44 backup/restauración y rollback, promoción protegida frontend-only y smoke real en app.iberfit.cl. No se ha ejecutado despliegue ni mutación de datos.
+
 ## 11/11/2026 · Cierre evidencia TRAINING B · PR único pendiente de gates (NO PROD)
 - Base comprobada Canary `d577e5fb8ffb5d90f86e9e79981a0a5692c4409b`; C PR #1323 ya fusionado. PROD sigue A+B `2a41bc229007a78113eb3c408246445d4c40e783` en el último chequeo LIVE conocido; verificar antes de nueva promoción.
 - Corrección propuesta: reconciliación fail-closed por ID/revisión para progreso/Coach y tres estados de entrenamiento basados en evidencia compartida.

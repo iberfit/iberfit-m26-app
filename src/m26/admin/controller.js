@@ -240,6 +240,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     const row=rows.find((node)=>String(node?.getAttribute?.('data-admin-client-id')||'').trim()===clientId);
     if(!row)return false;
     for(const node of Array.from(root?.querySelectorAll?.('[data-admin-client-created]')||[]))node.removeAttribute?.('data-admin-client-created');
+    selectPerson(clientId);
     row.setAttribute?.('data-admin-client-created','true');
     const target=row.querySelector?.('[data-admin-client-edit-open]')||row;
     try{target.focus?.({preventScroll:true});}catch{target.focus?.();}
@@ -291,6 +292,11 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     syncPendingUserForms();
     const filters=userDirectoryFilterState(root);
     const disclosures=userDirectoryDisclosureState(root);
+    const selectedPerson=root.querySelector?.('[data-admin-person-select][aria-pressed="true"]')?.getAttribute('data-admin-person-select');
+    const restorePerson=()=>{
+      const exists=Array.from(root.querySelectorAll?.('[data-admin-person-select]')||[]).some(node=>node.getAttribute('data-admin-person-select')===selectedPerson);
+      if(exists)selectPerson(selectedPerson);
+    };
     try{
       const result=await service.execute(input);
       try{onSuccess?.(result);}catch{}
@@ -306,6 +312,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           if(outcome?.ok===true){
             render();
             restoreUserDirectoryDisclosures(root,disclosures);
+            restorePerson();
             applyUserDirectoryFilters(root,filters);
             syncPendingUserForms();
             clientWizard.sync();
@@ -317,6 +324,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       }else{
         render();
         restoreUserDirectoryDisclosures(root,disclosures);
+        restorePerson();
         applyUserDirectoryFilters(root,filters);
         syncPendingUserForms();
         clientWizard.sync();
@@ -506,25 +514,37 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     void onSubmit(event).catch((error)=>toast(/ADMIN_CONFIGURATION_JSON_INVALID/.test(String(error?.message||error))?'La configuración JSON no es válida.':'No fue posible procesar la operación administrativa.'));
   }
   function onDirectoryFilter(event){
-    const personFilter=event.target?.closest?.('[data-admin-person-filter]');
-    if(personFilter){
-      const selected=String(personFilter.value||'all');let visible=0;
+    if(event.target?.closest?.('[data-admin-person-filter],[data-admin-person-search]')){
+      const selected=String(root.querySelector?.('[data-admin-person-filter]')?.value||'all');
+      const query=String(root.querySelector?.('[data-admin-person-search]')?.value||'').trim().toLocaleLowerCase();
+      const visible=[];
       for(const row of root.querySelectorAll?.('[data-admin-person-status]')||[]){
-        const personStatus=String(row.getAttribute('data-admin-person-status')||'');
-        const serviceKind=String(row.getAttribute('data-service-kind')||'');
-        const trainingServiceStatus=String(row.getAttribute('data-training-service-status')||'');
-        const matches=personDirectoryMatchesFilter({personStatus,serviceKind,trainingServiceStatus},selected);
-        row.hidden=!matches;
-        if(!row.hidden)visible+=1;
+        const id=row.getAttribute('data-admin-client-id');
+        const button=Array.from(root.querySelectorAll?.('[data-admin-person-select]')||[]).find(node=>node.getAttribute('data-admin-person-select')===id);
+        const matches=personDirectoryMatchesFilter({personStatus:row.getAttribute('data-admin-person-status'),serviceKind:row.getAttribute('data-service-kind'),trainingServiceStatus:row.getAttribute('data-training-service-status')},selected)&&(!query||String(button?.textContent||'').toLocaleLowerCase().includes(query));
+        if(button)button.hidden=!matches;
+        if(matches)visible.push(id);
+        row.hidden=true;
       }
+      const active=Array.from(root.querySelectorAll?.('[data-admin-person-select]')||[]).find(node=>node.getAttribute('aria-pressed')==='true'&&!node.hidden);
+      selectPerson(active?.getAttribute('data-admin-person-select')||visible[0]||'');
       const feedback=root.querySelector?.('[data-admin-person-filter-status]');
-      if(feedback)feedback.textContent=visible?`${visible} personas visibles`:'No hay personas con este estado.';
+      if(feedback)feedback.textContent=visible.length?`${visible.length} personas visibles`:'No hay personas con este estado.';
       return;
     }
     if(!event.target?.closest?.('[data-admin-user-search],[data-admin-user-filter]'))return;
     applyUserDirectoryFilters(root);
   }
+  function selectPerson(id){
+    for(const node of root.querySelectorAll?.('[data-admin-person-select]')||[])node.setAttribute('aria-pressed',String(node.getAttribute('data-admin-person-select')===id));
+    for(const node of root.querySelectorAll?.('.m26-crm-record')||[])node.hidden=node.getAttribute('data-admin-client-id')!==id;
+    const empty=root.querySelector?.('[data-admin-person-empty]');
+    if(empty)empty.hidden=Boolean(id);
+  }
   function onClientEditClick(event){
+    const person=event.target?.closest?.('[data-admin-person-select]');
+    if(person){event.preventDefault();selectPerson(person.getAttribute('data-admin-person-select'));return;}
+
     const review=event.target?.closest?.('[data-admin-user-review-filter]');
     if(review){
       event.preventDefault?.();

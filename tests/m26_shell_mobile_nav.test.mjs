@@ -45,6 +45,7 @@ test('Más bloquea contexto Coach sin cliente y conserva accesos globales',()=>{
   const vm=createShellViewModel(readyState('coach',{selectedClientId:null,activeArea:'hoy'}));
   const menu=mobileOverflow(renderM26Shell(vm));
   assert.doesNotMatch(menu,/data-m26-area="expediente"/u);
+  assert.match(menu,/disabled aria-disabled="true" aria-label="Expediente"/u);
   assert.doesNotMatch(menu,/data-m26-area="iri"/u);
   assert.match(menu,/class="m26-nav-item is-disabled" type="button" disabled aria-disabled="true"/u);
   assert.match(menu,/data-m26-area="biblioteca"/u);
