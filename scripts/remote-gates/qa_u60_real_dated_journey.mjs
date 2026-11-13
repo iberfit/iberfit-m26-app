@@ -401,12 +401,72 @@ async function main(){
  assert(progress.status===200&&progress.body?.kind==='ack'&&
   Number(progress.body.executionRevision)===2,'CLIENT_SET_PROGRESS_NOT_SAVED');
  proof.checks.push('saved_first_set_real_server');await save(proof);
+ // U72: real authenticated HTTP pause, separate execution CAS, and second
+ // device/read recovery. Never treat a local timer or browser click as ACK.
+ const pauseCommand={type:'OCURRENCIA_PAUSAR',
+  operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'u72-pause'),
+  clientId:clientA,entityId:occ[0],baseRevision:2,
+  payload:{executionId,executionBaseRevision:2}};
+ const paused=await u60(ctx,a.jwt,'TRANSICION',pauseCommand);
+ assert(paused.status===200&&paused.body?.kind==='ack'&&
+  paused.body?.status==='en_curso'&&paused.body?.executionStatus==='pausada'&&
+  Number(paused.body.executionRevision)===3&&
+  Number.isSafeInteger(paused.body.accumulatedActiveMs)&&
+  paused.body.activeSince===null,'U72_PAUSE_NOT_CONFIRMED');
+ const pausedDetail=await rpc(ctx,a.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:clientA,p_occurrence_id:occ[0]});
+ assert(pausedDetail.status===200&&
+  pausedDetail.body?.occurrence?.status==='en_curso'&&
+  pausedDetail.body?.executionBody?.status==='pausada'&&
+  Number(pausedDetail.body?.executionBody?.revision)===3&&
+  Number(pausedDetail.body?.executionBody?.accumulatedActiveMs)>=0&&
+  pausedDetail.body?.executionBody?.results?.[exerciseId+':1']?.reps===10,
+  'U72_PAUSED_PRIVATE_READ_NOT_DURABLE');
+ proof.checks.push('u72_pause_confirmed_and_privately_readable');await save(proof);
+ const pauseAgain=await u60(ctx,a.jwt,'TRANSICION',pauseCommand);
+ assert(pauseAgain.status===200&&pauseAgain.body?.kind==='ack'&&
+  pauseAgain.body?.duplicate===true&&
+  Number(pauseAgain.body.executionRevision)===3,'U72_PAUSE_REPLAY_NOT_IDEMPOTENT');
+ const pausedWrite=await u60(ctx,a.jwt,'TRANSICION',{
+  type:'OCURRENCIA_GUARDAR_PROGRESO',
+  operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'u72-paused-progress-denied'),
+  clientId:clientA,entityId:occ[0],baseRevision:2,
+  payload:{executionId,executionBaseRevision:3,results:{},skippedSets:{}}});
+ assert(pausedWrite.status===200&&pausedWrite.body?.kind==='rejected'&&
+  pausedWrite.body?.reason==='EXECUTION_PAUSED','U72_PAUSED_WRITE_NOT_DENIED');
+ const foreignResume=await u60(ctx,b.jwt,'TRANSICION',{
+  type:'OCURRENCIA_REANUDAR',
+  operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'u72-foreign-resume-denied'),
+  clientId:clientA,entityId:occ[0],baseRevision:2,
+  payload:{executionId,executionBaseRevision:3}});
+ assert(denied(foreignResume),'U72_CROSS_CLIENT_RESUME_NOT_DENIED');
+ proof.checks.push('u72_idempotent_pause_write_fence_and_idor_denial');await save(proof);
+ const resumed=await u60(ctx,a.jwt,'TRANSICION',{
+  type:'OCURRENCIA_REANUDAR',
+  operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'u72-resume'),
+  clientId:clientA,entityId:occ[0],baseRevision:2,
+  payload:{executionId,executionBaseRevision:3}});
+ assert(resumed.status===200&&resumed.body?.kind==='ack'&&
+  resumed.body?.executionStatus==='en_curso'&&
+  Number(resumed.body.executionRevision)===4&&
+  resumed.body.activeSince&&
+  Number.isFinite(Date.parse(resumed.body.activeSince)),
+  'U72_RESUME_NOT_CONFIRMED');
+ const resumedDetail=await rpc(ctx,a.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:clientA,p_occurrence_id:occ[0]});
+ assert(resumedDetail.status===200&&
+  resumedDetail.body?.executionBody?.status==='en_curso'&&
+  Number(resumedDetail.body?.executionBody?.revision)===4&&
+  resumedDetail.body?.executionBody?.results?.[exerciseId+':1']?.reps===10&&
+  resumedDetail.body?.occurrence?.status==='en_curso',
+  'U72_RESUMED_PRIVATE_READ_NOT_DURABLE');
+ proof.checks.push('u72_resumed_and_prior_progress_preserved');await save(proof);
  const all={...initial};
  for(let i=2;i<=chosen.sets;i++)all[exerciseId+':'+i]={reps:8,loadKg:22};
  const done=await u60(ctx,a.jwt,'TRANSICION',{
   type:'OCURRENCIA_COMPLETAR',operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'occ-finish'),
   clientId:clientA,entityId:occ[0],baseRevision:2,
-  payload:{executionId,executionBaseRevision:2,results:all,skippedSets:{},
+  payload:{executionId,executionBaseRevision:4,results:all,skippedSets:{},
    feedback:{sessionRpe:7,comment:'U71 QA synthetic training',pain:false}}});
  assert(done.status===200&&done.body?.kind==='ack'&&done.body.status==='completada',
    'CLIENT_DATED_EXECUTION_NOT_COMPLETED');

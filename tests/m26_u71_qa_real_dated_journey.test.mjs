@@ -243,3 +243,21 @@ test('U71 bounded QA candidate reader accepts only current-day owner-scoped sour
    /U71_BOUNDED_CANDIDATE_(RESPONSE|SCOPE)_INVALID/u);
  }
 });
+
+test('M1 U72 real QA Coach-Client-Coach HTTP proof includes durable pause/resume, denial and idempotency',()=>{
+ const gate=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const wf=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ for(const expected of [
+  "type:'OCURRENCIA_PAUSAR'","type:'OCURRENCIA_REANUDAR'",
+  'U72_PAUSE_NOT_CONFIRMED','U72_PAUSED_PRIVATE_READ_NOT_DURABLE',
+  'U72_PAUSE_REPLAY_NOT_IDEMPOTENT','U72_PAUSED_WRITE_NOT_DENIED',
+  'U72_CROSS_CLIENT_RESUME_NOT_DENIED','U72_RESUME_NOT_CONFIRMED',
+  'U72_RESUMED_PRIVATE_READ_NOT_DURABLE',
+  'executionBaseRevision:4,results:all'
+ ])assert.ok(gate.includes(expected),expected);
+ assert.match(gate,/GITHUB_RUN_ATTEMPT==='2'/u);
+ assert.match(gate,/PREFLIGHT_MISSING_STALE_OR_CHANGED/u);
+ assert.match(wf,/github\.run_attempt == 1/u);
+ assert.match(wf,/github\.run_attempt == 2/u);
+ assert.doesNotMatch(wf,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
+});
