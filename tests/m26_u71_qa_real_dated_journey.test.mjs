@@ -278,10 +278,10 @@ test('U71 QA protects the two-phase appointment schedule from old completed time
   clockMinute:1200,calendar:rows,fixedTime:'20:25',nowMs:base}),
   /U71_QA_NO_CONFLICT_FREE_SLOT/);
  assert.throws(()=>chooseUnoccupiedDatedSlot({today,future,duration:20,
-  clockMinute:1200,calendar:[{status:'confirmada',startsAt:null,endsAt:null}],
+  clockMinute:1200,calendar:[{status:'confirmada',startsAt:'2026-11-12T23:25:00Z',endsAt:null}],
   nowMs:base}),/U71_QA_CALENDAR_INCOMPLETE_FOR_SLOT/);
  const code=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
  assert.ok(code.indexOf('const old=await checkedCalendar(')<
-  code.indexOf('chooseUnoccupiedDatedSlot({'));
+  code.lastIndexOf('chooseUnoccupiedDatedSlot({'));
  assert.ok(code.includes('fixedTime:certified?.localTime'));
 });

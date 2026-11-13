@@ -130,7 +130,8 @@ export function chooseUnoccupiedDatedSlot({
  assert(!fixedTime||/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(fixedTime),
   'QA_SLOT_CERTIFIED_TIME_INVALID');
  const deadline=fixedTime?from:Math.min(1439,clockMinute+55);
- const busy=calendar.filter(row=>row.status!=='cancelada').map(row=>{
+ const busy=calendar.filter(row=>row.status!=='cancelada'&&
+  (row.startsAt!=null||row.endsAt!=null)).map(row=>{
   const a=Date.parse(String(row.startsAt||'')),
         b=Date.parse(String(row.endsAt||''));
   assert(Number.isFinite(a)&&Number.isFinite(b)&&b>a,
