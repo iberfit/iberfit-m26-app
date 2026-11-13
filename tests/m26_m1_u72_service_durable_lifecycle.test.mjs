@@ -134,8 +134,8 @@ test('U72 encrypted draft auto-saves and survives private paused read across app
  assert.equal(await cp.readCheckpoint(scope),null);
  await assert.rejects(one.record({reps:9,rpe:7}),/U49_WORKOUT_PAUSED/);
  await assert.rejects(one.save(),/U47_PROGRESS_NOT_READY/);
- assert.equal(backend.operations.length,4,
-  'paused save cannot mutate the persisted results; denied locally or remotely');
+ assert.equal(backend.operations.length,3,
+  'paused save cannot dispatch a new command or mutate confirmed results');
  const two=service(backend,cp,false);
  const recovered=await two.open(scope);
  assert.equal(recovered.phase,'active');
