@@ -1,3 +1,4 @@
+# SIGNATURE 360 frontend-only release: renew real QA Coach/Client readback and synthetic write with distinct run identities. Trigger-only comment; NO QA fixture, test logic, backend, RLS or secrets changed.
 name: IBERFIT QA Real Write Certification
 
 on:

@@ -1,3 +1,4 @@
+# SIGNATURE 360 frontend-only release: run real Coach WebAuthn / strict <=5s after P1 U38 clone reduction at Canary SHA. Trigger-only comment; NO alteration of test logic, limits, auth, grants or secrets.
 name: IBERFIT Coach WebAuthn Recurring
 
 on:

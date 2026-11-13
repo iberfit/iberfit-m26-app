@@ -1,3 +1,4 @@
+# SIGNATURE 360 frontend-only release: renew fresh encrypted PROD DB+Storage independent PG17 isolated restore before guarded production. Trigger-only comment; NO workflow logic, permissions, data, DB DDL or secrets changed.
 # IBERFIT MACROBLOQUE C (2026-11-11): refresh the EXISTING encrypted PROD DB+Storage
 # M44 backup and isolated PG17 restore only after protected Canary integration.
 # Trigger-only; unchanged jobs, credentials, scopes, retention, or rollback gates.
