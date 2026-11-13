@@ -25,7 +25,7 @@ const actorFrom=value=>{
   return actor;
 };
 const isoTimestamp=value=>typeof value==='string'&&
-  /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$/u.test(value)&&
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u.test(value)&&
   Number.isFinite(Date.parse(value));
 const nullableInstant=value=>value==null||isoTimestamp(value);
 const clockFieldsValid=body=>{

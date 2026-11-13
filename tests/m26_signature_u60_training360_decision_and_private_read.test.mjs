@@ -342,7 +342,7 @@ test('U72 private reader admits only verified server time fields without leaking
    .executionBody.status,'completada');
  sample.executionBody.extraPrivateField='secret';
  await assert.rejects(svc.read({clientId:CLIENT,occurrenceId:OCC_B}),
-   /U60_PRIVATE_RESPONSE_INVALID/);
+   /U60_PRIVATE_EXECUTION_DRIFT/);
  delete sample.executionBody.extraPrivateField;
  sample.executionBody.accumulatedActiveMs=-20;
  await assert.rejects(svc.read({clientId:CLIENT,occurrenceId:OCC_B}),
