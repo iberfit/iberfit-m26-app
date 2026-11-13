@@ -11,6 +11,12 @@ test('M1 U72 production install is exact-source, closed by default and rollbacka
  assert.match(install,/M1_U72_PROD_MUST_BE_CLOSED_AND_DRAINED/u);
  assert.match(install,/M1_U72_PROD_EXECUTION_FENCE_MISSING/u);
  assert.match(install,/M1_U72_PROD_AUTH_ACL_DRIFT/u);
+ for(const sql of [install,rollback]){
+  assert.doesNotMatch(sql,/has_function_privilege\('PUBLIC'/u,
+    'PUBLIC is an ACL grantee, not a Postgres role name');
+  assert.match(sql,/aclexplode\(coalesce\(p\.proacl,acldefault\('f',p\.proowner\)\)\)/u);
+  assert.match(sql,/acl\.grantee=0 AND acl\.privilege_type='EXECUTE'/u);
+ }
  for(const hash of ['5914acf371015a6bbeeaf95f99e056e3','35862b8e4977fcf0c3d611937fe83126','f97d7df4fdd510b63ac1249352273927'])
   assert.ok(install.includes(hash));
  for(const hash of ['1270cf1db8c9a162ccc5736207a258e1','944aaac897289954a9c589292d8faf87','dd1027122e0843b44529cf87dad746b5','65e675f56c67aa8f9ddc4b36f3a9a73d']){

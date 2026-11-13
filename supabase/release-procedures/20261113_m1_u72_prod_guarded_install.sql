@@ -529,7 +529,10 @@ BEGIN
   IF md5(pg_get_functiondef('private.iberfit_u60_dated_mirror_receipt_guard_v1()'::regprocedure))<>'65e675f56c67aa8f9ddc4b36f3a9a73d'
     THEN RAISE EXCEPTION 'M1_U72_CANDIDATE_RECEIPT_GUARD_DRIFT'; END IF;
 
-  IF has_function_privilege('PUBLIC','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
+  IF EXISTS(SELECT 1 FROM pg_proc p
+    CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) acl
+    WHERE p.oid='private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure
+      AND acl.grantee=0 AND acl.privilege_type='EXECUTE')
   OR has_function_privilege('authenticated','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
   OR has_function_privilege('anon','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
   OR has_function_privilege('service_role','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
