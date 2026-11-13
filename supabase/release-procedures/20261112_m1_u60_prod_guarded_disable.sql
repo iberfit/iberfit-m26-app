@@ -1,4 +1,5 @@
 -- IBERFIT M1 / U60: guarded emergency rollback of both public U60
+-- Do not execute U72 SQL rollback while a single execution is active.
 -- entrypoints. Existing confirmed executions remain intact; do NOT delete
 -- training/session occurrences, reports or history.
 BEGIN;
@@ -30,7 +31,7 @@ BEGIN
     SELECT req.signature,req.expected_hash,p.oid
     FROM (VALUES
       ('public.iberfit_occurrence_api_u60_v1(text,jsonb)',
-       '5914acf371015a6bbeeaf95f99e056e3'),
+       '944aaac897289954a9c589292d8faf87'),
       ('public.iberfit_occurrence_detail_v1(uuid,uuid)',
        '00b8ee39c85fd92f593732c055902cf2')
     ) req(signature,expected_hash)

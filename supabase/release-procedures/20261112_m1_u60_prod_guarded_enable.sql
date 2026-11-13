@@ -1,4 +1,5 @@
 -- IBERFIT M1 / U60: PROTECTED PRODUCTION ENABLEMENT (STAGED, NOT APPLIED).
+-- REQUIRE first installed 20261113_m1_u72_prod_guarded_install.sql and exact U72 hash.
 -- Never execute as part of an ordinary frontend deployment.
 -- Out-of-band preconditions: exact-SHA authenticated Coach/Client/Coach QA
 -- acceptance, negative RLS tests, recent M44 PostgreSQL+Storage restore,
@@ -40,7 +41,7 @@ BEGIN
     SELECT req.signature,req.expected_hash,p.oid,p.prosecdef,p.proconfig,p.proowner
     FROM (VALUES
       ('public.iberfit_occurrence_api_u60_v1(text,jsonb)',
-       '5914acf371015a6bbeeaf95f99e056e3'),
+       '944aaac897289954a9c589292d8faf87'),
       ('public.iberfit_occurrence_detail_v1(uuid,uuid)',
        '00b8ee39c85fd92f593732c055902cf2')
     ) req(signature,expected_hash)

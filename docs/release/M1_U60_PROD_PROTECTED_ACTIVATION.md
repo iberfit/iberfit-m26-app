@@ -41,3 +41,9 @@
 ### M1 U72 · QA-only pause/resume contract
 
 The U72 server CAS and idempotent pause/resume are installed **only in QA** (`m1_u72_dated_pause_resume_qa_v1` and `m1_u72_payload_shape_precedence_qa_v1`). A transactional synthetic QA Client A run demonstrated start, pause, private read, duplicate receipt, paused write fence, resume and second-date isolation, with final ROLLBACK. Browser still requires certification. Frontend uses the existing U40 encrypted journal and changes local status only after server ACK. PROD needs a separate independently reviewed U72 migration, rollback, fresh M44 restore and authenticated UI E2E before any production enable. Never run QA migrations in PROD.
+
+### U72 PROD · SQL preparada, no aplicada
+
+El paquete `supabase/release-procedures/20261113_m1_u72_prod_guarded_install.sql` reproduce las funciones U72 **exactas de QA aprobadas por U71** bajo hash M5 exacto, ambiente PRODUCTION, cero fechas en curso/pausa, grants U60 todavía cerrados y triggers de integridad activos. Verifica hash de salida y ausencia de acceso directo a funciones privadas. Rollback independiente: `20261113_m1_u72_prod_guarded_rollback.sql`, exige cierre de permisos y drenaje antes de restaurar las tres funciones originales exactas y retirar solo U72. Ambos son **artefactos preparados, jamás ejecutados por el frontend ni por CI**.
+
+El permiso U60 productivo `20261112_m1_u60_prod_guarded_enable.sql` requiere ahora el hash exacto **pos-U72** del gateway `944aaac897289954a9c589292d8faf87`. Antes de esa actualización, permanecerá cerrado por defecto; nunca aplicar el grant previo `5914acf...` al motor con pausa. Secuencia de corte: M44 real fresco+restore, Canary exacto, U72 PROD install + readback cerrado, Pages PROD con flags apagados, grant U60, reabrir solo lectura/recuperación, activar nuevos inicios tras smoke Cliente/Coach auténtico. No activar con solo pruebas sintéticas.
