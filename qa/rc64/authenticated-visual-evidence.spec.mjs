@@ -278,7 +278,22 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
         expect(assurance?.iberfitAssurance,'Coach remains fail-closed until device proof').not.toBe('verified');
         await expect(page.locator('.m26-shell[data-m26-role="coach"]')).toHaveCount(0,{timeout:10_000});
         await expect(page.locator('#m26-auth-title')).toBeVisible({timeout:10_000});
-        await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:5_000});
+        // Keep the original strict 5-second, fail-closed WebAuthn UI contract.
+        // If a concurrent QA transition delays MFA, record only the public
+        // auth-stage category and viewport; never log identity, tokens or PII.
+        try{
+          await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:5_000});
+        }catch(error){
+          const publicStage=await page.evaluate(()=>{
+            const node=document.querySelector('[data-auth-loading]');
+            return node?.getAttribute('data-auth-loading')||'none';
+          }).catch(()=> 'unavailable');
+          console.log('RC64_COACH_MFA_UI_TRANSITION_DIAGNOSTIC '+JSON.stringify({
+            project:testInfo.project.name,
+            authLoadingStage:String(publicStage).slice(0,40),
+          }));
+          throw error;
+        }
         if((projectUse.viewport?.width||0)>=3000){
           const stage=await page.locator('.m26-auth-stage').boundingBox();
           expect(stage?.width,'UHD Coach authentication must not shrink to a 1152px island').toBeGreaterThan(1500);
