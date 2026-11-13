@@ -37,3 +37,7 @@
 - La pantalla Cliente vigente es RC39. El panel de fechas U60 debe renderizarse **dentro** de `data-m27-session-surface="sessions"`, antes de la barra inferior; la ruta M26 antigua ya no es suficiente. Hay prueba de render y Chromium real con Client A/B.
 - La presentación está habilitada en QA real y, en PROD, **solo** si `datedTrainingProductionReleased` supera las comprobaciones exactas de host/origen/proyecto y los permisos SQL autorizados. `recovery` mantiene acceso al reproductor para recuperar/guardar/finalizar, aunque nuevos inicios estén pausados.
 - Si U60 está habilitado, la retirada de una prescripción desde Coach debe verificar el calendario de sus ocurrencias con lectura privada autoritativa. Cualquier error de lectura bloquea la retirada. No cambiar la política de borrado de clientes.
+
+### M1 U72 · QA-only pause/resume contract
+
+The U72 server CAS and idempotent pause/resume are installed **only in QA** (`m1_u72_dated_pause_resume_qa_v1` and `m1_u72_payload_shape_precedence_qa_v1`). A transactional synthetic QA Client A run demonstrated start, pause, private read, duplicate receipt, paused write fence, resume and second-date isolation, with final ROLLBACK. Browser still requires certification. Frontend uses the existing U40 encrypted journal and changes local status only after server ACK. PROD needs a separate independently reviewed U72 migration, rollback, fresh M44 restore and authenticated UI E2E before any production enable. Never run QA migrations in PROD.

@@ -8,6 +8,7 @@ const DATE=/^(20\d{2}|2100)-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/u;
 const TIME=/^(?:[01]\d|2[0-3]):[0-5]\d$/u;
 const TYPES=new Set(['OCURRENCIA_CONFIRMAR','OCURRENCIA_INICIAR',
   'OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR',
+  'OCURRENCIA_PAUSAR','OCURRENCIA_REANUDAR',
   'OCURRENCIA_CANCELAR','OCURRENCIA_REPROGRAMAR']);
 const MAX_BYTES=524288;
 const EXECUTION_CONTENT_MAX_BYTES=262144;
@@ -110,6 +111,10 @@ export function buildOccurrenceScopedCommand({
   switch(type){
   case 'OCURRENCIA_INICIAR':
     payload={executionId:uid(executionId)};
+    break;
+  case 'OCURRENCIA_PAUSAR':
+  case 'OCURRENCIA_REANUDAR':
+    payload={executionId:uid(executionId),executionBaseRevision:revision(executionBaseRevision)};
     break;
   case 'OCURRENCIA_GUARDAR_PROGRESO':
     payload={executionId:uid(executionId),

@@ -10,6 +10,7 @@ const COACH_ROLES=new Set(['coach']);
 const COMMAND_TYPES=new Set([
   'OCURRENCIA_CONFIRMAR','OCURRENCIA_INICIAR',
   'OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR',
+  'OCURRENCIA_PAUSAR','OCURRENCIA_REANUDAR',
   'OCURRENCIA_CANCELAR','OCURRENCIA_REPROGRAMAR',
 ]);
 const READ_STATUSES=new Set(['planificada','confirmada','en_curso','completada','cancelada']);
@@ -55,6 +56,8 @@ function canonicalCommand(value){
   const expected=({
     OCURRENCIA_CONFIRMAR:[],
     OCURRENCIA_INICIAR:['executionId'],
+    OCURRENCIA_PAUSAR:['executionId','executionBaseRevision'],
+    OCURRENCIA_REANUDAR:['executionId','executionBaseRevision'],
     OCURRENCIA_GUARDAR_PROGRESO:['executionId','executionBaseRevision','results','skippedSets'],
     OCURRENCIA_COMPLETAR:['executionId','executionBaseRevision','results','skippedSets','feedback'],
     OCURRENCIA_CANCELAR:[],
@@ -142,10 +145,23 @@ function verifiedResponse(reply,cmd){
   if(reply.kind!=='ack'&&typeof reply.reason!=='string')
     throw error('COMMAND_REJECTION_UNVERIFIED');
   if(reply.kind==='ack'&&
-    ['OCURRENCIA_INICIAR','OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR'].includes(cmd.type)&&(
+    ['OCURRENCIA_INICIAR','OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR',
+      'OCURRENCIA_PAUSAR','OCURRENCIA_REANUDAR'].includes(cmd.type)&&(
       !Number.isSafeInteger(reply.executionRevision)||reply.executionRevision<1||
       String(reply.executionId||'').toLowerCase()!==cmd.payload.executionId
     ))throw error('EXECUTION_REVISION_UNVERIFIED');
+  if(reply.kind==='ack'&&['OCURRENCIA_PAUSAR','OCURRENCIA_REANUDAR'].includes(cmd.type)){
+    const paused=cmd.type==='OCURRENCIA_PAUSAR';
+    if(reply.status!=='en_curso'||
+      reply.executionStatus!==(paused?'pausada':'en_curso')||
+      reply.remoteRevision!==cmd.baseRevision||
+      reply.executionRevision!==cmd.payload.executionBaseRevision+1||
+      !Number.isSafeInteger(reply.accumulatedActiveMs)||
+      reply.accumulatedActiveMs<0||reply.accumulatedActiveMs>604800000||
+      (paused&&reply.activeSince!==null)||
+      (!paused&&!Number.isFinite(Date.parse(reply.activeSince))))
+      throw error('U72_ACK_CLOCK_OR_CAS_INVALID');
+  }
   return immutable({...reply});
 }
 

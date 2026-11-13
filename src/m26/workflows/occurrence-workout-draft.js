@@ -108,6 +108,8 @@ function assertDraft(draft){
 const writes=Object.freeze({
   start:'OCURRENCIA_INICIAR',
   progress:'OCURRENCIA_GUARDAR_PROGRESO',
+  pause:'OCURRENCIA_PAUSAR',
+  resume:'OCURRENCIA_REANUDAR',
   complete:'OCURRENCIA_COMPLETAR',
 });
 /**
@@ -131,6 +133,9 @@ export function buildOccurrenceWorkoutCommand(draft,{action,operationId}={}){
     if(draft.phase!=='active'||!Number.isSafeInteger(draft.executionRevision)
       ||draft.executionRevision<1)fail('EXECUTION_NOT_ACKNOWLEDGED');
     payload.executionBaseRevision=draft.executionRevision;
+    if(action==='pause'&&draft.execution.status!=='active')fail('PAUSE_NOT_ACTIVE');
+    if(action==='resume'&&draft.execution.status!=='paused')fail('RESUME_NOT_PAUSED');
+    if(['pause','resume'].includes(action))return buildOccurrenceScopedCommand(payload);
     if(!draft.execution.results||typeof draft.execution.results!=='object'
       ||Array.isArray(draft.execution.results))fail('RESULTS_INVALID');
     payload.results=structuredClone(draft.execution.results);
@@ -164,6 +169,15 @@ export function applyOccurrenceWorkoutAck(draft,command,ack){
   const action=Object.keys(writes).find(k=>writes[k]===command.type);
   if(!action)fail('ACK_ACTION_INVALID');
   const status=action==='complete'?'completada':'en_curso';
+  if(['pause','resume'].includes(action)){
+    const paused=action==='pause';
+    if(ack.executionStatus!==(paused?'pausada':'en_curso')||
+      !Number.isSafeInteger(ack.accumulatedActiveMs)||
+      ack.accumulatedActiveMs<0||ack.accumulatedActiveMs>604800000||
+      (paused&&ack.activeSince!==null)||
+      (!paused&&!Number.isFinite(Date.parse(ack.activeSince))))
+      fail('ACK_U72_CLOCK_INVALID');
+  }
   if(ack.status!==status||!Number.isSafeInteger(ack.remoteRevision)
     ||!Number.isSafeInteger(ack.executionRevision)
     ||ack.executionRevision<1||ack.remoteRevision<draft.occurrenceRevision)
@@ -180,10 +194,22 @@ export function applyOccurrenceWorkoutAck(draft,command,ack){
       ||command.baseRevision!==draft.occurrenceRevision
       ||command.payload.executionBaseRevision!==draft.executionRevision
       ||ack.executionRevision<=draft.executionRevision
-      ||(action==='progress'&&ack.remoteRevision!==draft.occurrenceRevision)
+      ||(['progress','pause','resume'].includes(action)&&ack.remoteRevision!==draft.occurrenceRevision)
       ||(action==='complete'&&(draft.execution.status!=='completed'
         ||ack.remoteRevision<=draft.occurrenceRevision)))
       fail('ACK_CAS_INVALID');
+    if(action==='pause'){
+      if(draft.execution.status!=='active')fail('ACK_PAUSE_INVALID');
+      draft.execution.status='paused';draft.execution.activeSince=null;
+      draft.execution.pausedAt=ack.serverAt;
+      draft.execution.accumulatedActiveMs=ack.accumulatedActiveMs;
+    }
+    if(action==='resume'){
+      if(draft.execution.status!=='paused')fail('ACK_RESUME_INVALID');
+      draft.execution.status='active';draft.execution.pausedAt=null;
+      draft.execution.activeSince=ack.activeSince;
+      draft.execution.accumulatedActiveMs=ack.accumulatedActiveMs;
+    }
     if(action==='complete')draft.phase='completed';
   }
   draft.occurrenceRevision=ack.remoteRevision;
@@ -206,7 +232,7 @@ export function rehydrateOccurrenceWorkoutDraft({
     ||occurrence.status!=='en_curso'
     ||occurrence.timeZone!=='America/Santiago'
     ||!Number.isSafeInteger(occurrence.revision)||occurrence.revision<2
-    ||executionBody.status!=='en_curso')
+    ||!['en_curso','pausada'].includes(executionBody.status))
     fail('REHYDRATION_NOT_ACTIVE');
   const executionId=uuid(occurrence.executionId);
   if(uuid(executionBody.id)!==executionId
@@ -244,8 +270,16 @@ export function rehydrateOccurrenceWorkoutDraft({
   verifyQueue(executionBody.queue,draft.execution.queue);
   startExecution(draft.execution);
   draft.execution.startedAt=new Date(started).toISOString();
-  draft.execution.activeSince=draft.execution.startedAt;
-  draft.execution.accumulatedActiveMs=0;
+  const active=executionBody.status!=='pausada';
+  const ms=Number(executionBody.accumulatedActiveMs??0);
+  if(!Number.isSafeInteger(ms)||ms<0||ms>604800000)
+    fail('REHYDRATION_TIMER_INVALID');
+  if(!active&&(executionBody.activeSince!=null||
+    !Number.isFinite(Date.parse(executionBody.pausedAt))))
+    fail('REHYDRATION_PAUSED_CLOCK_INVALID');
+  draft.execution.activeSince=active
+    ?(executionBody.activeSince||draft.execution.startedAt):null;
+  draft.execution.accumulatedActiveMs=ms;
   draft.execution.results=structuredClone(executionBody.results);
   draft.execution.skippedSets=structuredClone(executionBody.skippedSets);
   draft.execution.events=Array.isArray(executionBody.events)
@@ -261,6 +295,11 @@ export function rehydrateOccurrenceWorkoutDraft({
     if(!step||(!executionResultForStep(draft.execution,step)
       &&!skippedSetForStep(draft.execution,step)))break;
     advanceExecution(draft.execution);
+  }
+  if(executionBody.status==='pausada'){
+    draft.execution.status='paused';
+    draft.execution.activeSince=null;
+    draft.execution.pausedAt=executionBody.pausedAt;
   }
   // Navigating to persisted results is reconstruction, NOT a new training
   // event. Keep the authoritative server history without fabricated steps.

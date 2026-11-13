@@ -143,6 +143,8 @@ function formValue(target,name){
 }
 function humanError(error){
   const code=String(error?.message||'');
+  if(/EXECUTION_PAUSED|WORKOUT_PAUSED/u.test(code))
+    return 'Entrenamiento en pausa. Reanúdalo antes de registrar nuevas series.';
   if(/NEW_STARTS_PAUSED/u.test(code))
     return 'Temporalmente no se admiten nuevos inicios. Puedes recuperar, guardar y finalizar un entrenamiento que ya esté en curso.';
   if(/RPE_REQUIRED|RPE_INVALID/u.test(code))
@@ -350,15 +352,22 @@ export function createDatedOccurrenceQaUi({
           :phase==='needs-refresh'
             ?'<button type="button" data-iberdates-action="u60-reopen">Leer versión autorizada</button>'
             :'';
+      const pauseControls=phase==='active'
+        ?view.executionStatus==='paused'
+          ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-resume">Reanudar entrenamiento</button>'
+          :view.executionStatus==='active'
+            ?'<button type="button" data-iberdates-action="u60-pause">Pausar entrenamiento</button>'
+            :''
+        :'';
       const save=phase==='active'&&view.executionStatus==='active'&&view.unsavedWork
         ?'<button type="button" data-iberdates-action="u60-save">Sincronizar progreso pendiente</button>':'';
       const retryComplete=phase==='active'&&view.executionStatus==='completed'
         ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-retry-complete">Confirmar finalización pendiente en servidor</button>':'';
       body='<section class="m26-panel" data-u60-workout><h3>Fecha independiente</h3>'+
-        summary+stepMarkup+buttons+recordForm+feedbackForm+save+retryComplete+
-        (view.startedAt?'<p class="m26-field-help">Tiempo transcurrido desde el inicio confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.startedAt)+'">'+escape(formatDatedElapsed(Date.now()-Date.parse(view.startedAt)))+'</strong></p>':'')+
+        summary+stepMarkup+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
+        (view.startedAt?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'">'+escape(formatDatedElapsed(Number(view.accumulatedActiveMs||0)+(view.executionStatus==='active'&&view.activeSince?Math.max(0,Date.now()-Date.parse(view.activeSince)):0)))+'</strong></p>':'')+
         '<p role="alert" data-u60-input-warning hidden></p>'+
-        (phase==='active'&&['active','awaiting_feedback'].includes(view.executionStatus)
+        (phase==='active'&&['active','awaiting_feedback','paused'].includes(view.executionStatus)
           ?'<button type="button" data-iberdates-action="u60-save-close">Guardar y salir</button>'
           :'<button type="button" data-iberdates-action="u60-close">Volver al calendario</button>')+
         '</section>';
@@ -646,7 +655,7 @@ export function createDatedOccurrenceQaUi({
     }
     if(action==='u60-save-close'){
       const active=runtime.workout.view();
-      if(active.phase!=='active'||!['active','awaiting_feedback'].includes(active.executionStatus)
+      if(active.phase!=='active'||!['active','awaiting_feedback','paused'].includes(active.executionStatus)
         ||active.busy||active.hasUncertain)fail('RECOVERY_REQUIRED');
       if(active.unsavedWork){
         // Save through the SAME encrypted journal and real server CAS. Never
@@ -661,6 +670,22 @@ export function createDatedOccurrenceQaUi({
       const reply=await runtime.workout.start();
       if(reply.phase!=='active')fail('START_NOT_ACKNOWLEDGED');
       message='Inicio confirmado por el servidor.';
+      return;
+    }
+    if(action==='u60-pause'){
+      if(runtime.workout.view().executionStatus!=='active')fail('PAUSE_NOT_ACTIVE');
+      const reply=await runtime.workout.pause();
+      if(reply.phase!=='active'||reply.executionStatus!=='paused'||
+        reply.hasUncertain||reply.unsavedWork)fail('RECOVERY_REQUIRED');
+      message='Entrenamiento en pausa. Tu progreso está confirmado.';
+      return;
+    }
+    if(action==='u60-resume'){
+      if(runtime.workout.view().executionStatus!=='paused')fail('RESUME_NOT_PAUSED');
+      const reply=await runtime.workout.resume();
+      if(reply.phase!=='active'||reply.executionStatus!=='active'||
+        reply.hasUncertain)fail('RECOVERY_REQUIRED');
+      message='Entrenamiento reanudado y confirmado por el servidor.';
       return;
     }
     if(action==='u60-record'){
@@ -790,7 +815,7 @@ export function createDatedOccurrenceQaUi({
     if(busy||button.disabled)return;
     const action=button.getAttribute('data-iberdates-action');
     // Do not repaint unsubmitted inputs while exiting the active workout.
-    if(['u60-close','u60-save-close'].includes(action)){
+    if(['u60-close','u60-save-close','u60-pause'].includes(action)){
       const panel=button.closest?.('[data-u60-panel]');
       if(datedHasUnsubmittedInputs(panel)){
         const warning=panel?.querySelector?.('[data-u60-input-warning]');
@@ -835,9 +860,12 @@ export function createDatedOccurrenceQaUi({
     // No global DOM lookup while the operator is outside dated execution.
     if(!focus)return;
     const node=root.querySelector?.('[data-u60-clock-start]');
-    const started=Date.parse(String(node?.getAttribute?.('data-u60-clock-start')||''));
-    if(node&&Number.isFinite(started)){
-      const time=formatDatedElapsed(Date.now()-started);
+    const since=Date.parse(String(node?.getAttribute?.('data-u60-active-since')||''));
+    const base=Number(node?.getAttribute?.('data-u60-accumulated-ms')||0);
+    const paused=node?.getAttribute?.('data-u60-paused')==='true';
+    if(node&&Number.isFinite(base)&&base>=0){
+      const running=!paused&&Number.isFinite(since)?Math.max(0,Date.now()-since):0;
+      const time=formatDatedElapsed(base+running);
       if(node.textContent!==time)node.textContent=time;
     }
   }
