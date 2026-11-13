@@ -16,6 +16,7 @@ const ROWS=Object.freeze([
   ['Entrenamiento reanudado y confirmado por el servidor.','Workout resumed and confirmed by the server.','Entraînement repris et confirmé par le serveur.','Treino retomado e confirmado pelo servidor.'],
   ['Entrenamiento en pausa. Reanúdalo antes de registrar nuevas series.','Workout paused. Resume it before recording another set.','Entraînement en pause. Reprenez avant de saisir une série.','Treino pausado. Retome antes de registar outra série.'],
   ['Tiempo activo confirmado','Confirmed active time','Temps actif confirmé','Tempo ativo confirmado'],
+  ['Tiempo activo confirmado ·','Confirmed active time ·','Temps actif confirmé ·','Tempo ativo confirmado ·'],
   // M1 U60 protected release: freeze NEW admissions while existing workouts
   // remain recoverable, savable and finishable; no false completion.
   ['Temporalmente no se admiten nuevos inicios. Puedes recuperar, guardar y finalizar un entrenamiento que ya esté en curso.',
