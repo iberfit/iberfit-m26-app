@@ -33,6 +33,7 @@ test('authenticated fields stay dark legible and focus-safe across browser/devic
   await page.goto('/qa/admin-interaction/fixture.html?route=clients',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
 
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   const name=form.locator('input[name="name"]');
   const email=form.locator('input[name="email"]');

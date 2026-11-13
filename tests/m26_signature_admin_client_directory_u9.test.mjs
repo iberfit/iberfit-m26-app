@@ -42,18 +42,23 @@ test('Admin no-active-training filter includes paused, ended and IRI-only but no
   assert.equal(matches({personStatus:'active',serviceKind:'none',trainingServiceStatus:''},'no-training'),true);
 });
 
-test('Admin directory tables preserve native headings, region labels and keyboard focus with scroll',()=>{
+test('Admin directory preserves labeled records and keyboard selection; leads retain semantic table',()=>{
   const html=renderAdminRoute(vm(false));
-  assert.match(html,/class="m26-admin-table m26-admin-client-table" role="region" aria-label="Personas con expediente y gestión" tabindex="0"/);
+  assert.match(html,/<nav class="m26-crm-directory" aria-label="Expedientes">/);
+  assert.equal((html.match(/data-admin-person-select=/g)||[]).length,4);
+  assert.equal((html.match(/aria-pressed="true"/g)||[]).length,1);
+  assert.equal((html.match(/class="m26-crm-record"/g)||[]).length,4);
+  assert.equal((html.match(/data-training-service-status="[^"]*" hidden/g)||[]).length,3);
   assert.match(html,/class="m26-admin-table m26-admin-lead-table" role="region" aria-label="Leads y seguimiento" tabindex="0"/);
-  assert.equal((html.match(/<table><thead><tr>/g)||[]).length,2);
-  assert.equal((html.match(/<th scope="col">/g)||[]).length,9);
+  assert.equal((html.match(/<table><thead><tr>/g)||[]).length,1);
+  assert.equal((html.match(/<th scope="col">/g)||[]).length,4);
   assert.match(html,/data-training-service-status="active"/);
   assert.match(html,/data-training-service-status="paused"/);
   assert.match(html,/data-training-service-status="ended"/);
   assert.match(html,/data-training-service-status="none"/);
   assert.match(html,/data-admin-person-filter-status role="status" aria-live="polite"/);
-  assert.match(html,/Desplaza la tabla lateralmente para ver todas las columnas y acciones/);
+  assert.match(html,/data-admin-person-search/);
+  assert.match(html,/<dl class="m26-crm-facts">/);
   assert.doesNotMatch(html,/data-admin-form="client-training-service"/);
   assert.doesNotMatch(html,/data-admin-client-edit-open=/);
 });

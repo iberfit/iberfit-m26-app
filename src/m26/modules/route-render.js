@@ -490,27 +490,6 @@ function renderCoachHoyRoute(vm) {
         <button type="button" class="m26-text-action" data-m26-area="agenda">Abrir agenda completa</button>
       </section>
 
-      <section class="m26-panel m26-panel-soft m26-coach-home-section m26-coach-home-attention">
-        <div class="m26-panel-heading">
-          <div>
-            <p class="m26-eyebrow">Atención de cartera</p>
-            <h2>Atención</h2>
-          </div>
-          ${badge(attentionStatus,attentionCount?'warning':'success')}
-        </div>
-        ${attentionBody}
-        ${(cockpit?.items?.length||0)>4?'<button type="button" class="m26-text-action" data-m26-area="clientes">Gestionar cartera completa</button>':''}
-      </section>
-    </div>
-
-    ${proposalCount?`<section class="m26-coach-home-proposals">
-      <div>
-        <p class="m26-eyebrow">Pendiente</p>
-        <strong>${escapeHtml(countLabel(proposalCount,'propuesta necesita decisión','propuestas necesitan decisión'))}</strong>
-      </div>
-      <button type="button" class="m26-text-action" data-m26-area="agenda">Revisar</button>
-    </section>`:''}
-
     <section class="m26-panel m26-coach-home-section m26-coach-home-clients">
       <div class="m26-panel-heading">
         <div>
@@ -521,6 +500,29 @@ function renderCoachHoyRoute(vm) {
       </div>
       <div class="m26-coach-home-client-grid">${clientsBody}</div>
     </section>
+
+    </div>
+
+    ${attentionCount?`      <section class="m26-panel m26-panel-soft m26-coach-home-section m26-coach-home-attention">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Atención de cartera</p>
+            <h2>Atención</h2>
+          </div>
+          ${badge(attentionStatus,attentionCount?'warning':'success')}
+        </div>
+        ${attentionBody}
+        ${(cockpit?.items?.length||0)>4?'<button type="button" class="m26-text-action" data-m26-area="clientes">Gestionar cartera completa</button>':''}
+      </section>`:''}
+    ${proposalCount?`<section class="m26-coach-home-proposals">
+      <div>
+        <p class="m26-eyebrow">Pendiente</p>
+        <strong>${escapeHtml(countLabel(proposalCount,'propuesta necesita decisión','propuestas necesitan decisión'))}</strong>
+      </div>
+      <button type="button" class="m26-text-action" data-m26-area="agenda">Revisar</button>
+    </section>`:''}
+
+
   </div>`;
 }
 
@@ -923,7 +925,7 @@ function renderClientHoyRoute(vm) {
       ${!trainingSurface?`<div class="m26-client-home-status"><span>${escapeHtml(primary.eyebrow)}</span><strong>${escapeHtml(primary.title)}</strong><p>${escapeHtml(primary.detail)}</p></div>`:''}
       </div>
 
-      <div class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
+      <section class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
         ${trainingSurface&&primary.area!=='actividad'?`<div class="m26-client-home-status">
           <span>${escapeHtml(primary.eyebrow)}</span>
           <strong>${escapeHtml(primary.title)}</strong>
@@ -931,7 +933,7 @@ function renderClientHoyRoute(vm) {
         </div>`:''}
         ${primary.markup}
         ${publishedStructure}
-      </div>
+      </section>
     </section>
 
     ${trainingSurface?renderClientWeekRail(upcoming):''}
@@ -1419,7 +1421,7 @@ export function renderClientsRoute(vm) {
   const productivity=['coach','admin'].includes(String(vm.role||''))
     ? `<section class="m26-coach-productivity-toolbar" data-coach-productivity-toolbar><div><p class="m26-eyebrow">Productividad Coach</p><h3>Vistas y recientes</h3><p>Guarda combinaciones de búsqueda y filtros en este dispositivo. No se guardan datos de salud.</p></div><div class="m26-coach-productivity-controls"><label>Nombre de la vista<input data-coach-view-name maxlength="60" placeholder="Ej. Seguimiento activo"></label><label>Vistas guardadas<select data-coach-saved-view><option value="">Seleccionar vista…</option></select></label><button type="button" data-coach-save-view>Guardar vista actual</button><button type="button" data-coach-delete-view>Eliminar vista</button></div><div class="m26-coach-recents" data-coach-recents><span>Recientes</span><small>Aparecerán al abrir expedientes.</small></div><p class="m26-coach-productivity-status" data-coach-productivity-status role="status" aria-live="polite"></p></section>`
     : '';
-  return `<div class="m26-route m26-client-directory-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div>${followUpQueue}${productivity}<p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
+  return `<div class="m26-route m26-client-directory-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div></section>${followUpQueue}${productivity}<section class="m26-panel m26-directory-results"><p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
 }
 
 function field(label, value) {
@@ -1799,7 +1801,7 @@ function exerciseMemorySparkline(memory){
       class="m26-exercise-chart-figure"
       aria-label="${escapeHtml(aria)}"
     >
-      <m26-echart
+      <m26-echart role="group"
         class="m26-echart"
         data-density="compact"
         data-tone="${escapeHtml(visual.tone)}"
@@ -2135,7 +2137,7 @@ function exerciseProgressChart(exercise,{compact=false}={}){
       ${badge(`${model.pointCount} registros`,'neutral')}
     </div>
 
-    <m26-echart
+    <m26-echart role="group"
       class="m26-echart m26-exercise-progress-echart"
       data-label="${escapeHtml(model.label)}"
       data-unit="${escapeHtml(model.unit)}"
@@ -2243,7 +2245,7 @@ function exerciseStudyChart(metricKey,metric,label,assessment,{compact=false}={}
       </div>
       <span>${escapeHtml(delta)}</span>
     </div>
-    <m26-echart
+    <m26-echart role="group"
       class="m26-echart m26-coach-exercise-study-echart"
       data-label="${escapeHtml(label)}"
       data-unit="${escapeHtml(unit)}"
@@ -5176,7 +5178,7 @@ export function renderLibraryRoute(vm){
   const groups=renderExerciseLibraryGroups(vm.catalog,vm.mediaMap,{role:vm.role||'coach'});
   const credit=vm.mediaMap?renderExerciseMediaCredit():'';
   const canCreate=['coach','admin'].includes(String(vm.role||''));
-  const creation=canCreate?`<section class="m26-panel m26-panel-soft" data-exercise-create-panel><div class="m26-panel-heading"><div><p class="m26-eyebrow">Catálogo IBERFIT</p><h2>Crear ejercicio personalizado</h2><p>Añádelo una sola vez al catálogo canónico. Quedará disponible inmediatamente para planificar sesiones y pendiente de revisión profesional.</p></div>${badge('Coach · Admin','neutral')}</div><form data-exercise-create-form data-guided-required-form><div class="m26-field-grid"><label>Nombre del ejercicio<input name="nameEs" required minlength="2" maxlength="160" autocomplete="off" spellcheck="false"></label><label>Patrón<select name="pattern" required><option value="">Selecciona</option><option value="sentadilla">Sentadilla</option><option value="bisagra">Bisagra</option><option value="empuje horizontal">Empuje horizontal</option><option value="empuje vertical">Empuje vertical</option><option value="tracción horizontal">Tracción horizontal</option><option value="tracción vertical">Tracción vertical</option><option value="core">Core</option><option value="movilidad">Movilidad</option><option value="potencia">Potencia</option><option value="complementario">Complementario</option></select></label><label>Objetivo<select name="intent" required><option value="">Selecciona</option><option value="fuerza">Fuerza</option><option value="hipertrofia">Hipertrofia</option><option value="técnica">Técnica</option><option value="movilidad">Movilidad</option><option value="potencia">Potencia</option><option value="acondicionamiento">Acondicionamiento</option></select></label><label>Material<input name="equipment" required minlength="2" maxlength="80" placeholder="Ej. mancuerna, TRX, sin material"></label><label>Dificultad<select name="difficulty" required><option value="">Selecciona</option><option value="inicial">Inicial</option><option value="media">Media</option><option value="avanzada">Avanzada</option></select></label><label>Musculatura principal<input name="primaryMuscles" maxlength="960" placeholder="Ej. glúteos, cuádriceps"></label></div><details><summary>Completar indicaciones técnicas</summary><div class="m26-field-grid"><label>Musculatura secundaria<input name="secondaryMuscles" maxlength="960" placeholder="Separada por comas"></label><label>Claves técnicas<textarea name="cues" maxlength="2880" rows="3" placeholder="Una por línea o separadas por comas"></textarea></label><label>Ejecución<textarea name="instructionsEs" maxlength="4800" rows="4" placeholder="Pasos de ejecución"></textarea></label><label>Precauciones<textarea name="precautions" maxlength="2880" rows="3" placeholder="Solo cuando corresponda"></textarea></label></div></details><div class="m26-notice"><strong>Catálogo, no texto libre</strong><p>El ejercicio se crea con un ID estable IBERFIT, sin imagen hasta su validación. Las sesiones siguen aceptando únicamente ejercicios presentes en el catálogo.</p></div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><button type="submit" class="m26-primary-action">Crear y añadir al catálogo</button><p data-exercise-create-status role="status" aria-live="polite"></p></form></section>`:'';
+  const creation=canCreate?`<details class="m26-panel m26-panel-soft m26-library-create-disclosure" data-exercise-create-panel><summary class="m26-library-create-trigger"><span><small>Catálogo IBERFIT</small><strong>Crear ejercicio personalizado</strong></span><span class="m26-library-create-open">Abrir o cerrar</span></summary><div class="m26-library-create-body"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Catálogo IBERFIT</p><h2>Crear ejercicio personalizado</h2><p>Añádelo una sola vez al catálogo canónico. Quedará disponible inmediatamente para planificar sesiones y pendiente de revisión profesional.</p></div>${badge('Coach · Admin','neutral')}</div><form data-exercise-create-form data-guided-required-form><div class="m26-field-grid"><label>Nombre del ejercicio<input name="nameEs" required minlength="2" maxlength="160" autocomplete="off" spellcheck="false"></label><label>Patrón<select name="pattern" required><option value="">Selecciona</option><option value="sentadilla">Sentadilla</option><option value="bisagra">Bisagra</option><option value="empuje horizontal">Empuje horizontal</option><option value="empuje vertical">Empuje vertical</option><option value="tracción horizontal">Tracción horizontal</option><option value="tracción vertical">Tracción vertical</option><option value="core">Core</option><option value="movilidad">Movilidad</option><option value="potencia">Potencia</option><option value="complementario">Complementario</option></select></label><label>Objetivo<select name="intent" required><option value="">Selecciona</option><option value="fuerza">Fuerza</option><option value="hipertrofia">Hipertrofia</option><option value="técnica">Técnica</option><option value="movilidad">Movilidad</option><option value="potencia">Potencia</option><option value="acondicionamiento">Acondicionamiento</option></select></label><label>Material<input name="equipment" required minlength="2" maxlength="80" placeholder="Ej. mancuerna, TRX, sin material"></label><label>Dificultad<select name="difficulty" required><option value="">Selecciona</option><option value="inicial">Inicial</option><option value="media">Media</option><option value="avanzada">Avanzada</option></select></label><label>Musculatura principal<input name="primaryMuscles" maxlength="960" placeholder="Ej. glúteos, cuádriceps"></label></div><details><summary>Completar indicaciones técnicas</summary><div class="m26-field-grid"><label>Musculatura secundaria<input name="secondaryMuscles" maxlength="960" placeholder="Separada por comas"></label><label>Claves técnicas<textarea name="cues" maxlength="2880" rows="3" placeholder="Una por línea o separadas por comas"></textarea></label><label>Ejecución<textarea name="instructionsEs" maxlength="4800" rows="4" placeholder="Pasos de ejecución"></textarea></label><label>Precauciones<textarea name="precautions" maxlength="2880" rows="3" placeholder="Solo cuando corresponda"></textarea></label></div></details><div class="m26-notice"><strong>Catálogo, no texto libre</strong><p>El ejercicio se crea con un ID estable IBERFIT, sin imagen hasta su validación. Las sesiones siguen aceptando únicamente ejercicios presentes en el catálogo.</p></div><p class="m26-field-help" data-guided-required-progress aria-live="polite"></p><button type="submit" class="m26-primary-action">Crear y añadir al catálogo</button><p data-exercise-create-status role="status" aria-live="polite"></p></form></div></details>`:'';
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Biblioteca visual</p><h2>Ejercicios IBERFIT</h2><p>Organizados por musculatura principal, con indicaciones y referencias visuales validadas. El catálogo sigue siendo la fuente canónica y no admite escritura libre en las sesiones.</p></div>${badge(`${vm.total} ejercicios`,'neutral')}</section>${creation}<section class="m26-panel"><div class="m26-library-controls"><label>Buscar ejercicio<input type="search" data-library-search autocomplete="off" spellcheck="false" aria-describedby="m26-library-status"></label><label>Material<select data-library-filter="equipment"><option value="">Todo</option><option value="sin material">Sin material</option><option value="trx">TRX</option><option value="mancuerna">Mancuernas</option><option value="banda">Bandas</option><option value="máquina">Máquina</option></select></label><label>Patrón<select data-library-filter="pattern"><option value="">Todos</option><option value="sentadilla">Sentadilla</option><option value="empuje">Empuje</option><option value="tracción">Tracción</option><option value="bisagra">Bisagra</option><option value="core">Core</option></select></label><label>Referencia visual<select data-library-filter="visual"><option value="">Todas</option><option value="with-image">Con imagen validada</option><option value="without-image">Sin imagen</option></select></label><button type="button" data-library-clear>Limpiar filtros</button></div><div class="m26-library-groups" data-library-grid>${groups||emptyState('Biblioteca no cargada','No se pudo leer el catálogo local.')}</div><p id="m26-library-status" data-library-status role="status" aria-live="polite">Mostrando los ${vm.total} ejercicios del catálogo, agrupados por musculatura principal. Escribe para filtrar.</p>${credit}</section></div>`;
 }
 

@@ -62,6 +62,7 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
   await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
 
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
   await form.evaluate((node)=>{node.dataset.qaFormIdentity='stable-client-create-form';});
@@ -143,6 +144,7 @@ test('Admin client wizard accepts one real click and keeps input/select alive ac
   await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
 
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   const name=form.locator('input[name="name"]');
   await name.evaluate((node)=>{node.dataset.qaStableIdentity='admin-real-mouse-name';});
@@ -185,6 +187,7 @@ test('mouse release cannot let a direct controller render destroy the focused cl
   await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
 
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
   await form.evaluate((node)=>{node.dataset.qaFormIdentity='mouse-release-direct-render';});
@@ -223,6 +226,7 @@ test('touch tap gives text fields native focus before typing and keeps the mobil
   });
 
   const root=page.locator('#qa-root');
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   const name=form.locator('input[name="name"]');
   await name.scrollIntoViewIfNeeded();
@@ -282,6 +286,7 @@ test('label taps keep text inputs and native selects alive while a shell refresh
   await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
 
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await form.evaluate((node)=>{node.dataset.qaFormIdentity='label-tap-form';});
 
@@ -333,6 +338,7 @@ test('real client form survives transient mobile blur while a shell refresh is q
   await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
 
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await form.evaluate((node)=>{node.dataset.qaFormIdentity='transient-blur-form';});
   const name=form.locator('input[name="name"]');

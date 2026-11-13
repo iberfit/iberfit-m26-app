@@ -59,13 +59,13 @@ async function expectCanonicalAdminShell(page,{form=null}={}){
   // M41's finished surface is deliberately MATTE. A gradient here is a
   // visual regression, not evidence of quality. Assert actual rendered paint.
   expect(vision.workspaceBackground).toBe('none');
-  // B12 warmer forest workspace remains MATTE, never a gradient or white panel.
-  expect(vision.workspaceBackgroundColor).toBe('rgb(13, 25, 19)');
+  // SIGNATURE 360 deep emerald remains matte and matches the approved surface.
+  expect(vision.workspaceBackgroundColor).toBe('rgb(5, 30, 21)');
   expect(vision.navScheme).toContain('dark');
   expect(vision.navBackground).toBe('none');
   expect(vision.navBackgroundColor).toMatch(/rgba?\(\s*(?:13,\s*30,\s*23|11,\s*19,\s*16)/u);
   expect(vision.surfaceBackgroundImage).toBe('none');
-  expect(vision.surfaceBackground).toMatch(/^rgb\(\s*(?:28,\s*48,\s*38|22,\s*40,\s*32|19,\s*34,\s*28|16,\s*29,\s*24)\s*\)$/u);
+  expect(vision.surfaceBackground).toBe('rgb(12, 48, 35)');
   expect(vision.workspaceBackgroundColor+' '+vision.navBackgroundColor+' '+vision.surfaceBackground)
     .not.toMatch(/rgb\(255,\s*255,\s*255\)|rgb\(243,\s*238,\s*227\)/u);
 
@@ -202,6 +202,7 @@ test('Admin users and client-create surfaces produce current visual evidence',as
 
   await page.goto('/qa/admin-interaction/fixture.html?route=clients',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
   await expectCanonicalAdminShell(page,{form});

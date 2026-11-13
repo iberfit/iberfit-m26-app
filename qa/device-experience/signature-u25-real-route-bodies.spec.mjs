@@ -64,35 +64,20 @@ for(const role of ['client','coach','admin']){
       expect(actual.placeholder,role+' '+area+' no shell placeholder').toBe(0);
       if(role==='admin')expect(actual.permissionDenied,'Admin '+area+' must be the real authorized synthetic body, not a denial screen').toBe(false);
       expect(actual.inert,role+' '+area+' no frozen main').toBe(false);
-      // U110: authorized Admin data must expose the final action column on touch.
+      // CRM uses a keyboard-operable directory and a bounded record, with no horizontal table.
       if(role==='admin'&&area==='admin-clientes'){
-        const region=page.locator('.m26-admin-table[role="region"]').first();
-        await expect(region).toBeVisible();
-        const table=await region.evaluate(el=>{
-          const headings=[...el.querySelectorAll('thead th')],last=headings.at(-1);
-          const before=el.scrollLeft;
-          el.scrollLeft=el.scrollWidth;
-          const after=el.scrollLeft,scrollRect=el.getBoundingClientRect();
-          const lastRect=last?.getBoundingClientRect();
-          const result={label:el.getAttribute('aria-label'),tabindex:el.tabIndex,
-            headings:headings.map(h=>h.textContent.trim()),
-            columnScopes:headings.every(h=>h.scope==='col'),
-            scrollable:el.scrollWidth>el.clientWidth+2,
-            geometry:{client:el.clientWidth,scroll:el.scrollWidth,viewport:document.documentElement.clientWidth,tableWidth:el.querySelector('table')?.getBoundingClientRect().width||0},
-            scrolled:after>before,
-            finalColumnVisible:Boolean(lastRect&&lastRect.right<=scrollRect.right+2&&lastRect.left>=scrollRect.left-2)};
-          el.scrollLeft=before;
-          return result;
-        });
-        expect(table.tabindex,'Admin table keyboard focus').toBe(0);
-        expect(table.label).toBeTruthy();
-        expect(table.columnScopes).toBe(true);
-        expect(table.headings.at(-1)).toBe('Gestión');
-        if(width<=390){
-          expect(table.scrollable,'Admin table must fit viewport and expose overflow, geometry: '+JSON.stringify(table.geometry)).toBe(true);
-          expect(table.scrolled,'Admin table must scroll sideways').toBe(true);
-          expect(table.finalColumnVisible,'Admin final action column fully inspectable').toBe(true);
-        }
+        const person=page.locator('[data-admin-person-select]').first();
+        await expect(person).toBeVisible();
+        await person.focus();await page.keyboard.press('Enter');
+        await expect(person).toHaveAttribute('aria-pressed','true');
+        await expect(page.locator('.m26-crm-record:visible')).toHaveCount(1);
+        const record=await page.locator('.m26-crm-record:visible').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth}));
+        expect(record.scroll).toBeLessThanOrEqual(record.width+2);
+        await page.locator('[data-admin-person-search]').fill('no-match-qa');
+        await expect(page.locator('.m26-crm-record:visible')).toHaveCount(0);
+        await expect(page.locator('[data-admin-person-filter-status]')).toContainText('No hay personas');
+        await page.locator('[data-admin-person-search]').fill('');
+        await expect(page.locator('.m26-crm-record:visible')).toHaveCount(1);
       }
 
       // U111: screenshots showed Coach desktop priority buttons compressed to
