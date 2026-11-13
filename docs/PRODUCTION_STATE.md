@@ -1,3 +1,12 @@
+## SIGNATURE 360 · evidencia QA sintética por RUN · 13/11/2026
+
+- PR visual aislada #1336, SHA candidato anterior `d4294499841d4c6035272fe09a5738b0e94703e4`, sin cambios de producto desplegados.
+- Canary Policy, SonarCloud, CI, Device Experience, evidencia visual, WebAuthn Coach/Admin, matriz Admin y sesiones aisladas **SUCCESS** en ese SHA.
+- QA Real Write workflow `43510763626`: el recorrido autenticado M43 Cliente reportó un HTTP `500` de `iberfit_bootstrap_v26` tras una ejecución sintética en su primer intento. El rerun del job dentro del MISMO run fue rechazado de forma esperada por `M43_SYNTHETIC_FIXTURE_ALREADY_COMPLETED_NEW_RUN_REQUIRED`, sin repetir writes sobre la sesión ya confirmada.
+- Se exige una certificación completa nueva con **nuevo run_id y nueva fixture sintética**; no editar tests, datos QA ni backend, no omitir el gate, y no fusionar si el 500 se reproduce.
+- Evidencia M44 previa independiente y cifrada run `43509486165`: backup PROD DB+137 objetos Storage, PG17 restauración aislada y verificación de hashes; aplicar además vencimiento estricto y verificación exacta al promover. No acredita recuperación completa de Auth alojado.
+- Este checkpoint documental NO altera archivos desplegables, CSS, Auth, SQL, permisos, sesiones ni el diseño aprobado `d8f5e210cbac5a2bf529cd4497f073e805f22c04`.
+
 ## SIGNATURE 360 · entrega exclusivamente visual · 13/11/2026 · NO DESPLEGADA
 
 - Base LIVE y Canary verificadas: `7790bf66e93edb01faf98a1ebdcbd8e410d998bb`. Rama aislada `design/signature-360-visual-only-20261113`; no fusionar #1335 para publicar este diseño.
