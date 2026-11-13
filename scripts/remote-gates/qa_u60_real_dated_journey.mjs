@@ -110,6 +110,50 @@ export function validatedDatedCandidates(raw,owner,day){
  return Object.freeze([...raw.candidates].sort((a,b)=>a.id.localeCompare(b.id))
   .map(item=>Object.freeze({...item})));
 }
+/**
+ * U71 exact-sha, same-owner appointment collision avoidance.
+ * Only picks among future <=55-minute Santiago slots; no rounding across DST.
+ * Missing schedule coverage/fully occupied window aborts BEFORE any write.
+ */
+export function chooseUnoccupiedDatedSlot({
+ today,future,duration,clockMinute,calendar,fixedTime=null,nowMs=Date.now()
+}={}){
+ assert(/^\d{4}-\d{2}-\d{2}$/.test(String(today))&&
+  /^\d{4}-\d{2}-\d{2}$/.test(String(future))&&
+  Array.isArray(calendar)&&calendar.length<=50&&
+  Number.isInteger(clockMinute)&&clockMinute>=0&&clockMinute<1440&&
+  Number.isFinite(duration)&&duration>=10&&duration<=240&&
+  Number.isFinite(nowMs),'QA_SLOT_INPUT_INVALID');
+ const from=fixedTime
+  ?Number(fixedTime.slice(0,2))*60+Number(fixedTime.slice(3,5))
+  :Math.ceil((clockMinute+25)/5)*5;
+ assert(!fixedTime||/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(fixedTime),
+  'QA_SLOT_CERTIFIED_TIME_INVALID');
+ const deadline=fixedTime?from:Math.min(1439,clockMinute+55);
+ const busy=calendar.filter(row=>row.status!=='cancelada').map(row=>{
+  const a=Date.parse(String(row.startsAt||'')),
+        b=Date.parse(String(row.endsAt||''));
+  assert(Number.isFinite(a)&&Number.isFinite(b)&&b>a,
+   'QA_CALENDAR_INCOMPLETE_FOR_SLOT');
+  return [a,b];
+ });
+ for(let n=from;n<=deadline&&n<1440;n+=5){
+  const time=String(Math.floor(n/60)).padStart(2,'0')+':'+
+   String(n%60).padStart(2,'0');
+  let start1,start2;
+  try{
+   start1=santiagoAppointmentInstant(today+'T'+time);
+   start2=santiagoAppointmentInstant(future+'T'+time);
+  }catch{continue;}
+  const a=Date.parse(start1),b=Date.parse(start2),width=duration*60000;
+  if(a<=nowMs||a-nowMs>=3600000)continue;
+  if(busy.some(([x,y])=>(a<y&&a+width>x)||(b<y&&b+width>x)))continue;
+  return Object.freeze({time,start1,start2,
+   end1:new Date(a+width).toISOString(),end2:new Date(b+width).toISOString()});
+ }
+ throw Error('U71_QA_NO_CONFLICT_FREE_SLOT');
+}
+
 function context(mode){
  const e=process.env;
  for(const name of ['M26_QA_ONLY','M26_PROJECT_REF','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -228,17 +272,8 @@ async function authenticatedStage(ctx,certified=null){
  const clock=chileanClock(),today=clock.day,future=dayOffset(today,7);
  const candidates=validatedDatedCandidates(raw,clientA,today);
  assert(candidates.length>0,'NO_SUITABLE_SYNTHETIC_PRESCRIPTION');
- // Each date must be a valid exact local instant (never DST guessed).
- const minute=certified
-  ? Number(certified.localTime.slice(0,2))*60+Number(certified.localTime.slice(3,5))
-  : Math.ceil((clock.minute+25)/5)*5;
- assert(Number.isInteger(minute)&&minute>=0&&minute<1440,'NO_SAFE_TODAY_APPOINTMENT_WINDOW');
- const hh=String(Math.floor(minute/60)).padStart(2,'0');
- const mm=String(minute%60).padStart(2,'0');
- const time=hh+':'+mm;
- const start1=santiagoAppointmentInstant(today+'T'+time);
- const start2=santiagoAppointmentInstant(future+'T'+time);
- assert(Date.parse(start1)>Date.now()&&Date.parse(start1)-Date.now()<3600000,'APPOINTMENT_CLOCK_DRIFT');
+ // The exact available slot is selected from the complete authorised dated
+ // calendar after a candidate prescription is chosen; no time conflicts.
  const foreignCandidates=await rpc(ctx,b.jwt,'iberfit_u71_dated_candidates_qa_v1',{});
  assert(denied(foreignCandidates),'CANDIDATE_CROSS_CLIENT_EXPOSED');
  const old=await checkedCalendar(ctx,coach.jwt,clientA,today,future);
@@ -249,8 +284,9 @@ async function authenticatedStage(ctx,certified=null){
  assert(!old.some(row=>row.status==='en_curso'),'QA_CLIENT_ACTIVE_EXECUTION');
  const chosen=firstAvailableDatedCandidate(candidates,old,today,future);
  assert(chosen,'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
- const end1=new Date(Date.parse(start1)+chosen.duration*60000).toISOString();
- const end2=new Date(Date.parse(start2)+chosen.duration*60000).toISOString();
+ const {time,start1,start2,end1,end2}=chooseUnoccupiedDatedSlot({
+  today,future,duration:chosen.duration,clockMinute:clock.minute,
+  calendar:old,fixedTime:certified?.localTime||null});
  const foreign=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:2});
  assert(denied(foreign),'CROSS_CLIENT_SCOPE_BROKEN');
  const appointments=[{date:today,startAt:start1,endAt:end1},{date:future,startAt:start2,endAt:end2}];

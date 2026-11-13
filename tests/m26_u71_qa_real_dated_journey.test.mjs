@@ -261,3 +261,27 @@ test('M1 U72 real QA Coach-Client-Coach HTTP proof includes durable pause/resume
  assert.match(wf,/github\.run_attempt == 2/u);
  assert.doesNotMatch(wf,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
 });
+
+test('U71 QA protects the two-phase appointment schedule from old completed time collisions',async()=>{
+ const {chooseUnoccupiedDatedSlot}=await import('../scripts/remote-gates/qa_u60_real_dated_journey.mjs');
+ const {santiagoAppointmentInstant}=await import('../src/m26/workflows/agenda-workflow.js');
+ const today='2026-11-12',future='2026-11-19';
+ const base=Date.parse(santiagoAppointmentInstant('2026-11-12T20:00'));
+ const start=santiagoAppointmentInstant('2026-11-12T20:25');
+ const end=new Date(Date.parse(start)+20*60000).toISOString();
+ const rows=[{status:'completada',startsAt:start,endsAt:end}];
+ const picked=chooseUnoccupiedDatedSlot({today,future,duration:20,
+  clockMinute:1200,calendar:rows,nowMs:base});
+ assert.equal(picked.time,'20:45');
+ assert.equal(picked.start1,end);
+ assert.throws(()=>chooseUnoccupiedDatedSlot({today,future,duration:20,
+  clockMinute:1200,calendar:rows,fixedTime:'20:25',nowMs:base}),
+  /U71_QA_NO_CONFLICT_FREE_SLOT/);
+ assert.throws(()=>chooseUnoccupiedDatedSlot({today,future,duration:20,
+  clockMinute:1200,calendar:[{status:'confirmada',startsAt:null,endsAt:null}],
+  nowMs:base}),/U71_QA_CALENDAR_INCOMPLETE_FOR_SLOT/);
+ const code=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ assert.ok(code.indexOf('const old=await checkedCalendar(')<
+  code.indexOf('chooseUnoccupiedDatedSlot({'));
+ assert.ok(code.includes('fixedTime:certified?.localTime'));
+});
