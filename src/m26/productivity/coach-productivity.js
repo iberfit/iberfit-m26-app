@@ -182,7 +182,20 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
 
   function workspace(){return readWorkspace(storage,storageKey);}
   function persist(next){return writeWorkspace(storage,storageKey,next);}
-  function role(){return String(store.getState()?.identity?.role||'').toLowerCase();}
+  // Presentation needs only verified role and the authorized Client directory.
+  // Never copy the full U38 execution archive for a key, route or shell event.
+  // Legacy lightweight store implementations keep their previous API.
+  function directorySnapshot(){
+    return typeof store.getRouteAuthorizationSnapshot==='function'
+      ?store.getRouteAuthorizationSnapshot()
+      :store.getState();
+  }
+  function role(){
+    const snapshot=typeof store.getNavigationSnapshot==='function'
+      ?store.getNavigationSnapshot()
+      :directorySnapshot();
+    return String(snapshot?.identity?.role||'').toLowerCase();
+  }
   function enabled(){return ['coach','admin'].includes(role());}
 
   function commandAreas(){
@@ -191,7 +204,7 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
     return uniqueBy(items,(item)=>item.area);
   }
 
-  function commandEntries(){const state=store.getState();return buildCoachCommandEntries({areas:commandAreas(),clients:state?.collections?.clients||[],selectedClientId:state?.selectedClientId||null,role:role()});}
+  function commandEntries(){const state=directorySnapshot();return buildCoachCommandEntries({areas:commandAreas(),clients:state?.collections?.clients||[],selectedClientId:state?.selectedClientId||null,role:String(state?.identity?.role||'').toLowerCase()});}
 
   function renderPalette(query=''){
     const host=root.querySelector?.('[data-coach-command-results]');if(!host)return [];
@@ -247,7 +260,7 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
 
   function renderRecents(){
     const host=root.querySelector?.('[data-coach-recents]');if(!host)return;
-    const state=store.getState();const byId=new Map((state?.collections?.clients||[]).map((client)=>[String(client.id),client]));
+    const state=directorySnapshot();const byId=new Map((state?.collections?.clients||[]).map((client)=>[String(client.id),client]));
     const recentClients=workspace().recents.map((id)=>byId.get(id)).filter(Boolean);
     setHtmlIfChanged(host,recentClients.length
       ?`<span>Recientes</span>${recentClients.map((client)=>`<button type="button" data-m26-select-client="${escapeHtml(client.id)}">${escapeHtml(client.name||'Cliente')}</button>`).join('')}`
@@ -308,7 +321,10 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
   return Object.freeze({
     mount(){
       if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('input',onInput);root.addEventListener('change',onChange);root.addEventListener('m26:shell-rendered',onShellRendered);globalThis.addEventListener?.('keydown',onKeydown);
-      if(typeof store.subscribe==='function')unsubscribeStore=store.subscribe(queueHydrate);
+      // Invalidation carries no historical payload. Legacy stores without
+      // this API retain the historical subscription behavior.
+      if(typeof store.subscribeInvalidation==='function')unsubscribeStore=store.subscribeInvalidation(queueHydrate);
+      else if(typeof store.subscribe==='function')unsubscribeStore=store.subscribe(queueHydrate);
       queueHydrate();mounted=true;
     },
     destroy(){
