@@ -34,10 +34,10 @@ test('U71 stage-2 reuses immutable originally certified Santiago time and same-d
  const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
  assert.match(s,/const original=mode==='apply'/);
  assert.match(s,/async function authenticatedStage\(ctx,certified=null\)/);
- assert.match(s,/Number\(certified\.localTime\.slice/);
+ assert.match(s,/fixedTime:certified\?\.localTime/);
  assert.match(s,/original\.localTime===plan\.time/);
  assert.match(s,/old\.localTime===proof\.localTime/);
- assert.match(s,/APPOINTMENT_CLOCK_DRIFT/);
+ assert.match(s,/U71_QA_NO_CONFLICT_FREE_SLOT/);
 });
 test('U71 only QA origin, ordinary JWT, native commands, two-phase write gate',()=>{
  const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
