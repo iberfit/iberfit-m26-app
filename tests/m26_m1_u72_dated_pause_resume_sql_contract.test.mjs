@@ -22,3 +22,15 @@ test('U72 pause/resume migration is QA-only and preserves U31 receipts and old S
  assert.match(reverse,/M1_U72_QA_ROLLBACK_DRIFT/u);
  assert.ok(reverse.includes('DROP FUNCTION private.iberfit_u72_occurrence_pause_resume_v1'));
 });
+
+test('U72 QA precedence repair has exact source hashes and no direct grants',()=>{
+  const fix=readFileSync(new URL('../supabase/qa-migrations/20261113015000_m1_u72_payload_shape_precedence_qa_v1.sql',import.meta.url),'utf8');
+  const rollback=readFileSync(new URL('../supabase/qa-rollbacks/20261113015000_m1_u72_payload_shape_precedence_qa_v1.rollback.sql',import.meta.url),'utf8');
+  assert.ok(fix.includes("((p_command->'payload')-'executionId'-'executionBaseRevision')"));
+  assert.match(fix,/U72_PRECEDENCE_SOURCE_DRIFT/u);
+  assert.match(fix,/U72_PRECEDENCE_CANDIDATE_DRIFT/u);
+  assert.match(fix,/U72_PRECEDENCE_READBACK_OR_ACL_DRIFT/u);
+  assert.match(rollback,/U72_PRECEDENCE_ROLLBACK_UNSAFE/u);
+  assert.match(rollback,/U72_PRECEDENCE_ROLLBACK_READBACK_FAILED/u);
+  assert.doesNotMatch(fix,/\bDROP TABLE\b|\bTRUNCATE\b/iu);
+});
