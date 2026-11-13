@@ -192,7 +192,7 @@ test('U66 Stitch authentic context landmark is not a wellbeing metric or duplica
   const html=renderHoyRoute(base);
   assert.match(html,/<nav class="m26-client-home-compass" aria-label="Tu espacio de entrenamiento"/);
   assert.match(html,/<strong>Tu espacio de entrenamiento<\/strong>/);
-  assert.match(html,/<div class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"/);
+  assert.match(html,/<section class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"/);
   assert.equal((html.match(/data-client-home-compass/g)||[]).length,1);
   assert.equal((html.match(/m26-client-home-compass-actions"/g)||[]).length,1);
   for(const destination of ['sesion','progreso','actividad'])
@@ -341,7 +341,7 @@ test('U80 visual evidence covers every canonical role route on both reference wi
 test('U78 single-surface Client prescription keeps full data and readable missing-media state',()=>{
   const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
   const test=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
-  const section=css.split('U78 · Editorial published prescription')[1]||'';
+  const section=css.split('U78 · Editorial published prescription')[1]?.split('/* SIGNATURE 360 structural components.')[0]||'';
   assert.match(section,/m26-session-preview-blocks\{/);
   assert.match(section,/m26-session-preview-block\{/);
   assert.match(section,/background:transparent/);
@@ -359,7 +359,7 @@ test('U78 single-surface Client prescription keeps full data and readable missin
 test('U81 Client prescription facts use a single accessible data band without losing the real values',()=>{
   const css=fs.readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css',import.meta.url),'utf8');
   const browser=fs.readFileSync(new URL('../qa/live-workout/live-workout-browser.spec.mjs',import.meta.url),'utf8');
-  const u81=css.split('U81 · Stitch-inspired factual band')[1]||'';
+  const u81=css.split('U81 · Stitch-inspired factual band')[1]?.split('/* SIGNATURE 360 structural components.')[0]||'';
   assert.match(u81,/m26-session-preview-facts\{/);
   assert.match(u81,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(u81,/m26-session-preview-facts>div\{/);

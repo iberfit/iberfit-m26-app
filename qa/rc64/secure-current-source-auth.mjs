@@ -133,12 +133,12 @@ export function isQaReadonlyDatedRequest(request,rpc){
   try{body=request.postDataJSON();}catch{return false;}
   if(!body||typeof body!=='object'||Array.isArray(body))return false;
   if(rpc==='iberfit_occurrence_detail_v1'){
-    return Object.keys(body).sort().join(',')==='p_client_id,p_occurrence_id'
+    return Object.keys(body).sort((a,b)=>a.localeCompare(b)).join(',')==='p_client_id,p_occurrence_id'
       &&uuid.test(String(body.p_client_id||''))
       &&uuid.test(String(body.p_occurrence_id||''));
   }
   if(rpc==='iberfit_occurrence_api_u60_v1'){
-    if(Object.keys(body).sort().join(',')!=='p_action,p_payload'
+    if(Object.keys(body).sort((a,b)=>a.localeCompare(b)).join(',')!=='p_action,p_payload'
       ||body.p_action!=='CALENDARIO')return false;
     const q=body.p_payload;
     if(!q||typeof q!=='object'||Array.isArray(q))return false;
@@ -276,7 +276,7 @@ function publicRpcMemoKey(request,url){
     const params=JSON.parse(raw);
     if(!params||typeof params!=='object'||Array.isArray(params))return null;
     if(url.pathname.endsWith('/iberfit_exercise_catalog_public_v1')){
-      if(Object.keys(params).sort().join(',')!=='p_limit,p_offset'
+      if(Object.keys(params).sort((a,b)=>a.localeCompare(b)).join(',')!=='p_limit,p_offset'
         ||!Number.isInteger(params.p_limit)||params.p_limit<1||params.p_limit>200
         ||!Number.isInteger(params.p_offset)||params.p_offset<0||params.p_offset>5000)return null;
     }else if(Object.keys(params).length!==0)return null;

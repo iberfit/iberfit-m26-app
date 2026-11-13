@@ -84,7 +84,7 @@ test('U120 exact QA source exception requires eight frozen Git blobs, never broa
    sourceSha:TARGET,expectedPreviousLiveSha:BASE,changedPaths:[...accepted,malicious],
  }),/FRONTEND_ONLY_BACKEND_CHANGED/u,malicious);
  const source=fs.readFileSync(new URL('../scripts/release/verify_frontend_only_promotion.mjs',import.meta.url),'utf8');
- assert.match(source,/blobAtSource:\(source,path\)=>execFileSync\('git',\['rev-parse',source\+':'\+path\]/u);
+ assert.match(source,/blobAtSource:\(source,path\)=>execFileSync\(SYSTEM_GIT,\['rev-parse',source\+':'\+path\]/u);
  assert.match(source,/frozenQaInertArtifactsVerified:qaArtifacts\.verified/u);
 });
 

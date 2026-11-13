@@ -23,6 +23,7 @@ test('person without training filters and service activation preserve the same r
 
 test('IRI entry submits without a weekly training frequency',async({page})=>{
   await page.goto('/qa/admin-interaction/fixture.html?route=clients');
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await form.locator('[name="name"]').fill('Persona IRI QA');
   await form.locator('[name="email"]').fill('qa-persona@example.invalid');
@@ -284,6 +285,7 @@ test('Admin client-create wizard preserves entered values while selects and step
   await page.goto('/qa/admin-interaction/fixture.html?route=clients',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
 
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.scrollingElement).scrollBehavior)).toBe('auto');
@@ -531,4 +533,19 @@ test('Sidebar settings popover remains above workspace scrollable and receives p
   if(testInfo.project.name.includes('tablet'))await target.tap();else await target.click();
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
+});
+
+
+test('CRM keeps the selected second record after a confirmed service update',async({page})=>{
+  await page.goto('/qa/admin-interaction/fixture.html?route=clients&lifecycle=1');
+  const entry=page.locator('[data-admin-person-select="active-person"]');
+  await entry.click();
+  const record=page.locator('[data-admin-client-id="active-person"]');
+  const form=record.locator('[data-admin-form="client-training-service"]');
+  await form.locator('[name="reason"]').fill('QA continuidad del expediente');
+  await form.locator('button[type="submit"]').click();
+  await expect(entry).toHaveAttribute('aria-pressed','true');
+  await expect(record).toBeVisible();
+  await expect(page.locator('.m26-crm-record:visible')).toHaveCount(1);
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__.commands().length)).toBe(1);
 });

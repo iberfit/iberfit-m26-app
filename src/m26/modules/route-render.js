@@ -490,27 +490,6 @@ function renderCoachHoyRoute(vm) {
         <button type="button" class="m26-text-action" data-m26-area="agenda">Abrir agenda completa</button>
       </section>
 
-      <section class="m26-panel m26-panel-soft m26-coach-home-section m26-coach-home-attention">
-        <div class="m26-panel-heading">
-          <div>
-            <p class="m26-eyebrow">Atención de cartera</p>
-            <h2>Atención</h2>
-          </div>
-          ${badge(attentionStatus,attentionCount?'warning':'success')}
-        </div>
-        ${attentionBody}
-        ${(cockpit?.items?.length||0)>4?'<button type="button" class="m26-text-action" data-m26-area="clientes">Gestionar cartera completa</button>':''}
-      </section>
-    </div>
-
-    ${proposalCount?`<section class="m26-coach-home-proposals">
-      <div>
-        <p class="m26-eyebrow">Pendiente</p>
-        <strong>${escapeHtml(countLabel(proposalCount,'propuesta necesita decisión','propuestas necesitan decisión'))}</strong>
-      </div>
-      <button type="button" class="m26-text-action" data-m26-area="agenda">Revisar</button>
-    </section>`:''}
-
     <section class="m26-panel m26-coach-home-section m26-coach-home-clients">
       <div class="m26-panel-heading">
         <div>
@@ -521,6 +500,29 @@ function renderCoachHoyRoute(vm) {
       </div>
       <div class="m26-coach-home-client-grid">${clientsBody}</div>
     </section>
+
+    </div>
+
+    ${attentionCount?`      <section class="m26-panel m26-panel-soft m26-coach-home-section m26-coach-home-attention">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Atención de cartera</p>
+            <h2>Atención</h2>
+          </div>
+          ${badge(attentionStatus,attentionCount?'warning':'success')}
+        </div>
+        ${attentionBody}
+        ${(cockpit?.items?.length||0)>4?'<button type="button" class="m26-text-action" data-m26-area="clientes">Gestionar cartera completa</button>':''}
+      </section>`:''}
+    ${proposalCount?`<section class="m26-coach-home-proposals">
+      <div>
+        <p class="m26-eyebrow">Pendiente</p>
+        <strong>${escapeHtml(countLabel(proposalCount,'propuesta necesita decisión','propuestas necesitan decisión'))}</strong>
+      </div>
+      <button type="button" class="m26-text-action" data-m26-area="agenda">Revisar</button>
+    </section>`:''}
+
+
   </div>`;
 }
 
@@ -923,7 +925,7 @@ function renderClientHoyRoute(vm) {
       ${!trainingSurface?`<div class="m26-client-home-status"><span>${escapeHtml(primary.eyebrow)}</span><strong>${escapeHtml(primary.title)}</strong><p>${escapeHtml(primary.detail)}</p></div>`:''}
       </div>
 
-      <div class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
+      <section class="m26-client-home-primary-zone" role="group" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
         ${trainingSurface&&primary.area!=='actividad'?`<div class="m26-client-home-status">
           <span>${escapeHtml(primary.eyebrow)}</span>
           <strong>${escapeHtml(primary.title)}</strong>
@@ -931,7 +933,7 @@ function renderClientHoyRoute(vm) {
         </div>`:''}
         ${primary.markup}
         ${publishedStructure}
-      </div>
+      </section>
     </section>
 
     ${trainingSurface?renderClientWeekRail(upcoming):''}
@@ -1419,7 +1421,7 @@ export function renderClientsRoute(vm) {
   const productivity=['coach','admin'].includes(String(vm.role||''))
     ? `<section class="m26-coach-productivity-toolbar" data-coach-productivity-toolbar><div><p class="m26-eyebrow">Productividad Coach</p><h3>Vistas y recientes</h3><p>Guarda combinaciones de búsqueda y filtros en este dispositivo. No se guardan datos de salud.</p></div><div class="m26-coach-productivity-controls"><label>Nombre de la vista<input data-coach-view-name maxlength="60" placeholder="Ej. Seguimiento activo"></label><label>Vistas guardadas<select data-coach-saved-view><option value="">Seleccionar vista…</option></select></label><button type="button" data-coach-save-view>Guardar vista actual</button><button type="button" data-coach-delete-view>Eliminar vista</button></div><div class="m26-coach-recents" data-coach-recents><span>Recientes</span><small>Aparecerán al abrir expedientes.</small></div><p class="m26-coach-productivity-status" data-coach-productivity-status role="status" aria-live="polite"></p></section>`
     : '';
-  return `<div class="m26-route m26-client-directory-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div>${followUpQueue}${productivity}<p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
+  return `<div class="m26-route m26-client-directory-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div></section>${followUpQueue}${productivity}<section class="m26-panel m26-directory-results"><p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
 }
 
 function field(label, value) {

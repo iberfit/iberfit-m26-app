@@ -88,7 +88,7 @@ export function denied(x){
 // Reject unexpected keys, other owners, wrong date, duplicates and raw bodies.
 export function validatedDatedCandidates(raw,owner,day){
  assert(raw&&typeof raw==='object'&&!Array.isArray(raw)
-   &&Object.keys(raw).sort().join(',')==='candidates,clientId,count,day,project,schema'
+   &&Object.keys(raw).sort((a,b)=>a.localeCompare(b)).join(',')==='candidates,clientId,count,day,project,schema'
    &&raw.schema==='iberfit.u71.qa.dated-candidates.v1'
    &&raw.project==='QA'&&raw.clientId===owner&&raw.day===day
    &&UUID.test(owner)
@@ -98,7 +98,7 @@ export function validatedDatedCandidates(raw,owner,day){
  const seen=new Set();
  for(const item of raw.candidates){
   assert(item&&typeof item==='object'&&!Array.isArray(item)
-   &&Object.keys(item).sort().join(',')==='clientId,cycleId,duration,id,revision,sets'
+   &&Object.keys(item).sort((a,b)=>a.localeCompare(b)).join(',')==='clientId,cycleId,duration,id,revision,sets'
    &&UUID.test(item.id)&&UUID.test(item.cycleId)
    &&item.clientId===owner
    &&Number.isSafeInteger(item.revision)&&item.revision>=1

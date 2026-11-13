@@ -202,6 +202,7 @@ test('Admin users and client-create surfaces produce current visual evidence',as
 
   await page.goto('/qa/admin-interaction/fixture.html?route=clients',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
   await expectCanonicalAdminShell(page,{form});

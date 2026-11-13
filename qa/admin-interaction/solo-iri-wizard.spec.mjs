@@ -5,6 +5,7 @@ test('IRI entry changes the real Admin wizard immediately, survives navigation a
   await page.goto('/qa/admin-interaction/fixture.html?route=clients',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
 
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.scrollingElement).scrollBehavior)).toBe('auto');
@@ -131,6 +132,7 @@ test('P0 mobile WebKit wizard advances repeatedly after changing a native select
   test.setTimeout(90_000);
   await page.goto('/qa/admin-interaction/fixture.html?route=clients',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
+  await page.locator('.m26-crm-create > summary').click();
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>getComputedStyle(document.scrollingElement).scrollBehavior)).toBe('auto');

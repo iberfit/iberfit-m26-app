@@ -1,3 +1,13 @@
+## SIGNATURE 360 · PR #1335 · candidato local 13/11/2026, NO PROD
+
+- Base recuperada y verificada: `197289f7d34c0d230e1f2aa79d2050d80d161215`. Un único bloque en la rama vigente; conserva U72 y sus artefactos congelados.
+- Componentes reales: CRM directorio/expediente con búsqueda y alta progresiva; composición Coach de agenda/clientes y constructor biblioteca/prescripción; acción principal Cliente, esmeralda profundo e isotipo oficial. Sin cambios en Auth, permisos, SQL ni datos de producción.
+- Evidencia local: 301 revisiones de rutas/tamaños 320–1440 px sin incidencias geométricas; capturas Chromium con fixtures sintéticos explícitos, y accesibilidad automatizada en escenas principales. No equivalen a aceptación visual ni a E2E con cuentas reales.
+- Batería completa Windows: 6.478 aprobadas, 30 fallos y una omitida; correcciones propias y finales de línea verificadas después mediante suites focalizadas. Permanecen limitaciones locales de Bash/Python, enlaces simbólicos y rutas POSIX. CI Linux debe certificar el SHA consolidado.
+- Revalidación focalizada final: 309/309 unitarias; 58 recorridos de entrenamiento aprobados (2 omitidos por plataforma); 51 interacciones Admin/Coach iniciales y 6/6 revalidaciones CRM/alta en escritorio, tablet y móvil tras corregir el cierre del borrador. 37 capturas locales comparables con referencias.
+- Sonar: corregidos arranque de dependencias sin scripts, ejecutable Git fijo y ordenaciones explícitas; no se reducen umbrales ni se amplían exclusiones. Duplicación SQL congelada pendiente de resolución compatible con despliegue/restauración.
+- Producción bloqueada: requieren CI exacto, Sonar, cuentas reales, M44 reciente, restauración y rollback acreditados. No se ejecutó promoción ni modificación de base de datos.
+
 ## 11/11/2026 · Cierre evidencia TRAINING B · PR único pendiente de gates (NO PROD)
 - Base comprobada Canary `d577e5fb8ffb5d90f86e9e79981a0a5692c4409b`; C PR #1323 ya fusionado. PROD sigue A+B `2a41bc229007a78113eb3c408246445d4c40e783` en el último chequeo LIVE conocido; verificar antes de nueva promoción.
 - Corrección propuesta: reconciliación fail-closed por ID/revisión para progreso/Coach y tres estados de entrenamiento basados en evidencia compartida.

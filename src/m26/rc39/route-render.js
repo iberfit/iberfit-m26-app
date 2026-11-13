@@ -336,11 +336,13 @@ function renderCoachLaunchSelf(vm){
     </summary>
     <div class="m26-coach-launch-body">
       <p class="m26-coach-launch-intro">${escape(copy.intro)}</p>
-      <div class="m26-stat-grid"><article class="m26-stat"><span>${escape(progressCopy)}</span><strong>${escape(`${journey.percent}%`)}</strong><small>${escape(journey.source)}</small></article><article class="m26-stat"><span>${escape(copy.evidenceTitle)}</span><strong>${escape(journey.clientEvidenceCount)}</strong><small>${escape(copy.evidenceCopy)}</small></article></div>
-      <meter min="0" max="100" value="${escape(journey.percent)}" aria-label="${escape(progressCopy)}">${escape(`${journey.percent}%`)}</meter>
-      <div class="m26-stack">${milestoneRows}</div>
+      <div class="m26-coach-launch-overview">
+        <article class="m26-stat"><span>${escape(progressCopy)}</span><strong>${escape(`${journey.percent}%`)}</strong><meter min="0" max="100" value="${escape(journey.percent)}" aria-label="${escape(progressCopy)}">${escape(`${journey.percent}%`)}</meter><small>${escape(journey.source)}</small></article>
+        <article class="m26-stat"><span>${escape(copy.evidenceTitle)}</span><strong>${escape(journey.clientEvidenceCount)}</strong><small>${escape(copy.evidenceCopy)}</small></article>
+        <div class="m26-coach-launch-next"><p class="m26-eyebrow">${escape(copy.nextTitle)}</p>${actionMarkup}</div>
+      </div>
+      <details class="m26-coach-launch-evidence"><summary>Ver hitos y evidencia</summary><div class="m26-stack">${milestoneRows}</div></details>
       ${!journey.profileVerified||!journey.accountStatusVerified?`<aside class="m26-notice is-warning" role="status"><strong>${escape(copy.adminTitle)}</strong><p>${escape(copy.adminCopy)}</p></aside>`:''}
-      <div><p class="m26-eyebrow">${escape(copy.nextTitle)}</p>${actionMarkup}</div>
     </div>
   </details>`;
 }
@@ -725,7 +727,7 @@ function renderAgenda(vm){
             <p>Explora la distribución horaria. Las acciones y el detalle completo permanecen en las tarjetas de agenda.</p>
           </div>
         </div>
-        <div class="m26-rc62-agenda-calendar-shell" data-rc62-agenda-calendar aria-label="Calendario operativo del Coach"></div>
+        <div class="m26-rc62-agenda-calendar-shell" data-rc62-agenda-calendar role="region" aria-label="Calendario operativo del Coach"></div>
       </section>`
     :'';
 

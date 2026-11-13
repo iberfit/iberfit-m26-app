@@ -2,6 +2,8 @@ import {execFileSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 
+// Release hosts use the system Git installation, never a PATH-resolved executable.
+const SYSTEM_GIT=process.platform==='win32'?'C:/Program Files/Git/cmd/git.exe':'/usr/bin/git';
 const SHA=/^[0-9a-f]{40}$/u;
 const REJECTED_PREFIXES=[
   'supabase/functions/',
@@ -133,12 +135,12 @@ async function main(){
     throw Error('FRONTEND_ONLY_SHA_INVALID');
   }
   try{
-    execFileSync('git',['merge-base','--is-ancestor',expectedPreviousLiveSha,sourceSha],
+    execFileSync(SYSTEM_GIT,['merge-base','--is-ancestor',expectedPreviousLiveSha,sourceSha],
       {stdio:'pipe',timeout:10000});
   }catch{
     throw Error('FRONTEND_ONLY_SOURCE_NOT_DESCENDANT_OF_PROD');
   }
-  const changedPaths=execFileSync('git',['diff','--name-only',
+  const changedPaths=execFileSync(SYSTEM_GIT,['diff','--name-only',
     expectedPreviousLiveSha,sourceSha],{encoding:'utf8',timeout:10000})
     .split(/\r?\n/u).filter(Boolean);
   const proof=evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,changedPaths});
@@ -146,12 +148,12 @@ async function main(){
   // Git object lookup is locked to the signed release SHA, not HEAD/working tree.
   const qaArtifacts=verifyFrozenQaArtifacts({
     sourceSha,changedPaths,
-    blobAtSource:(source,path)=>execFileSync('git',['rev-parse',source+':'+path],
+    blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
       {encoding:'utf8',timeout:10000}).trim(),
   });
   const m1Procedures=verifyFrozenM1ReleaseProcedures({
     sourceSha,changedPaths,
-    blobAtSource:(source,path)=>execFileSync('git',['rev-parse',source+':'+path],
+    blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
       {encoding:'utf8',timeout:10000}).trim(),
   });
   const response=await fetch('https://'+process.env.APP_DOMAIN+'/m26/version.json',{

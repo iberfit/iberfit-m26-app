@@ -296,6 +296,8 @@ export function createClientCreateWizard({
     clearPersistentDraftResidue();
     const draft=readDraft(storage,draftKey());
     if(draft){
+      const disclosure=form.closest?.('details.m26-crm-create');
+      if(disclosure)disclosure.open=true;
       assign(form,draft.fields);
       const status=form.querySelector?.('[data-client-draft-status]');
       if(status)status.textContent='Borrador recuperado';

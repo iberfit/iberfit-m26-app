@@ -110,7 +110,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Restore Playwright Chromium cache
         id: playwright-cache
         uses: actions/cache@v4
@@ -139,7 +139,7 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
           M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
-        run: npx playwright test --config playwright.authenticated-interaction.config.mjs
+        run: node node_modules/@playwright/test/cli.js test --config playwright.authenticated-interaction.config.mjs
       - name: Upload authenticated interaction evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -185,9 +185,9 @@ jobs:
           result="$(curl --fail --silent --show-error --max-time 12 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
           test "$(jq -er '.head.sha' <<< "$result")" = "$EXPECTED_HEAD"
           test "$(jq -er '.state' <<< "$result")" = open
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Prepare pinned Chromium
-        run: npx playwright install chromium
+        run: node node_modules/@playwright/test/cli.js install chromium
       - name: Build exact-source QA browser using nonprivileged publishable key
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -207,7 +207,7 @@ jobs:
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
           M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
           M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
-        run: npx playwright test --config playwright.u60-dated-readonly.config.mjs
+        run: node node_modules/@playwright/test/cli.js test --config playwright.u60-dated-readonly.config.mjs
       - name: Preserve PII-free U60 browser evidence
         if: always()
         uses: actions/upload-artifact@v4
