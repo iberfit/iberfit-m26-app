@@ -247,38 +247,12 @@ BEGIN
     ('OCURRENCIA_PAUSAR','OCURRENCIA_REANUDAR') THEN
     v_reply:=private.iberfit_u72_occurrence_pause_resume_v1(p_payload);
   ELSE
-    -- Never let the old U31 progress/completion handler silently mutate a
-    -- paused occurrence while U72 owns its timed state.
+    -- The old U31 writer cannot make progress or close a paused execution.
+    -- The shared per-client advisory key serializes every transition.
     IF p_action='TRANSICION' AND (p_payload->>'type') IN
       ('OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR')
-      AND (p_payload->>'clientId') ~* '^[0-9a-f-]{36}
-  IF p_action='CAMBIO' AND (
-    v_reply='{"kind":"conflict","reason":"APPOINTMENT_ALREADY_TERMINAL"}'::jsonb
-    OR v_reply='{"kind":"conflict","reason":"APPOINTMENT_REVISION_DRIFT"}'::jsonb
-  ) THEN
-    -- U34 already checked this request's operationId and Coach permission
-    -- before returning either side-effect-free conflict. The exact ID can
-    -- therefore be returned for safe encrypted-journal cleanup.
-    RETURN v_reply||jsonb_build_object('operationId',p_payload->'operationId');
-  END IF;
-  RETURN v_reply;
-END;
-$function$
-
-      AND (p_payload->>'entityId') ~* '^[0-9a-f-]{36}
-  IF p_action='CAMBIO' AND (
-    v_reply='{"kind":"conflict","reason":"APPOINTMENT_ALREADY_TERMINAL"}'::jsonb
-    OR v_reply='{"kind":"conflict","reason":"APPOINTMENT_REVISION_DRIFT"}'::jsonb
-  ) THEN
-    -- U34 already checked this request's operationId and Coach permission
-    -- before returning either side-effect-free conflict. The exact ID can
-    -- therefore be returned for safe encrypted-journal cleanup.
-    RETURN v_reply||jsonb_build_object('operationId',p_payload->'operationId');
-  END IF;
-  RETURN v_reply;
-END;
-$function$
- THEN
+      AND (p_payload->>'clientId') ~* '^[0-9a-f-]{36}$'
+      AND (p_payload->>'entityId') ~* '^[0-9a-f-]{36}$' THEN
       IF public.iberfit_can_access_client_v26((p_payload->>'clientId')::uuid)
         AND public.iberfit_canary_enabled_v26((p_payload->>'clientId')::uuid)
         AND public.iberfit_current_role_v26() IN ('coach','cliente') THEN
