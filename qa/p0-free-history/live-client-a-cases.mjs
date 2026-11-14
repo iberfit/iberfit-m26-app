@@ -167,7 +167,8 @@ test('Client A atomically restores full completed sessions AND execution results
  // multiple dated executions, or none. Neither section may be truncated, and
  // equality between their counts is not a legitimate data-integrity invariant.
  expect(totals.session,'completed session archive must be complete').toBeGreaterThanOrEqual(396);
- expect(totals.session_execution,'completed execution archive must be complete').toBeGreaterThanOrEqual(396);
+ expect(totals.session_execution,'dated executions must remain visible while prescription is still available').toBeGreaterThanOrEqual(710);
+ expect(totals.session_execution,'one reusable prescription may have multiple independent results').toBeGreaterThan(totals.session);
  const h=measured.filter(x=>x.group==='history');
  const evidence={schema:'iberfit.qa.free.history.live.v1',client:'synthetic-A',
   pages:pages.length,uniqueSessions:totals.session,uniqueExecutions:totals.session_execution,
