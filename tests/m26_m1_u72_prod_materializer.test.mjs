@@ -8,7 +8,7 @@ test('M1 U72 materialization restores the exact pre-reviewed PROD SQL bytes',()=
   const sql=materializeU72ProductionSql(kind);
   assert.equal(gitBlobSha(sql),U72_OUTPUT_SHA[kind]);
   assert.match(sql,/M1_U72_PROD_ENVIRONMENT_DENIED/u);
-  assert.match(sql,/^BEGIN;[\s\S]*COMMIT;\s*$/u);
+  assert.match(sql,/\nBEGIN;[\s\S]*\nCOMMIT;\s*$/u);
   assert.doesNotMatch(sql,/M1_U72_MATERIALIZATION_REQUIRED/u);
   const template=read(U72_TEMPLATE[kind]);
   assert.match(template,/M1_U72_MATERIALIZATION_REQUIRED/u);
