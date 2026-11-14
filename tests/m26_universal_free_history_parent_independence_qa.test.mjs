@@ -10,7 +10,7 @@ const newParent="AND lower(COALESCE(s.status,s.body->>'status','')) IN ('disponi
 test('Universal dated history is QA-only, reversible, source-hash guarded, never DML',()=>{
   for(const sql of [forward,reverse]){
     assert.ok(sql.includes('iberfit_system_settings'));
-    assert.ok(sql.includes("'QA'"));
+    assert.ok(sql.includes("IS DISTINCT FROM 'QA'"),'unknown environment must fail closed');
     assert.ok(sql.includes('pg_get_functiondef'));
     assert.ok(sql.includes('UNIVERSAL_HISTORY_'));
     assert.ok(sql.includes('REVOKE ALL ON FUNCTION'));
