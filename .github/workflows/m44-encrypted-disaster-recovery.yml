@@ -127,6 +127,10 @@ on:
     branches: ['canary/rc74-4']
     paths:
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
+      # One independently reviewed M1 U72 release source change triggers a
+      # FRESH encrypted PROD DB+Storage backup and isolated PG17 restore.
+      # Only protected Canary push; never PR, feature branch or QA writes.
+      - 'scripts/release/materialize_u72_prod_sql.mjs'
   workflow_dispatch:
     inputs:
       confirmation:

@@ -12,6 +12,9 @@ on:
       - 'src/m26/shell/**'
       - 'src/m26/ui/**'
       - 'qa/rc64/authenticated-interaction.spec.mjs'
+      - 'qa/rc64/u60-dated-ui-readonly.spec.mjs'
+      - 'playwright.u60-dated-readonly.config.mjs'
+      - 'tests/m26_m1_u60_qa_readonly_network_boundary.test.mjs'
       - 'qa/rc64/secure-current-source-auth.mjs'
       - 'qa/rc64/build-authenticated-surface.mjs'
       - 'qa/rc64/real-shell-server.mjs'
@@ -27,6 +30,9 @@ on:
       - 'src/m26/shell/**'
       - 'src/m26/ui/**'
       - 'qa/rc64/authenticated-interaction.spec.mjs'
+      - 'qa/rc64/u60-dated-ui-readonly.spec.mjs'
+      - 'playwright.u60-dated-readonly.config.mjs'
+      - 'tests/m26_m1_u60_qa_readonly_network_boundary.test.mjs'
       - 'qa/rc64/secure-current-source-auth.mjs'
       - 'qa/rc64/build-authenticated-surface.mjs'
       - 'qa/rc64/real-shell-server.mjs'
@@ -104,7 +110,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Restore Playwright Chromium cache
         id: playwright-cache
         uses: actions/cache@v4
@@ -133,7 +139,7 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
           M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
-        run: npx playwright test --config playwright.authenticated-interaction.config.mjs
+        run: node node_modules/@playwright/test/cli.js test --config playwright.authenticated-interaction.config.mjs
       - name: Upload authenticated interaction evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -144,3 +150,72 @@ jobs:
             test-results/
           if-no-files-found: warn
           retention-days: 30
+
+  # The U71 writer remains on its separate two-attempt, exact-run proof.
+  # This job is READ-ONLY, even while the single M1 PR is Draft.
+  # No backend mutation route is allowlisted, and source bytes are checked
+  # out from the exact PR head SHA rather than GitHub's synthetic merge ref.
+  u60-real-qa-client-readonly:
+    if: ${{ github.event_name == 'pull_request' }}
+    name: Real U60 Client QA browser, read-only 320 to 1440
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: m26-canary-readonly
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Fail closed if PR head moved or no longer belongs to M1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          test "$PR_NUMBER" = "1335"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          result="$(curl --fail --silent --show-error --max-time 12 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
+          test "$(jq -er '.head.sha' <<< "$result")" = "$EXPECTED_HEAD"
+          test "$(jq -er '.state' <<< "$result")" = open
+      - run: npm ci --ignore-scripts
+      - name: Prepare pinned Chromium
+        run: node node_modules/@playwright/test/cli.js install chromium
+      - name: Build exact-source QA browser using nonprivileged publishable key
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+        run: node qa/rc64/build-authenticated-surface.mjs
+      - name: Verify U60 QA network is read-only
+        run: node --test tests/m26_m1_u60_qa_readonly_network_boundary.test.mjs
+      - name: Real Chromium Client A U60 and cross-owner isolation
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node node_modules/@playwright/test/cli.js test --config playwright.u60-dated-readonly.config.mjs
+      - name: Preserve PII-free U60 browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-u60-qa-readonly-${{ github.run_id }}
+          path: |
+            recovery/u60-qa-browser-readonly/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14

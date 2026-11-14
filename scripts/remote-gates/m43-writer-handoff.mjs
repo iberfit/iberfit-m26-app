@@ -35,8 +35,17 @@ export function verifyWriterEvidence(proof,{runId,writerAttempt,sourceSha}={}){
     throw Error('M43_WRITER_HANDOFF_UNVERIFIED');
   const label=proof?.fixtureSelection?.label??'A';
   if(!['A','B'].includes(label)||
-     (label==='B'&&proof?.fixtureSelection?.reason!=='EXACT_U47_LOCK_ISOLATION'))
+     (label==='B'&&!['EXACT_U47_LOCK_ISOLATION','QA_PRIMARY_BUDGET_SAFE_FALLBACK']
+       .includes(proof?.fixtureSelection?.reason)))
     throw Error('M43_WRITER_FIXTURE_SELECTION_INVALID');
+  if(label==='B'&&proof.fixtureSelection.reason==='QA_PRIMARY_BUDGET_SAFE_FALLBACK'){
+    const source=proof.primaryFixtureBudget,target=proof.fixtureBudget;
+    if(!Number.isSafeInteger(source?.count)||source?.limit!==150
+      ||source.count<=source.limit-3
+      ||!Number.isSafeInteger(target?.count)||target?.limit!==150
+      ||target.count>target.limit-3||target.count<0)
+      throw Error('M43_WRITER_CAPACITY_FALLBACK_UNVERIFIED');
+  }
   // Earlier writer evidence is immutable and did not contain fixtureSelection.
   // Preserve its exact validated return shape; only new explicitly attested
   // identities add a fixture label, with no fallback privilege escalation.

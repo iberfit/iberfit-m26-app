@@ -1,8 +1,9 @@
-// IBERFIT UNIVERSAL 360 · QA-only, real occurrence-scoped Coach/Client player.
+// IBERFIT UNIVERSAL 360 · occurrence-scoped Coach/Client player.
+// QA canary is always isolated; PROD requires a separate protected release.
 // Neither a calendar row nor an optimistic local draft starts a workout.
 // All writes use U60 authenticated private read + U40 idempotent journal,
 // encrypted U51 checkpoint and the independent U31/U32 CAS executor.
-// Production is unavailable until versioned U30-U60 + recovery gates exist.
+// A frontend switch is NEVER an alternative to backend JWT/ACL/RLS + M44.
 import {createTraining360OccurrenceRuntime} from './occurrence-runtime.js';
 import {createOccurrenceOwnerKeyVault} from './occurrence-owner-key.js';
 import {createAtomicOccurrenceIndexedDbStore} from './occurrence-indexeddb-store.js';
@@ -142,6 +143,10 @@ function formValue(target,name){
 }
 function humanError(error){
   const code=String(error?.message||'');
+  if(/EXECUTION_PAUSED|WORKOUT_PAUSED/u.test(code))
+    return 'Entrenamiento en pausa. Reanúdalo antes de registrar nuevas series.';
+  if(/NEW_STARTS_PAUSED/u.test(code))
+    return 'Temporalmente no se admiten nuevos inicios. Puedes recuperar, guardar y finalizar un entrenamiento que ya esté en curso.';
   if(/RPE_REQUIRED|RPE_INVALID/u.test(code))
     return 'Registra el RPE real de esta serie, entre 1 y 10, en pasos de 0,5. Puedes seleccionarlo o escribirlo.';
   if(/METRIC_INVALID/u.test(code))
@@ -160,13 +165,32 @@ function humanError(error){
     return 'Revisa las fechas, el ciclo publicado y las citas confirmadas: deben coincidir exactamente antes de publicar.';
   return 'No se pudo confirmar el cambio. El progreso local cifrado se conserva; comprueba la conexión y reintenta.';
 }
+// DOM drafts are newer than persisted checkpoints. An exit action must not
+// discard a typed set or final feedback before it is explicitly submitted.
+export function datedHasUnsubmittedInputs(panel){
+  const selector='[data-u60-entry] input, [data-u60-entry] textarea, '+
+    '[data-u60-feedback-entry] input, [data-u60-feedback-entry] textarea';
+  const inputs=panel?.querySelectorAll?.(selector);
+  if(!inputs)return false;
+  return [...inputs].some(input=>input?.type==='checkbox'
+    ?input.checked===true
+    :String(input?.value??'').trim().length>0);
+}
+
 export function createDatedOccurrenceQaUi({
-  enabled=false,root,ownerId,projectRef,transport,getAuthContext,
+  enabled=false,productionReleased=false,newStartsEnabled=true,
+  root,ownerId,projectRef,transport,getAuthContext,
   getState,onRender=()=>{},cryptoImpl=globalThis.crypto,
 }={}){
   if(enabled!==true)return Object.freeze({
     enabled:false,mount:()=>{},destroy:()=>{},renderPanel:()=>'',hasBlockingWorkout:()=>false,
   });
+  // Production requires an explicit second decision independent of enabled.
+  // A mismatched project must fail before any owner-key/network activity.
+  if(productionReleased===true&&projectRef!=='pjhmrhejsoofmouedavw')
+    fail('PRODUCTION_PROJECT_MISMATCH');
+  if(productionReleased!==true&&projectRef!=='gjztkdwfmunnzhtvxrsu')
+    fail('QA_PROJECT_REQUIRED');
   // Distinct machine-readable validation errors prevent masking a broken
   // DOM harness as a backend permission problem. Never report user IDs.
   if(typeof root?.addEventListener!=='function'||
@@ -253,6 +277,7 @@ export function createDatedOccurrenceQaUi({
     const scope=visibleOwner();
     if(!scope)return '';
     const coach=scope.role==='coach';
+    const canStartNew=productionReleased!==true||newStartsEnabled===true;
     const isCurrent=loadedFor===roleScope(scope);
     const entries=dateRows(scope);
     const view=focus?.clientId===scope.clientId&&focus?.role===scope.role
@@ -312,30 +337,43 @@ export function createDatedOccurrenceQaUi({
          '<button type="button" data-iberdates-action="u60-skip">Omitir serie y sincronizar</button></div>'
         :'';
       const feedbackForm=phase==='active'&&view.executionStatus==='awaiting_feedback'
-        ?'<div class="m26-field-grid"><label>RPE de la sesión<input name="u60FinalRpe" type="number" min="1" max="10" step="0.5" required></label>'+
+        ?'<div class="m26-field-grid" data-u60-feedback-entry><label>RPE de la sesión<input name="u60FinalRpe" type="number" min="1" max="10" step="0.5" required></label>'+
          '<label class="m26-wide">Comentario final<textarea name="u60FinalComment" maxlength="2000" required></textarea></label>'+
          '<label>¿Hubo dolor?<input type="checkbox" name="u60Pain"></label>'+
          '<label>Detalles si hubo dolor<input name="u60PainNotes" maxlength="1000"></label>'+
          '<button type="button" data-iberdates-action="u60-complete">Finalizar y confirmar en servidor</button></div>'
         :'';
       const buttons=phase==='ready'
-        ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-start">Comenzar fecha confirmada</button>'
+        ?(canStartNew
+          ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-start">Comenzar fecha confirmada</button>'
+          :'<p role="status" class="m26-field-help">Los nuevos inicios están temporalmente pausados. Puedes seguir guardando y recuperar sesiones ya iniciadas.</p>')
         :phase==='pending-recovery'
           ?'<button type="button" data-iberdates-action="u60-reconcile">Recuperar operación original</button>'
           :phase==='needs-refresh'
             ?'<button type="button" data-iberdates-action="u60-reopen">Leer versión autorizada</button>'
             :'';
+      const pauseControls=phase==='active'
+        ?view.executionStatus==='paused'
+          ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-resume">Reanudar entrenamiento</button>'
+          :view.executionStatus==='active'
+            ?'<button type="button" data-iberdates-action="u60-pause">Pausar entrenamiento</button>'
+            :''
+        :'';
       const save=phase==='active'&&view.executionStatus==='active'&&view.unsavedWork
         ?'<button type="button" data-iberdates-action="u60-save">Sincronizar progreso pendiente</button>':'';
       const retryComplete=phase==='active'&&view.executionStatus==='completed'
         ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-retry-complete">Confirmar finalización pendiente en servidor</button>':'';
       body='<section class="m26-panel" data-u60-workout><h3>Fecha independiente</h3>'+
-        summary+stepMarkup+buttons+recordForm+feedbackForm+save+retryComplete+
-        (view.startedAt?'<p class="m26-field-help">Tiempo transcurrido desde el inicio confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.startedAt)+'">'+escape(formatDatedElapsed(Date.now()-Date.parse(view.startedAt)))+'</strong></p>':'')+
-        '<button type="button" data-iberdates-action="u60-close">Volver al calendario</button></section>';
+        summary+stepMarkup+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
+        (view.startedAt?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'">'+escape(formatDatedElapsed(Number(view.accumulatedActiveMs||0)+(view.executionStatus==='active'&&view.activeSince?Math.max(0,Date.now()-Date.parse(view.activeSince)):0)))+'</strong></p>':'')+
+        '<p role="alert" data-u60-input-warning hidden></p>'+
+        (phase==='active'&&['active','awaiting_feedback','paused'].includes(view.executionStatus)
+          ?'<button type="button" data-iberdates-action="u60-save-close">Guardar y salir</button>'
+          :'<button type="button" data-iberdates-action="u60-close">Volver al calendario</button>')+
+        '</section>';
     }else{
       const cards=isCurrent?entries.map(row=>{
-        const canConfirm=coach&&row.status==='planificada';
+        const canConfirm=coach&&canStartNew&&row.status==='planificada';
         const canOpen=['confirmada','en_curso','completada','cancelada'].includes(row.status)
           &&(coach||Boolean(row.appointmentId&&row.appointmentStatus));
         return '<article class="m26-list-card"><div><p class="m26-eyebrow">'+
@@ -358,7 +396,7 @@ export function createDatedOccurrenceQaUi({
         .map(s=>'<option value="'+escape(field(s,'id'))+'"'+
           (activePreview?.sessionId===uid(field(s,'id'))?' selected':'')+'>'+
           escape(String(field(s,'title')||'Entrenamiento').slice(0,90))+'</option>').join(''):'';
-      const publisher=coach&&sessions
+      const publisher=coach&&canStartNew&&sessions
         ?'<details class="m26-panel"><summary>Programar varias fechas de una sesión publicada</summary>'+
          '<label>Sesión publicada<select name="u60Session">'+sessions+'</select></label>'+
          '<label>Fechas y horas en Chile, una por línea (AAAA-MM-DD HH:mm)'+
@@ -377,9 +415,9 @@ export function createDatedOccurrenceQaUi({
         :'<p class="m26-empty-copy">Consulta el calendario autorizado para elegir una fecha.</p>')+
         publisher;
     }
-    return '<section class="m26-panel" data-u60-panel data-u60-qa-only="true"'+
+    return '<section class="m26-panel" data-u60-panel data-u60-qa-only="'+(!productionReleased)+'"'+
       (busy?' aria-busy="true"':'')+'><div class="m26-panel-heading"><div>'+
-      '<p class="m26-eyebrow">Training360 · Canary</p>'+
+      '<p class="m26-eyebrow">'+(productionReleased?'Training360 · Entrenamiento':'Training360 · Canary')+'</p>'+
       '<h2>Entrenamiento por fechas independientes</h2>'+
       '<p>Cada fecha tiene su ejecución y confirmación propias. Nunca se reutiliza el inicio de la sesión original.</p>'+
       '</div></div>'+status+lockedMarkup+controls+body+'</section>';
@@ -495,6 +533,11 @@ export function createDatedOccurrenceQaUi({
   async function perform(action,button,payload){
     if(disposed)fail('DESTROYED');
     const scope=await authenticated();
+    // Operational two-stage rollback: stop admission first while keeping
+    // private read, recovery, save and completion reachable for active dates.
+    if(productionReleased===true&&newStartsEnabled!==true
+      &&['u60-preview','u60-publish','u60-confirm','u60-start'].includes(action))
+      fail('NEW_STARTS_PAUSED');
     if(action==='u60-unlock'){
       await vault.unlock(payload.phrase);
       message='Clave privada desbloqueada. No se ha almacenado.';
@@ -610,10 +653,39 @@ export function createDatedOccurrenceQaUi({
         runtime.workout.view().unsavedWork)fail('UNSAVED_WORKOUT');
       focus=null;message='Calendario disponible.';return;
     }
+    if(action==='u60-save-close'){
+      const active=runtime.workout.view();
+      if(active.phase!=='active'||!['active','awaiting_feedback','paused'].includes(active.executionStatus)
+        ||active.busy||active.hasUncertain)fail('RECOVERY_REQUIRED');
+      if(active.unsavedWork){
+        // Save through the SAME encrypted journal and real server CAS. Never
+        // close from a speculative checkpoint or an uncertain server receipt.
+        const receipt=await runtime.workout.save();
+        if(receipt.phase!=='active'||receipt.hasUncertain||receipt.unsavedWork)
+          fail('RECOVERY_REQUIRED');
+      }
+      focus=null;message='Progreso confirmado en servidor.';return;
+    }
     if(action==='u60-start'){
       const reply=await runtime.workout.start();
       if(reply.phase!=='active')fail('START_NOT_ACKNOWLEDGED');
       message='Inicio confirmado por el servidor.';
+      return;
+    }
+    if(action==='u60-pause'){
+      if(runtime.workout.view().executionStatus!=='active')fail('PAUSE_NOT_ACTIVE');
+      const reply=await runtime.workout.pause();
+      if(reply.phase!=='active'||reply.executionStatus!=='paused'||
+        reply.hasUncertain||reply.unsavedWork)fail('RECOVERY_REQUIRED');
+      message='Entrenamiento en pausa. Tu progreso está confirmado.';
+      return;
+    }
+    if(action==='u60-resume'){
+      if(runtime.workout.view().executionStatus!=='paused')fail('RESUME_NOT_PAUSED');
+      const reply=await runtime.workout.resume();
+      if(reply.phase!=='active'||reply.executionStatus!=='active'||
+        reply.hasUncertain)fail('RECOVERY_REQUIRED');
+      message='Entrenamiento reanudado y confirmado por el servidor.';
       return;
     }
     if(action==='u60-record'){
@@ -742,6 +814,18 @@ export function createDatedOccurrenceQaUi({
     event.stopPropagation?.();
     if(busy||button.disabled)return;
     const action=button.getAttribute('data-iberdates-action');
+    // Do not repaint unsubmitted inputs while exiting the active workout.
+    if(['u60-close','u60-save-close','u60-pause'].includes(action)){
+      const panel=button.closest?.('[data-u60-panel]');
+      if(datedHasUnsubmittedInputs(panel)){
+        const warning=panel?.querySelector?.('[data-u60-input-warning]');
+        if(warning){
+          warning.hidden=false;
+          warning.textContent='Hay datos escritos sin registrar. Confirma la serie o el feedback antes de salir.';
+        }
+        return;
+      }
+    }
     let payload={phrase:''};
     busy=true;failure='';
     try{
@@ -776,9 +860,12 @@ export function createDatedOccurrenceQaUi({
     // No global DOM lookup while the operator is outside dated execution.
     if(!focus)return;
     const node=root.querySelector?.('[data-u60-clock-start]');
-    const started=Date.parse(String(node?.getAttribute?.('data-u60-clock-start')||''));
-    if(node&&Number.isFinite(started)){
-      const time=formatDatedElapsed(Date.now()-started);
+    const since=Date.parse(String(node?.getAttribute?.('data-u60-active-since')||''));
+    const base=Number(node?.getAttribute?.('data-u60-accumulated-ms')||0);
+    const paused=node?.getAttribute?.('data-u60-paused')==='true';
+    if(node&&Number.isFinite(base)&&base>=0){
+      const running=!paused&&Number.isFinite(since)?Math.max(0,Date.now()-since):0;
+      const time=formatDatedElapsed(base+running);
       if(node.textContent!==time)node.textContent=time;
     }
   }

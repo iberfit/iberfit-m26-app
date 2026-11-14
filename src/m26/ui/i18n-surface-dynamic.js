@@ -38,6 +38,16 @@ function lang(value){
 function pick(language,en,fr,pt){return language==='fr'?fr:language==='pt'?pt:en;}
 function applyRules(value,language,translatePart){
   let m;
+  // Coach planning: compose a real confirmed appointment label with its
+  // already-formatted civil date. Never translate the date itself or infer
+  // whether the workout was actually completed.
+  if((m=value.match(/^(Próxima fecha confirmada|Última fecha confirmada) · (.+)$/u))){
+    const upcoming=m[1]==='Próxima fecha confirmada';
+    return pick(language,
+      (upcoming?'Next confirmed date':'Last confirmed date')+' · '+m[2],
+      (upcoming?'Prochaine date confirmée':'Dernière date confirmée')+' · '+m[2],
+      (upcoming?'Próxima data confirmada':'Última data confirmada')+' · '+m[2]);
+  }
   // SIGNATURE R48 · Planned Client targets need honest numeric translations.
   // Never translate these values as measured outcomes or manufacture units.
   if((m=value.match(/^([1-9]|10) de 10$/u)))

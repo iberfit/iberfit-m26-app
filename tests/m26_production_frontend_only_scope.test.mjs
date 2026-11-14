@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {
   evaluateFrontendOnlyChanges,
   verifyFrontendOnlyLiveIdentity,verifyFrozenQaArtifacts,FROZEN_QA_INERT_BLOBS,
+  verifyFrozenM1ReleaseProcedures,FROZEN_M1_RELEASE_PROCEDURE_BLOBS,
 } from '../scripts/release/verify_frontend_only_promotion.mjs';
 
 const BASE='069ba68298dd57181a62cc88ce6c31112ac92176';
@@ -83,7 +84,7 @@ test('U120 exact QA source exception requires eight frozen Git blobs, never broa
    sourceSha:TARGET,expectedPreviousLiveSha:BASE,changedPaths:[...accepted,malicious],
  }),/FRONTEND_ONLY_BACKEND_CHANGED/u,malicious);
  const source=fs.readFileSync(new URL('../scripts/release/verify_frontend_only_promotion.mjs',import.meta.url),'utf8');
- assert.match(source,/blobAtSource:\(source,path\)=>execFileSync\('git',\['rev-parse',source\+':'\+path\]/u);
+ assert.match(source,/blobAtSource:\(source,path\)=>execFileSync\(SYSTEM_GIT,\['rev-parse',source\+':'\+path\]/u);
  assert.match(source,/frozenQaInertArtifactsVerified:qaArtifacts\.verified/u);
 });
 
@@ -180,4 +181,42 @@ test('U121 release verifier changes require exact-source authenticated and Devic
   'IBERFIT Admin WebAuthn Recurring','IBERFIT Coach WebAuthn Recurring',
   'IBERFIT Device Experience Gate','IBERFIT M26 Gates remotos de solo lectura',
  ])assert.ok(authority.includes(name),'Release gate must retain '+name);
+});
+
+
+test('M1 release procedures are NOT deployed as SQL in frontend-only mode and require exact Git blobs',()=>{
+ const ps=Object.keys(FROZEN_M1_RELEASE_PROCEDURE_BLOBS);
+ assert.equal(ps.length,4);
+ assert.ok(ps.every(p=>/^supabase\/release-procedures\/2026111[23]_m1_u(?:60|72)_prod_guarded_(?:install|rollback|enable|disable)\.sql$/u.test(p)));
+ const scope=evaluateFrontendOnlyChanges({
+  sourceSha:TARGET,expectedPreviousLiveSha:BASE,
+  changedPaths:[...accepted,...ps],
+ });
+ assert.equal(scope.ok,true);
+ assert.equal(scope.productionSqlApplied,false);
+ assert.equal(scope.backendServicesDeployed,false);
+ assert.deepEqual(verifyFrozenM1ReleaseProcedures({
+  sourceSha:TARGET,changedPaths:ps,
+  blobAtSource:(s,p)=>s===TARGET?FROZEN_M1_RELEASE_PROCEDURE_BLOBS[p]:null,
+ }).paths,ps);
+ assert.throws(()=>verifyFrozenM1ReleaseProcedures({
+  sourceSha:TARGET,changedPaths:ps,
+ }),/FRONTEND_ONLY_M1_SQL_BLOB_READER_REQUIRED/u);
+ assert.throws(()=>verifyFrozenM1ReleaseProcedures({
+  sourceSha:TARGET,changedPaths:ps,
+  blobAtSource:()=>BASE,
+ }),/FRONTEND_ONLY_M1_SQL_SOURCE_DRIFT/u);
+ for(const path of [
+  'supabase/release-procedures/unreviewed.sql',
+  'supabase/release-procedures/20261113_m1_u72_prod_guarded_install_v2.sql',
+  'supabase/release-procedures/private_u72_adapter.js',
+  'supabase/functions/iberfit-u72/index.ts',
+ ]){
+  assert.throws(()=>evaluateFrontendOnlyChanges({
+   sourceSha:TARGET,expectedPreviousLiveSha:BASE,
+   changedPaths:[...accepted,path],
+  }),/FRONTEND_ONLY_BACKEND_CHANGED/u,path);
+ }
+ const script=fs.readFileSync(new URL('../scripts/release/verify_frontend_only_promotion.mjs',import.meta.url),'utf8');
+ assert.match(script,/stagedM1SqlProceduresVerified:m1Procedures\.verified/u);
 });

@@ -206,3 +206,38 @@ export function selectM43QaFixtureForU47Isolation(primary,secondary,{runId}={}){
        c.trainingServiceStatus==='active'))return original;
   return Object.freeze({label:'B',reason:'EXACT_U47_LOCK_ISOLATION'});
 }
+
+/**
+ * Preserve the hard 150-session QA budget and all historical rows. When the
+ * original synthetic A is genuinely at capacity, use independent synthetic B
+ * only after verifying its own QA environment, Client scope, active service,
+ * no active/paused execution or in-progress session, and room for all THREE
+ * authenticated write+browser fixtures. Missing bootstrap fails closed.
+ * The U47 exact-run isolation exception retains priority and identity.
+ */
+export function selectM43QaFixtureForSafeCapacity(primary,secondary,{runId}={}){
+  const u47=selectM43QaFixtureForU47Isolation(primary,secondary,{runId});
+  if(u47.label==='B')return u47;
+  const sourceBudget=assessM43SyntheticFixtureBudget(primary);
+  if(!Number.isSafeInteger(sourceBudget.count)||
+    sourceBudget.count<=sourceBudget.limit-3)return u47;
+  const a=String(primary?.user?.clientId||'');
+  const b=String(secondary?.user?.clientId||'');
+  if(primary?.environment!=='QA'||secondary?.environment!=='QA'
+    ||!['client','cliente'].includes(String(primary?.user?.role||'').toLowerCase())
+    ||!['client','cliente'].includes(String(secondary?.user?.role||'').toLowerCase())
+    ||!/^[a-f0-9]{8}-[a-f0-9-]{27}$/iu.test(a)
+    ||!/^[a-f0-9]{8}-[a-f0-9-]{27}$/iu.test(b)
+    ||a===b)return u47;
+  const source=primary?.data?.m26Entities,other=secondary?.data?.m26Entities;
+  if(!Array.isArray(source)||!Array.isArray(other)
+    ||other.some(e=>!e||String(e.clientId)!==b
+      ||(e.entityType==='session_execution'&&['en_curso','pausada'].includes(e.status))
+      ||(e.entityType==='session'&&e.status==='en_curso'))
+    ||!secondary?.data?.clients?.some(c=>String(c?.id)===b
+      &&c.trainingServiceStatus==='active'))return u47;
+  const targetBudget=assessM43SyntheticFixtureBudget(secondary);
+  if(!Number.isSafeInteger(targetBudget.count)||
+    targetBudget.count>targetBudget.limit-3)return u47;
+  return Object.freeze({label:'B',reason:'QA_PRIMARY_BUDGET_SAFE_FALLBACK'});
+}

@@ -29,7 +29,12 @@ test('authenticated interaction network policy remains fail-closed for mutations
   // synthetic E2E opt-in, even when another QA suite needs guarded writes.
   assert.ok(networkPolicy.includes('allowQaSyntheticWrite=()=>false'),'default network policy must reject all synthetic writes');
   assert.ok(networkPolicy.includes("if(method!=='POST'||!url.pathname.startsWith(prefix))return false"),'RPCs must be POST-only');
-  assert.ok(networkPolicy.includes('if(readOnlyRpcs.has(rpc))return true'),'read-only RPCs must require the explicit allow-list');
+  assert.ok(networkPolicy.includes('if(readOnlyRpcs.has(rpc)){'),'read-only RPCs must require the explicit allow-list');
+  assert.ok(networkPolicy.includes('return isQaReadonlyDatedRequest(request,rpc)'),
+    'U60 readonly RPCs require extra action, owner and bounded-payload checks');
+  assert.ok(networkPolicy.includes("q.p_action==='CALENDARIO'")||
+    networkPolicy.includes("body.p_action!=='CALENDARIO'"),
+    'the U60 read-only gate must deny all write actions');
   assert.ok(networkPolicy.includes("['iberfit_command_preflight_v26','iberfit_execute_command_v26']"),'only the two bounded command RPCs may opt into synthetic QA writes');
   assert.ok(networkPolicy.includes('allowQaSyntheticWrite(request)===true'),'a denied or missing callback must not permit mutation');
   assert.ok(!networkPolicy.includes('WEBAUTHN_PATH'),'shared read-only policy must not authorize privileged WebAuthn mutations');

@@ -119,6 +119,42 @@ export function unexpectedQaResourceErrors(errors,missingAvatarCount=0,provenFut
   return unexpected;
 }
 
+
+/**
+ * An authenticated QA U60 player may READ calendar and private details;
+ * the host gate must never turn a read-only Playwright run into a U60 write.
+ * Backend still verifies JWT, ownership, role and RLS independently.
+ */
+export function isQaReadonlyDatedRequest(request,rpc){
+  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+  const date=/^\d{4}-\d{2}-\d{2}$/u;
+  if(request?.method?.().toUpperCase()!=='POST')return false;
+  let body;
+  try{body=request.postDataJSON();}catch{return false;}
+  if(!body||typeof body!=='object'||Array.isArray(body))return false;
+  if(rpc==='iberfit_occurrence_detail_v1'){
+    return Object.keys(body).sort((a,b)=>a.localeCompare(b)).join(',')==='p_client_id,p_occurrence_id'
+      &&uuid.test(String(body.p_client_id||''))
+      &&uuid.test(String(body.p_occurrence_id||''));
+  }
+  if(rpc==='iberfit_occurrence_api_u60_v1'){
+    if(Object.keys(body).sort((a,b)=>a.localeCompare(b)).join(',')!=='p_action,p_payload'
+      ||body.p_action!=='CALENDARIO')return false;
+    const q=body.p_payload;
+    if(!q||typeof q!=='object'||Array.isArray(q))return false;
+    if(Object.keys(q).some(k=>!['clientId','startDate','endDate','limit','afterDate','afterId'].includes(k))
+      ||!uuid.test(String(q.clientId||''))
+      ||!date.test(String(q.startDate||''))||!date.test(String(q.endDate||''))
+      ||q.startDate>q.endDate
+      ||!Number.isSafeInteger(q.limit)||q.limit<1||q.limit>50)return false;
+    if(q.afterDate!==undefined&&(!date.test(String(q.afterDate))||
+      q.afterDate<q.startDate||q.afterDate>q.endDate))return false;
+    if(q.afterId!==undefined&&!uuid.test(String(q.afterId)))return false;
+    return true;
+  }
+  return false;
+}
+
 function allowedQaRequest(request,readOnlyRpcs,allowQaSyntheticWrite){
   let url;
   try{url=new URL(request.url());}catch{return false;}
@@ -134,7 +170,11 @@ function allowedQaRequest(request,readOnlyRpcs,allowQaSyntheticWrite){
   const prefix='/rest/v1/rpc/';
   if(method!=='POST'||!url.pathname.startsWith(prefix))return false;
   const rpc=url.pathname.slice(prefix.length);
-  if(readOnlyRpcs.has(rpc))return true;
+  if(readOnlyRpcs.has(rpc)){
+    if(['iberfit_occurrence_api_u60_v1','iberfit_occurrence_detail_v1'].includes(rpc))
+      return isQaReadonlyDatedRequest(request,rpc);
+    return true;
+  }
   // Opt-in synthetic E2E only. Normal authenticated browser tests keep the
   // callback defaulting to false and still block every mutation.
   if(!['iberfit_command_preflight_v26','iberfit_execute_command_v26'].includes(rpc))return false;
@@ -236,7 +276,7 @@ function publicRpcMemoKey(request,url){
     const params=JSON.parse(raw);
     if(!params||typeof params!=='object'||Array.isArray(params))return null;
     if(url.pathname.endsWith('/iberfit_exercise_catalog_public_v1')){
-      if(Object.keys(params).sort().join(',')!=='p_limit,p_offset'
+      if(Object.keys(params).sort((a,b)=>a.localeCompare(b)).join(',')!=='p_limit,p_offset'
         ||!Number.isInteger(params.p_limit)||params.p_limit<1||params.p_limit>200
         ||!Number.isInteger(params.p_offset)||params.p_offset<0||params.p_offset>5000)return null;
     }else if(Object.keys(params).length!==0)return null;

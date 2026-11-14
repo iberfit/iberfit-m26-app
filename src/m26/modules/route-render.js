@@ -4141,7 +4141,18 @@ function publicationCard(item,entity){
   const canWithdrawSession=entity==='session'&&actions.some(action=>action.action==='withdraw');
   const controlsTitle=canWithdrawSession?'Gestionar publicación · Quitar esta sesión de la planificación · conservar historial'
     :`Gestionar publicación${preferredAction?` · ${preferredAction.label}`:''}`;
-  const controls=actions.length?`<details class="m26-publication-actions"><summary>${escapeHtml(controlsTitle)}</summary><div class="m26-stack">${actions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
+  const publicationActions=canWithdrawSession?actions.filter(action=>action.action!=='withdraw'):actions;
+  const controls=publicationActions.length?`<details class="m26-publication-actions"><summary>${escapeHtml(controlsTitle)}</summary><div class="m26-stack">${publicationActions.map((action)=>publicationActionControl(action,entity,item)).join('')}</div></details>`:'';
+  // The Coach must be able to find removal from the session itself, without
+  // navigating nested publication settings. Reuse the EXACT guarded
+  // SESION_CANCELAR action; never issue a raw DELETE or remove confirmed logs.
+  const withdrawal=canWithdrawSession
+    ?`<details class="m26-publication-actions m26-coach-session-remove" data-coach-session-remove>
+      <summary>Eliminar entrenamiento del plan</summary>
+      <div class="m26-stack"><p class="m26-eyebrow">Gestionar publicación</p><p class="m26-field-help">Retira la sesión de la planificación activa sin borrar el historial ni las ejecuciones confirmadas. Antes de retirarla, finaliza o cancela cualquier entrenamiento en curso.</p>
+        ${publicationActionControl({...actions.find(action=>action.action==='withdraw'),label:'Confirmar retirada del plan'},entity,item)}
+      </div></details>`
+    :'';
   const issued=entity==='report'&&String(item.statusRaw||'').toLowerCase()==='publicado'
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="issue-evolution-pdf" data-entity-id="${escapeHtml(item.id||'')}">Emitir y archivar PDF para el Cliente</button></div>`
     :'';
@@ -4149,7 +4160,7 @@ function publicationCard(item,entity){
     ?`<section class="m26-pdf-history" aria-label="Versiones de informes emitidos"><button type="button" data-workflow-action="show-issued-evolution-history" data-entity-id="${escapeHtml(item.id||'')}">Consultar versiones PDF</button><div data-m44-pdf-history aria-live="polite"></div></section>`
     :'';
   const reuse=entity==='session'?`<div class="m26-inline-actions"><button type="button" data-workflow-action="reuse-session" data-entity-id="${escapeHtml(item.id||'')}">Reutilizar como borrador</button><small>Crea una copia independiente; la sesión original permanece intacta.</small></div>`:'';
-  return `<article class="m26-publication-card" ${entity==='report'?'data-m44-pdf-card':''} data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${pdfHistory}${controls}</article>`;
+  return `<article class="m26-publication-card" ${entity==='report'?'data-m44-pdf-card':''} data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.plannedDateLabel||item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${reuse}${issued}${pdfHistory}${controls}${withdrawal}</article>`;
 }
 
 /* SIGNATURE Coach · A visible working set, then all previous sessions grouped
@@ -4160,18 +4171,27 @@ export const COACH_PLANNING_VISIBLE_SESSIONS=6;
 export const COACH_PLANNING_ARCHIVE_GROUP=18;
 export function renderCoachPlanningSessionsProgressive(items=[],entity='session'){
   if(!['planning','session'].includes(entity))throw new Error('COACH_PLANNING_ENTITY_INVALID');
-  const visible=items.slice(0,COACH_PLANNING_VISIBLE_SESSIONS)
+  // Withdrawn sessions are not active prescriptions. Keep their complete
+  // records and reuse actions under a separate history disclosure, rather
+  // than leaving an "eliminated" workout in the working list.
+  const retired=entity==='session'
+    ?items.filter(item=>['withdrawn','archived'].includes(item?.publication?.status))
+    :[];
+  const active=retired.length
+    ?items.filter(item=>!['withdrawn','archived'].includes(item?.publication?.status))
+    :items;
+  const visible=active.slice(0,COACH_PLANNING_VISIBLE_SESSIONS)
     .map((item,index)=>{
       const card=publicationCard(item,entity);
       if(index<COACH_PLANNING_FOCUS_SESSIONS)return card;
       return `<details class="m26-coach-planning-compact" data-coach-planning-compact>
-        <summary><span class="m26-coach-planning-compact-title"><small>${escapeHtml(item.dateLabel||'IBERFIT')}</small><strong>${escapeHtml(item.title||'Contenido IBERFIT')}</strong></span>
+        <summary><span class="m26-coach-planning-compact-title"><small>${escapeHtml(item.plannedDateLabel||item.dateLabel||'IBERFIT')}</small><strong>${escapeHtml(item.title||'Contenido IBERFIT')}</strong></span>
           <span class="m26-coach-planning-compact-meta">${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}<span aria-hidden="true">+</span></span>
         </summary>${card}
       </details>`;
     }).join('');
-  const remaining=items.slice(COACH_PLANNING_VISIBLE_SESSIONS);
-  if(!remaining.length)return `<div class="m26-stack">${visible}</div>`;
+  const remaining=active.slice(COACH_PLANNING_VISIBLE_SESSIONS);
+  if(!remaining.length&&!retired.length)return `<div class="m26-stack">${visible}</div>`;
   const groups=[];
   const noun=entity==='planning'?'ciclos':'sesiones';
   const groupNoun=entity==='planning'?'Ciclos':'Sesiones';
@@ -4185,14 +4205,29 @@ export function renderCoachPlanningSessionsProgressive(items=[],entity='session'
       <template data-coach-planning-template>${slice.map(item=>publicationCard(item,entity)).join('')}</template>
     </details>`);
   }
-  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive data-coach-planning-entity="${entity}" data-coach-planning-total="${items.length}">
-    ${visible}
-    <details class="m26-coach-planning-archive" data-coach-planning-archive>
+  const archive=remaining.length?`<details class="m26-coach-planning-archive" data-coach-planning-archive>
       <summary><span><strong>Consultar ${entity==='planning'?'otros':'otras'} ${remaining.length} ${noun}</strong>
         <small>Historial completo, dividido en grupos. Todas las acciones siguen disponibles.</small></span>
         <span aria-hidden="true">+</span></summary>
       <div class="m26-coach-planning-archive-groups">${groups.join('')}</div>
-    </details>
+    </details>`:'';
+  const retiredGroups=[];
+  for(let offset=0;offset<retired.length;offset+=COACH_PLANNING_ARCHIVE_GROUP){
+    const slice=retired.slice(offset,offset+COACH_PLANNING_ARCHIVE_GROUP);
+    retiredGroups.push(`<details class="m26-coach-planning-batch" data-coach-planning-batch data-coach-archive-size="${slice.length}">
+      <summary>Retirados ${offset+1}–${offset+slice.length}<span aria-hidden="true">+</span></summary>
+      <div class="m26-stack" data-coach-planning-content></div>
+      <template data-coach-planning-template>${slice.map(item=>publicationCard(item,entity)).join('')}</template>
+    </details>`);
+  }
+  const retiredHistory=retired.length?`<details class="m26-coach-planning-archive" data-coach-planning-retired>
+      <summary><span><strong>Historial de entrenamientos retirados (${retired.length})</strong>
+        <small>Fuera del plan activo. Se conservan las ejecuciones y el contexto para consulta y reutilización.</small></span><span aria-hidden="true">+</span></summary>
+      <div class="m26-coach-planning-archive-groups">${retiredGroups.join('')}</div>
+    </details>`:'';
+  const empty=active.length?'':'<p class="m26-field-help" data-coach-planning-no-active>Sin entrenamientos activos en este plan. Los retirados siguen disponibles en el historial.</p>';
+  return `<div class="m26-stack m26-coach-planning-progressive" data-coach-planning-progressive data-coach-planning-entity="${entity}" data-coach-planning-total="${items.length}">
+    ${visible}${empty}${archive}${retiredHistory}
   </div>`;
 }
 // Inert HTML templates keep hundreds of historical publication controls out of
@@ -4549,6 +4584,7 @@ export function renderPlanningRoute(vm){
       </section>
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Sesiones del ciclo'}</h2></div>${!isClient?badge(`${publishedSessions} publicadas`,'success'):''}</div>
+        ${vm.role==='coach'?'<p class="m26-field-help m26-coach-planning-order">Entrenamientos ordenados por fecha: primero las próximas citas confirmadas, después las fechas pasadas y los que aún no están programados. Abre uno para revisarlo, reutilizarlo o eliminarlo del plan sin perder ejecuciones confirmadas.</p>':''}
         ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:vm.serviceActive!==false,coachPlanning:vm.role==='coach'})}
       </section>
     </section>

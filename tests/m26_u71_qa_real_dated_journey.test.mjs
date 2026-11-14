@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,validatedDatedCandidates} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -34,10 +34,10 @@ test('U71 stage-2 reuses immutable originally certified Santiago time and same-d
  const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
  assert.match(s,/const original=mode==='apply'/);
  assert.match(s,/async function authenticatedStage\(ctx,certified=null\)/);
- assert.match(s,/Number\(certified\.localTime\.slice/);
+ assert.match(s,/fixedTime:certified\?\.localTime/);
  assert.match(s,/original\.localTime===plan\.time/);
  assert.match(s,/old\.localTime===proof\.localTime/);
- assert.match(s,/APPOINTMENT_CLOCK_DRIFT/);
+ assert.match(s,/U71_QA_NO_CONFLICT_FREE_SLOT/);
 });
 test('U71 only QA origin, ordinary JWT, native commands, two-phase write gate',()=>{
  const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
@@ -189,4 +189,99 @@ test('U71 skew recovery is restricted to read-only identity and cannot reissue w
  const write=source.slice(source.indexOf("proof.status='QA_SYNTHETIC_WRITE_STARTED'"));
  assert.doesNotMatch(write,/boundedReadOnlyJwtClockSkewRecovery/u);
  assert.match(source,/GITHUB_RUN_ATTEMPT==='2'/u);
+});
+
+
+test('U71 avoids full Client historical bootstrap while keeping real QA owner, session and grant checks',()=>{
+ const gate=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const sql=readFileSync(new URL('../qa/sql/20261112_u71_authenticated_bounded_candidate_read_qa_v1.sql',import.meta.url),'utf8');
+ const workflow=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ assert.match(gate,/value\(ctx,a\.jwt,'iberfit_u71_dated_candidates_qa_v1'\)/u);
+ assert.doesNotMatch(gate,/value\(ctx,a\.jwt,'iberfit_bootstrap_v26'\)/u);
+ assert.match(gate,/CANDIDATE_CROSS_CLIENT_EXPOSED/u);
+ assert.match(gate,/validatedDatedCandidates\(raw,clientA,today\)/u);
+ assert.match(sql,/SECURITY DEFINER/u);
+ assert.match(sql,/SET search_path TO ''/u);
+ assert.match(sql,/auth\.uid\(\)/u);
+ assert.match(sql,/iberfit_current_role_v26\(\) <> 'cliente'/u);
+ assert.match(sql,/iberfit_client_id\(\)/u);
+ assert.match(sql,/iberfit_can_access_client_v26\(v_owner\)/u);
+ assert.match(sql,/IS DISTINCT FROM 'QA'/u);
+ assert.match(sql,/REVOKE ALL ON FUNCTION [\s\S]*?FROM PUBLIC,anon,authenticated/u);
+ assert.match(sql,/GRANT EXECUTE ON FUNCTION [\s\S]*?TO authenticated/u);
+ assert.doesNotMatch(sql,/INSERT INTO|UPDATE public\.|DELETE FROM|TRUNCATE|DROP TABLE|service_role/u);
+ assert.match(workflow,/feat\/iberfit-m1-training-reliability-20261112/u);
+});
+test('U71 bounded QA candidate reader accepts only current-day owner-scoped source, never raw training bodies',()=>{
+ const owner=derivedUuid('qa-owner','A');
+ const session=derivedUuid('qa-source','S');
+ const cycle=derivedUuid('qa-source','C');
+ const item={id:session,clientId:owner,revision:3,duration:45,cycleId:cycle,sets:2};
+ const payload={schema:'iberfit.u71.qa.dated-candidates.v1',
+  project:'QA',day:'2026-11-12',clientId:owner,count:1,candidates:[item]};
+ assert.deepEqual(validatedDatedCandidates(payload,owner,payload.day),[item]);
+ const invalid=[
+  {...payload,project:'PROD'},
+  {...payload,day:'2026-11-11'},
+  {...payload,clientId:derivedUuid('other','client')},
+  {...payload,count:2},
+  {...payload,candidates:[item,item],count:2},
+  {...payload,candidates:[{...item,clientId:derivedUuid('other','owner')}]},
+  {...payload,candidates:[{...item,publishedSnapshot:{}}]},
+  {...payload,candidates:[{...item,history:[]}]},
+  {...payload,candidates:[{...item,sets:16}]},
+  {...payload,candidates:[{...item,revision:0}]},
+  {...payload,candidates:[{...item,duration:241}]},
+  {...payload,candidates:[{...item,id:'not-a-uuid'}]},
+  {...payload,token:'forbidden'},
+  {...payload,candidates:Array.from({length:51},(_,i)=>({
+    ...item,id:derivedUuid('overlimit',String(i))
+  })),count:51}
+ ];
+ for(const bad of invalid){
+  assert.throws(()=>validatedDatedCandidates(bad,owner,payload.day),
+   /U71_BOUNDED_CANDIDATE_(RESPONSE|SCOPE)_INVALID/u);
+ }
+});
+
+test('M1 U72 real QA Coach-Client-Coach HTTP proof includes durable pause/resume, denial and idempotency',()=>{
+ const gate=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const wf=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ for(const expected of [
+  "type:'OCURRENCIA_PAUSAR'","type:'OCURRENCIA_REANUDAR'",
+  'U72_PAUSE_NOT_CONFIRMED','U72_PAUSED_PRIVATE_READ_NOT_DURABLE',
+  'U72_PAUSE_REPLAY_NOT_IDEMPOTENT','U72_PAUSED_WRITE_NOT_DENIED',
+  'U72_CROSS_CLIENT_RESUME_NOT_DENIED','U72_RESUME_NOT_CONFIRMED',
+  'U72_RESUMED_PRIVATE_READ_NOT_DURABLE',
+  'executionBaseRevision:4,results:all'
+ ])assert.ok(gate.includes(expected),expected);
+ assert.match(gate,/GITHUB_RUN_ATTEMPT==='2'/u);
+ assert.match(gate,/PREFLIGHT_MISSING_STALE_OR_CHANGED/u);
+ assert.match(wf,/github\.run_attempt == 1/u);
+ assert.match(wf,/github\.run_attempt == 2/u);
+ assert.doesNotMatch(wf,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
+});
+
+test('U71 QA protects the two-phase appointment schedule from old completed time collisions',async()=>{
+ const {chooseUnoccupiedDatedSlot}=await import('../scripts/remote-gates/qa_u60_real_dated_journey.mjs');
+ const {santiagoAppointmentInstant}=await import('../src/m26/workflows/agenda-workflow.js');
+ const today='2026-11-12',future='2026-11-19';
+ const base=Date.parse(santiagoAppointmentInstant('2026-11-12T20:00'));
+ const start=santiagoAppointmentInstant('2026-11-12T20:25');
+ const end=new Date(Date.parse(start)+20*60000).toISOString();
+ const rows=[{status:'completada',startsAt:start,endsAt:end}];
+ const picked=chooseUnoccupiedDatedSlot({today,future,duration:20,
+  clockMinute:1200,calendar:rows,nowMs:base});
+ assert.equal(picked.time,'20:45');
+ assert.equal(picked.start1,end);
+ assert.throws(()=>chooseUnoccupiedDatedSlot({today,future,duration:20,
+  clockMinute:1200,calendar:rows,fixedTime:'20:25',nowMs:base}),
+  /U71_QA_NO_CONFLICT_FREE_SLOT/);
+ assert.throws(()=>chooseUnoccupiedDatedSlot({today,future,duration:20,
+  clockMinute:1200,calendar:[{status:'confirmada',startsAt:'2026-11-12T23:25:00Z',endsAt:null}],
+  nowMs:base}),/U71_QA_CALENDAR_INCOMPLETE_FOR_SLOT/);
+ const code=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ assert.ok(code.indexOf('const old=await checkedCalendar(')<
+  code.lastIndexOf('chooseUnoccupiedDatedSlot({'));
+ assert.ok(code.includes('fixedTime:certified?.localTime'));
 });

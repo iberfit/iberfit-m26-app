@@ -165,7 +165,23 @@ function friendlyError(error){
   if(/M42_SESSION_UPDATED_REOPEN/.test(code))return 'Tu Coach ha actualizado esta sesión. Abre de nuevo la versión más reciente antes de empezar.';
   if(/M42_SESSION_ENTRY_HANDLER_MISSING/.test(code))return 'El reproductor no está preparado. Actualiza IBERFIT y vuelve a intentarlo; no se ha iniciado ningún entrenamiento.';
   if(/M42_SESSION_WORKSPACE_UNAVAILABLE/.test(code))return 'No se pudo abrir la sesión. Comprueba su disponibilidad y vuelve a intentarlo.';
+  if(/M26_SESSION_ACTIVE_WITHDRAW_FORBIDDEN/.test(code))return 'No puedes retirar este entrenamiento mientras esté en curso. Primero finaliza o cancela la ejecución; su historial se conserva.';
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
+  // A safe training removal is not a database DELETE. Fail closed with a
+  // human, recoverable reason; never hide the blocker behind a raw RPC code.
+  if(/M26_SESSION_WITHDRAW_(EXECUTION|OCCURRENCE|APPOINTMENT)_OPEN|M26_SESSION_ACTIVE_WITHDRAW_FORBIDDEN|U60_RETIRE_ACTIVE_OCCURRENCE_EXISTS/.test(code))
+    return 'Hay una ejecución, fecha o cita pendiente. Finalízala o cancélala antes de quitar este entrenamiento del plan. Los registros confirmados se conservarán.';
+  if(/M26_SESSION_WITHDRAW_PREFLIGHT_|M26_SESSION_DATED_PREFLIGHT_|U60_RETIRE_/.test(code))
+    return 'No se pudo comprobar de forma segura si este entrenamiento tiene fechas o sesiones abiertas. No se ha retirado: revisa la conexión y actualiza la planificación antes de reintentarlo.';
+  if(/M26_SESSION_WITHDRAW_ACTOR_CHANGED|M26_SESSION_WITHDRAW_SCOPE_REQUIRED/.test(code))
+    return 'Ha cambiado el cliente o el entrenamiento seleccionado. No se ha retirado nada; vuelve a abrir su planificación.';
+  if(/M26_PUBLICATION_REASON_REQUIRED/.test(code))
+    return 'Indica el motivo de la retirada para conservar la trazabilidad del entrenamiento.';
+  if(/M26_PUBLICATION_TRANSITION_INVALID/.test(code))
+    return 'El estado de este entrenamiento ha cambiado. Actualiza su ficha antes de retirarlo.';
+  if(/M26_OFFLINE_PUBLICATION_NOT_ALLOWED/.test(code))
+    return 'Necesitas conexión para retirar una sesión del plan. Ningún entrenamiento se ha eliminado de forma local.';
+
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
   if(/CLIENT_ONBOARDING_BACKEND_REQUIRED/.test(code))return 'La actualización segura del alta todavía no está instalada en el backend. El borrador permanece guardado y no se ha creado ningún expediente.';
   if(/CLIENT_ONBOARDING_BACKEND_NOT_READY/.test(code))return 'El backend de altas no superó su comprobación de seguridad. El borrador permanece guardado y no se enviaron datos.';

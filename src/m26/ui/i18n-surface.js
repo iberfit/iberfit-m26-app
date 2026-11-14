@@ -5,6 +5,29 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // M1: a typed (not yet submitted) set or final feedback must survive exit.
+  ['Hay datos escritos sin registrar. Confirma la serie o el feedback antes de salir.',
+    'There are unsubmitted inputs. Confirm the set or final feedback before leaving.',
+    'Des données saisies ne sont pas enregistrées. Confirmez la série ou le bilan avant de quitter.',
+    'Existem dados escritos ainda não registados. Confirme a série ou o feedback antes de sair.'],
+  ['Pausar entrenamiento','Pause workout','Mettre la séance en pause','Pausar treino'],
+  ['Reanudar entrenamiento','Resume workout','Reprendre la séance','Retomar treino'],
+  ['Entrenamiento en pausa. Tu progreso está confirmado.','Workout paused. Your progress is confirmed.','Entraînement en pause. Votre progression est confirmée.','Treino pausado. O seu progresso está confirmado.'],
+  ['Entrenamiento reanudado y confirmado por el servidor.','Workout resumed and confirmed by the server.','Entraînement repris et confirmé par le serveur.','Treino retomado e confirmado pelo servidor.'],
+  ['Entrenamiento en pausa. Reanúdalo antes de registrar nuevas series.','Workout paused. Resume it before recording another set.','Entraînement en pause. Reprenez avant de saisir une série.','Treino pausado. Retome antes de registar outra série.'],
+  ['Tiempo activo confirmado','Confirmed active time','Temps actif confirmé','Tempo ativo confirmado'],
+  ['Tiempo activo confirmado ·','Confirmed active time ·','Temps actif confirmé ·','Tempo ativo confirmado ·'],
+  // M1 U60 protected release: freeze NEW admissions while existing workouts
+  // remain recoverable, savable and finishable; no false completion.
+  ['Temporalmente no se admiten nuevos inicios. Puedes recuperar, guardar y finalizar un entrenamiento que ya esté en curso.',
+    'New workout starts are temporarily paused. You can recover, save and finish a workout already in progress.',
+    'Les nouveaux entraînements sont temporairement suspendus. Vous pouvez récupérer, enregistrer et terminer une séance déjà commencée.',
+    'O início de novos treinos está temporariamente suspenso. Pode recuperar, guardar e terminar um treino já em curso.'],
+  ['Los nuevos inicios están temporalmente pausados. Puedes seguir guardando y recuperar sesiones ya iniciadas.',
+    'New starts are temporarily paused. You can still save and recover workouts already started.',
+    'Les nouveaux démarrages sont temporairement suspendus. Vous pouvez toujours enregistrer et récupérer les séances commencées.',
+    'Os novos inícios estão temporariamente suspensos. Pode continuar a guardar e a recuperar treinos já iniciados.'],
+  ['Training360 · Entrenamiento','Training360 · Workout','Training360 · Entraînement','Training360 · Treino'],
   // UNIVERSAL B: Coach's three training evidence states, localized in every language.
   ["Evidencia de entrenamiento","Training evidence","Preuves d'entraînement","Evidências de treino"],
   ["Estado de entrenamientos · 28 días","Workout status · 28 days","Statut des entraînements · 28 jours","Estado dos treinos · 28 dias"],

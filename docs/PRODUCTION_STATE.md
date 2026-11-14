@@ -1,3 +1,8 @@
+## M1/U72 · Reconciliación SQL canónica · 13/11/2026 · PR #1335, NO PROD
+- Ante SonarCloud 39,2% de duplicación en código nuevo (máximo 3%), los cuatro cuerpos SQL U72 estaban duplicados entre migraciones QA y procedimientos PROD. No se modifica la migración ya aplicada en QA ni se omite Sonar.
+- Refactorización candidata: plantillas PROD fail-closed y generador de un solo origen con verificación de blob Git exacto; SQL materializado de instalación/rollback debe ser **byte a byte idéntico** al SQL PROD aprobado originalmente, preservando ambiente, transacción, hashes, CAS, ACL, RLS y reversibilidad.
+- Estado: pendiente de pruebas de HEAD, revisión de SonarCloud y aprobación de todos los gates. No aplicar scripts productivos, no abrir U60, no tocar datos, Auth ni eliminación de personas.
+
 ## SIGNATURE 360 · evidencia QA sintética por RUN · 13/11/2026
 
 - PR visual aislada #1336, SHA candidato anterior `d4294499841d4c6035272fe09a5738b0e94703e4`, sin cambios de producto desplegados.
@@ -6,6 +11,8 @@
 - Se exige una certificación completa nueva con **nuevo run_id y nueva fixture sintética**; no editar tests, datos QA ni backend, no omitir el gate, y no fusionar si el 500 se reproduce.
 - Evidencia M44 previa independiente y cifrada run `43509486165`: backup PROD DB+137 objetos Storage, PG17 restauración aislada y verificación de hashes; aplicar además vencimiento estricto y verificación exacta al promover. No acredita recuperación completa de Auth alojado.
 - Este checkpoint documental NO altera archivos desplegables, CSS, Auth, SQL, permisos, sesiones ni el diseño aprobado `d8f5e210cbac5a2bf529cd4497f073e805f22c04`.
+
+## SIGNATURE 360 · PR #1335 · candidato local 13/11/2026, NO PROD
 
 ## SIGNATURE 360 · entrega exclusivamente visual · 13/11/2026 · NO DESPLEGADA
 

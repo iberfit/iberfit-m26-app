@@ -55,6 +55,8 @@ const OCCURRENCE_ACTIONS=Object.freeze({
   OCURRENCIA_CONFIRMAR:'TRANSICION',
   OCURRENCIA_INICIAR:'TRANSICION',
   OCURRENCIA_GUARDAR_PROGRESO:'TRANSICION',
+  OCURRENCIA_PAUSAR:'TRANSICION',
+  OCURRENCIA_REANUDAR:'TRANSICION',
   OCURRENCIA_COMPLETAR:'TRANSICION',
   OCURRENCIA_CANCELAR:'CAMBIO',
   OCURRENCIA_REPROGRAMAR:'CAMBIO',
@@ -171,6 +173,21 @@ export function resolveM26Runtime(raw, locationLike = globalThis.location) {
     timeoutMs: Math.max(1_000, Math.min(Number(raw?.timeoutMs || DEFAULT_TIMEOUT_MS), 30_000)),
     qaOnly,
     canary,
+    // M1: this is an explicit, deployment-owned UX switch, NOT authorization.
+    // PROD remains closed by default; SQL JWT/owner/RLS/ACL still decide access.
+    // Canary and localhost may never turn on the production release switch.
+    datedTrainingProductionReleased: enabled&&raw?.datedTrainingProductionReleased===true
+      &&qaOnly===false&&canary===false&&host==='app.iberfit.cl'
+      &&raw?.projectRef===M26_PRODUCTION_PROJECT_REF
+      &&raw?.url===M26_PRODUCTION_SUPABASE_ORIGIN,
+    // Freeze NEW starts independently of the existing workout/save/recovery
+    // transport. Disabling the whole U60 UI during an active session is unsafe.
+    datedTrainingProductionStartsEnabled: enabled
+      &&raw?.datedTrainingProductionReleased===true
+      &&raw?.datedTrainingProductionStartsEnabled===true
+      &&qaOnly===false&&canary===false&&host==='app.iberfit.cl'
+      &&raw?.projectRef===M26_PRODUCTION_PROJECT_REF
+      &&raw?.url===M26_PRODUCTION_SUPABASE_ORIGIN,
     environment:expected.environment,
     version:String(raw?.version||'26.0.0').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,80)||'26.0.0',
     rpc: Object.freeze({
@@ -993,6 +1010,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   // completion to the legacy canonical session command.
   async function occurrenceGateway(token,action,payload){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
+    // Never probe a CLOSED PROD RPC from a merely deployed UI. This is a
+    // usability barrier, not the backend security or operational release gate.
+    if(runtime.qaOnly!==true&&runtime.datedTrainingProductionReleased!==true)
+      throw new Error('M26_OCCURRENCE_PRODUCTION_NOT_RELEASED');
     if(!['CALENDARIO','CREAR_LOTE','TRANSICION','CAMBIO'].includes(action))
       throw new Error('M26_OCCURRENCE_ACTION_INVALID');
     if(!payload||typeof payload!=='object'||Array.isArray(payload)
@@ -1016,11 +1037,11 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...result,occurrences:Object.freeze(result.occurrences)});
   }
 
-  // U60 opt-in QA only. The SQL detail RPC is CLOSED by default; no legacy
-  // fallback and no automatic JWT write/retry. Owner is enforced by SQL and
-  // verified again after the response in createOccurrencePrivateReader.
+  // U60 opt-in QA, or explicitly staged production UX AFTER protected rollout.
+  // Never fall back to legacy; the SQL RPC independently checks owner/RLS.
   async function occurrencePrivateRead(token,query){
-    if(!runtime.qaOnly)throw new Error('M26_OCCURRENCE_PRIVATE_READ_NOT_RELEASED');
+    if(runtime.qaOnly!==true&&runtime.datedTrainingProductionReleased!==true)
+      throw new Error('M26_OCCURRENCE_PRIVATE_READ_NOT_RELEASED');
     if(!query||typeof query!=='object'||Array.isArray(query)
       ||Object.keys(query).length!==2
       ||Object.keys(query).some(key=>!['clientId','occurrenceId'].includes(key))

@@ -1143,11 +1143,12 @@ export async function createM26Application({root=document.querySelector('#app'),
       return renderRouteView(Object.freeze({...routeVm,initialIriOnly:true}))
         +renderQaCoachHistoryGate(status);
     }
-    // QA U60 dates belong inside the Client route scrollport, BEFORE its
-    // independent bottom dock. Appending after renderClientRouteShell creates
-    // a second main flex sibling, steals the viewport row and strands the dock.
-    // Coach still receives the standalone dated workspace below its route.
-    const datedPanel=runtime.qaOnly===true&&
+    // Date workspace belongs inside the Client route scroller, BEFORE the
+    // independent bottom dock, for both QA and explicitly released PROD.
+    // The production branch is closed by default at resolveM26Runtime and
+    // by server EXECUTE ACL, not solely by this presentation check.
+    // Coach retains its standalone date workspace below the normal route.
+    const datedPanel=(runtime.qaOnly===true||runtime.datedTrainingProductionReleased===true)&&
       String(shellVm?.activeArea||'')==='sesion'&&datedUi?.enabled
       ?datedUi.renderPanel():'';
     const markup=renderRouteView(role==='client'&&datedPanel
@@ -1584,14 +1585,18 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-setup-catalog-ready');
 
     const ownerId=session.user.id;
-    // U60 rollout remains QA-only until PROD has versioned migrations,
-    // restored offsite data and an exact-SHA hardware/authenticated gate.
-    // No network call, unlock or calendar read is performed on login.
-    if(runtime.qaOnly===true&&runtime.canary===true
-      &&runtime.projectRef==='gjztkdwfmunnzhtvxrsu'){
+    // One rollout surface: QA stays available; PROD requires an explicit
+    // exact-host/project runtime switch only AFTER backend grants and M44.
+    // Neither branch queries the date calendar automatically at login.
+    const datedQa=runtime.qaOnly===true&&runtime.canary===true
+      &&runtime.projectRef==='gjztkdwfmunnzhtvxrsu';
+    const datedProd=runtime.datedTrainingProductionReleased===true;
+    if(datedQa||datedProd){
       try{
         datedUi=createDatedOccurrenceQaUi({
-          enabled:true,root,ownerId,projectRef:runtime.projectRef,transport,
+          enabled:true,productionReleased:datedProd,
+          newStartsEnabled:datedQa||runtime.datedTrainingProductionStartsEnabled===true,
+          root,ownerId,projectRef:runtime.projectRef,transport,
           getState:()=>store.getState(),onRender:render,
           getAuthContext:async()=>{
             await refreshSessionIfNeeded();
@@ -1606,7 +1611,7 @@ export async function createM26Application({root=document.querySelector('#app'),
         datedUi.mount();
       }catch(error){
         datedUi?.destroy?.();datedUi=null;
-        reportSoftDiagnostic('u60-qa-closed-unavailable',error);
+        reportSoftDiagnostic('u60-dated-closed-unavailable',error);
       }
     }
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});sessionTemplateRepository=createSessionTemplateRepository({ownerId});telemetryOutbox=createTelemetryDurableOutbox({ownerId});
@@ -1656,7 +1661,10 @@ export async function createM26Application({root=document.querySelector('#app'),
     mediaExperience=createExerciseVideoExperienceController({root});
     avatarController=createClientAvatarController({root,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getIdentity:()=>store.getState().identity||{}});
     workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,refreshState:hydrate,createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},updateExerciseMeasurementProfile:async(payload)=>{await refreshSessionIfNeeded();return transport.updateExerciseMeasurementProfile(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,
-      verifySessionDateRetirement:runtime.qaOnly===true&&runtime.canary===true
+      // When U60 is released in PROD, a Coach withdrawal must also check
+      // all dated occurrences. Do not silently fall back to legacy-only
+      // retirement authorization just because this is not the QA hostname.
+      verifySessionDateRetirement:datedUi?.enabled===true
         ?async({clientId,sessionId})=>{
           if(!datedUi?.enabled||typeof datedUi.verifySessionRetirement!=='function')
             throw new Error('M26_U60_RETIRE_CALENDAR_NOT_AVAILABLE');

@@ -1,4 +1,8 @@
 export const ROUTE_SURFACE_ROWS_D=Object.freeze([
+// Coach / Planificación: scheduling is based on confirmed dates, not on the creation timestamp.
+['Fecha confirmada','Confirmed date','Date confirmée','Data confirmada'],
+['Próxima fecha confirmada','Next confirmed date','Prochaine date confirmée','Próxima data confirmada'],
+['Última fecha confirmada','Last confirmed date','Dernière date confirmée','Última data confirmada'],
 ["Sesión guiada IBERFIT","IBERFIT guided workout","Séance guidée IBERFIT","Sessão guiada IBERFIT"],
 ["Así lo verá el cliente · ver vista previa","This is what the Client will see · open preview","Ce que verra le Client · ouvrir l’aperçu","Assim verá o Cliente · abrir pré-visualização"],
 ["Contenido completo que recibirá el cliente","Full content the Client will receive","Contenu complet que recevra le Client","Conteúdo completo que o Cliente receberá"],

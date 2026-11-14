@@ -7,8 +7,6 @@
  */
 import {createHash} from 'node:crypto';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
-import {candidateList} from './qa_u60_dated_fixture_preflight.mjs';
-import {expandQaClientCanonicalBodyEnvelope} from '../../src/m26/production-state.js';
 import {buildAppointmentCommand,buildConfirmAppointmentCommand,santiagoAppointmentInstant} from '../../src/m26/workflows/agenda-workflow.js';
 const QA='gjztkdwfmunnzhtvxrsu';
 const BASE='https://'+QA+'.supabase.co';
@@ -18,6 +16,7 @@ const BRANCHES=new Set([
  'feat/iberfit-universal-launch-360-20261112',
  'canary/rc74-4',
  'feat/coach-a-verified-evidence-20261111',
+ 'feat/iberfit-m1-training-reliability-20261112',
 ]);
 const branchFromRef=ref=>{
  const prefix='refs/heads/';
@@ -84,6 +83,78 @@ export function denied(x){
   (x?.status===200&&['rejected','conflict'].includes(x.body?.kind)
   &&/DENIED|FORBIDDEN|ACCESS|ROLE|OWNER|NOT_FOUND|NOT_ALLOWED/.test(x.body?.reason||''));
 }
+// This QA-only reader returns ONLY bounded, owner-scoped test metadata.
+// It cannot replace real app bootstrap, nor provide a Client UI bypass.
+// Reject unexpected keys, other owners, wrong date, duplicates and raw bodies.
+export function validatedDatedCandidates(raw,owner,day){
+ assert(raw&&typeof raw==='object'&&!Array.isArray(raw)
+   &&Object.keys(raw).sort((a,b)=>a.localeCompare(b)).join(',')==='candidates,clientId,count,day,project,schema'
+   &&raw.schema==='iberfit.u71.qa.dated-candidates.v1'
+   &&raw.project==='QA'&&raw.clientId===owner&&raw.day===day
+   &&UUID.test(owner)
+   &&Array.isArray(raw.candidates)&&raw.candidates.length<=50
+   &&Number.isSafeInteger(raw.count)&&raw.count===raw.candidates.length,
+   'BOUNDED_CANDIDATE_RESPONSE_INVALID');
+ const seen=new Set();
+ for(const item of raw.candidates){
+  assert(item&&typeof item==='object'&&!Array.isArray(item)
+   &&Object.keys(item).sort((a,b)=>a.localeCompare(b)).join(',')==='clientId,cycleId,duration,id,revision,sets'
+   &&UUID.test(item.id)&&UUID.test(item.cycleId)
+   &&item.clientId===owner
+   &&Number.isSafeInteger(item.revision)&&item.revision>=1
+   &&Number.isFinite(item.duration)&&item.duration>=10&&item.duration<=240
+   &&Number.isSafeInteger(item.sets)&&item.sets>=1&&item.sets<=15
+   &&!seen.has(item.id),'BOUNDED_CANDIDATE_SCOPE_INVALID');
+  seen.add(item.id);
+ }
+ return Object.freeze([...raw.candidates].sort((a,b)=>a.id.localeCompare(b.id))
+  .map(item=>Object.freeze({...item})));
+}
+/**
+ * U71 exact-sha, same-owner appointment collision avoidance.
+ * Only picks among future <=55-minute Santiago slots; no rounding across DST.
+ * Missing schedule coverage/fully occupied window aborts BEFORE any write.
+ */
+export function chooseUnoccupiedDatedSlot({
+ today,future,duration,clockMinute,calendar,fixedTime=null,nowMs=Date.now()
+}={}){
+ assert(/^\d{4}-\d{2}-\d{2}$/.test(String(today))&&
+  /^\d{4}-\d{2}-\d{2}$/.test(String(future))&&
+  Array.isArray(calendar)&&calendar.length<=50&&
+  Number.isInteger(clockMinute)&&clockMinute>=0&&clockMinute<1440&&
+  Number.isFinite(duration)&&duration>=10&&duration<=240&&
+  Number.isFinite(nowMs),'QA_SLOT_INPUT_INVALID');
+ const from=fixedTime
+  ?Number(fixedTime.slice(0,2))*60+Number(fixedTime.slice(3,5))
+  :Math.ceil((clockMinute+25)/5)*5;
+ assert(!fixedTime||/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(fixedTime),
+  'QA_SLOT_CERTIFIED_TIME_INVALID');
+ const deadline=fixedTime?from:Math.min(1439,clockMinute+55);
+ const busy=calendar.filter(row=>row.status!=='cancelada'&&
+  (row.startsAt!=null||row.endsAt!=null)).map(row=>{
+  const a=Date.parse(String(row.startsAt||'')),
+        b=Date.parse(String(row.endsAt||''));
+  assert(Number.isFinite(a)&&Number.isFinite(b)&&b>a,
+   'QA_CALENDAR_INCOMPLETE_FOR_SLOT');
+  return [a,b];
+ });
+ for(let n=from;n<=deadline&&n<1440;n+=5){
+  const time=String(Math.floor(n/60)).padStart(2,'0')+':'+
+   String(n%60).padStart(2,'0');
+  let start1,start2;
+  try{
+   start1=santiagoAppointmentInstant(today+'T'+time);
+   start2=santiagoAppointmentInstant(future+'T'+time);
+  }catch{continue;}
+  const a=Date.parse(start1),b=Date.parse(start2),width=duration*60000;
+  if(a<=nowMs||a-nowMs>=3600000)continue;
+  if(busy.some(([x,y])=>(a<y&&a+width>x)||(b<y&&b+width>x)))continue;
+  return Object.freeze({time,start1,start2,
+   end1:new Date(a+width).toISOString(),end2:new Date(b+width).toISOString()});
+ }
+ throw Error('U71_QA_NO_CONFLICT_FREE_SLOT');
+}
+
 function context(mode){
  const e=process.env;
  for(const name of ['M26_QA_ONLY','M26_PROJECT_REF','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -147,7 +218,7 @@ export async function boundedReadOnlyJwtClockSkewRecovery(request,wait=async()=>
 }
 const READ_ONLY_IDENTITY_RPCS=new Set([
  'iberfit_current_role_v26','iberfit_client_id',
- 'iberfit_environment','iberfit_bootstrap_v26',
+ 'iberfit_environment','iberfit_u71_dated_candidates_qa_v1',
 ]);
 async function value(ctx,jwt,name,params={}){
  assert(READ_ONLY_IDENTITY_RPCS.has(name),'NON_IDENTITY_READ_BLOCKED');
@@ -192,7 +263,7 @@ async function authenticatedStage(ctx,certified=null){
   value(ctx,b.jwt,'iberfit_current_role_v26'),
   value(ctx,a.jwt,'iberfit_client_id'),value(ctx,b.jwt,'iberfit_client_id'),
   value(ctx,a.jwt,'iberfit_environment'),
-  value(ctx,a.jwt,'iberfit_bootstrap_v26'),
+  value(ctx,a.jwt,'iberfit_u71_dated_candidates_qa_v1'),
  ]);
  assert(roleCoach==='coach'&&['client','cliente'].includes(roleA)
   &&['client','cliente'].includes(roleB),'ROLE_MISMATCH');
@@ -200,20 +271,12 @@ async function authenticatedStage(ctx,certified=null){
  assert(environment?.environment==='QA'&&environment.realDataAllowed===false
   &&environment.productionBlocked===true,'ENV_ISOLATION');
  const clock=chileanClock(),today=clock.day,future=dayOffset(today,7);
- const candidates=candidateList(expandQaClientCanonicalBodyEnvelope(raw),today)
-  .filter(x=>x.clientId===clientA).sort((x,y)=>x.id.localeCompare(y.id));
+ const candidates=validatedDatedCandidates(raw,clientA,today);
  assert(candidates.length>0,'NO_SUITABLE_SYNTHETIC_PRESCRIPTION');
- // Each date must be a valid exact local instant (never DST guessed).
- const minute=certified
-  ? Number(certified.localTime.slice(0,2))*60+Number(certified.localTime.slice(3,5))
-  : Math.ceil((clock.minute+25)/5)*5;
- assert(Number.isInteger(minute)&&minute>=0&&minute<1440,'NO_SAFE_TODAY_APPOINTMENT_WINDOW');
- const hh=String(Math.floor(minute/60)).padStart(2,'0');
- const mm=String(minute%60).padStart(2,'0');
- const time=hh+':'+mm;
- const start1=santiagoAppointmentInstant(today+'T'+time);
- const start2=santiagoAppointmentInstant(future+'T'+time);
- assert(Date.parse(start1)>Date.now()&&Date.parse(start1)-Date.now()<3600000,'APPOINTMENT_CLOCK_DRIFT');
+ // The exact available slot is selected from the complete authorised dated
+ // calendar after a candidate prescription is chosen; no time conflicts.
+ const foreignCandidates=await rpc(ctx,b.jwt,'iberfit_u71_dated_candidates_qa_v1',{});
+ assert(denied(foreignCandidates),'CANDIDATE_CROSS_CLIENT_EXPOSED');
  const old=await checkedCalendar(ctx,coach.jwt,clientA,today,future);
  // A real QA portfolio legitimately contains prior dates from other plans.
  // Never erase them or require an empty calendar. Reserve only the TWO
@@ -222,8 +285,9 @@ async function authenticatedStage(ctx,certified=null){
  assert(!old.some(row=>row.status==='en_curso'),'QA_CLIENT_ACTIVE_EXECUTION');
  const chosen=firstAvailableDatedCandidate(candidates,old,today,future);
  assert(chosen,'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
- const end1=new Date(Date.parse(start1)+chosen.duration*60000).toISOString();
- const end2=new Date(Date.parse(start2)+chosen.duration*60000).toISOString();
+ const {time,start1,start2,end1,end2}=chooseUnoccupiedDatedSlot({
+  today,future,duration:chosen.duration,clockMinute:clock.minute,
+  calendar:old,fixedTime:certified?.localTime||null});
  const foreign=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:2});
  assert(denied(foreign),'CROSS_CLIENT_SCOPE_BROKEN');
  const appointments=[{date:today,startAt:start1,endAt:end1},{date:future,startAt:start2,endAt:end2}];
@@ -374,12 +438,72 @@ async function main(){
  assert(progress.status===200&&progress.body?.kind==='ack'&&
   Number(progress.body.executionRevision)===2,'CLIENT_SET_PROGRESS_NOT_SAVED');
  proof.checks.push('saved_first_set_real_server');await save(proof);
+ // U72: real authenticated HTTP pause, separate execution CAS, and second
+ // device/read recovery. Never treat a local timer or browser click as ACK.
+ const pauseCommand={type:'OCURRENCIA_PAUSAR',
+  operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'u72-pause'),
+  clientId:clientA,entityId:occ[0],baseRevision:2,
+  payload:{executionId,executionBaseRevision:2}};
+ const paused=await u60(ctx,a.jwt,'TRANSICION',pauseCommand);
+ assert(paused.status===200&&paused.body?.kind==='ack'&&
+  paused.body?.status==='en_curso'&&paused.body?.executionStatus==='pausada'&&
+  Number(paused.body.executionRevision)===3&&
+  Number.isSafeInteger(paused.body.accumulatedActiveMs)&&
+  paused.body.activeSince===null,'U72_PAUSE_NOT_CONFIRMED');
+ const pausedDetail=await rpc(ctx,a.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:clientA,p_occurrence_id:occ[0]});
+ assert(pausedDetail.status===200&&
+  pausedDetail.body?.occurrence?.status==='en_curso'&&
+  pausedDetail.body?.executionBody?.status==='pausada'&&
+  Number(pausedDetail.body?.executionBody?.revision)===3&&
+  Number(pausedDetail.body?.executionBody?.accumulatedActiveMs)>=0&&
+  pausedDetail.body?.executionBody?.results?.[exerciseId+':1']?.reps===10,
+  'U72_PAUSED_PRIVATE_READ_NOT_DURABLE');
+ proof.checks.push('u72_pause_confirmed_and_privately_readable');await save(proof);
+ const pauseAgain=await u60(ctx,a.jwt,'TRANSICION',pauseCommand);
+ assert(pauseAgain.status===200&&pauseAgain.body?.kind==='ack'&&
+  pauseAgain.body?.duplicate===true&&
+  Number(pauseAgain.body.executionRevision)===3,'U72_PAUSE_REPLAY_NOT_IDEMPOTENT');
+ const pausedWrite=await u60(ctx,a.jwt,'TRANSICION',{
+  type:'OCURRENCIA_GUARDAR_PROGRESO',
+  operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'u72-paused-progress-denied'),
+  clientId:clientA,entityId:occ[0],baseRevision:2,
+  payload:{executionId,executionBaseRevision:3,results:{},skippedSets:{}}});
+ assert(pausedWrite.status===200&&pausedWrite.body?.kind==='rejected'&&
+  pausedWrite.body?.reason==='EXECUTION_PAUSED','U72_PAUSED_WRITE_NOT_DENIED');
+ const foreignResume=await u60(ctx,b.jwt,'TRANSICION',{
+  type:'OCURRENCIA_REANUDAR',
+  operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'u72-foreign-resume-denied'),
+  clientId:clientA,entityId:occ[0],baseRevision:2,
+  payload:{executionId,executionBaseRevision:3}});
+ assert(denied(foreignResume),'U72_CROSS_CLIENT_RESUME_NOT_DENIED');
+ proof.checks.push('u72_idempotent_pause_write_fence_and_idor_denial');await save(proof);
+ const resumed=await u60(ctx,a.jwt,'TRANSICION',{
+  type:'OCURRENCIA_REANUDAR',
+  operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'u72-resume'),
+  clientId:clientA,entityId:occ[0],baseRevision:2,
+  payload:{executionId,executionBaseRevision:3}});
+ assert(resumed.status===200&&resumed.body?.kind==='ack'&&
+  resumed.body?.executionStatus==='en_curso'&&
+  Number(resumed.body.executionRevision)===4&&
+  resumed.body.activeSince&&
+  Number.isFinite(Date.parse(resumed.body.activeSince)),
+  'U72_RESUME_NOT_CONFIRMED');
+ const resumedDetail=await rpc(ctx,a.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:clientA,p_occurrence_id:occ[0]});
+ assert(resumedDetail.status===200&&
+  resumedDetail.body?.executionBody?.status==='en_curso'&&
+  Number(resumedDetail.body?.executionBody?.revision)===4&&
+  resumedDetail.body?.executionBody?.results?.[exerciseId+':1']?.reps===10&&
+  resumedDetail.body?.occurrence?.status==='en_curso',
+  'U72_RESUMED_PRIVATE_READ_NOT_DURABLE');
+ proof.checks.push('u72_resumed_and_prior_progress_preserved');await save(proof);
  const all={...initial};
  for(let i=2;i<=chosen.sets;i++)all[exerciseId+':'+i]={reps:8,loadKg:22};
  const done=await u60(ctx,a.jwt,'TRANSICION',{
   type:'OCURRENCIA_COMPLETAR',operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'occ-finish'),
   clientId:clientA,entityId:occ[0],baseRevision:2,
-  payload:{executionId,executionBaseRevision:2,results:all,skippedSets:{},
+  payload:{executionId,executionBaseRevision:4,results:all,skippedSets:{},
    feedback:{sessionRpe:7,comment:'U71 QA synthetic training',pain:false}}});
  assert(done.status===200&&done.body?.kind==='ack'&&done.body.status==='completada',
    'CLIENT_DATED_EXECUTION_NOT_COMPLETED');

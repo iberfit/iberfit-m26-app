@@ -34,6 +34,16 @@ const shortSha=sourceSha.slice(0,12);
 const VERSION=`26.0.0-production.${shortSha}`;
 const RELEASE=`IBERFIT_M26_PRODUCTION_${shortSha.toUpperCase()}`;
 const SERVICE_WORKER_VERSION=productionServiceWorkerVersion(sourceSha);
+// M1 U60 standard promotion remains CLOSED. Opt-in requires an exact SHA
+// certification and separate operator action; the backend still enforces ACL.
+const datedTrainingMode=String(process.env.M26_U60_PROD_MODE||'closed').trim().toLowerCase();
+if(!['closed','recovery','active'].includes(datedTrainingMode))
+  throw new Error('FINAL_PROD_U60_MODE_INVALID');
+if(datedTrainingMode!=='closed'){
+  if(process.env.M26_U60_CERTIFIED_SOURCE_SHA!==sourceSha
+    ||process.env.M26_U60_OPERATOR_APPROVAL!=='approved')
+    throw new Error('FINAL_PROD_U60_EXPLICIT_RELEASE_PROOF_REQUIRED');
+}
 
 const url=new URL(String(process.env.M26_SUPABASE_URL||''));
 if(url.origin!==M26_PRODUCTION_SUPABASE_ORIGIN||url.pathname!=='/'||url.search||url.hash||url.username||url.password){
@@ -104,6 +114,9 @@ const config={
   production:true,
   analytics:posthogEnabled?{enabled:true,provider:'posthog',publicKey:posthogToken,host:posthogHost}:{enabled:false},
   enabled:true,
+  // UX gate only: SQL authenticated grants/JWT/RLS remain authoritative.
+  datedTrainingProductionReleased:datedTrainingMode!=='closed',
+  datedTrainingProductionStartsEnabled:datedTrainingMode==='active',
   version:VERSION,
   projectRef:M26_PRODUCTION_PROJECT_REF,
   url:M26_PRODUCTION_SUPABASE_ORIGIN,
@@ -123,6 +136,7 @@ const provenance={
   sourceSha,
   sourceBranch,
   releaseLane,
+  datedTrainingMode,
   serviceWorkerVersion:SERVICE_WORKER_VERSION,
   promotionHead:promotionHead||sourceSha,
   environment:'PRODUCTION',
@@ -180,6 +194,7 @@ console.log(JSON.stringify({
   sourceSha,
   sourceBranch,
   releaseLane,
+  datedTrainingMode,
   serviceWorkerVersion:SERVICE_WORKER_VERSION,
   projectRef:M26_PRODUCTION_PROJECT_REF,
   qaOnly:false,

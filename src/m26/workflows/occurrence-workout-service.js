@@ -37,6 +37,7 @@ export function createOccurrenceWorkoutService({
     if(pending)fail('RECOVERY_REQUIRED');
     if(stale)fail('PRIVATE_REFRESH_REQUIRED');
     if(!current||current.phase!=='active')fail('ACTIVE_WORKOUT_REQUIRED');
+    if(current.execution?.status==='paused')fail('WORKOUT_PAUSED');
   };
   const view=()=>Object.freeze({
     phase:pending?'pending-recovery':stale?'needs-refresh':
@@ -49,6 +50,9 @@ export function createOccurrenceWorkoutService({
     executionRevision:current?.executionRevision??null,
     executionStatus:current?.execution?.status??null,
     startedAt:current?.execution?.startedAt??null,
+    activeSince:current?.execution?.activeSince??null,
+    pausedAt:current?.execution?.pausedAt??null,
+    accumulatedActiveMs:current?.execution?.accumulatedActiveMs??0,
     busy,hasUncertain:pending,unsavedWork:dirty,error,
     currentStep:current?.execution?
       structuredClone(currentStep(current.execution,current.session)):null,
@@ -263,7 +267,21 @@ export function createOccurrenceWorkoutService({
   const advance=()=>mutate(execution=>advanceExecution(execution));
   const finish=feedback=>mutate(execution=>finishExecution(execution,feedback));
   return Object.freeze({
-    open,view,start:()=>dispatch('start'),save:()=>dispatch('progress'),
+    open,view,start:()=>dispatch('start'),
+    pause:async()=>{
+      if(!current||current.execution?.status!=='active')fail('PAUSE_NOT_ACTIVE');
+      if(dirty){
+        const saved=await dispatch('progress');
+        if(saved.hasUncertain||saved.unsavedWork||saved.phase!=='active')
+          fail('RECOVERY_REQUIRED');
+      }
+      return dispatch('pause');
+    },
+    resume:()=>{
+      if(!current||current.execution?.status!=='paused')fail('RESUME_NOT_PAUSED');
+      return dispatch('resume');
+    },
+    save:()=>dispatch('progress'),
     complete:()=>dispatch('complete'),reconcile,record,skip,advance,finish,
   });
 }
