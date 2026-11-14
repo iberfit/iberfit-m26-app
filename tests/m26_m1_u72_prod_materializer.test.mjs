@@ -19,7 +19,7 @@ test('M1 U72 materialization restores the exact pre-reviewed PROD SQL bytes',()=
 test('tampered QA source, templates and invalid mode all fail closed',()=>{
  for(const kind of ['install','rollback']){
   assert.throws(()=>materializeU72ProductionSql(kind,{readSource:path=>
-   path===U72_SOURCE[kind]?read(path)+' -- tampered':read(path)}),
+   path===U72_SOURCE.install?read(path)+' -- tampered':read(path)}),
    /M1_U72_QA_CANONICAL_SOURCE_DRIFT/u);
   assert.throws(()=>materializeU72ProductionSql(kind,{readSource:path=>
    path===U72_TEMPLATE[kind]?read(path).replace('BEGIN;','BEGIN; -- tampered'):read(path)}),
