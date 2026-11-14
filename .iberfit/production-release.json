@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "1b08e418d166ae502fe6bb2df83f01d0da186d35",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "67cdea194cb0ee87acebde0a89f9487d68ccec7b",
+  "notes": "UNIVERSAL 360: first invitation activation and PWA install; mobile Client navigation P0 fix, U60 read-only UI integrity. Frontend-only; keep U60/U72 backend grants/SQL closed, #1319 separate. M44 run 43639874025, Canary run 43639874012, remote QA run 43639874108 attempt 2."
+}
