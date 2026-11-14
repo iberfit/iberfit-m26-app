@@ -409,3 +409,15 @@ test('controller source keeps manual controls and suppresses auto advance on hid
   assert.match(source,/coachRestSuppressedSignature/);
   assert.match(source,/rest-expired-auto/);
 });
+
+test('Coach rest correction disclosure remains open through timer and telemetry rendering',()=>{
+  const source=fs.readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+  const section=source.slice(source.indexOf('  function liveDisclosureHost(){'),source.indexOf('  const baseRender=render;'));
+  assert.ok(section.length>200);
+  assert.match(section,/data-session-live-entry/);
+  assert.match(section,/data-session-rest-focus/);
+  assert.equal(section.split("liveDisclosureHost()?.querySelectorAll?.('details')").length-1,2);
+  assert.match(section,/snapshot.key!==liveDisclosureScope/);
+  assert.match(section,/nodes\[index\]\.open=true/);
+  assert.match(source,/restCorrectionInProgress\(\)/);
+});

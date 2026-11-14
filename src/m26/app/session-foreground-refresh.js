@@ -75,7 +75,9 @@ export function createSessionForegroundRefreshCoordinator({
         return refreshSession();
       })
       .then((result)=>{
-        if(result!==false)lastTransientFailure=null;
+        // A superseded account cannot clear the new account's outage cooldown.
+        if(result!==false&&!destroyed&&stillOwnsSession(getSession?.(),ownerLease))
+          lastTransientFailure=null;
         return result!==false;
       })
       .catch(async(error)=>{

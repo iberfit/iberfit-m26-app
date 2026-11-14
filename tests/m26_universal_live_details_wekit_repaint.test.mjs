@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const file=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
-const casePart=file.slice(file.indexOf('function liveDisclosureScope('),file.indexOf('  const baseRender=render;'));
+const casePart=file.slice(file.indexOf('function liveDisclosureHost('),file.indexOf('  const baseRender=render;'));
 test('U360 WebKit: live detail opens survive only same execution and set repaint',()=>{
   assert.ok(casePart.includes("[data-session-live-entry]"));
+  assert.ok(casePart.includes("[data-session-rest-focus]"),'rest correction shares the protected open-state scope');
   assert.ok(casePart.includes('String(x.id'));
   assert.ok(casePart.includes('String(x.index'));
   assert.ok(casePart.includes('String(x.setIndex'));

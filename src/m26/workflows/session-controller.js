@@ -1041,8 +1041,14 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   // execution and rendered state remain active. WebKit may otherwise drop the
   // open native <details> during an unrelated telemetry repaint, trapping the
   // "No realizar esta serie" reason input in a hidden form (U360 regression).
+  // Rest correction is a live disclosure too: restore its open state after
+  // touch, clock or telemetry re-renders while the execution phase is stable.
+  function liveDisclosureHost(){
+    return root.querySelector?.('[data-session-live-entry]')
+      ||root.querySelector?.('[data-session-rest-focus]')||null;
+  }
   function liveDisclosureScope(c){
-    const x=c?.execution,section=root.querySelector?.('[data-session-live-entry]');
+    const x=c?.execution,section=liveDisclosureHost();
     if(!x||!section)return null;
     const phase=root.querySelector?.('[data-session-live-state]')?.getAttribute?.('data-session-live-state')||'';
     return String(x.id||'')+'|'+String(x.index??'')+'|'+String(x.setIndex??'')+'|'+
@@ -1051,13 +1057,13 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   function captureLiveDisclosure(c){
     const key=liveDisclosureScope(c);
     if(!key)return null;
-    const nodes=[...(root.querySelector?.('[data-session-live-entry]')?.querySelectorAll?.('details')||[])];
+    const nodes=[...(liveDisclosureHost()?.querySelectorAll?.('details')||[])];
     return Object.freeze({key,total:nodes.length,
       open:Object.freeze(nodes.flatMap((node,index)=>node.open===true?[index]:[]).slice(0,32))});
   }
   function restoreLiveDisclosure(snapshot,c){
     if(!snapshot||snapshot.key!==liveDisclosureScope(c))return 0;
-    const nodes=[...(root.querySelector?.('[data-session-live-entry]')?.querySelectorAll?.('details')||[])];
+    const nodes=[...(liveDisclosureHost()?.querySelectorAll?.('details')||[])];
     if(nodes.length!==snapshot.total)return 0;
     let restored=0;
     for(const index of snapshot.open){

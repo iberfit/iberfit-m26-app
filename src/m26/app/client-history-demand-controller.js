@@ -25,7 +25,7 @@ export function createClientHistoryDemandController({
     transport,getToken,getOwner,getClientId:()=>String(store.getState().identity?.clientId||''),
     isOnline,
   });
-  let mounted=false,status='idle',loadedKey='',failedKey='',request=null;
+  let mounted=false,status='idle',loadedKey='',failedKey='',failureCode='',request=null;
   let activeArea=String(store.getState().activeArea||'');
   function cancelPending(){
     if(request){loader.cancel();request=null;}
@@ -49,6 +49,9 @@ export function createClientHistoryDemandController({
       if(typeof route.append==='function')route.append(node);
       else route.prepend(node);
     }
+    // QA diagnostics are bounded error classes, never request bodies or identities.
+    if(status==='error'&&failureCode)node.dataset.m26FreeHistoryFailureCode=failureCode;
+    else delete node.dataset.m26FreeHistoryFailureCode;
     node.setAttribute('role',status==='loading'?'status':'group');
     node.setAttribute('aria-live',status==='loading'?'polite':'off');
     node.textContent=status==='idle'
@@ -86,14 +89,25 @@ export function createClientHistoryDemandController({
         ownerId:identityId,clientId,confirmedAt,lastAck,sections,
       });
       if(!current())return;
-      loadedKey=key;failedKey='';status='ready';notice();render();
+      loadedKey=key;failedKey='';failureCode='';status='ready';notice();render();
     }catch(error){
       if(!current())return;
       failedKey=key;status=isOnline()?'error':'offline';
+      const code=String(error?.message||'');
+      failureCode=/^M26_CLIENT_HISTORY_[A-Z0-9_]{1,64}$/u.test(code)
+        ?code:'M26_CLIENT_HISTORY_UNCLASSIFIED';
       // Never leak session, token, user details or transport payload in telemetry.
       notice();render();
     }finally{
-      if(request===operation)request=null;
+      if(request===operation){
+        request=null;
+        if(status==='loading'){
+          // Identity, revision or hydration changed before the complete read;
+          // preserve prior records and allow only explicit recovery.
+          failedKey=key;status='error';failureCode='M26_CLIENT_HISTORY_STALE_CONTEXT';
+          notice();render();
+        }
+      }
     }
   }
   function maybeLoad(area,{explicit=false}={}){
@@ -117,7 +131,7 @@ export function createClientHistoryDemandController({
     if(!isOnline()){failedKey=key;status='offline';notice();return;}
     const {clientId,id:identityId}=state.identity,{confirmedAt}=state.hydration;
     const lastAck=structuredClone(state.lastAck??null);
-    status='loading';failedKey='';
+    status='loading';failedKey='';failureCode='';
     const operation={owner,key,area};request=operation;
     notice();
     void loadOnce(operation,{clientId,identityId,confirmedAt,lastAck});

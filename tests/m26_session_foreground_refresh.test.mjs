@@ -113,6 +113,35 @@ test('foreground refresh distinguishes permanent session failure from transient 
   coordinator.destroy();
 });
 
+test('late successful refresh of owner A never lifts owner B transient retry cooldown',async()=>{
+  const scope=new FakeEventTarget(),doc=new FakeEventTarget();
+  doc.visibilityState='visible';
+  let session={token:'token-A',user:{id:'A'}},clock=0,calls=0,releaseA;
+  const pendingA=new Promise(resolve=>{releaseA=resolve;});
+  const coordinator=createSessionForegroundRefreshCoordinator({
+    scope,documentLike:doc,getSession:()=>session,now:()=>clock,transientRetryMs:15000,
+    refreshSession:async()=>{
+      ++calls;
+      if(calls===1)return pendingA;
+      if(calls===2)throw new Error('offline');
+      return true;
+    },
+  });
+  const obsolete=coordinator.run('focus');
+  await tick();
+  session={token:'token-B',user:{id:'B'}};
+  assert.equal(await coordinator.run('focus'),false);
+  assert.equal(calls,2);
+  clock=100;
+  releaseA(true);
+  assert.equal(await obsolete,true);
+  assert.equal(await coordinator.run('pageshow'),false);
+  assert.equal(calls,2,'A success must not trigger a B retry storm during outage');
+  assert.equal(await coordinator.run('online'),true);
+  assert.equal(calls,3,'explicit online recovery remains available');
+  coordinator.destroy();
+});
+
 test('foreground refresh cleanup removes every lifecycle listener',async()=>{
   const scope=new FakeEventTarget();
   const documentLike=new FakeEventTarget();

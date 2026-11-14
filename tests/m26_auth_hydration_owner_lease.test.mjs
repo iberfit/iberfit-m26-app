@@ -35,9 +35,10 @@ test('same session coalesces its queued hydration reasons',async()=>{
 
 test('owner B never coalesces with A and old A finalizer never clears B flight',async()=>{
   const a={id:'A'},b={id:'B'},pA=deferred(),pB=deferred(),calls=[];
-  let owner=a;
-  const coordinator=createHydrationCoordinator(({ownerSession})=>{
+  let owner=a,oldSignal;
+  const coordinator=createHydrationCoordinator(({ownerSession,signal})=>{
     calls.push(ownerSession);
+    if(ownerSession===a)oldSignal=signal;
     return ownerSession===a?pA.promise:pB.promise;
   },{getOwner:()=>owner});
   const old=coordinator.request();
@@ -46,8 +47,9 @@ test('owner B never coalesces with A and old A finalizer never clears B flight',
   const current=coordinator.request();
   await tick();
   assert.deepEqual(calls,[a,b]);
+  assert.equal(oldSignal.aborted,true,'owner B cancels obsolete owner A I/O');
   pA.resolve('A');
-  assert.equal(await old,'A');
+  await assert.rejects(old,/M26_HYDRATION_CANCELLED/);
   const sameB=coordinator.request({reason:'recheck'});
   await tick();
   assert.deepEqual(calls,[a,b],'B flight remains owned despite A completion');
@@ -55,6 +57,26 @@ test('owner B never coalesces with A and old A finalizer never clears B flight',
   assert.equal(await current,'B');
   assert.equal(await sameB,'B');
   assert.deepEqual(calls,[a,b,b],'B alone drains B queued request');
+});
+
+test('explicit cancel allows same-owner retry and old result cannot overwrite it',async()=>{
+  const owner={id:'A'},first=deferred(),second=deferred(),signals=[],calls=[];
+  const coordinator=createHydrationCoordinator(({signal})=>{
+    signals.push(signal);calls.push('run');
+    return calls.length===1?first.promise:second.promise;
+  },{getOwner:()=>owner});
+  const obsolete=coordinator.request({reason:'login'});
+  await tick();
+  assert.equal(coordinator.cancel(),true);
+  assert.equal(signals[0].aborted,true);
+  const current=coordinator.request({reason:'session-retry'});
+  await tick();
+  assert.equal(calls.length,2,'retry must not coalesce with a canceled unresolved read');
+  first.resolve('stale');
+  await assert.rejects(obsolete,/M26_HYDRATION_CANCELLED/);
+  second.resolve('current');
+  assert.equal(await current,'current');
+  assert.equal(coordinator.cancel(),false);
 });
 
 test('obsolete queued microtask never dispatches after owner changes',async()=>{
@@ -128,7 +150,7 @@ test('real hydratePass blocks A snapshot after switching to client B',async()=>{
   const current=f.coordinator.request({reason:'login'});
   await tick();
   f.backend.A.resolve(snapshot('A'));
-  await assert.rejects(old,/M26_HYDRATION_STALE_SESSION/);
+  await assert.rejects(old,/M26_HYDRATION_CANCELLED/);
   assert.deepEqual(f.writes,[]);
   assert.equal(f.statuses.includes('error'),false);
   f.backend.B.resolve(snapshot('B'));
@@ -136,6 +158,28 @@ test('real hydratePass blocks A snapshot after switching to client B',async()=>{
   assert.deepEqual(f.writes,['B']);
   assert.deepEqual(f.preferences,['B']);
   assert.deepEqual(f.tokens,['token-A','token-B']);
+});
+
+test('real hydratePass ignores stale same-owner response after cancel and permits retry',async()=>{
+  const f=fixture(),oldBackend=deferred(),newBackend=deferred();
+  let bootstrapCalls=0;
+  f.state.transport.bootstrap=()=>{
+    bootstrapCalls++;
+    return bootstrapCalls===1?oldBackend.promise:newBackend.promise;
+  };
+  const old=f.coordinator.request({reason:'login'});
+  await tick();
+  assert.equal(f.coordinator.cancel(),true);
+  const current=f.coordinator.request({reason:'session-retry'});
+  await tick();
+  assert.equal(bootstrapCalls,2);
+  oldBackend.resolve(snapshot('A'));
+  await assert.rejects(old,/M26_HYDRATION_CANCELLED/);
+  assert.deepEqual(f.writes,[],'canceled response must not touch shared state');
+  assert.equal(f.statuses.includes('error'),false,'old request cannot paint a failure over retry');
+  newBackend.resolve(snapshot('A'));
+  assert.equal((await current).snapshot.user.id,'A');
+  assert.deepEqual(f.writes,['A']);
 });
 
 test('real hydratePass suppresses obsolete A failure while B loads',async()=>{
@@ -161,7 +205,7 @@ test('same-user re-login uses new generation; old snapshot is never adopted',asy
   const newer=f.coordinator.request();
   await tick();
   f.backend.A.resolve(snapshot('A'));
-  await assert.rejects(old,/M26_HYDRATION_STALE_SESSION/);
+  await assert.rejects(old,/M26_HYDRATION_CANCELLED/);
   f.backend.B.resolve(snapshot('A'));
   assert.equal((await newer).snapshot.user.id,'A');
   assert.deepEqual(f.writes,['A']);
@@ -183,7 +227,7 @@ test('verified token refresh preserves owner lease and does not trigger false lo
 test('production controller uses owner-aware coordinator and stale-error fence',()=>{
   assert.match(source,/createHydrationCoordinator\(hydratePass,\{getOwner:\(\)=>hydrationLeaseFor\(session\)\}\)/u);
   assert.match(source,/hydrationSessionLeases\.set\(next,hydrationLeaseFor\(ownerSession\)\)/u);
-  assert.match(hydrateSource,/if\(hydrationLeaseFor\(session\)===requestedOwner\)\{/u);
+  assert.match(hydrateSource,/if\(!signal\?\.aborted&&hydrationLeaseFor\(session\)===requestedOwner\)\{/u);
   assert.match(hydrateSource,/if\(coachHistoryDemand\)store\.setHydration\('ready'\)/u);
   assert.match(hydrateSource,/else store\.setHydration\('error',error\)/u);
   assert.match(hydrateSource,/requireOwner\(\); \/\/ No stale account/u);

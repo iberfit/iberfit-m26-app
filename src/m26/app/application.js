@@ -772,9 +772,10 @@ export async function createM26Application({root=document.querySelector('#app'),
       throw new Error('M26_HYDRATION_STALE_SESSION');
     qaStage('rc64-hydrate-start');
     const hydrationSession=await refreshSessionIfNeeded();
-    if(!hydrationSession||hydrationLeaseFor(session)!==requestedOwner)
+    if(!hydrationSession||signal?.aborted||hydrationLeaseFor(session)!==requestedOwner)
       throw new Error('M26_HYDRATION_STALE_SESSION');
     const requireOwner=()=>{
+      if(signal?.aborted)throw new Error('M26_HYDRATION_CANCELLED');
       if(hydrationLeaseFor(session)!==requestedOwner)
         throw new Error('M26_HYDRATION_STALE_SESSION');
     };
@@ -956,7 +957,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }catch(error){
       // A selected client's optional archive must never evict an already
       // authenticated core or force a new password/passkey ceremony.
-      if(hydrationLeaseFor(session)===requestedOwner){
+      if(!signal?.aborted&&hydrationLeaseFor(session)===requestedOwner){
         if(coachHistoryDemand)store.setHydration('ready');
         else store.setHydration('error',error);
       }

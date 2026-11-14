@@ -103,14 +103,34 @@ export function isAuthenticatedInteractionRelevant(file){
 
 // RC39 session changes must execute the isolated session QA matrix, not only
 // the general Node/Device gates. Absent checks remain pending (fail closed).
+// Mirror the guarded Session QA workflow path filters exactly. A session
+// controller/UI edit must not be mergeable if its browser/remote gate is red.
+const SESSION_QA_EXACT_FILES=new Set([
+  'src/m26/rc39/route-render.js',
+  'src/m26/rc39/session-policy.js',
+  'src/m26/command-bus.js',
+  'src/m26/ui/i18n-surface-session.js',
+  'src/m26/design/role-surfaces.css',
+  'src/m26/design/premium-ux.css',
+  'playwright.live-workout.config.mjs',
+  'tests/canary_session_preview_role_experience.test.mjs',
+  'scripts/run_node_tests_offline.mjs',
+  'scripts/offline_network_guard.mjs',
+  'scripts/remote-gates/run_authenticated_readonly_gate.mjs',
+  'package.json',
+  '.github/workflows/session-qa-isolated.yml',
+]);
+const SESSION_QA_PATH_PATTERNS=Object.freeze([
+  /^src\/m26\/workflows\/session-[^/]+\.js$/u,
+  /^qa\/live-workout\/.+$/u,
+  /^tests\/m26_session[^/]*\.test\.mjs$/u,
+  /^tests\/m26_live_workout[^/]*\.test\.mjs$/u,
+  /^tests\/m26_[^/]*draft_recovery\.test\.mjs$/u,
+]);
 export function isSessionQARelevant(file){
   const path=normalizePath(file);
-  return new Set([
-    'src/m26/rc39/route-render.js',
-    'src/m26/rc39/session-policy.js',
-    'tests/canary_session_preview_role_experience.test.mjs',
-    '.github/workflows/session-qa-isolated.yml',
-  ]).has(path);
+  return SESSION_QA_EXACT_FILES.has(path)
+    ||SESSION_QA_PATH_PATTERNS.some(pattern=>pattern.test(path));
 }
 
 export function requiredChecksForFiles(files=[]){

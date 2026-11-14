@@ -49,7 +49,8 @@ function harness(){
   };
   return {ctrl,root,route,store,shell,click,resolve:()=>release?.(page(pendingSection)),reject:()=>rejectRequest?.(new Error('NETWORK_FAIL')),
     get calls(){return calls;},get incorporated(){return incorporated;},
-    setRole(role){current.identity.role=role;}};
+    setRole(role){current.identity.role=role;},
+    setConfirmedAt(value){current.hydration.confirmedAt=value;}};
 }
 
 test('entry to session, plan and progress never triggers paginated Egress',async()=>{
@@ -101,10 +102,25 @@ test('navigating away or switching role cancels late pages and never incorporate
   h.ctrl.destroy();
 });
 
+test('obsolete hydration lease is abandoned with an explicit retry, not an endless spinner',async()=>{
+  const h=harness();h.ctrl.mount();h.shell('sesion');h.click();await tick();
+  assert.equal(h.calls,1);
+  h.resolve();await tick();
+  assert.equal(h.calls,2,'both sections are required before publishing');
+  h.setConfirmedAt('2026-11-14T09:00:00Z');
+  h.resolve();await tick();
+  assert.equal(h.incorporated,0,'never publish data from an obsolete lease');
+  assert.equal(h.ctrl.status(),'error');
+  assert.equal(h.route.node?.dataset.m26FreeHistoryFailureCode,'M26_CLIENT_HISTORY_STALE_CONTEXT');
+  assert.equal(h.calls,2,'no implicit retry or duplicated requests');
+  h.ctrl.destroy();
+});
+
 test('a failed authenticated archive read never polls: only a second explicit click may retry',async()=>{
   const h=harness();h.ctrl.mount();h.shell('sesion');h.click();await tick();
   assert.equal(h.calls,1);
   h.reject();await tick();
+  assert.equal(h.route.node?.dataset.m26FreeHistoryFailureCode,'M26_CLIENT_HISTORY_UNCLASSIFIED');
   h.shell('sesion');h.shell('sesion');await tick();
   assert.equal(h.calls,1,'rerender must not repeat a failed request');
   h.click();await tick();
