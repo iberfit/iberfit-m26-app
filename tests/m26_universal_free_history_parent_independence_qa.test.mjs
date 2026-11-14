@@ -16,7 +16,7 @@ test('Universal dated history migration is QA-only, CAS guarded, rollbackable an
   assert.match(sql,/FROM PUBLIC,anon/);
   assert.match(sql,/TO authenticated/);
   assert.doesNotMatch(sql,/GRANT EXECUTE[^;]*TO anon;/is);
-  assert.doesNotMatch(sql,/\\b(?:DELETE FROM|TRUNCATE|DROP TABLE|DISABLE ROW LEVEL SECURITY|ALTER POLICY|BYPASSRLS)\\b/i);
+  assert.doesNotMatch(sql,/\b(?:DELETE FROM|TRUNCATE|DROP TABLE|DISABLE ROW LEVEL SECURITY|ALTER POLICY|BYPASSRLS)\b/i);
   assert.match(sql,/FREE_HISTORY_AUTH_REQUIRED/);
   assert.match(sql,/FREE_HISTORY_CLIENT_ROLE_REQUIRED/);
   assert.match(sql,/FREE_HISTORY_OWNER_REQUIRED/);
@@ -38,7 +38,7 @@ test('every page and its count/fingerprint include completed dated executions un
   "s.body->>'clientVisible'","s.body->>'client_visible'",
  ]) assert.equal(body.split(predicate).length-1,2,predicate+' must stay in both queries');
  assert.match(body,/e.client_id=v_client_id/);
- assert.match(body,/lower\\(COALESCE\\(e.status,e.body->>'status',''\\)\\) IN \\('completado','completada','completed'\\)/);
+ assert.ok(body.includes("lower(COALESCE(e.status,e.body->>'status','')) IN ('completado','completada','completed')"),'only completed child results can appear');
  assert.match(body,/p_limit NOT BETWEEN 1 AND 32/);
  assert.match(body,/FREE_HISTORY_REVISION_CHANGED/);
  assert.match(body,/FREE_HISTORY_PAGE_TOO_LARGE/);
