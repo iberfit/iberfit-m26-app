@@ -25,3 +25,16 @@ test('U60 pending and stale are never represented as started or completed',()=>{
     assert.doesNotMatch(state.label,/Preparada|Entrenamiento en curso|Finalizado y confirmado/u);
   }
 });
+
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
+test('U60 loading state and private-read notice are fully localized in EN/FR/PT',()=>{
+  const copy=[
+    'Comprobando estado privado de la fecha…',
+    'Verificando autorización, fecha y estado con el servidor. Todavía no se ha iniciado ningún entrenamiento.',
+  ];
+  for(const label of copy)for(const language of ['en','fr','pt']){
+    const translated=iberfitSurfaceTranslate(label,{language});
+    assert.notEqual(translated,label,language+' missing translation: '+label);
+    assert.ok(translated.length>=10);
+  }
+});

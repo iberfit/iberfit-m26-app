@@ -5,6 +5,16 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // UNIVERSAL 360: a dated workout remains non-actionable while its
+  // authenticated private read is in flight. Four-locale exact translations.
+  ['Comprobando estado privado de la fecha…',
+    'Checking the private state of this date…',
+    'Vérification de l’état privé de cette date…',
+    'A verificar o estado privado desta data…'],
+  ['Verificando autorización, fecha y estado con el servidor. Todavía no se ha iniciado ningún entrenamiento.',
+    'Checking authorization, date and state with the server. No workout has started yet.',
+    'Vérification de l’autorisation, de la date et de l’état auprès du serveur. Aucun entraînement n’a commencé.',
+    'A verificar a autorização, a data e o estado com o servidor. Ainda não foi iniciado nenhum treino.'],
   // M1: a typed (not yet submitted) set or final feedback must survive exit.
   ['Hay datos escritos sin registrar. Confirma la serie o el feedback antes de salir.',
     'There are unsubmitted inputs. Confirm the set or final feedback before leaving.',
