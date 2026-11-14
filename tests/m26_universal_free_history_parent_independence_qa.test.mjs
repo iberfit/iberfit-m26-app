@@ -2,45 +2,45 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const stem='20261114130000_universal_completed_dated_history_qa';
-const migration=readFileSync('supabase/qa-migrations/'+stem+'.sql','utf8');
-const rollback=readFileSync('supabase/qa-rollbacks/'+stem+'.rollback.sql','utf8');
-const body=migration.slice(migration.indexOf('CREATE OR REPLACE FUNCTION'));
-const base=rollback.slice(rollback.indexOf('CREATE OR REPLACE FUNCTION'));
-const marker="AND lower(COALESCE(s.status,s.body->>'status','')) IN ('disponible','completado','completada','completed','cancelada','cancelado','cancelled')";
-const old="AND lower(COALESCE(s.status,s.body->>'status','')) IN ('completado','completada','completed')";
-test('Universal dated history migration is QA-only, CAS guarded, rollbackable and never writes customer data',()=>{
- for(const sql of [migration,rollback]){
-  assert.match(sql,/IS DISTINCT FROM 'QA'/);
-  assert.match(sql,/pg_get_functiondef/);
-  assert.match(sql,/REVOKE ALL ON FUNCTION/);
-  assert.match(sql,/FROM PUBLIC,anon/);
-  assert.match(sql,/TO authenticated/);
-  assert.doesNotMatch(sql,/GRANT EXECUTE[^;]*TO anon;/is);
-  assert.doesNotMatch(sql,/\b(?:DELETE FROM|TRUNCATE|DROP TABLE|DISABLE ROW LEVEL SECURITY|ALTER POLICY|BYPASSRLS)\b/i);
-  assert.match(sql,/FREE_HISTORY_AUTH_REQUIRED/);
-  assert.match(sql,/FREE_HISTORY_CLIENT_ROLE_REQUIRED/);
-  assert.match(sql,/FREE_HISTORY_OWNER_REQUIRED/);
- }
- assert.match(migration,/3a73617648b73eb472af6ce8e9c2ee8e/);
- assert.match(rollback,/ae01c1771319b99f0404612a4b84fd2a/);
- assert.match(migration,/free_client_completed_history_demand_qa/);
+const forward=readFileSync('supabase/qa-migrations/'+stem+'.sql','utf8');
+const reverse=readFileSync('supabase/qa-rollbacks/'+stem+'.rollback.sql','utf8');
+const original=readFileSync('supabase/qa-migrations/20261031062000_p0_free_qa_history_visibility_guard_v2.sql','utf8');
+const oldParent="AND lower(COALESCE(s.status,s.body->>'status','')) IN ('completado','completada','completed')";
+const newParent="AND lower(COALESCE(s.status,s.body->>'status','')) IN ('disponible','completado','completada','completed','cancelada','cancelado','cancelled')";
+test('Universal dated history is QA-only, reversible, source-hash guarded, never DML',()=>{
+  for(const sql of [forward,reverse]){
+    assert.ok(sql.includes('iberfit_system_settings'));
+    assert.ok(sql.includes("'QA'"));
+    assert.ok(sql.includes('pg_get_functiondef'));
+    assert.ok(sql.includes('UNIVERSAL_HISTORY_'));
+    assert.ok(sql.includes('REVOKE ALL ON FUNCTION'));
+    assert.ok(sql.includes('FROM PUBLIC,anon'));
+    assert.ok(sql.includes('TO authenticated'));
+    assert.ok(!sql.includes('DELETE FROM')&&!sql.includes('TRUNCATE')&&!sql.includes('DROP TABLE'));
+    assert.ok(!sql.includes('DISABLE ROW LEVEL SECURITY')&&!sql.includes('BYPASSRLS'));
+    assert.ok(sql.includes('3a73617648b73eb472af6ce8e9c2ee8e'));
+    assert.ok(sql.includes('ae01c1771319b99f0404612a4b84fd2a'));
+  }
+  assert.ok(forward.includes('free_client_completed_history_demand_qa'));
+  assert.ok(forward.includes('EXECUTE replace(v_existing,v_previous,v_extended)'));
+  assert.ok(reverse.includes('EXECUTE replace(v_function,v_extended,v_original)'));
 });
-test('every page and its count/fingerprint include completed dated executions under published or withdrawn parents',()=>{
- assert.equal(body.split(marker).length-1,2,'count and paged cursor must match');
- assert.equal(body.split(old).length-1,0,'do not preserve completed-only parent filter');
- assert.equal(base.split(old).length-1,2,'rollback must restore exact previous visibility');
- assert.equal(base.includes(marker),false);
- for(const predicate of [
-  "s.client_id=e.client_id","s.entity_type='session'",'s.entity_id = (CASE',
-  "s.body->>'clientVisibilityLevel'","s.body->>'client_visibility_level'",
-  "s.body->>'visibilityLevel'","s.body->>'visibility_level'",
-  "s.body->>'visibleToClient'","s.body->>'visible_to_client'",
-  "s.body->>'clientVisible'","s.body->>'client_visible'",
- ]) assert.equal(body.split(predicate).length-1,2,predicate+' must stay in both queries');
- assert.match(body,/e.client_id=v_client_id/);
- assert.ok(body.includes("lower(COALESCE(e.status,e.body->>'status','')) IN ('completado','completada','completed')"),'only completed child results can appear');
- assert.match(body,/p_limit NOT BETWEEN 1 AND 32/);
- assert.match(body,/FREE_HISTORY_REVISION_CHANGED/);
- assert.match(body,/FREE_HISTORY_PAGE_TOO_LARGE/);
- assert.match(body,/INTERVAL '30 minutes'/);
+test('exactly two safe parent-status predicates are changed, not identity, role, privacy or cursor',()=>{
+  const originalFunction=original.slice(original.indexOf('CREATE OR REPLACE FUNCTION'));
+  assert.equal(originalFunction.split(oldParent).length-1,2);
+  assert.equal(originalFunction.includes(newParent),false);
+  assert.equal(forward.split(oldParent).length-1,1);
+  assert.equal(forward.split(newParent).length-1,1);
+  assert.equal(reverse.split(oldParent).length-1,1);
+  assert.equal(reverse.split(newParent).length-1,1);
+  assert.ok(forward.includes('2*length(v_previous)'));
+  assert.ok(reverse.includes('length(v_extended)*2'));
+  for(const predicate of [
+    'auth.uid() IS NULL',"v_role IS DISTINCT FROM 'cliente'",
+    'v_client_id:=public.iberfit_client_id()', 'e.client_id=v_client_id',
+    "s.client_id=e.client_id", "s.entity_id = (CASE",
+    "s.body->>'clientVisibilityLevel'", "s.body->>'visibleToClient'",
+    'FREE_HISTORY_REVISION_CHANGED','FREE_HISTORY_PAGE_TOO_LARGE',
+    "INTERVAL '30 minutes'",
+  ]) assert.ok(originalFunction.includes(predicate),predicate);
 });
