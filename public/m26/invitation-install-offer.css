@@ -48,3 +48,10 @@
 }
 
 .m26-invitation-install-offer[hidden]{display:none!important}
+
+/* Any native expanded navigation takes precedence over the optional welcome.
+   CSS applies before MutationObserver callbacks, including WebKit touch frames. */
+body:has(.m26-client-bottom-nav-more[open],details.m26-settings-menu[open])
+  .m26-invitation-install-offer{
+  display:none!important;pointer-events:none!important
+}

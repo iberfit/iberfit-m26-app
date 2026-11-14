@@ -87,3 +87,49 @@ test('Safari iOS invitation shows native add-to-home-screen instructions, never 
   await expect(offer.locator('[data-m26-install-guide]')).toContainText('En Safari, toca Compartir');
   await expect(offer.locator('[data-m26-install-guide]')).toContainText('Añadir a pantalla de inicio');
 });
+
+test('client bottom More remains operable when an installation offer is present (mobile touch)',async({page})=>{
+  // This is a mobile-only geometry contract even when the parent matrix
+  // runs Chromium on desktop and landscape tablet projects.
+  await page.setViewportSize({width:390,height:844});
+  await showClientAfterAuthBootstrap(page);
+  const offer=page.locator('[data-m26-invitation-install-offer]');
+  await expect(offer).toBeVisible({timeout:10_000});
+  await page.evaluate(()=>{
+    const menu=document.createElement('details');
+    menu.className='m26-client-bottom-nav-more';
+    menu.style.cssText='position:fixed;bottom:12px;right:16px;z-index:800';
+    menu.innerHTML='<summary style="display:block;min-width:72px;min-height:48px;background:#C5A059;color:#0B1310">Más</summary>'+
+      '<nav class="m26-client-bottom-nav-menu" style="position:absolute;bottom:48px;right:0;min-width:200px;background:#13221C;z-index:800">'+
+      '<button type="button" data-m26-area="ajustes" style="min-width:180px;min-height:48px">Ajustes</button></nav>';
+    menu.querySelector('button').addEventListener('click',()=>{document.documentElement.dataset.testSettingsClicked='yes';});
+    document.querySelector('.m26-shell').append(menu);
+  });
+  const more=page.locator('.m26-client-bottom-nav-more');
+  await more.locator('summary').click();
+  await expect(more).toHaveAttribute('open','');
+  await expect(offer).toBeHidden();
+  const settings=more.locator('button[data-m26-area="ajustes"]');
+  await settings.click({timeout:5_000});
+  await expect(page.locator('html')).toHaveAttribute('data-test-settings-clicked','yes');
+  await more.locator('summary').click();
+  await expect(offer).toBeVisible();
+});
+
+test('opening native Client settings menu never leaves an install offer intercepting navigation',async({page})=>{
+  await showClientAfterAuthBootstrap(page);
+  const offer=page.locator('[data-m26-invitation-install-offer]');
+  await expect(offer).toBeVisible({timeout:10_000});
+  await page.evaluate(()=>{
+    const settings=document.createElement('details');
+    settings.className='m26-settings-menu';
+    settings.innerHTML='<summary>Configuración</summary><button type="button">Idioma</button>';
+    document.querySelector('.m26-shell').append(settings);
+  });
+  const details=page.locator('details.m26-settings-menu');
+  await details.locator('summary').click();
+  await expect(offer).toBeHidden();
+  await details.locator('button').click({timeout:5_000});
+  await details.locator('summary').click();
+  await expect(offer).toBeVisible();
+});

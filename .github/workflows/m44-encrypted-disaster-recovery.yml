@@ -1,3 +1,8 @@
+# IBERFIT UNIVERSAL 360 P0 navigation fix · 14-NOV-2026.
+# Protected Canary merge requests a fresh unchanged M44 encrypted PROD
+# PostgreSQL+Storage backup and isolated PG17 restore for the strict <=2h
+# frontend-only promotion gate. No workflow logic, credentials, scopes, grants,
+# SQL, Auth settings or actual user data are changed by this trigger comment.
 # SIGNATURE 360 final release 13-NOV-2026: trigger a fresh protected
 # encrypted PROD database and Storage backup with isolated PG17 restore on
 # Canary integration. Strict <=2h freshness, safeguards and logic unchanged.

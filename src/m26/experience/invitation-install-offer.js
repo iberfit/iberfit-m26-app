@@ -60,7 +60,8 @@ function isTrainingOrDialogInProgress(documentLike){
   return Boolean(
     documentLike.querySelector?.(
       '.m26-session-live-v3,[data-session-live-state="active"],[data-session-live-state="rest"],'+
-      '[role="dialog"][aria-modal="true"],[data-m26-overlay="open"]'
+      '[role="dialog"][aria-modal="true"],[data-m26-overlay="open"],'+
+      '.m26-client-bottom-nav-more[open],details.m26-settings-menu[open]'
     )
   );
 }
@@ -251,7 +252,9 @@ export function mountInvitationInstallOffer({
     const app=documentLike.querySelector('#app');
     if(app)observer.observe(app,{
       subtree:true,childList:true,attributes:true,
-      attributeFilter:['data-auth-state','data-auth-mode','data-m26-role','aria-busy'],
+      // Opening a native <details> More menu must immediately conceal the
+      // floating install offer, otherwise its buttons intercept menu taps.
+      attributeFilter:['data-auth-state','data-auth-mode','data-m26-role','aria-busy','open'],
     });
   }
   // Keep the watcher until dismissed/installed: account invitations can require MFA.
