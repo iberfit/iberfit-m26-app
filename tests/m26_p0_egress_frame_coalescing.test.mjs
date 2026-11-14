@@ -80,7 +80,8 @@ test('identity switch never coalesces with an earlier owner even with identical 
   await tick();
   assert.deepEqual(calls,['A','B']);
   pA.resolve('A');
-  assert.equal(await old,'A');
+  await assert.rejects(old,/M26_HYDRATION_CANCELLED/);
+  // Superseded owner A must not be adopted even if its transport ignores abort.
   pB.resolve('B');
   assert.equal(await next,'B');
 });
