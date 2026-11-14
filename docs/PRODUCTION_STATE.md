@@ -1,3 +1,8 @@
+## M1/U72 · Reconciliación SQL canónica · 13/11/2026 · PR #1335, NO PROD
+- Ante SonarCloud 39,2% de duplicación en código nuevo (máximo 3%), los cuatro cuerpos SQL U72 estaban duplicados entre migraciones QA y procedimientos PROD. No se modifica la migración ya aplicada en QA ni se omite Sonar.
+- Refactorización candidata: plantillas PROD fail-closed y generador de un solo origen con verificación de blob Git exacto; SQL materializado de instalación/rollback debe ser **byte a byte idéntico** al SQL PROD aprobado originalmente, preservando ambiente, transacción, hashes, CAS, ACL, RLS y reversibilidad.
+- Estado: pendiente de pruebas de HEAD, revisión de SonarCloud y aprobación de todos los gates. No aplicar scripts productivos, no abrir U60, no tocar datos, Auth ni eliminación de personas.
+
 ## SIGNATURE 360 · evidencia QA sintética por RUN · 13/11/2026
 
 - PR visual aislada #1336, SHA candidato anterior `d4294499841d4c6035272fe09a5738b0e94703e4`, sin cambios de producto desplegados.

@@ -1,9 +1,10 @@
+import {materializeU72ProductionSql} from '../scripts/release/materialize_u72_prod_sql.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const read=name=>readFileSync(new URL('../supabase/release-procedures/'+name,import.meta.url),'utf8');
-const install=read('20261113_m1_u72_prod_guarded_install.sql');
-const rollback=read('20261113_m1_u72_prod_guarded_rollback.sql');
+const install=materializeU72ProductionSql('install');
+const rollback=materializeU72ProductionSql('rollback');
 const on=read('20261112_m1_u60_prod_guarded_enable.sql');
 const off=read('20261112_m1_u60_prod_guarded_disable.sql');
 test('M1 U72 production install is exact-source, closed by default and rollbackable',()=>{
