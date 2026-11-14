@@ -11,7 +11,7 @@ import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise,acceptSessionPreview,buildPublishSessionCommand} from '../../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet,advanceExecution,finishExecution,buildStartExecutionCommand,buildExecutionCommand} from '../../src/m26/workflows/session-execution.js';
-import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,assessM43StalePausedRecovery,selectM43QaFixtureForU47Isolation,attestCompletedM43Run,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
+import {verifyM43AtomicGuidedEnablement,assessM43SyntheticFixtureBudget,assessM43StalePausedRecovery,selectM43QaFixtureForSafeCapacity,attestCompletedM43Run,m43QaRunMarkers} from './m43-qa-fixture-safety.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu', BASE='https://'+REF+'.supabase.co';
 const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -88,12 +88,17 @@ async function main(){
     &&environment.productionBlocked===true,'QA_ISOLATION');
   let [a,b,coachRole]=await Promise.all([
     bootstrap(clientA),bootstrap(clientB),rpc('iberfit_current_role_v26',coach)]);
-  // Client A may be locked by the exact U47 running certification. The gate
-  // must continue its FULL authenticated lifecycle on distinct QA Client B,
-  // including Client A as the foreign/negative actor and the real browser
-  // writer-handoff. Never cancel/alter the U47 fixture to turn a gate green.
-  const fixture=selectM43QaFixtureForU47Isolation(a,b,{runId:process.env.GITHUB_RUN_ID});
+  // Preserve the exact U47 lock exception and add a bounded, fully scoped
+  // capacity fallback: the historical QA Client A must never be truncated or
+  // granted new room by weakening the synthetic 150-session protection.
+  // Client B is an independent QA-only actor with its own real Coach grant.
+  const fixture=selectM43QaFixtureForSafeCapacity(a,b,{runId:process.env.GITHUB_RUN_ID});
   evidence.fixtureSelection=fixture;
+  if(fixture.reason==='QA_PRIMARY_BUDGET_SAFE_FALLBACK'){
+    const sourceBudget=assessM43SyntheticFixtureBudget(a);
+    evidence.primaryFixtureBudget={count:sourceBudget.count,limit:sourceBudget.limit,
+      exhausted:sourceBudget.exhausted};
+  }
   if(fixture.label==='B'){
     [clientA,clientB]=[clientB,clientA];
     [a,b]=[b,a];
