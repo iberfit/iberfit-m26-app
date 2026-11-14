@@ -34,7 +34,7 @@ export const FROZEN_M1_RELEASE_PROCEDURE_BLOBS=Object.freeze({
   "supabase/release-procedures/20261112_m1_u60_prod_guarded_disable.sql": "3c10bfce644084f7b98de67904e0293ff0e344fd",
   "supabase/release-procedures/20261112_m1_u60_prod_guarded_enable.sql": "64280b198675aa8477fb65328717e991a8bc324e",
   "supabase/release-procedures/20261113_m1_u72_prod_guarded_install.sql": "6373698bf94389ad8ac9cde610344a1eb92757f6",
-  "supabase/release-procedures/20261113_m1_u72_prod_guarded_rollback.sql": "741965233883748e4dba54b1b0f2e77ce091f735"
+  "supabase/release-procedures/20261113_m1_u72_prod_guarded_rollback.sql": "c2634579ade73aee72fd0029705e745ee4ff0711"
 });
 const QA_BLOB_SHA=/^[0-9a-f]{40}$/u;
 

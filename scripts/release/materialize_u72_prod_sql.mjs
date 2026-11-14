@@ -11,6 +11,10 @@ export const U72_SOURCE_SHA=Object.freeze({install:'1f8f5fa3b82eb05933bc57dc3775
 export const U72_OUTPUT_SHA=Object.freeze({install:'345f4637864c0114433e3a52c81176b30e29c619f2cb4c1d68e7c141b7cfdb25',rollback:'d66466e421abd85b2dd9b250758be7f392efcac5d1552b8f4eb6bc8d51ec2de9'});
 const MARKER="DO $u72_materialization_required$ BEGIN RAISE EXCEPTION 'M1_U72_MATERIALIZATION_REQUIRED'; END $u72_materialization_required$;\n";
 const TAIL=Object.freeze({install:'DO $m1_readback$',rollback:'DO $m1_rollback_readback$'});
+export const U72_INSTALL_WRAPPER_SHA='1b1720a5a5b530774f89fa73af2f1e67c18f381cf1bb18a3bd902dcdbf8be86c';
+export const U72_ROLLBACK_WRAPPER_SHA='2ffcdc9b5338054ab7eab39f92e13413efc23a53b8057f5002095acceb73cde8';
+const U72_ROLLBACK_TEMPLATE="-- IBERFIT M1 U72 · rollback wrapper must be materialized from canonical install wrapper.\n-- M1_U72_PROD_ROLLBACK_WRAPPER_REQUIRED · source-only; not executable.\nDO $u72_materialization_required$ BEGIN RAISE EXCEPTION 'M1_U72_MATERIALIZATION_REQUIRED'; END $u72_materialization_required$;\n";
+const U72_ROLLBACK_WRAPPER_DIFF=Object.freeze([{"insert":["-- IBERFIT M1 U72 production guarded reverse. ONLY after new starts","-- are frozen, all journals drained, no active/paused dated execution remains,","-- and both public U60 entrypoints have been revoked by the original","-- 20261112_m1_u60_prod_guarded_disable.sql. No deletion of training history."]},{"copy":[6,1]},{"insert":["DO $m1_production_u72_rollback_preflight$"]},{"copy":[8,14]},{"copy":[45,27]},{"insert":["END $m1_production_u72_rollback_preflight$;","DO $u72_materialization_required$ BEGIN RAISE EXCEPTION 'M1_U72_MATERIALIZATION_REQUIRED'; END $u72_materialization_required$;","DO $m1_production_u72_rollback_verify$","BEGIN","  IF (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment') IS DISTINCT FROM 'PRODUCTION'","  OR to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NOT NULL","  THEN RAISE EXCEPTION 'M1_U72_PROD_ROLLBACK_STATE_INVALID'; END IF;","  IF md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))<>'5914acf371015a6bbeeaf95f99e056e3'","    THEN RAISE EXCEPTION 'M1_U72_BASELINE_GATEWAY_DRIFT'; END IF;","  IF md5(pg_get_functiondef('private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'::regprocedure))<>'35862b8e4977fcf0c3d611937fe83126'","    THEN RAISE EXCEPTION 'M1_U72_BASELINE_DETAIL_DRIFT'; END IF;","  IF md5(pg_get_functiondef('private.iberfit_u60_dated_mirror_receipt_guard_v1()'::regprocedure))<>'f97d7df4fdd510b63ac1249352273927'","    THEN RAISE EXCEPTION 'M1_U72_BASELINE_RECEIPT_GUARD_DRIFT'; END IF;","END $m1_production_u72_rollback_verify$;"]},{"copy":[73,2]}]);
 const QA_ROLLBACK_MARKER="DO $m1_qa_rollback_unmaterialized$ BEGIN RAISE EXCEPTION 'M1_U72_QA_ROLLBACK_MATERIALIZATION_REQUIRED'; END $m1_qa_rollback_unmaterialized$;\n";
 const QA_ROLLBACK_BODY_START="CREATE OR REPLACE FUNCTION public.iberfit_occurrence_api_u60_v1";
 const QA_ROLLBACK_DIFF=Object.freeze([{"copy":[0,14]},{"insert":["  v_reply:=public.iberfit_occurrence_api_v1(p_action,p_payload);"]},{"copy":[46,116]},{"insert":["      OR v_execution.status IS DISTINCT FROM v_occ.status"]},{"copy":[164,2]},{"insert":["      OR (v_occ.status='en_curso'","        AND v_typed.execution_status IS DISTINCT FROM 'activa')"]},{"copy":[169,25]},{"copy":[197,48]},{"copy":[256,12]},{"insert":["DROP FUNCTION private.iberfit_u72_occurrence_pause_resume_v1(jsonb);"]},{"copy":[269,1]}]);
@@ -49,11 +53,36 @@ export function materializeU72QaRollback({readSource=read}={}){
  return sql;
 }
 
+// The rollback wrapper shares the exact QA/PROD environment fence and ACL
+// assertions with install. Reuse the same reviewed source, not a second copy.
+export function materializeU72ProductionRollbackWrapper({readSource=read}={}){
+ if(typeof readSource!=='function')throw Error('M1_U72_READER_REQUIRED');
+ const install=readSource(U72_TEMPLATE.install);
+ if(sha256Sql(install)!==U72_INSTALL_WRAPPER_SHA)
+  throw Error('M1_U72_PROD_INSTALL_TEMPLATE_DRIFT');
+ if(readSource(U72_TEMPLATE.rollback)!==U72_ROLLBACK_TEMPLATE)
+  throw Error('M1_U72_PROD_ROLLBACK_TEMPLATE_DRIFT');
+ const lines=install.split('\n');
+ const wrapper=U72_ROLLBACK_WRAPPER_DIFF.flatMap(operation=>{
+  if(Object.hasOwn(operation,'copy')){
+   const [start,count]=operation.copy;
+   if(!Number.isSafeInteger(start)||!Number.isSafeInteger(count)
+       ||start<0||count<1||start+count>lines.length)
+    throw Error('M1_U72_PROD_ROLLBACK_COPY_INVALID');
+   return lines.slice(start,start+count);
+  }
+  return operation.insert;
+ }).join('\n');
+ if(sha256Sql(wrapper)!==U72_ROLLBACK_WRAPPER_SHA)
+  throw Error('M1_U72_PROD_ROLLBACK_WRAPPER_DRIFT');
+ return wrapper;
+}
+
 export function materializeU72ProductionSql(kind,{readSource=read}={}){
  if(!Object.hasOwn(U72_SOURCE,kind))throw Error('M1_U72_UNKNOWN_PROCEDURE');
  if(typeof readSource!=='function')throw Error('M1_U72_READER_REQUIRED');
  const qa=kind==='rollback'?materializeU72QaRollback({readSource}):readSource(U72_SOURCE.install);
- const t=readSource(U72_TEMPLATE[kind]);
+ const t=kind==='rollback'?materializeU72ProductionRollbackWrapper({readSource}):readSource(U72_TEMPLATE.install);
  if(sha256Sql(qa)!==U72_SOURCE_SHA[kind])throw Error('M1_U72_QA_CANONICAL_SOURCE_DRIFT');
  if(t.split(MARKER).length!==2)throw Error('M1_U72_TEMPLATE_MARKER_INVALID');
  const a=qa.indexOf('CREATE OR REPLACE FUNCTION'),b=qa.indexOf(TAIL[kind]);
