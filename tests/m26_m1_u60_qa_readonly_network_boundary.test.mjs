@@ -31,3 +31,14 @@ test('U60 visual QA may read private owner ID but cannot issue arbitrary RPC or 
   assert.equal(isQaReadonlyDatedRequest(req(detail),'iberfit_execute_command_v26'),false);
   assert.equal(isQaReadonlyDatedRequest({method:()=> 'POST',postDataJSON:()=>{throw Error('bad');}},'iberfit_occurrence_detail_v1'),false);
 });
+
+import {readFileSync} from 'node:fs';
+test('the single Universal 360 PR #1341 remains strictly allowlisted for read-only QA, with exact HEAD fencing',()=>{
+  const workflow=readFileSync('.github/workflows/authenticated-client-interaction.yml','utf8');
+  assert.match(workflow,/test "\$PR_NUMBER" = "1341"/u);
+  assert.doesNotMatch(workflow,/test "\$PR_NUMBER" = "1340"/u);
+  assert.match(workflow,/test "\$\(git rev-parse HEAD\)" = "\$EXPECTED_HEAD"/u);
+  assert.match(workflow,/test "\$\(jq -er '\.head\.sha' <<< "\$result"\)" = "\$EXPECTED_HEAD"/u);
+  assert.match(workflow,/environment: m26-canary-readonly/u);
+  assert.match(workflow,/if: \$\{\{ github\.event_name == 'pull_request' \}\}/u);
+});
