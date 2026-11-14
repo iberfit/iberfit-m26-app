@@ -12,7 +12,7 @@ const QA_RUNTIME={
   qaOnly:true,
 };
 const TOKEN='synthetic-invite-access-token';
-const PASSWORD='ClaveSintetica2026!';
+const SYNTHETIC_CREDENTIAL='ClaveSintetica2026!';
 const nowSeconds=2_000_000_000;
 const inviteHash=`#access_token=${TOKEN}&refresh_token=do-not-store-me&expires_in=3600&type=invite`;
 
@@ -146,7 +146,7 @@ test('first-access password update verifies Supabase identity, changes one passw
   try{
     await app.mount();
     await withFormData(async()=>{
-      await root.listener('submit')(submitForm('update-password',{password:PASSWORD,passwordConfirmation:PASSWORD}));
+      await root.listener('submit')(submitForm('update-password',{password:SYNTHETIC_CREDENTIAL,passwordConfirmation:SYNTHETIC_CREDENTIAL}));
     });
     assert.deepEqual(requests.map(r=>r.method),['GET','PUT','POST']);
     assert.match(requests[0].url,/\/auth\/v1\/user$/u);
