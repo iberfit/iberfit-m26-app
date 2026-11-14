@@ -35,7 +35,7 @@ test('QA U72 rollback is materialized from immutable forward source without dupl
  const reverse=materializeU72QaRollback();
  assert.equal(sha256Sql(reverse),U72_SOURCE_SHA.rollback);
  assert.match(reverse,/M1_U72_QA_ROLLBACK_UNSAFE/u);
- assert.match(reverse,/DROP FUNCTION private\\.iberfit_u72_occurrence_pause_resume_v1/u);
+ assert.match(reverse,/DROP FUNCTION private\.iberfit_u72_occurrence_pause_resume_v1/u);
  const tmpl=read(U72_SOURCE.rollback);
  assert.match(tmpl,/M1_U72_QA_ROLLBACK_MATERIALIZATION_REQUIRED/u);
  assert.doesNotMatch(tmpl,/^CREATE OR REPLACE FUNCTION/mu);
