@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {gitBlobSha,materializeU72ProductionSql,U72_SOURCE,U72_TEMPLATE,U72_OUTPUT_SHA} from '../scripts/release/materialize_u72_prod_sql.mjs';
+import {sha256Sql,materializeU72ProductionSql,U72_SOURCE,U72_TEMPLATE,U72_OUTPUT_SHA} from '../scripts/release/materialize_u72_prod_sql.mjs';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 test('M1 U72 materialization restores the exact pre-reviewed PROD SQL bytes',()=>{
  for(const kind of ['install','rollback']){
   const sql=materializeU72ProductionSql(kind);
-  assert.equal(gitBlobSha(sql),U72_OUTPUT_SHA[kind]);
+  assert.equal(sha256Sql(sql),U72_OUTPUT_SHA[kind]);
   assert.match(sql,/M1_U72_PROD_ENVIRONMENT_DENIED/u);
   assert.match(sql,/\nBEGIN;[\s\S]*\nCOMMIT;\s*$/u);
   assert.doesNotMatch(sql,/M1_U72_MATERIALIZATION_REQUIRED/u);
