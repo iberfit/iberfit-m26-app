@@ -1,8 +1,9 @@
+import {materializeU72QaRollback} from '../scripts/release/materialize_u72_prod_sql.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const sql=readFileSync(new URL('../supabase/qa-migrations/20261113013000_m1_u72_dated_pause_resume_qa_v1.sql',import.meta.url),'utf8');
-const reverse=readFileSync(new URL('../supabase/qa-rollbacks/20261113013000_m1_u72_dated_pause_resume_qa_v1.rollback.sql',import.meta.url),'utf8');
+const reverse=materializeU72QaRollback();
 test('U72 pause/resume migration is QA-only and preserves U31 receipts and old SQL contracts',()=>{
  assert.match(sql,/M1_U72_QA_SOURCE_OR_STATE_DRIFT/u);
  assert.ok(sql.includes("value#>>'{}'='QA'"));

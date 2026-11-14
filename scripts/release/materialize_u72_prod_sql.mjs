@@ -11,15 +11,49 @@ export const U72_SOURCE_SHA=Object.freeze({install:'1f8f5fa3b82eb05933bc57dc3775
 export const U72_OUTPUT_SHA=Object.freeze({install:'345f4637864c0114433e3a52c81176b30e29c619f2cb4c1d68e7c141b7cfdb25',rollback:'d66466e421abd85b2dd9b250758be7f392efcac5d1552b8f4eb6bc8d51ec2de9'});
 const MARKER="DO $u72_materialization_required$ BEGIN RAISE EXCEPTION 'M1_U72_MATERIALIZATION_REQUIRED'; END $u72_materialization_required$;\n";
 const TAIL=Object.freeze({install:'DO $m1_readback$',rollback:'DO $m1_rollback_readback$'});
+const QA_ROLLBACK_MARKER="DO $m1_qa_rollback_unmaterialized$ BEGIN RAISE EXCEPTION 'M1_U72_QA_ROLLBACK_MATERIALIZATION_REQUIRED'; END $m1_qa_rollback_unmaterialized$;\n";
+const QA_ROLLBACK_BODY_START="CREATE OR REPLACE FUNCTION public.iberfit_occurrence_api_u60_v1";
+const QA_ROLLBACK_DIFF=Object.freeze([{"copy":[0,14]},{"insert":["  v_reply:=public.iberfit_occurrence_api_v1(p_action,p_payload);"]},{"copy":[46,116]},{"insert":["      OR v_execution.status IS DISTINCT FROM v_occ.status"]},{"copy":[164,2]},{"insert":["      OR (v_occ.status='en_curso'","        AND v_typed.execution_status IS DISTINCT FROM 'activa')"]},{"copy":[169,25]},{"copy":[197,48]},{"copy":[256,12]},{"insert":["DROP FUNCTION private.iberfit_u72_occurrence_pause_resume_v1(jsonb);"]},{"copy":[269,1]}]);
 const REPLACEMENTS=Object.freeze([["RETURNS jsonb\nLANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO ''\nAS $u72_pause$"," RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$"],["(p_command->'payload'-'executionId'-'executionBaseRevision')","((p_command->'payload')-'executionId'-'executionBaseRevision')"],["$u72_pause$;\nREVOKE","$function$;\nREVOKE"],[" FROM PUBLIC,anon,authenticated,service_role;\nCOMMENT ON FUNCTION private.iberfit_u72_occurrence_pause_resume_v1(jsonb)\n IS 'QA-only U72: idempotent, owner-scoped occurrence pause/resume with CAS, private receipt and server clock. Direct EXECUTE forbidden.';\n\n","  FROM PUBLIC,anon,authenticated,service_role;\n"],["-- Replacements retain the old function OIDs, owners and ACLs.\n",""]]);
 export function sha256Sql(text){
  return createHash('sha256').update(text,'utf8').digest('hex');
 }
 const read=path=>readFileSync(new URL('../../'+path,import.meta.url),'utf8');
+// Canonical reverse source is derived from the original QA forward migration.
+// Only non-matching lines are encoded as edits; hashes protect both boundaries.
+export function materializeU72QaRollback({readSource=read}={}){
+ if(typeof readSource!=='function')throw Error('M1_U72_READER_REQUIRED');
+ const forward=readSource(U72_SOURCE.install);
+ const tmpl=readSource(U72_SOURCE.rollback);
+ if(sha256Sql(forward)!==U72_SOURCE_SHA.install)
+  throw Error('M1_U72_QA_CANONICAL_SOURCE_DRIFT');
+ if(tmpl.split(QA_ROLLBACK_MARKER).length!==2)
+  throw Error('M1_U72_QA_ROLLBACK_TEMPLATE_DRIFT');
+ const begin=forward.indexOf(QA_ROLLBACK_BODY_START);
+ const end=forward.indexOf(TAIL.install,begin);
+ if(begin<0||end<=begin)throw Error('M1_U72_QA_ROLLBACK_SOURCE_BOUNDARY_INVALID');
+ const lines=forward.slice(begin,end).split('\n');
+ const generated=QA_ROLLBACK_DIFF.flatMap(operation=>{
+  if(Object.hasOwn(operation,'copy')){
+   const [offset,count]=operation.copy;
+   if(!Number.isSafeInteger(offset)||!Number.isSafeInteger(count)||count<1
+      ||offset<0||offset+count>lines.length)
+    throw Error('M1_U72_QA_ROLLBACK_COPY_INVALID');
+   return lines.slice(offset,offset+count);
+  }
+  return operation.insert;
+ }).join('\n');
+ const sql=tmpl.replace(QA_ROLLBACK_MARKER,()=>generated);
+ if(sha256Sql(sql)!==U72_SOURCE_SHA.rollback)
+  throw Error('M1_U72_QA_ROLLBACK_OUTPUT_DRIFT');
+ return sql;
+}
+
 export function materializeU72ProductionSql(kind,{readSource=read}={}){
  if(!Object.hasOwn(U72_SOURCE,kind))throw Error('M1_U72_UNKNOWN_PROCEDURE');
  if(typeof readSource!=='function')throw Error('M1_U72_READER_REQUIRED');
- const qa=readSource(U72_SOURCE[kind]),t=readSource(U72_TEMPLATE[kind]);
+ const qa=kind==='rollback'?materializeU72QaRollback({readSource}):readSource(U72_SOURCE.install);
+ const t=readSource(U72_TEMPLATE[kind]);
  if(sha256Sql(qa)!==U72_SOURCE_SHA[kind])throw Error('M1_U72_QA_CANONICAL_SOURCE_DRIFT');
  if(t.split(MARKER).length!==2)throw Error('M1_U72_TEMPLATE_MARKER_INVALID');
  const a=qa.indexOf('CREATE OR REPLACE FUNCTION'),b=qa.indexOf(TAIL[kind]);
@@ -40,14 +74,15 @@ export function materializeU72ProductionSql(kind,{readSource=read}={}){
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
  try{
   const kind=process.argv[2];
-  if(process.argv.length!==3||!Object.hasOwn(U72_SOURCE,kind))
+  if(process.argv.length!==3||!(Object.hasOwn(U72_SOURCE,kind)||kind==='qa-rollback'))
    throw Error('M1_U72_USAGE: node scripts/release/materialize_u72_prod_sql.mjs install|rollback');
-  const sql=materializeU72ProductionSql(kind);
+  const sql=kind==='qa-rollback'?materializeU72QaRollback():materializeU72ProductionSql(kind);
   const dir=mkdtempSync(join(tmpdir(),'iberfit-u72-protected-'));
   // Untrusted CLI arguments never enter a filesystem path.
   const out=join(dir,'u72-reviewed-production.sql');
   writeFileSync(out,sql,{encoding:'utf8',mode:0o600,flag:'wx'});
-  console.log('M1_U72_MATERIALIZED_VERIFIED '+kind+' sha256='+U72_OUTPUT_SHA[kind]+' path='+out);
+  const digest=kind==='qa-rollback'?U72_SOURCE_SHA.rollback:U72_OUTPUT_SHA[kind];
+  console.log('M1_U72_MATERIALIZED_VERIFIED '+kind+' sha256='+digest+' path='+out);
  }catch(error){
   console.error(String(error?.message||'M1_U72_MATERIALIZATION_FAILED'));
   process.exitCode=1;
