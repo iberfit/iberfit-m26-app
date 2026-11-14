@@ -1801,7 +1801,7 @@ function exerciseMemorySparkline(memory){
       class="m26-exercise-chart-figure"
       aria-label="${escapeHtml(aria)}"
     >
-      <m26-echart
+      <m26-echart role="group"
         class="m26-echart"
         data-density="compact"
         data-tone="${escapeHtml(visual.tone)}"
@@ -2137,7 +2137,7 @@ function exerciseProgressChart(exercise,{compact=false}={}){
       ${badge(`${model.pointCount} registros`,'neutral')}
     </div>
 
-    <m26-echart
+    <m26-echart role="group"
       class="m26-echart m26-exercise-progress-echart"
       data-label="${escapeHtml(model.label)}"
       data-unit="${escapeHtml(model.unit)}"
@@ -2245,7 +2245,7 @@ function exerciseStudyChart(metricKey,metric,label,assessment,{compact=false}={}
       </div>
       <span>${escapeHtml(delta)}</span>
     </div>
-    <m26-echart
+    <m26-echart role="group"
       class="m26-echart m26-coach-exercise-study-echart"
       data-label="${escapeHtml(label)}"
       data-unit="${escapeHtml(unit)}"

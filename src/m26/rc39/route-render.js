@@ -337,7 +337,7 @@ function renderCoachLaunchSelf(vm){
     <div class="m26-coach-launch-body">
       <p class="m26-coach-launch-intro">${escape(copy.intro)}</p>
       <div class="m26-coach-launch-overview">
-        <article class="m26-stat"><span>${escape(progressCopy)}</span><strong>${escape(`${journey.percent}%`)}</strong><meter min="0" max="100" value="${escape(journey.percent)}" aria-label="${escape(progressCopy)}">${escape(`${journey.percent}%`)}</meter><small>${escape(journey.source)}</small></article>
+        <article class="m26-stat"><span>${escape(progressCopy)}</span><strong>${escape(`${journey.percent}%`)}</strong><meter min="0" max="100" value="${escape(journey.percent)}" aria-label="${escape(progressCopy)}">${escape(`${journey.percent}%`)}</meter></article>
         <article class="m26-stat"><span>${escape(copy.evidenceTitle)}</span><strong>${escape(journey.clientEvidenceCount)}</strong><small>${escape(copy.evidenceCopy)}</small></article>
         <div class="m26-coach-launch-next"><p class="m26-eyebrow">${escape(copy.nextTitle)}</p>${actionMarkup}</div>
       </div>

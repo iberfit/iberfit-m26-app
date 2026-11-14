@@ -438,8 +438,8 @@ function mobileOverflowItems(vm){
 function disableMobileContextItem(markup,item){
   const key=String(item?.key||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   if(!key)return markup;
-  const matcher=new RegExp(`<button class="m26-nav-item([^\"]*)" type="button" data-m26-area="${key}"(?: aria-current="page")?>`,'g');
-  return markup.replace(matcher,'<button class="m26-nav-item$1 is-disabled" type="button" disabled aria-disabled="true">');
+  const matcher=new RegExp(`<button class="m26-nav-item([^\"]*)" type="button"( aria-label="[^"]*")? data-m26-area="${key}"(?: aria-current="page")?>`,'g');
+  return markup.replace(matcher,'<button class="m26-nav-item$1 is-disabled" type="button" disabled aria-disabled="true"$2>');
 }
 
 function enhanceMobileNavigationMarkup(markup,vm){

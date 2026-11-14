@@ -53,16 +53,16 @@ function navItem(item, activeArea,{disabled=false,compactAdminMobile=false}={}) 
   // Only the four top-level Admin dock items use short copy. The sidebar and Más
   // keep their complete translated labels and the exact same route permissions.
   const visibleLabel=compactAdminMobile?areaText(item,'mobile'):label;
-  const accessibleName=compactAdminMobile?` aria-label="${escapeHtml(label)}"`:'';
+  const accessibleName=` aria-label="${escapeHtml(label)}"`;
   // At 320px render a second, translated compact caption. Both caption nodes
   // remain in the same clickable button; the full accessible name is unchanged.
   const labelMarkup=compactAdminMobile
     ?`<span class="m26-nav-label-standard">${escapeHtml(visibleLabel)}</span><span class="m26-nav-label-micro" aria-hidden="true">${escapeHtml(areaText(item,'compact'))}</span>`
     :`<span>${escapeHtml(visibleLabel)}</span>`;
   if(disabled){
-    return `<button class="m26-nav-item is-disabled" type="button" disabled aria-disabled="true" title="${escapeHtml(tx('common.clientRequired','Selecciona un cliente para abrir esta función'))}">${icon}<span>${escapeHtml(label)}</span></button>`;
+    return `<button class="m26-nav-item is-disabled" type="button" disabled aria-disabled="true"${accessibleName} title="${escapeHtml(tx('common.clientRequired','Selecciona un cliente para abrir esta función'))}">${icon}<span>${escapeHtml(label)}</span></button>`;
   }
-  return `<button class="m26-nav-item${active ? ' is-active' : ''}" type="button" data-m26-area="${escapeHtml(item.key)}"${active?' aria-current="page"':''}${accessibleName}>${icon}${labelMarkup}</button>`;
+  return `<button class="m26-nav-item${active ? ' is-active' : ''}" type="button"${accessibleName} data-m26-area="${escapeHtml(item.key)}"${active?' aria-current="page"':''}>${icon}${labelMarkup}</button>`;
 }
 
 function allNavigationItems(vm){

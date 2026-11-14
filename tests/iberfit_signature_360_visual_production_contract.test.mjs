@@ -366,9 +366,9 @@ test('Signature360 Admin mobile dock uses localized short captions and preserves
   const dock=html.match(/<nav class="m26-mobile-nav"[^>]*>([\s\S]*?)<\/nav>/u)?.[1]||'';
   const sidebar=html.match(/<aside class="m26-sidebar"[^>]*>([\s\S]*?)<\/aside>/u)?.[1]||'';
   assert.ok(dock&&sidebar,'keep separate mobile and desktop navigation');
-  assert.match(dock,/data-m26-area="admin-usuarios" aria-current="page" aria-label="Usuarios y accesos"[^>]*>[\s\S]*?<span class="m26-nav-label-standard">Usuarios<\/span><span class="m26-nav-label-micro" aria-hidden="true">Pers\.<\/span>/);
-  assert.match(dock,/data-m26-area="admin-agenda" aria-label="Agenda y capacidad"[^>]*>[\s\S]*?<span class="m26-nav-label-standard">Agenda<\/span><span class="m26-nav-label-micro" aria-hidden="true">Citas<\/span>/);
-  assert.match(dock,/data-m26-area="admin-operaciones" aria-label="Operaciones"[^>]*>[\s\S]*?<span class="m26-nav-label-standard">Gestión<\/span><span class="m26-nav-label-micro" aria-hidden="true">Ops<\/span>/,'short visual caption retains full semantic destination');
+  assert.match(dock,/aria-label="Usuarios y accesos" data-m26-area="admin-usuarios" aria-current="page"[^>]*>[\s\S]*?<span class="m26-nav-label-standard">Usuarios<\/span><span class="m26-nav-label-micro" aria-hidden="true">Pers\.<\/span>/);
+  assert.match(dock,/aria-label="Agenda y capacidad" data-m26-area="admin-agenda"[^>]*>[\s\S]*?<span class="m26-nav-label-standard">Agenda<\/span><span class="m26-nav-label-micro" aria-hidden="true">Citas<\/span>/);
+  assert.match(dock,/aria-label="Operaciones" data-m26-area="admin-operaciones"[^>]*>[\s\S]*?<span class="m26-nav-label-standard">Gestión<\/span><span class="m26-nav-label-micro" aria-hidden="true">Ops<\/span>/,'short visual caption retains full semantic destination');
   assert.match(sidebar,/data-m26-area="admin-usuarios"[^>]*>[\s\S]*?<span>Usuarios y accesos<\/span>/,'desktop sidebar keeps its complete label');
   for(const route of ['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones'])
     assert.match(dock,new RegExp('data-m26-area="'+route+'"'),'preserve Admin quick destination '+route);

@@ -1,8 +1,6 @@
-# IBERFIT M1 12-NOV-2026 PR #1335 protected-merge restore renewal trigger only.
-# A successful exact-source Canary push must create a NEW encrypted PROD DB+Storage
-# recovery archive and isolated PG17 restore within the <=2h release window.
-# PR jobs are synthetic only; never interpret them as real M44 production proof.
-# No changes to jobs, credentials, permissions, data, safety gates or rollback.
+# SIGNATURE 360 final release 13-NOV-2026: trigger a fresh protected
+# encrypted PROD database and Storage backup with isolated PG17 restore on
+# Canary integration. Strict <=2h freshness, safeguards and logic unchanged.
 # IBERFIT MACROBLOQUE C (2026-11-11): refresh the EXISTING encrypted PROD DB+Storage
 # M44 backup and isolated PG17 restore only after protected Canary integration.
 # Trigger-only; unchanged jobs, credentials, scopes, retention, or rollback gates.
