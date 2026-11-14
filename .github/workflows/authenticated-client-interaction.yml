@@ -210,6 +210,19 @@ jobs:
           M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
           M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: node node_modules/@playwright/test/cli.js test --config playwright.u60-dated-readonly.config.mjs
+      - name: Certify QA Client A full-history recovery without data changes
+        # Exact-source Chromium, QA Client A/B only, independent from U60 writes.
+        # Run within the existing auth mutex; no new workflow or shared fixtures.
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node node_modules/@playwright/test/cli.js test --config playwright.authenticated.config.mjs --project authenticated-readonly-chromium --grep 'P0 QA free completed history live browser'
       - name: Preserve PII-free U60 browser evidence
         if: always()
         uses: actions/upload-artifact@v4
