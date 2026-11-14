@@ -150,7 +150,7 @@ test('real hydratePass blocks A snapshot after switching to client B',async()=>{
   const current=f.coordinator.request({reason:'login'});
   await tick();
   f.backend.A.resolve(snapshot('A'));
-  await assert.rejects(old,/M26_HYDRATION_STALE_SESSION/);
+  await assert.rejects(old,/M26_HYDRATION_CANCELLED/);
   assert.deepEqual(f.writes,[]);
   assert.equal(f.statuses.includes('error'),false);
   f.backend.B.resolve(snapshot('B'));
@@ -205,7 +205,7 @@ test('same-user re-login uses new generation; old snapshot is never adopted',asy
   const newer=f.coordinator.request();
   await tick();
   f.backend.A.resolve(snapshot('A'));
-  await assert.rejects(old,/M26_HYDRATION_STALE_SESSION/);
+  await assert.rejects(old,/M26_HYDRATION_CANCELLED/);
   f.backend.B.resolve(snapshot('A'));
   assert.equal((await newer).snapshot.user.id,'A');
   assert.deepEqual(f.writes,['A']);
@@ -227,7 +227,7 @@ test('verified token refresh preserves owner lease and does not trigger false lo
 test('production controller uses owner-aware coordinator and stale-error fence',()=>{
   assert.match(source,/createHydrationCoordinator\(hydratePass,\{getOwner:\(\)=>hydrationLeaseFor\(session\)\}\)/u);
   assert.match(source,/hydrationSessionLeases\.set\(next,hydrationLeaseFor\(ownerSession\)\)/u);
-  assert.match(hydrateSource,/if\(hydrationLeaseFor\(session\)===requestedOwner\)\{/u);
+  assert.match(hydrateSource,/if\(!signal\?\.aborted&&hydrationLeaseFor\(session\)===requestedOwner\)\{/u);
   assert.match(hydrateSource,/if\(coachHistoryDemand\)store\.setHydration\('ready'\)/u);
   assert.match(hydrateSource,/else store\.setHydration\('error',error\)/u);
   assert.match(hydrateSource,/requireOwner\(\); \/\/ No stale account/u);
