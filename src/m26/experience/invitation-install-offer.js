@@ -65,6 +65,15 @@ function isTrainingOrDialogInProgress(documentLike){
   );
 }
 
+function hasAuthCallback(locationLike){
+  if(String(locationLike?.hash||''))return true;
+  try{
+    const params=new URLSearchParams(String(locationLike?.search||''));
+    return ['code','token_hash','access_token','refresh_token','type',
+      'error','error_code','state','redirect_to'].some(key=>params.has(key));
+  }catch{return true;}
+}
+
 function installationInstructions(platform,navigatorLike){
   if(platform.ios){
     const safari=Boolean(platform.safari);
@@ -110,10 +119,12 @@ function makeOfferElement(documentLike){
 export function mountInvitationInstallOffer({
   target=globalThis,documentLike=globalThis.document,
   controller=getBrowserPwaInstallController(),
-  storage=globalThis.localStorage,
+  storage=null,
   now=()=>Date.now(),
 }={}){
   if(!documentLike?.body||!controller)return ()=>{};
+  let offerStorage=storage;
+  if(!offerStorage){try{offerStorage=target.localStorage;}catch{offerStorage=null;}}
   const navigatorLike=target.navigator;
   const platform=detectPwaInstallPlatform(navigatorLike);
   let panel=null,stopped=false,observer=null,scheduled=null,expiry=null;
@@ -124,10 +135,13 @@ export function mountInvitationInstallOffer({
     ios:platform.ios,android:platform.android,
   });
   const close=(duration=INSTALL_OFFER_DISMISSAL_MS)=>{
-    dismissInstallOffer(storage,now(),duration);
+    if(stopped)return;
+    stopped=true;
+    dismissInstallOffer(offerStorage,now(),duration);
     panel?.remove();
     panel=null;
     stopWatching();
+    removeListeners();
   };
   const onInstall=async()=>{
     const primary=panel?.querySelector?.('[data-m26-install-accept]');
@@ -178,14 +192,14 @@ export function mountInvitationInstallOffer({
     }
   };
   const tryOpen=()=>{
-    if(stopped||panel||!documentLike.body)return;
+    if(stopped||panel||!documentLike.body||hasAuthCallback(target.location))return;
     const next=mode();
     if(!shouldOfferPwaInstall({
       installed:next==='none',mode:next,
       ready:isReadyForInvitationOffer(documentLike),
       sessionActive:isTrainingOrDialogInProgress(documentLike),
       visible:documentLike.visibilityState!=='hidden',
-      dismissedUntil:readInstallOfferDismissal(storage),
+      dismissedUntil:readInstallOfferDismissal(offerStorage),
       now:now(),
     }))return;
     panel=makeOfferElement(documentLike);
@@ -196,7 +210,7 @@ export function mountInvitationInstallOffer({
     });
     primary.addEventListener('click',()=>{void onInstall();});
     documentLike.body.append(panel);
-    stopWatching();
+    syncSurfaceVisibility();
   };
   const check=()=>{
     if(stopped||panel)return;
@@ -206,8 +220,21 @@ export function mountInvitationInstallOffer({
       tryOpen();
     },180)??null;
   };
-  const onState=()=>{if(panel)updateMode();else check();};
-  const onVisibility=()=>check();
+  function syncSurfaceVisibility(){
+    if(stopped)return;
+    if(!panel){check();return;}
+    panel.hidden=hasAuthCallback(target.location)||isTrainingOrDialogInProgress(documentLike)||
+      !isReadyForInvitationOffer(documentLike)||
+      documentLike.visibilityState==='hidden';
+    updateMode();
+  }
+  function removeListeners(){
+    target.removeEventListener?.('m26:pwa-install-state',onState);
+    target.removeEventListener?.('appinstalled',onInstalled);
+    documentLike.removeEventListener?.('visibilitychange',onVisibility);
+  }
+  const onState=()=>syncSurfaceVisibility();
+  const onVisibility=()=>syncSurfaceVisibility();
   const onInstalled=()=>close(365*24*60*60*1000);
   function stopWatching(){
     observer?.disconnect?.();observer=null;
@@ -220,21 +247,19 @@ export function mountInvitationInstallOffer({
   target.addEventListener?.('appinstalled',onInstalled);
   documentLike.addEventListener?.('visibilitychange',onVisibility);
   if(typeof target.MutationObserver==='function'){
-    observer=new target.MutationObserver(check);
+    observer=new target.MutationObserver(syncSurfaceVisibility);
     const app=documentLike.querySelector('#app');
     if(app)observer.observe(app,{
       subtree:true,childList:true,attributes:true,
       attributeFilter:['data-auth-state','data-auth-mode','data-m26-role','aria-busy'],
     });
   }
-  expiry=target.setTimeout?.(()=>stopWatching(),45_000)??null;
+  // Keep the watcher until dismissed/installed: account invitations can require MFA.
   target.setTimeout?.(check,2600);
   return ()=>{
     stopped=true;
     stopWatching();
-    target.removeEventListener?.('m26:pwa-install-state',onState);
-    target.removeEventListener?.('appinstalled',onInstalled);
-    documentLike.removeEventListener?.('visibilitychange',onVisibility);
+    removeListeners();
     panel?.remove();panel=null;
   };
 }

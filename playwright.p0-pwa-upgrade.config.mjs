@@ -4,7 +4,7 @@ const CI=Boolean(process.env.CI);
 
 export default defineConfig({
   testDir:'./qa/p0-pwa-upgrade',
-  testMatch:'upgrade.spec.mjs',
+  testMatch:['upgrade.spec.mjs','invitation-install-offer.spec.mjs'],
   fullyParallel:false,
   forbidOnly:CI,
   retries:CI?1:0,
