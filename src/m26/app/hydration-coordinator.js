@@ -13,7 +13,7 @@ export function createHydrationCoordinator(run,{getOwner=()=>null}={}){
   function request({reason='bootstrap'}={}){
     const requestedReason=safeReason(reason);
     const owner=getOwner();
-    if(inFlight&&inFlight.owner===owner){
+    if(inFlight&&inFlight.owner===owner&&!inFlight.controller.signal.aborted){
       // A second initialization of the SAME login is not a server-side
       // change. Never schedule another full privileged bootstrap for it.
       // Mutation-triggered reasons (including identical ones) still queue a
@@ -26,6 +26,13 @@ export function createHydrationCoordinator(run,{getOwner=()=>null}={}){
       return inFlight.promise;
     }
 
+    // A new owner must not inherit an obsolete private read or its queued work.
+    if(inFlight){
+      const stale=inFlight;
+      inFlight=null;
+      stale.queued=false;
+      stale.controller.abort();
+    }
     const job={owner,queued:false,queuedReason:requestedReason,runningReason:requestedReason,promise:null,controller:new AbortController()};
     const pending=Promise.resolve().then(async()=>{
       let result=null;
@@ -58,8 +65,10 @@ export function createHydrationCoordinator(run,{getOwner=()=>null}={}){
   // Abort obsolete network reads and never run a queued pass after teardown.
   function cancel(){
     if(!inFlight)return false;
-    inFlight.queued=false;
-    inFlight.controller.abort();
+    const stale=inFlight;
+    inFlight=null; // Permit an immediate retry even if abort is not respected by the transport.
+    stale.queued=false;
+    stale.controller.abort();
     return true;
   }
   return Object.freeze({request,cancel});
