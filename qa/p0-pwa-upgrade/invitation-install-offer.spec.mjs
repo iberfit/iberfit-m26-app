@@ -50,3 +50,40 @@ test('a running workout conceals the install offer without freezing training',as
   await expect(offer).toBeVisible();
   await expect(page.locator('.m26-shell[data-m26-role="client"]')).toBeVisible();
 });
+
+test('browser install event offers native CTA only after explicit user click',async({page})=>{
+  await showClientAfterAuthBootstrap(page);
+  const offer=page.locator('[data-m26-invitation-install-offer]');
+  await expect(offer).toBeVisible({timeout:10_000});
+  await page.evaluate(()=>{
+    window.__iberfitNativeInstallCalls=0;
+    const event=new Event('beforeinstallprompt',{cancelable:true});
+    event.prompt=()=>{
+      window.__iberfitNativeInstallCalls+=1;
+      return Promise.resolve();
+    };
+    event.userChoice=Promise.resolve({outcome:'accepted'});
+    dispatchEvent(event);
+  });
+  await expect(offer.locator('[data-m26-install-accept]')).toHaveText('Instalar IBERFIT');
+  expect(await page.evaluate(()=>window.__iberfitNativeInstallCalls)).toBe(0);
+  await offer.locator('[data-m26-install-accept]').click();
+  await expect(offer).toHaveCount(0);
+  expect(await page.evaluate(()=>window.__iberfitNativeInstallCalls)).toBe(1);
+});
+
+test('Safari iOS invitation shows native add-to-home-screen instructions, never an impossible forced install',async({page})=>{
+  await page.addInitScript(()=>{
+    Object.defineProperty(navigator,'userAgent',{
+      configurable:true,
+      get:()=> 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+    });
+  });
+  await showClientAfterAuthBootstrap(page);
+  const offer=page.locator('[data-m26-invitation-install-offer]');
+  await expect(offer).toBeVisible({timeout:10_000});
+  await expect(offer.locator('[data-m26-install-accept]')).toHaveText('Cómo instalarla');
+  await offer.locator('[data-m26-install-accept]').click();
+  await expect(offer.locator('[data-m26-install-guide]')).toContainText('En Safari, toca Compartir');
+  await expect(offer.locator('[data-m26-install-guide]')).toContainText('Añadir a pantalla de inicio');
+});
