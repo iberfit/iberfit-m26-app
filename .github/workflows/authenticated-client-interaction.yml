@@ -163,6 +163,7 @@ jobs:
     environment: m26-canary-readonly
     concurrency:
       group: iberfit-qa-shared-auth-readonly
+      queue: max
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
