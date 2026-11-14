@@ -106,11 +106,19 @@ test('QA U60 client real private calendar and player, no writes',async({page,con
     const open=page.locator('[data-iberdates-action="u60-open"]').first();
     await open.scrollIntoViewIfNeeded();
     await open.click();
-    await expect(page.locator('[data-u60-workout]')).toBeVisible({timeout:25000});
-    await expect(page.locator('[data-u60-workout]')).toContainText('Fecha independiente');
-    // A private read never starts an execution; the start command is not invoked.
-    const stateText=await page.locator('[data-u60-workout]').innerText();
-    expect(/Preparada|Entrenamiento en curso|Finalizado y confirmado|Fecha cancelada/u.test(stateText)).toBe(true);
+    const workout=page.locator('[data-u60-workout]');
+    await expect(workout).toBeVisible({timeout:25000});
+    await expect(workout).toContainText('Fecha independiente');
+    // Opening can legitimately display a brief, non-actionable private-read
+    // state on a slow phone. Never treat it as server-confirmed, and never
+    // accept it as the terminal test result.
+    await expect(workout).toHaveAttribute(
+      'data-u60-phase',/^(ready|active|completed|cancelled)$/u,{timeout:25000}
+    );
+    await expect(workout).not.toHaveAttribute('aria-busy','true');
+    await expect(workout).toContainText(
+      /Preparada|Entrenamiento en curso|Finalizado y confirmado|Fecha cancelada/u
+    );
     const layout=await page.evaluate(()=>({
       width:document.documentElement.clientWidth,
       scrollWidth:document.documentElement.scrollWidth,

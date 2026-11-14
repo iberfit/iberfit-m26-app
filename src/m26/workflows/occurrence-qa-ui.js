@@ -36,6 +36,25 @@ export function formatDatedElapsed(milliseconds){
     :digits(minutes)+':'+digits(seconds%60);
 }
 const fail=code=>{throw new Error('U60_UI_'+code);};
+// A selected date is not a confirmed workout while its private read is in
+// flight. Expose that transient state as busy, never as an executable session.
+export function datedWorkoutPhaseUiState(view){
+  const phase=String(view?.phase||'idle');
+  const labels={
+    idle:'Comprobando estado privado de la fecha…',
+    ready:'Preparada · pendiente de inicio confirmado',
+    active:'Entrenamiento en curso',
+    completed:'Finalizado y confirmado',
+    cancelled:'Fecha cancelada',
+    'pending-recovery':'Recuperación pendiente',
+    'needs-refresh':'Comprobar última versión del servidor',
+  };
+  return Object.freeze({
+    phase,
+    loading:phase==='idle',
+    label:labels[phase]||'Comprobando estado privado de la fecha…',
+  });
+}
 const localDate=date=>{
   const f=new Intl.DateTimeFormat('en-US',{timeZone:ZONE,
     year:'numeric',month:'2-digit',day:'2-digit'});
@@ -294,16 +313,13 @@ export function createDatedOccurrenceQaUi({
     const controls='<div class="m26-inline-actions"><button type="button" data-iberdates-action="u60-calendar">Consultar fechas confirmadas</button></div>';
     let body='';
     if(view&&focus?.clientId===scope.clientId){
-      const phase=String(view.phase||'idle');
+      const phaseState=datedWorkoutPhaseUiState(view);
+      const phase=phaseState.phase;
       const step=view.currentStep;
       const stepLabel=step?.exercise?.nameEs||step?.exercise?.name||step?.exerciseId||'Ejercicio';
-      const phaseLabel={
-        ready:'Preparada · pendiente de inicio confirmado',
-        active:'Entrenamiento en curso',completed:'Finalizado y confirmado',
-        cancelled:'Fecha cancelada', 'pending-recovery':'Recuperación pendiente',
-        'needs-refresh':'Comprobar última versión del servidor',
-      }[phase]||'Verificando';
-      const summary='<p><strong>'+escape(phaseLabel)+'</strong> · '+escape(view.localDate||'')+'</p>';
+      const summary='<p'+(phaseState.loading?' role="status" aria-live="polite"':'')+
+        '><strong>'+escape(phaseState.label)+'</strong>'+
+        (view.localDate?' · '+escape(view.localDate):'')+'</p>';
       const stepMarkup=step
         ?'<p><strong>'+escape(stepLabel)+'</strong> · serie '+escape(step.setNumber)+' de '+escape(step.totalSets)+'</p>'+
          '<p class="m26-field-help">'+escape(
@@ -363,12 +379,15 @@ export function createDatedOccurrenceQaUi({
         ?'<button type="button" data-iberdates-action="u60-save">Sincronizar progreso pendiente</button>':'';
       const retryComplete=phase==='active'&&view.executionStatus==='completed'
         ?'<button type="button" class="m26-primary-action" data-iberdates-action="u60-retry-complete">Confirmar finalización pendiente en servidor</button>':'';
-      body='<section class="m26-panel" data-u60-workout><h3>Fecha independiente</h3>'+
-        summary+stepMarkup+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
+      body='<section class="m26-panel" data-u60-workout data-u60-phase="'+escape(phase)+'"'+
+        (phaseState.loading?' aria-busy="true"':'')+'><h3>Fecha independiente</h3>'+
+        summary+(phaseState.loading?'<p class="m26-field-help">Verificando autorización, fecha y estado con el servidor. Todavía no se ha iniciado ningún entrenamiento.</p>':'')+
+        stepMarkup+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
         (view.startedAt?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'">'+escape(formatDatedElapsed(Number(view.accumulatedActiveMs||0)+(view.executionStatus==='active'&&view.activeSince?Math.max(0,Date.now()-Date.parse(view.activeSince)):0)))+'</strong></p>':'')+
         '<p role="alert" data-u60-input-warning hidden></p>'+
         (phase==='active'&&['active','awaiting_feedback','paused'].includes(view.executionStatus)
           ?'<button type="button" data-iberdates-action="u60-save-close">Guardar y salir</button>'
+          :phaseState.loading?''
           :'<button type="button" data-iberdates-action="u60-close">Volver al calendario</button>')+
         '</section>';
     }else{
@@ -636,6 +655,9 @@ export function createDatedOccurrenceQaUi({
         fail('APPOINTMENT_REQUIRED');
       const target={clientId:scope.clientId,occurrenceId:row.id,role:scope.role};
       focus=target;
+      // Paint an explicit, non-actionable loading state before asynchronous
+      // private authorization, especially important on throttled phones.
+      repaint();
       try{await runtime.openWorkout(target);}
       catch(error){
         // When the encrypted journal holds an uncertain remote command,
