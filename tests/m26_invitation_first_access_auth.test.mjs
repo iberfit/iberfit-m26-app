@@ -14,7 +14,7 @@ const QA_RUNTIME={
 const TOKEN='synthetic-invite-access-token';
 const PASSWORD='ClaveSintetica2026!';
 const nowSeconds=2_000_000_000;
-const inviteHash=`#access_token=${TOKEN}&refresh_token=do-not-store-me&expires_at=${nowSeconds+3600}&type=invite`;
+const inviteHash=`#access_token=${TOKEN}&refresh_token=do-not-store-me&expires_in=3600&type=invite`;
 
 function rootFixture(){
   let html='';
