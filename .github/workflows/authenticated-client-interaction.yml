@@ -181,8 +181,9 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          # Universal 360 replaces merged M1 #1335; retain a strict, single-PR allowlist.
-          test "$PR_NUMBER" = "1340"
+          # Universal 360 continuation PR #1341 replaces merged PR #1340; keep a strict single-PR allowlist.
+          # A draft may execute this read-only QA proof, never the writer.
+          test "$PR_NUMBER" = "1341"
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           result="$(curl --fail --silent --show-error --max-time 12 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
           test "$(jq -er '.head.sha' <<< "$result")" = "$EXPECTED_HEAD"

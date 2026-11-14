@@ -224,8 +224,10 @@ export function renderAccessUi({
   host = '',
   sessionRetryAvailable = false,
   sessionIdentity = null,
+  passwordFlow = 'recovery',
 } = {}) {
   const normalizedMode=ACCESS_MODES.has(mode)?mode:'login';
+  const firstAccessInvitation=passwordFlow==='invite'&&normalizedMode==='update-password';
   const recoverableSession=normalizedMode==='recoverable-session'||sessionRetryAvailable===true;
   const checkingSession=normalizedMode==='checking-session';
   const rememberedSessionEmail=maskAccessEmail(sessionIdentity?.email||'');
@@ -571,9 +573,11 @@ export function renderAccessUi({
   } else if (normalizedMode === 'update-password') {
     content = `
       <div class="m26-auth-copy">
-        <p class="m26-auth-kicker">Recuperación segura</p>
-        <h1 id="m26-auth-title" tabindex="-1">Crear contraseña nueva</h1>
-        <p>Introduce y confirma la contraseña que utilizarás para acceder.</p>
+        <p class="m26-auth-kicker">${firstAccessInvitation?'Tu invitación IBERFIT':'Recuperación segura'}</p>
+        <h1 id="m26-auth-title" tabindex="-1">${firstAccessInvitation?'Activa tu acceso':'Crear contraseña nueva'}</h1>
+        <p>${firstAccessInvitation
+          ?'Tu invitación está confirmada. Crea una contraseña personal para entrar con seguridad en IBERFIT.'
+          :'Introduce y confirma la contraseña que utilizarás para acceder.'}</p>
       </div>
 
       ${recoveryFlowMarkup(3)}

@@ -612,6 +612,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     mfa:mfaState,
     sessionRetryAvailable,
     sessionIdentity:session?.user||null,
+    passwordFlow:recoverySession?.type==='invite'?'invite':'recovery',
   });
 }
 
@@ -2323,6 +2324,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 
   try {
     const recoveryToken = recoverySession.accessToken;
+    const firstAccessInvitation=recoverySession.type==='invite';
 
     await transport.updatePassword(
       recoveryToken,
@@ -2336,7 +2338,9 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     authMode = 'login';
 
     authMessage(
-      'Contraseña actualizada. Ya puedes entrar con la contraseña nueva.'
+      firstAccessInvitation
+        ?'Acceso activado. Entra con tu contraseña para comenzar en IBERFIT.'
+        :'Contraseña actualizada. Ya puedes entrar con la contraseña nueva.'
     );
 
     return true;
