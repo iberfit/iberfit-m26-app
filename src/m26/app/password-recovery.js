@@ -21,7 +21,7 @@ function integerParameter(params, name) {
 
 function recoveryFragmentPresent(params) {
   return (
-    params.get('type') === 'recovery' ||
+    ['recovery','invite'].includes(params.get('type')) ||
     params.has('access_token') ||
     params.has('refresh_token') ||
     params.has('error') ||
@@ -54,7 +54,11 @@ export function inspectPasswordRecoveryHash(
     return Object.freeze({ status: 'expired', session: null });
   }
 
-  if (params.has('error') || params.get('type') !== 'recovery') {
+  // A confirmed Supabase invite link is a first-access password setup,
+  // not an OAuth/magic-link or a generic signup grant. Reuse the bounded
+  // recovery token protocol, but allow only these two explicit link types.
+  const linkType = params.get('type');
+  if (params.has('error') || !['recovery','invite'].includes(linkType)) {
     return Object.freeze({ status: 'invalid', session: null });
   }
 
@@ -103,7 +107,7 @@ export function inspectPasswordRecoveryHash(
     session: Object.freeze({
       accessToken,
       expiresAt,
-      type: 'recovery',
+      type: linkType,
     }),
   });
 }
