@@ -178,3 +178,54 @@ test('la certificacion RC39 no queda verde con Session QA ausente, incompleta o 
     {id:23,name:'qa-readonly',status:'completed',conclusion:'success'}]);
   assert.equal(green.state,'success');
 });
+
+test('UNIVERSAL: all session controller and Live Workout entrypoints require the 3 specialized gates',()=>{
+  for(const path of [
+    'src/m26/workflows/session-controller.js',
+    'src/m26/workflows/session-ui.js',
+    'src/m26/workflows/session-timer.js',
+    'src/m26/command-bus.js',
+    'src/m26/ui/i18n-surface-session.js',
+    'src/m26/design/role-surfaces.css',
+    'src/m26/design/premium-ux.css',
+    'qa/live-workout/live-workout-browser.spec.mjs',
+    'playwright.live-workout.config.mjs',
+    'tests/m26_session_foreground_refresh.test.mjs',
+    'tests/m26_live_workout_accessibility.test.mjs',
+    'tests/m26_example_draft_recovery.test.mjs',
+    'scripts/run_node_tests_offline.mjs',
+    'scripts/offline_network_guard.mjs',
+    'scripts/remote-gates/run_authenticated_readonly_gate.mjs',
+    'package.json',
+  ]){
+    const required=names([path]);
+    for(const gate of ['offline','browser-live-workout','qa-readonly'])
+      assert.ok(required.includes(gate),path+': '+gate);
+  }
+  const notSession=[
+    'src/m26/workflows/report-workflow.js',
+    'src/m26/workflows/session-other/nested.js',
+    'qa/p0-free-history/live-client-a-cases.mjs',
+    'tests/m26_progress_engine.test.mjs',
+  ];
+  for(const path of notSession){
+    const required=names([path]);
+    assert.ok(!required.includes('browser-live-workout'),path);
+    assert.ok(!required.includes('qa-readonly'),path);
+  }
+});
+
+test('UNIVERSAL: a failing or missing session browser gate cannot certify a session controller edit',()=>{
+  const required=names(['src/m26/workflows/session-controller.js']);
+  const successful=required.filter(name=>name!=='browser-live-workout')
+    .map((name,i)=>({id:i+1,name,status:'completed',conclusion:'success'}));
+  const missing=evaluateRequiredChecks(required,successful);
+  assert.equal(missing.state,'pending');
+  assert.deepEqual([...missing.pending],['browser-live-workout']);
+  const failed=evaluateRequiredChecks(required,[...successful,
+    {id:100,name:'browser-live-workout',status:'completed',conclusion:'failure'}]);
+  assert.equal(failed.state,'failure');
+  const good=evaluateRequiredChecks(required,[...successful,
+    {id:101,name:'browser-live-workout',status:'completed',conclusion:'success'}]);
+  assert.equal(good.state,'success');
+});
