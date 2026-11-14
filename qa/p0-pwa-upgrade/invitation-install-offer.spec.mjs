@@ -89,6 +89,9 @@ test('Safari iOS invitation shows native add-to-home-screen instructions, never 
 });
 
 test('client bottom More remains operable when an installation offer is present (mobile touch)',async({page})=>{
+  // This is a mobile-only geometry contract even when the parent matrix
+  // runs Chromium on desktop and landscape tablet projects.
+  await page.setViewportSize({width:390,height:844});
   await showClientAfterAuthBootstrap(page);
   const offer=page.locator('[data-m26-invitation-install-offer]');
   await expect(offer).toBeVisible({timeout:10_000});
