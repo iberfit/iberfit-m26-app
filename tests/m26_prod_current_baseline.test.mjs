@@ -11,6 +11,11 @@ const valid=()=>({
  existing_webauthn:true,existing_rc74:true,staged_u60:true,
  existing_m44:true,existing_connected360:true,prod_environment:true,
  enabled_commands:58,u60_auth_execute:false,u60_anon_execute:false,
+ u72_source_gateway_md5:'5914acf371015a6bbeeaf95f99e056e3',
+ u72_source_detail_md5:'35862b8e4977fcf0c3d611937fe83126',
+ u72_source_receipt_md5:'f97d7df4fdd510b63ac1249352273927',
+ u72_not_installed:true,u60_detail_auth_execute:false,u60_fences:2,
+ active_occurrences:0,
  active_locks:0,active_legacy_executions:0,
 });
 test('real PROD post-August catalog is distinct from old pre-RC74 promotion',()=>{
@@ -30,6 +35,8 @@ test('current catalog certifies READ-ONLY NO-GO, not deploy approval or secret r
  assert.equal(r.projectRef,PROD_REF);
  assert.equal(r.legacyPromotionSqlRejected,true);
  assert.equal(r.fullMigrationLedgerVerified,true);
+ assert.equal(r.u72ReviewedSourceCompatible,true);
+ assert.equal(r.u72Installed,false);
  assert.equal(r.productionReady,false);
  assert.equal(r.backendPromotionAuthorized,false);
  assert.equal(r.hostedAuthVaultSecretsRestored,false);
@@ -40,6 +47,8 @@ test('current catalog certifies READ-ONLY NO-GO, not deploy approval or secret r
 test('active sessions remain visible in read-only evidence and never purged',()=>{
  const r=certifyCurrentProductionBaseline([{...valid(),active_locks:1,active_legacy_executions:2}],{sourceSha:SHA});
  assert.equal(r.activeTraining,true);assert.equal(r.productionReady,false);
+ const active=certifyCurrentProductionBaseline([{...valid(),active_occurrences:1}],{sourceSha:SHA});
+ assert.equal(active.activeTraining,true);
 });
 test('missing version, widened grant, drift and malformed payload fail closed',()=>{
  for(const diff of [
@@ -49,7 +58,10 @@ test('missing version, widened grant, drift and malformed payload fail closed',(
   {enabled_commands:57},{existing_webauthn:false},
   {existing_rc74:false},{staged_u60:false},{existing_m44:false},
   {existing_connected360:false},{prod_environment:false},
-  {u60_auth_execute:true},{u60_anon_execute:true},
+  {u60_auth_execute:true},{u60_anon_execute:true},{u60_detail_auth_execute:true},
+  {u72_not_installed:false},{u60_fences:1},
+  {u72_source_gateway_md5:'bad'},{u72_source_detail_md5:'bad'},
+  {u72_source_receipt_md5:'bad'},
   {active_locks:'0'},{active_legacy_executions:-1},
  ])assert.throws(()=>certifyCurrentProductionBaseline([{...valid(),...diff}],{sourceSha:SHA}),/PROD_BASELINE_/u,JSON.stringify(diff));
  for(const data of [[],[valid(),valid()],{},[{...valid(),staged_u60:null}]])

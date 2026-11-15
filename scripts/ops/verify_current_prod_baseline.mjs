@@ -27,6 +27,14 @@ export const QUERY=[
  " (SELECT count(*)::int FROM public.domain_command_registry_v26 WHERE enabled=true) AS enabled_commands,",
  " coalesce(has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE'),false) AS u60_auth_execute,",
  " coalesce(has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE'),false) AS u60_anon_execute,",
+ " md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure)) AS u72_source_gateway_md5,",
+ " md5(pg_get_functiondef('private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'::regprocedure)) AS u72_source_detail_md5,",
+ " md5(pg_get_functiondef('private.iberfit_u60_dated_mirror_receipt_guard_v1()'::regprocedure)) AS u72_source_receipt_md5,",
+ " (to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NULL) AS u72_not_installed,",
+ " coalesce(has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE'),false) AS u60_detail_auth_execute,",
+ " (SELECT count(*)::int FROM pg_trigger WHERE tgrelid='public.session_executions'::regclass AND tgname IN ('u60_dated_execution_update_receipt','u60_typed_execution_fence') AND tgenabled<>'D') AS u60_fences,",
+ " (SELECT count(*)::int FROM public.training_session_occurrences_v1 WHERE status='en_curso') AS active_occurrences,",
+
  " (SELECT count(*)::int FROM public.active_execution_locks_v26) AS active_locks,",
  " (SELECT count(*)::int FROM public.domain_entities_v26 WHERE entity_type='session_execution' AND status IN ('en_curso','pausada')) AS active_legacy_executions,",
  " (public.iberfit_environment()->>'environment'='PRODUCTION') AS prod_environment",
@@ -36,9 +44,9 @@ export function certifyCurrentProductionBaseline(input,{sourceSha}={}){
  const a=rowsFor(input);const d=a?.length===1?a[0]:null;
  if(!d||typeof d!=='object'||Array.isArray(d))
   throw Error('PROD_BASELINE_RESPONSE_INVALID');
- for(const key of ['existing_webauthn','existing_rc74','staged_u60','existing_m44','existing_connected360','prod_environment'])
+ for(const key of ['existing_webauthn','existing_rc74','staged_u60','existing_m44','existing_connected360','prod_environment','u72_not_installed'])
   if(d[key]!==true)throw Error('PROD_BASELINE_MISSING_'+key.toUpperCase());
- for(const key of ['applied_migrations','migration_total','enabled_commands','active_locks','active_legacy_executions'])
+ for(const key of ['applied_migrations','migration_total','enabled_commands','active_locks','active_legacy_executions','u60_fences','active_occurrences'])
   if(!Number.isInteger(d[key])||d[key]<0||d[key]>100000000)
    throw Error('PROD_BASELINE_NUMBER_INVALID_'+key.toUpperCase());
  if(d.applied_migrations!==REQUIRED_VERSIONS.length)
@@ -46,8 +54,13 @@ export function certifyCurrentProductionBaseline(input,{sourceSha}={}){
  if(d.migration_total!==EXACT_LEDGER_TOTAL||d.migration_latest!==EXACT_LEDGER_LATEST||d.migration_ledger_sha256!==EXACT_LEDGER_SHA256)
   throw Error('PROD_BASELINE_FULL_LEDGER_DRIFT');
  if(d.enabled_commands!==58)throw Error('PROD_BASELINE_REGISTRY_DRIFT');
- if(d.u60_auth_execute!==false||d.u60_anon_execute!==false)
+ if(d.u60_auth_execute!==false||d.u60_anon_execute!==false||d.u60_detail_auth_execute!==false)
   throw Error('PROD_BASELINE_U60_GRANT_DRIFT');
+ if(d.u60_fences!==2)throw Error('PROD_BASELINE_U60_FENCE_DRIFT');
+ if(d.u72_source_gateway_md5!=='5914acf371015a6bbeeaf95f99e056e3'
+  ||d.u72_source_detail_md5!=='35862b8e4977fcf0c3d611937fe83126'
+  ||d.u72_source_receipt_md5!=='f97d7df4fdd510b63ac1249352273927')
+  throw Error('PROD_BASELINE_U72_INSTALL_SOURCE_DRIFT');
  if(!/^[0-9a-f]{40}$/u.test(sourceSha||''))throw Error('PROD_BASELINE_SHA_INVALID');
  return Object.freeze({
   schema:'iberfit.production.current-baseline-observation.v1',
@@ -55,7 +68,8 @@ export function certifyCurrentProductionBaseline(input,{sourceSha}={}){
   observedState:'RC74_WEBAUTHN_U60_STAGED',readOnly:true,
   migrationsVerified:d.applied_migrations,ledgerVersionsVerified:EXACT_LEDGER_TOTAL,
   fullMigrationLedgerVerified:true,legacyPromotionSqlRejected:true,
-  activeTraining:d.active_locks>0||d.active_legacy_executions>0,
+  u72ReviewedSourceCompatible:true,u72Installed:false,
+  activeTraining:d.active_locks>0||d.active_legacy_executions>0||d.active_occurrences>0,
   hostedAuthVaultSecretsRestored:false,platformAclRestored:false,
   backendPromotionAuthorized:false,productionReady:false,
  });

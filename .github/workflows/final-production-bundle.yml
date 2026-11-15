@@ -31,6 +31,8 @@ jobs:
           node --test tests/m26_final_production_promotion.test.mjs
           node --test tests/m26_final_production_promotion_prod_compat.test.mjs
           node --test tests/m26_prod_current_baseline.test.mjs
+          node --test tests/m26_m1_u72_prod_materializer.test.mjs
+          node --test tests/m26_m1_u72_prod_guarded_release_sql.test.mjs
       - name: Never publish an executable legacy SQL artifact
         run: test ! -e backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
   current-prod-readonly:
