@@ -1,3 +1,13 @@
+## REAL TRAINING 360 · P0 CORRECCIÓN DE GATE PROD · 15/11/2026
+
+- Baseline protegido `e081c4cc0bb029e1694d6dd81dae69895158b179`. Los runs postmerge [#43730961140](https://github.com/iberfit/iberfit-m26-app/actions/runs/43730961140) y [#43731651999](https://github.com/iberfit/iberfit-m26-app/actions/runs/43731651999) acabaron `HTTP_400` en el inspector automatizado. **No se ejecutaron migraciones, grants, escrituras ni deploys PROD.**
+- Diagnóstico verificado directamente en PROD: `supabase_read_only_user` tiene USAGE sobre `pg_catalog`, `public`, `private` y `supabase_migrations`, puede SELECT `supabase_migrations.schema_migrations` y ejecutar `pg_get_functiondef`, pero **no** puede ejecutar `public.iberfit_environment()`. Las tablas de negocio permanecen cubiertas por RLS. Prohibido añadir permisos para un test.
+- Corrección del inspector: usar `POST /database/query/read-only`, que Supabase ejecuta bajo rol de lectura, con **únicamente un SELECT de catálogo**: historial completo de 225 migraciones y SHA-256, funciones/huellas del preflight U72, RLS y grants de U60, triggers y existencia de objetos WebAuthn. No invoca RPC de negocio ni consulta filas privadas de clientes/sesiones.
+- La salida **no certifica** número de comandos ni sesiones activas, configuración de entorno productivo, Hosted Auth/Vault o rollback. Se marcan `UNVERIFIED_PROTECTED_RLS` y `productionReady:false` / `backendPromotionAuthorized:false`; exige un paso separado y autorizado con las fuentes privilegiadas antes de GO.
+- Tras merge se requiere **SUCCESS del job real en PROD** con JSON `catalog-only-no-go.v2`; si la API continúa dando error se debe diagnosticar el código SQLSTATE sanitizado, no ignorarlo, ni modificar RLS. La limpieza selectiva #1319 sigue excluida.
+
+---
+
 ## HOTFIX P0 · Lectura real de catálogo PROD con RLS inalterada · 15/11/2026
 - Base protegida previa `ee4170651e6a3f771368e45812748861b64b5ddc` y PR #1344 mergeada. El workflow read-only postmerge [#43730961140](https://github.com/iberfit/iberfit-m26-app/actions/runs/43730961140) abortó con HTTP 400; NO realizó DDL, grants ni escrituras.
 - **Causa raíz verificada con `has_function_privilege` sobre PROD:** el endpoint Management `/database/query/read-only` ejecuta como `supabase_read_only_user`; ese rol NO puede ejecutar `public.iberfit_environment()`. Además carece de visibilidad RLS sobre registros privados de catálogo; no debe recibir permisos nuevos. La misma consulta de solo lectura funciona en el conector Supabase con el endpoint `/database/query` y `read_only:true`.

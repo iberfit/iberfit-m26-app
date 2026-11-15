@@ -1,5 +1,7 @@
-// IBERFIT REAL TRAINING 360: current PROD catalog, READ-ONLY only.
-// A green result is NOT permission to deploy a legacy SQL bundle.
+// IBERFIT REAL TRAINING 360 · catalog-only PROD evidence, never a rollout grant.
+// The Supabase Management read-only role cannot see RLS-protected business rows
+// or EXECUTE the private environment RPC. DO NOT broaden database permissions
+// to make this job green. This observes pg_catalog and migration metadata only.
 import {mkdir,writeFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 export const PROD_REF='pjhmrhejsoofmouedavw';
@@ -12,10 +14,13 @@ export const REQUIRED_VERSIONS=Object.freeze([
  '20261025203500','20261025210500','20261025223000','20261025231500',
  '20261025235500','20261104150000',
 ]);
+// No CTE, no RLS-protected table rows, no direct user-record query, no
+// application function calls (including public.iberfit_environment()).
+// pg_catalog references are metadata only; grants are INSPECTED, never changed.
 export const QUERY=[
- 'WITH required(version) AS (VALUES '+REQUIRED_VERSIONS.map(x=>"('"+x+"')").join(',')+')',
  'SELECT',
- ' (SELECT count(*)::int FROM required e WHERE EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations m WHERE m.version=e.version)) AS applied_migrations,',
+ ' (SELECT count(*)::int FROM supabase_migrations.schema_migrations WHERE version IN ('+
+ REQUIRED_VERSIONS.map(x=>"'"+x+"'").join(',')+')) AS applied_migrations,',
  ' (SELECT count(*)::int FROM supabase_migrations.schema_migrations) AS migration_total,',
  ' (SELECT max(version) FROM supabase_migrations.schema_migrations) AS migration_latest,',
  " (SELECT encode(sha256(convert_to(string_agg(version||':'||coalesce(name,''),E'\\n' ORDER BY version),'UTF8')),'hex') FROM supabase_migrations.schema_migrations) AS migration_ledger_sha256,",
@@ -24,36 +29,37 @@ export const QUERY=[
  " (to_regclass('public.training_session_occurrences_v1') IS NOT NULL AND to_regprocedure('public.iberfit_occurrence_api_u60_v1(text,jsonb)') IS NOT NULL) AS staged_u60,",
  " to_regclass('public.iberfit_evolution_report_issuances_v1') IS NOT NULL AS existing_m44,",
  " to_regprocedure('public.m26_wearable_v47_my_daily_prod_v1()') IS NOT NULL AS existing_connected360,",
- " (SELECT count(*)::int FROM public.domain_command_registry_v26 WHERE enabled=true) AS enabled_commands,",
  " coalesce(has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE'),false) AS u60_auth_execute,",
  " coalesce(has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE'),false) AS u60_anon_execute,",
+ " coalesce(has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE'),false) AS u60_detail_auth_execute,",
+ " (to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NULL) AS u72_not_installed,",
  " md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure)) AS u72_source_gateway_md5,",
  " md5(pg_get_functiondef('private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'::regprocedure)) AS u72_source_detail_md5,",
  " md5(pg_get_functiondef('private.iberfit_u60_dated_mirror_receipt_guard_v1()'::regprocedure)) AS u72_source_receipt_md5,",
- " (to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NULL) AS u72_not_installed,",
- " coalesce(has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE'),false) AS u60_detail_auth_execute,",
- " (SELECT count(*)::int FROM pg_trigger WHERE tgrelid='public.session_executions'::regclass AND tgname IN ('u60_dated_execution_update_receipt','u60_typed_execution_fence') AND tgenabled<>'D') AS u60_fences,",
- " (SELECT count(*)::int FROM public.training_session_occurrences_v1 WHERE status='en_curso') AS active_occurrences,",
-
- " (SELECT count(*)::int FROM public.active_execution_locks_v26) AS active_locks,",
- " (SELECT count(*)::int FROM public.domain_entities_v26 WHERE entity_type='session_execution' AND status IN ('en_curso','pausada')) AS active_legacy_executions,",
- " (public.iberfit_environment()->>'environment'='PRODUCTION') AS prod_environment",
+ " (SELECT count(*)::int FROM pg_catalog.pg_trigger t WHERE t.tgrelid=to_regclass('public.session_executions') AND t.tgname IN ('u60_dated_execution_update_receipt','u60_typed_execution_fence') AND t.tgenabled<>'D') AS u60_fences,",
+ " EXISTS(SELECT 1 FROM pg_catalog.pg_class c WHERE c.oid=to_regclass('public.domain_command_registry_v26') AND c.relrowsecurity) AS registry_rls,",
+ " EXISTS(SELECT 1 FROM pg_catalog.pg_class c WHERE c.oid=to_regclass('public.active_execution_locks_v26') AND c.relrowsecurity) AS locks_rls,",
+ " EXISTS(SELECT 1 FROM pg_catalog.pg_class c WHERE c.oid=to_regclass('public.domain_entities_v26') AND c.relrowsecurity) AS entities_rls,",
+ " EXISTS(SELECT 1 FROM pg_catalog.pg_class c WHERE c.oid=to_regclass('public.training_session_occurrences_v1') AND c.relrowsecurity) AS occurrences_rls,",
+ " (to_regprocedure('public.iberfit_environment()') IS NOT NULL AND has_function_privilege('authenticated','public.iberfit_environment()','EXECUTE') AND NOT has_function_privilege('anon','public.iberfit_environment()','EXECUTE')) AS environment_rpc_acl",
 ].join('\n');
 const rowsFor=x=>Array.isArray(x)?x:Array.isArray(x?.result)?x.result:null;
 export function certifyCurrentProductionBaseline(input,{sourceSha}={}){
- const a=rowsFor(input);const d=a?.length===1?a[0]:null;
- if(!d||typeof d!=='object'||Array.isArray(d))
-  throw Error('PROD_BASELINE_RESPONSE_INVALID');
- for(const key of ['existing_webauthn','existing_rc74','staged_u60','existing_m44','existing_connected360','prod_environment','u72_not_installed'])
-  if(d[key]!==true)throw Error('PROD_BASELINE_MISSING_'+key.toUpperCase());
- for(const key of ['applied_migrations','migration_total','enabled_commands','active_locks','active_legacy_executions','u60_fences','active_occurrences'])
+ const rows=rowsFor(input),d=rows?.length===1?rows[0]:null;
+ if(!d||typeof d!=='object'||Array.isArray(d))throw Error('PROD_BASELINE_RESPONSE_INVALID');
+ const booleans=['existing_webauthn','existing_rc74','staged_u60','existing_m44',
+  'existing_connected360','u72_not_installed','registry_rls','locks_rls',
+  'entities_rls','occurrences_rls','environment_rpc_acl'];
+ for(const key of booleans)if(d[key]!==true)
+  throw Error('PROD_BASELINE_MISSING_'+key.toUpperCase());
+ for(const key of ['applied_migrations','migration_total','u60_fences'])
   if(!Number.isInteger(d[key])||d[key]<0||d[key]>100000000)
    throw Error('PROD_BASELINE_NUMBER_INVALID_'+key.toUpperCase());
  if(d.applied_migrations!==REQUIRED_VERSIONS.length)
   throw Error('PROD_BASELINE_MIGRATION_DRIFT');
- if(d.migration_total!==EXACT_LEDGER_TOTAL||d.migration_latest!==EXACT_LEDGER_LATEST||d.migration_ledger_sha256!==EXACT_LEDGER_SHA256)
+ if(d.migration_total!==EXACT_LEDGER_TOTAL||d.migration_latest!==EXACT_LEDGER_LATEST||
+   d.migration_ledger_sha256!==EXACT_LEDGER_SHA256)
   throw Error('PROD_BASELINE_FULL_LEDGER_DRIFT');
- if(d.enabled_commands!==58)throw Error('PROD_BASELINE_REGISTRY_DRIFT');
  if(d.u60_auth_execute!==false||d.u60_anon_execute!==false||d.u60_detail_auth_execute!==false)
   throw Error('PROD_BASELINE_U60_GRANT_DRIFT');
  if(d.u60_fences!==2)throw Error('PROD_BASELINE_U60_FENCE_DRIFT');
@@ -63,30 +69,50 @@ export function certifyCurrentProductionBaseline(input,{sourceSha}={}){
   throw Error('PROD_BASELINE_U72_INSTALL_SOURCE_DRIFT');
  if(!/^[0-9a-f]{40}$/u.test(sourceSha||''))throw Error('PROD_BASELINE_SHA_INVALID');
  return Object.freeze({
-  schema:'iberfit.production.current-baseline-observation.v1',
+  schema:'iberfit.production.catalog-only-no-go.v2',
   sourceSha,sourceBranch:'canary/rc74-4',projectRef:PROD_REF,
-  observedState:'RC74_WEBAUTHN_U60_STAGED',readOnly:true,
+  observedState:'RC74_WEBAUTHN_U60_STAGED_METADATA_ONLY',readOnly:true,
   migrationsVerified:d.applied_migrations,ledgerVersionsVerified:EXACT_LEDGER_TOTAL,
   fullMigrationLedgerVerified:true,legacyPromotionSqlRejected:true,
   u72ReviewedSourceCompatible:true,u72Installed:false,
-  activeTraining:d.active_locks>0||d.active_legacy_executions>0||d.active_occurrences>0,
+  registryCountVerified:false,activeTrainingState:'UNVERIFIED_PROTECTED_RLS',
+  productionSettingsVerified:false,
+  requiresPrivilegedActiveTrainingRead:true,
+  requiresPrivilegedRegistryCountRead:true,
   hostedAuthVaultSecretsRestored:false,platformAclRestored:false,
   backendPromotionAuthorized:false,productionReady:false,
  });
 }
+export function safeManagementErrorClass(payload){
+ const code=String(payload?.code||payload?.error_code||'').trim();
+ if(/^[A-Za-z0-9_]{2,24}$/u.test(code))return code.toUpperCase();
+ const description=String(payload?.message||payload?.error||'').toLowerCase().slice(0,500);
+ if(description.includes('permission denied'))return 'PERMISSION_DENIED';
+ if(description.includes('read-only')||description.includes('read only'))return 'READ_ONLY_VIOLATION';
+ if(description.includes('syntax error')||description.includes('parse error'))return 'SQL_SYNTAX';
+ if(description.includes('does not exist'))return 'MISSING_CATALOG_OBJECT';
+ return 'UNCLASSIFIED';
+}
 export async function inspectCurrentProduction({projectRef,sourceSha,accessToken,fetchImpl=globalThis.fetch}={}){
  if(projectRef!==PROD_REF)throw Error('PROD_BASELINE_PROJECT_DENIED');
- if(!/^[0-9a-f]{40}$/u.test(sourceSha||''))throw Error('PROD_BASELINE_SHA_DENIED');
+ if(!/^[a-f0-9]{40}$/u.test(sourceSha||''))throw Error('PROD_BASELINE_SHA_DENIED');
  if(typeof accessToken!=='string'||accessToken.length<16)throw Error('PROD_BASELINE_TOKEN_MISSING');
  if(typeof fetchImpl!=='function')throw Error('PROD_BASELINE_FETCH_MISSING');
  let response;
  try{
-  response=await fetchImpl('https://api.supabase.com/v1/projects/'+PROD_REF+'/database/query',{
+  response=await fetchImpl('https://api.supabase.com/v1/projects/'+PROD_REF+'/database/query/read-only',{
    method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
-   body:JSON.stringify({query:QUERY,read_only:true}),redirect:'error',signal:AbortSignal.timeout(18000),
+   body:JSON.stringify({query:QUERY}),
+   redirect:'error',signal:AbortSignal.timeout(18000),
   });
  }catch{throw Error('PROD_BASELINE_READ_FAILED');}
- if(!response?.ok)throw Error('PROD_BASELINE_HTTP_'+String(response?.status||'UNKNOWN').slice(0,3));
+ if(!response?.ok){
+  // A management error may contain SQL/private values: log only an allowlisted
+  // SQLSTATE (or one coarse fixed class), never server message/SQL/identity.
+  const error=await response?.json?.().catch(()=>null);
+  throw Error('PROD_BASELINE_HTTP_'+String(response?.status||'UNKNOWN').slice(0,3)+'_'+
+   safeManagementErrorClass(error));
+ }
  let result;
  try{result=await response.json()}catch{throw Error('PROD_BASELINE_JSON_INVALID');}
  return certifyCurrentProductionBaseline(result,{sourceSha});
@@ -103,7 +129,7 @@ async function main(){
  await mkdir('recovery',{recursive:true});
  await writeFile('recovery/PROD_CURRENT_BASELINE_READONLY.json',
   JSON.stringify({...result,observedAt:new Date().toISOString()},null,2)+'\n',{mode:0o600});
- process.stdout.write('IBERFIT_PROD_LEGACY_SQL_RETIRED_CURRENT_BASELINE_VERIFIED_NON_PROMOTABLE\n');
+ process.stdout.write('IBERFIT_PROD_CATALOG_ONLY_METADATA_NO_GO_CERTIFIED\n');
 }
 if(process.argv[1]&&pathToFileURL(process.argv[1]).href===import.meta.url){
  main().catch(e=>{process.stderr.write(String(e?.message||'PROD_BASELINE_FAILED').slice(0,100)+'\n');process.exitCode=1;});
