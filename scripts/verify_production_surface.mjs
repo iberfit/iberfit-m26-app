@@ -102,6 +102,20 @@ function parseRuntime(source){
   return parseJson(text.slice(objectStart,objectEnd),'PROD_SURFACE_RUNTIME_SCHEMA_INVALID');
 }
 
+
+/** Optional protected-release contract: a Pages-only lane must stay closed.
+ * Calling without a mode preserves older general-purpose validation clients.
+ * Explicit mode 'active' or 'recovery' cannot silently bypass this guard.
+ */
+export function enforceDatedTrainingReleaseMode(runtime, expectedMode){
+  if(expectedMode===undefined||expectedMode===null||expectedMode==='')return true;
+  if(expectedMode!=='closed')fail('PROD_SURFACE_DATED_MODE_NOT_AUTHORIZED');
+  if(runtime?.datedTrainingProductionReleased!==false||
+     runtime?.datedTrainingProductionStartsEnabled!==false)
+    fail('PROD_SURFACE_DATED_RELEASE_NOT_CLOSED');
+  return true;
+}
+
 export function validateProductionSurface({
   versionSource,
   runtimeSource,
@@ -112,7 +126,8 @@ export function validateProductionSurface({
   sourceBranch,
   prodProjectRef,
   prodSupabaseUrl,
-  qaProjectRef
+  qaProjectRef,
+  expectedDatedTrainingMode,
 }){
   const expectedSha=required(sourceSha,'PROD_SURFACE_SOURCE_SHA_MISSING');
   if(!/^[0-9a-f]{40}$/u.test(expectedSha))fail('PROD_SURFACE_SOURCE_SHA_INVALID');
@@ -142,6 +157,7 @@ export function validateProductionSurface({
   if(runtime.projectRef!==expectedProjectRef)fail('PROD_SURFACE_RUNTIME_PROJECT_REF_MISMATCH');
   if(runtime.url!==expectedSupabaseUrl)fail('PROD_SURFACE_RUNTIME_URL_MISMATCH');
   if(runtime.sourceSha!==expectedSha)fail('PROD_SURFACE_RUNTIME_SHA_MISMATCH');
+  enforceDatedTrainingReleaseMode(runtime,expectedDatedTrainingMode);
   if(typeof runtime.publishableKey!=='string'||!runtime.publishableKey.startsWith('sb_publishable_')){
     fail('PROD_SURFACE_RUNTIME_PUBLISHABLE_KEY_INVALID');
   }
@@ -191,6 +207,7 @@ function verificationUrl(baseUrl,path,sourceSha,attempt){
 
 export async function verifyProductionSurface({
   baseUrl,
+  expectedDatedTrainingMode,
   sourceSha,
   sourceBranch,
   prodProjectRef,
@@ -244,6 +261,7 @@ export async function verifyProductionSurface({
           prodProjectRef,
           prodSupabaseUrl,
           qaProjectRef,
+          expectedDatedTrainingMode,
         });
       },
     });
@@ -269,6 +287,7 @@ async function main(){
     prodProjectRef:process.env.M26_VERIFY_PROD_PROJECT_REF,
     prodSupabaseUrl:process.env.M26_VERIFY_PROD_SUPABASE_URL,
     qaProjectRef:process.env.M26_VERIFY_QA_PROJECT_REF,
+    expectedDatedTrainingMode:process.env.M26_VERIFY_DATED_TRAINING_MODE,
     attempts:process.env.M26_VERIFY_ATTEMPTS,
     stablePasses:process.env.M26_VERIFY_STABLE_PASSES||DEFAULT_CLI_STABLE_PASSES,
     delayMs:process.env.M26_VERIFY_DELAY_MS,

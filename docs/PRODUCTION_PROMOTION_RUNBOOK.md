@@ -120,7 +120,7 @@ El preview puede tardar unos segundos en quedar disponible de forma coherente de
 
 ## Modo opcional `frontendOnly` · SIGNATURE 360 sin mutaciones de backend
 
-El pipeline oficial sigue exigiendo `release/prod-<SHA>`, un único commit de manifiesto, un SHA exacto proveniente de Canary, backup/restauración M44 reciente, CI, regresiones, preview, identidad LIVE, auditoría de solo lectura y rollback. **Por defecto no cambia ningún paso**: una release ordinaria continúa desplegando los Edge brokers y aplicando las verificaciones de Hosted Auth cuando corresponda.
+El pipeline oficial sigue exigiendo `release/prod-<SHA>`, un único commit de manifiesto, un SHA exacto proveniente de Canary, backup/restauración M44 reciente, CI, regresiones, preview, identidad LIVE, auditoría de solo lectura y rollback. **Desde la protección REAL TRAINING 360**, la vía de Pages solo acepta `frontendOnly:true` y fija `M26_U60_PROD_MODE: 'closed'`. El despliegue de Edge/Hosted Auth por este workflow queda bloqueado antes de cualquier escritura hasta que exista una vía backend independiente con recuperación probada, rollback y autorización explícita. El verificador de preview y LIVE exige además que el runtime publicado mantenga U60 cerrado.
 
 Para una release estrictamente **frontend-only** (ningún archivo desplegable de Edge, servidor o Auth cambiado respecto a la versión PROD realmente servida), el manifiesto puede incluir:
 
