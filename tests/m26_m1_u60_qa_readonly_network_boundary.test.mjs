@@ -42,5 +42,6 @@ test('the one REAL TRAINING 360 PR #1343 is strictly allowlisted for real Chromi
   assert.match(workflow,/test "\$\(git rev-parse HEAD\)" = "\$EXPECTED_HEAD"/u);
   assert.match(workflow,/test "\$\(jq -er '\.head\.sha' <<< "\$result"\)" = "\$EXPECTED_HEAD"/u);
   assert.match(workflow,/environment: m26-canary-readonly/u);
-  assert.match(workflow,/if: \$\{\{ github\.event_name == 'pull_request' \}\}/u);
+  assert.match(workflow,/if: \$\{\{ github\.event_name == 'pull_request' && github\.event\.pull_request\.number == 1343 \}\}/u);
+  assert.match(workflow,/authenticated-client-controls:[\s\S]*?needs: pr-current-head/u);
 });

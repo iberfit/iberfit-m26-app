@@ -46,6 +46,7 @@ import {createWorkflowController} from './workflow-controller.js';
 import {createSessionVault,sessionExpiresSoon} from './session-vault.js';
 import {createSessionForegroundRefreshCoordinator} from './session-foreground-refresh.js';
 import {createHydrationCoordinator} from './hydration-coordinator.js';
+import {loadWearablesWithBoundedRoleEvidence} from './wearable-bootstrap-demand.js';
 import {canPrefetchClientCommunication} from './client-communication-prefetch.js';
 import {clearIberfitExperiencePreferences} from '../ui/preferences.js';
 import {inspectOwnerDeviceData,ownerDeviceClearPrompt,clearOwnerDeviceData} from '../privacy/device-data.js';
@@ -834,6 +835,31 @@ export async function createM26Application({root=document.querySelector('#app'),
         {available:false,reason:'timeout_or_unavailable',data:null},
         'application-context',
       ):Promise.resolve({available:false,reason:'disabled',data:null});
+      // Optimise the authenticated *read*, never authorization. Server-backed
+      // role metadata may prove Coach/Admin-only quickly; ambiguous, multi-role
+      // or slow metadata retains the original wearable read, without a waterfall.
+      const earlyWearableRoles=Promise.all([extensionsPending,contextPending]).then(([earlyExtensions,earlyContext])=>{
+        const verifiedContext=normalizeApplicationContextExtension(
+          earlyContext.available?{...earlyContext.data,available:true}:{available:false},
+        );
+        return normalizeAuthorizedRoles({authorizedRoles:
+          verifiedContext.roles.length?verifiedContext.roles:
+            earlyExtensions.rolesAvailable?earlyExtensions.authorizedRoles:[],
+        });
+      });
+      const wearableFallback={ready:false,version:'RC44',connections:[],dailySummaries:[],consents:[]};
+      const wearablePreflightPending=loadWearablesWithBoundedRoleEvidence({
+        roleEvidence:earlyWearableRoles,
+        fallback:wearableFallback,
+        waitMs:140,
+        fetchWearable:()=>{
+          requireOwner();
+          return optionalAuthBootstrap(
+            ()=>transport.wearableBootstrap(currentToken()),
+            wearableFallback,'wearables',
+          );
+        },
+      });
       const communicationFallback={available:false,reason:'timeout_or_unavailable',data:null};
       const preferredEarlyRole=String(activeApplicationRole||'').trim().toLowerCase();
       const clientCommunicationPending=communicationTransport
@@ -858,7 +884,7 @@ export async function createM26Application({root=document.querySelector('#app'),
           });
         }).catch(()=>null) // A stale lease is checked again before ANY commit.
         :Promise.resolve(null);
-      const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
+      const [snapshot,installed,extensions,contextExtension,backendV43,wearablePreflight]=await Promise.all([
         primarySnapshot,
         transport.commandRegistry(currentToken()),
         extensionsPending,
@@ -868,11 +894,7 @@ export async function createM26Application({root=document.querySelector('#app'),
           {available:false,ready:false,reason:'timeout_or_unavailable'},
           'backend-v43',
         ),
-        optionalAuthBootstrap(
-          ()=>transport.wearableBootstrap(currentToken()),
-          {ready:false,version:'RC44',connections:[],dailySummaries:[],consents:[]},
-          'wearables',
-        ),
+        wearablePreflightPending,
       ]);
       requireOwner(); // Never interpret A's snapshot under B's active role/token.
       qaStage('rc64-hydrate-primary-ready');
@@ -889,6 +911,15 @@ export async function createM26Application({root=document.querySelector('#app'),
       const preferredRole=requestedRole||(storedRole&&authorizedRoles.includes(storedRole)?storedRole:primaryRole);
       const activeRole=resolveActiveRole(authorizedRoles,preferredRole);
       if(!activeRole)throw new Error('M26_ROLE_CONTEXT_MISSING');
+      // A stale or contradictory role hint may NEVER suppress Client health
+      // data. If final server-authorized scope is Client, recover the read.
+      const wearableV44=activeRole==='client'&&wearablePreflight.skipped
+        ?await optionalAuthBootstrap(
+          ()=>transport.wearableBootstrap(currentToken()),
+          wearableFallback,'wearables-client',
+        )
+        :wearablePreflight.data;
+      requireOwner();
       const roleChoiceConfirmed=!roleChoiceRequired||Boolean(requestedRole);
       // Preserve QA Client owner validation before projecting a separately
       // authorized Admin/Coach role; never reconstruct compact metadata after

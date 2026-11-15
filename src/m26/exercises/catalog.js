@@ -10,6 +10,8 @@ const DYNAMIC_MAX_ROWS=5_000;
 const PUBLIC_CATALOG_CACHE_SCHEMA='iberfit.public-catalog.v1';
 const PUBLIC_CATALOG_CACHE_TTL_MS=120_000;
 const PUBLIC_CATALOG_CACHE_MAX_CHARS=1_800_000;
+// Only anonymous/public catalog responses are in flight. Never store auth tokens.
+const publicCatalogInFlight=new Map();
 // Never cache private bootstraps, JWTs, role state or customer data.
 function publicCatalogStorage(){
   try{return globalThis.sessionStorage||null;}catch{return null;}
@@ -45,6 +47,26 @@ function cachePublicCatalog(runtime,{remoteRows,measurementProfiles}){
 }
 function clearCachedPublicCatalog(runtime){
   try{publicCatalogStorage()?.removeItem(catalogCacheKey(runtime));}catch{}
+}
+// Coalesce identical public RPC reads before sessionStorage is populated.
+// Explicit editor refresh supersedes the old flight: an older response must
+// not overwrite the newly revalidated catalog.
+async function loadPublicCatalogRemote(runtime,{forceRemoteRefresh=false}={}){
+  const key=catalogCacheKey(runtime);
+  const existing=forceRemoteRefresh?null:publicCatalogInFlight.get(key);
+  if(existing)return existing;
+  const pending=Promise.all([
+    fetchDynamicCatalogRows(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{}),
+    fetchDynamicMeasurementProfiles(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{}),
+  ]).then(([remoteRows,measurementProfiles])=>({remoteRows,measurementProfiles}));
+  publicCatalogInFlight.set(key,pending);
+  try{
+    const value=await pending;
+    if(publicCatalogInFlight.get(key)===pending)cachePublicCatalog(runtime,value);
+    return value;
+  }finally{
+    if(publicCatalogInFlight.get(key)===pending)publicCatalogInFlight.delete(key);
+  }
 }
 
 function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
@@ -178,12 +200,7 @@ export async function loadExerciseCatalog(source,{forceRemoteRefresh=false}={}){
   const runtime=dynamicCatalogRuntime();if(!runtime)return catalog;if(forceRemoteRefresh)clearCachedPublicCatalog(runtime);
   let cached=forceRemoteRefresh?null:getCachedPublicCatalog(runtime);
   if(!cached){
-    const [remoteRows,measurementProfiles]=await Promise.all([
-      fetchDynamicCatalogRows(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{}),
-      fetchDynamicMeasurementProfiles(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{})
-    ]);
-    cached={remoteRows,measurementProfiles};
-    cachePublicCatalog(runtime,cached);
+    cached=await loadPublicCatalogRemote(runtime,{forceRemoteRefresh});
   }
   const {remoteRows,measurementProfiles}=cached;if(!remoteRows.length&&!measurementProfiles.length)return catalog;
   const merged=mergeExerciseCatalogRecords(catalog,remoteRows,{mediaOrigin:runtime.origin,measurementProfiles});return merged.count>=catalog.count?merged:catalog;

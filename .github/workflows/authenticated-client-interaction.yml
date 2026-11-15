@@ -164,7 +164,10 @@ jobs:
   # No backend mutation route is allowlisted, and source bytes are checked
   # out from the exact PR head SHA rather than GitHub's synthetic merge ref.
   u60-real-qa-client-readonly:
-    if: ${{ github.event_name == 'pull_request' }}
+    # This bespoke M1 proof hard-fences PR #1343 internally. Never dispatch it
+    # for unrelated startup, media or UX PRs; their general authenticated
+    # Client interaction job remains mandatory and unchanged.
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.number == 1343 }}
     name: Real U60 Client QA browser, read-only 320 to 1440
     runs-on: ubuntu-latest
     timeout-minutes: 25
