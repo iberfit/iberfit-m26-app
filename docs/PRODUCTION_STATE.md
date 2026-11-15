@@ -1,3 +1,10 @@
+## HOTFIX P0 · Lectura real de catálogo PROD con RLS inalterada · 15/11/2026
+- Base protegida previa `ee4170651e6a3f771368e45812748861b64b5ddc` y PR #1344 mergeada. El workflow read-only postmerge [#43730961140](https://github.com/iberfit/iberfit-m26-app/actions/runs/43730961140) abortó con HTTP 400; NO realizó DDL, grants ni escrituras.
+- **Causa raíz verificada con `has_function_privilege` sobre PROD:** el endpoint Management `/database/query/read-only` ejecuta como `supabase_read_only_user`; ese rol NO puede ejecutar `public.iberfit_environment()`. Además carece de visibilidad RLS sobre registros privados de catálogo; no debe recibir permisos nuevos. La misma consulta de solo lectura funciona en el conector Supabase con el endpoint `/database/query` y `read_only:true`.
+- Corrección: mantener un `SELECT` único, objetivo PROD fijo, SHA protegido y resultado agregado NO-GO, pero utilizar exactamente `POST /database/query` con `read_only:true` (API Supabase beta), siguiendo la vía del conector oficial. Nuevos tests comprueban ruta, verbo y bandera obligatoria. **Prohibidos** cambios RLS, bypass mediante grants, lecturas privadas, secretos y activación U60/U72. La prueba real postmerge determinará si está resuelto; no afirmar SUCCESS antes del HTTP real.
+
+---
+
 ## REAL TRAINING 360 · P0 PRODUCTION RELEASE FIREWALL · 15/11/2026
 
 - **CANDIDATO BASE INMUTABLE:** Canary `cf9283ec321ca12e7df47bf18b450f5a8337c899`, PR #1343 fusionada; 15/15 workflows postmerge SUCCESS tras reintento explícito de Device Experience. Canary Cloudflare exact SHA certificado; PROD no actualizado.

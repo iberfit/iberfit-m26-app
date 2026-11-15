@@ -71,9 +71,10 @@ test('missing version, widened grant, drift and malformed payload fail closed',(
 test('remote request is pinned to PROD management read-only endpoint',async()=>{
  let n=0;
  const fetchImpl=async(url,options)=>{
-  n++;assert.equal(url,'https://api.supabase.com/v1/projects/'+PROD_REF+'/database/query/read-only');
+  n++;assert.equal(url,'https://api.supabase.com/v1/projects/'+PROD_REF+'/database/query');
   assert.equal(options.method,'POST');assert.equal(options.redirect,'error');
-  assert.deepEqual(JSON.parse(options.body),{query:QUERY});
+  assert.deepEqual(JSON.parse(options.body),{query:QUERY,read_only:true});
+  assert.equal(JSON.parse(options.body).read_only,true);
   return {ok:true,status:200,json:async()=>[valid()]};
  };
  await assert.rejects(()=>inspectCurrentProduction({projectRef:'gjztkdwfmunnzhtvxrsu',sourceSha:SHA,accessToken:'test-plaintext-not-real',fetchImpl}),/PROJECT_DENIED/u);

@@ -81,9 +81,9 @@ export async function inspectCurrentProduction({projectRef,sourceSha,accessToken
  if(typeof fetchImpl!=='function')throw Error('PROD_BASELINE_FETCH_MISSING');
  let response;
  try{
-  response=await fetchImpl('https://api.supabase.com/v1/projects/'+PROD_REF+'/database/query/read-only',{
+  response=await fetchImpl('https://api.supabase.com/v1/projects/'+PROD_REF+'/database/query',{
    method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
-   body:JSON.stringify({query:QUERY}),redirect:'error',signal:AbortSignal.timeout(18000),
+   body:JSON.stringify({query:QUERY,read_only:true}),redirect:'error',signal:AbortSignal.timeout(18000),
   });
  }catch{throw Error('PROD_BASELINE_READ_FAILED');}
  if(!response?.ok)throw Error('PROD_BASELINE_HTTP_'+String(response?.status||'UNKNOWN').slice(0,3));
