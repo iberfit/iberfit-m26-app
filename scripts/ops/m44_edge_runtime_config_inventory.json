@@ -105,8 +105,10 @@
     {
       "slug": "iberfit-evolution-report-emission-v1",
       "referenced_names": [
+        "SUPABASE_ANON_KEY",
         "SUPABASE_PUBLISHABLE_KEYS",
         "SUPABASE_SECRET_KEYS",
+        "SUPABASE_SERVICE_ROLE_KEY",
         "SUPABASE_URL"
       ],
       "deployment_policy": "canonical"

@@ -24,6 +24,11 @@ test('M44: every PROD Edge function source has versioned runtime variable NAMES 
  const active=inv.functions.find(x=>x.slug==='iberfit-ai');
  assert.ok(active.referenced_names.includes('GEMINI_API_KEY'));
  assert.ok(active.referenced_names.includes('GOOGLE_API_KEY'));
+ const evolution=inv.functions.find(x=>x.slug==='iberfit-evolution-report-emission-v1');
+ assert.deepEqual(evolution.referenced_names,[
+  'SUPABASE_ANON_KEY','SUPABASE_PUBLISHABLE_KEYS','SUPABASE_SECRET_KEYS',
+  'SUPABASE_SERVICE_ROLE_KEY','SUPABASE_URL'
+ ]);
  const webpush=inv.functions.find(x=>x.slug==='iberfit-web-push-sender-v1');
  assert.ok(webpush.referenced_names.includes('IBERFIT_WEB_PUSH_VAPID_PRIVATE_KEY'));
 });
