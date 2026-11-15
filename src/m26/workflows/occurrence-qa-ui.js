@@ -711,8 +711,9 @@ export function createDatedOccurrenceQaUi({
       return;
     }
     if(action==='u60-record'){
-      await runtime.workout.record(payload.result);
-      await runtime.workout.advance();
+      // One encrypted CAS checkpoint for both the observed set and cursor.
+      // Never leave a recorded set at an unadvanceable step after a crash.
+      await runtime.workout.recordAndAdvance(payload.result);
       const receipt=await runtime.workout.save();
       if(receipt.hasUncertain||receipt.unsavedWork)fail('RECOVERY_REQUIRED');
       message='Serie registrada, siguiente paso y progreso confirmados.';

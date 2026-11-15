@@ -262,6 +262,14 @@ export function createOccurrenceWorkoutService({
     }finally{busy=false;}
   }
   const record=input=>mutate((execution,session)=>recordSet(execution,session,input));
+  // A dated set is one user action: recording and advancing must commit in
+  // ONE encrypted CAS checkpoint. Otherwise a crash between two writes can
+  // persist a completed set at the previous cursor, trapping the client.
+  // Keep record/advance separately for existing domain and recovery callers.
+  const recordAndAdvance=input=>mutate((execution,session)=>{
+    recordSet(execution,session,input);
+    advanceExecution(execution);
+  });
   const skip=reason=>mutate((execution,session)=>
     skipExecutionSet(execution,session,{reason}));
   const advance=()=>mutate(execution=>advanceExecution(execution));
@@ -282,6 +290,6 @@ export function createOccurrenceWorkoutService({
       return dispatch('resume');
     },
     save:()=>dispatch('progress'),
-    complete:()=>dispatch('complete'),reconcile,record,skip,advance,finish,
+    complete:()=>dispatch('complete'),reconcile,record,recordAndAdvance,skip,advance,finish,
   });
 }

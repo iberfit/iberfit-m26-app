@@ -59,6 +59,8 @@ test('UNIVERSAL U60 separate action registry audits every date interaction with 
   assert.deepEqual(M26_ACTION_REGISTRY['u60-start'].roles,['coach','client']);
   assert.doesNotMatch(html,/localStorage|sessionStorage|SESION_INICIAR\(/u);
   assert.match(html,/runtime\.workout\.reconcile\(\)/u);
+  assert.match(html,/await runtime\.workout\.recordAndAdvance\(payload\.result\)/u);
+  assert.doesNotMatch(html,/await runtime\.workout\.record\(payload\.result\)/u);
   assert.match(html,/runtime\.retryDates/u);
   assert.match(html,/runtime\.recovery\.retryUncertain/u);
 });
