@@ -24,7 +24,7 @@ test('U85 never pre-renders unverified state, never starts an extra role request
   assert.match(source.slice(prefetch,primary),/verifiedContext.roles.length\?verifiedContext.roles:earlyExtensions.authorizedRoles/u);
   assert.match(source.slice(prefetch,primary),/canPrefetchClientCommunication\(verifiedRoles,preferredEarlyRole\)/u);
   assert.match(source.slice(prefetch,primary),/requireOwner\(\)/u);
-  assert.match(source.slice(prefetch,primary),/loadWearablesWithBoundedRoleEvidence/u);
+  assert.match(source.slice(begin,prefetch),/loadWearablesWithBoundedRoleEvidence/u);
   assert.match(source.slice(primary,secondary),/wearablePreflightPending/u);
   assert.match(source.slice(secondary,commit),/if\(activeRole==='client'\)/u);
   assert.match(source.slice(secondary,commit),/communicationTransport.bootstrapOptional\(currentToken\(\),\{application:activeRole\}\)/u);
