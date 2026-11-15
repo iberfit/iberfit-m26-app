@@ -1,3 +1,19 @@
+## 15/11/2026 · Cortafuegos productivo Edge/Auth durante REAL TRAINING 360
+
+El workflow de Pages conserva pasos históricos de despliegue Edge y sincronización
+Hosted Auth sin rollback transaccional equivalente a Cloudflare Pages.
+**Mientras no exista una promoción independiente reversible para esos recursos**,
+`production-promote.yml` solo admite `frontendOnly:true`, destino exacto,
+SHA de origen y SHA LIVE anterior válidos. La comprobación
+`enforce_frontend_only_release_boundary.mjs` corre ANTES de cualquier escritura
+productiva; además `verify_frontend_only_promotion.mjs` exige diff realmente
+frontend-only. El modo backend ausente, false o ambiguo aborta sin tocar PROD.
+No se borra código histórico ni se relajan RLS, Auth, gates ni rollback.
+Esta barrera NO certifica recuperación Hosted Auth/Vault, NO habilita U60/U72
+y NO autoriza la promoción de REAL TRAINING 360. #1319 permanece excluido.
+
+---
+
 ## Corrección de observación PROD 15/11/2026 · RLS mantenida
 
 El control de metadatos solo puede ejecutarse por `POST /database/query/read-only`, rol `supabase_read_only_user`, con SQL `SELECT` de `pg_catalog` y `supabase_migrations`. No invocar `iberfit_environment()` ni leer filas de `public.domain_entities_v26`, `active_execution_locks_v26`, `training_session_occurrences_v1` o `iberfit_system_settings`; esas lecturas exigen autorización diferente. El artefacto `catalog-only-no-go.v2` acredita **metadatos exclusivamente**, nunca estado operacional, recuperación Auth/Vault ni permiso de release. Cualquier HTTP fallido bloquea el gate. Jamás ampliar grants ni degradar RLS para permitir una medición.
