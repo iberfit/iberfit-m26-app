@@ -148,6 +148,9 @@ on:
       # FRESH encrypted PROD DB+Storage backup and isolated PG17 restore.
       # Only protected Canary push; never PR, feature branch or QA writes.
       - 'scripts/release/materialize_u72_prod_sql.mjs'
+      # One release workflow change on protected Canary requests a fresh
+      # encrypted PROD recovery point. Never execute real backup from PRs.
+      - '.github/workflows/production-promote.yml'
   workflow_dispatch:
     inputs:
       confirmation:
