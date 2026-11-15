@@ -538,7 +538,7 @@ test('U60 invalid set and final feedback preserve typed values without caching c
     u60Phrase:{type:'password',value:'NEVER-COPY-THIS-SECRET'},
   };
   const panel=values=>({querySelector:selector=>{
-    const match=selector.match(/^\\[name="([^"]+)"\\]$/u);
+    const match=selector.match(/^\[name="([^"]+)"\]$/u);
     return values[match?.[1]]||null;
   }});
   const saved=captureDatedUnsubmittedFields(panel(names));
@@ -560,8 +560,8 @@ test('U60 invalid set and final feedback preserve typed values without caching c
   assert.equal(fresh.u60Phrase.value,'');
   assert.equal(restoreDatedUnsubmittedFields(panel(fresh),null),0);
   const uiSource=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
-  assert.match(uiSource,/originalDraftScope===draftScopeSignature\\(\\)/u,
+  assert.match(uiSource,/originalDraftScope===draftScopeSignature\(\)/u,
     'typed fields may only be restored inside the original role/date/revision');
-  assert.match(uiSource,/if\\(failed&&!disposed/u,
+  assert.match(uiSource,/if\(failed&&!disposed/u,
     'successful remote writes must never replay stale form fields');
 });
