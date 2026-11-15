@@ -24,6 +24,11 @@ on:
       - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
       - '.github/workflows/device-experience-gate.yml'
       - 'scripts/release/verify_frontend_only_promotion.mjs'
+      # Release pipeline/runtime changes must obtain fresh exact-SHA device QA.
+      - '.github/workflows/production-promote.yml'
+      - 'scripts/release/enforce_frontend_only_release_boundary.mjs'
+      - 'scripts/verify_production_surface.mjs'
+      - 'tests/m26_real_training_360_release_boundary.test.mjs'
       - '.github/workflows/coach-webauthn-recurring.yml'
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
   push:
@@ -47,6 +52,11 @@ on:
       - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
       - '.github/workflows/device-experience-gate.yml'
       - 'scripts/release/verify_frontend_only_promotion.mjs'
+      # Release pipeline/runtime changes must obtain fresh exact-SHA device QA.
+      - '.github/workflows/production-promote.yml'
+      - 'scripts/release/enforce_frontend_only_release_boundary.mjs'
+      - 'scripts/verify_production_surface.mjs'
+      - 'tests/m26_real_training_360_release_boundary.test.mjs'
       - '.github/workflows/coach-webauthn-recurring.yml'
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
   workflow_dispatch:

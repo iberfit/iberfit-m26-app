@@ -93,3 +93,40 @@ test('the protected workflow pins U60 closed at build and checks preview and LIV
   assert.match(ver,/enforceDatedTrainingReleaseMode\(runtime,expectedDatedTrainingMode\)/u);
   assert.ok(w.includes('- name: Verify app.iberfit.cl exact identity and runtime read-only'));
 });
+
+test('protected Canary merge schedules ALL required exact-SHA release QA gates',()=>{
+  const root=new URL('../.github/workflows/',import.meta.url);
+  const required=['device-experience-gate.yml',
+    'coach-webauthn-recurring.yml',
+    'admin-webauthn-recurring.yml','remote-gates.yml'];
+  for(const name of required){
+    const yml=readFileSync(new URL(name,root),'utf8');
+    const start=yml.indexOf('  push:');
+    const end=yml.indexOf('  workflow_dispatch:',start);
+    assert.ok(start>=0&&end>start,'push trigger missing: '+name);
+    const push=yml.slice(start,end);
+    assert.ok(push.includes('canary/rc74-4'),'protected Canary missing: '+name);
+    assert.ok(push.includes("- '.github/workflows/production-promote.yml'"),
+      'release workflow must trigger '+name);
+    if(name==='device-experience-gate.yml'){
+      for(const path of [
+        'scripts/release/enforce_frontend_only_release_boundary.mjs',
+        'scripts/verify_production_surface.mjs',
+        'tests/m26_real_training_360_release_boundary.test.mjs'
+      ]){
+        assert.ok(push.includes("- '"+path+"'"),'missing device release filter: '+path);
+        const pull=yml.slice(yml.indexOf('  pull_request:'),start);
+        assert.ok(pull.includes("- '"+path+"'"),'missing PR device filter: '+path);
+      }
+      // A Draft does not spend QA egress on the complete device suite.
+      assert.match(yml,/PR_IS_DRAFT.+github\.event\.pull_request\.draft/u);
+      assert.match(yml,/if \[\[ "\$PR_IS_DRAFT" == true \]\]/u);
+    }
+  }
+  const source=readFileSync(new URL('../scripts/release/verify_source_qa_gates.mjs',import.meta.url),'utf8');
+  for(const name of ['IBERFIT Device Experience Gate',
+    'IBERFIT Coach WebAuthn Recurring','IBERFIT Admin WebAuthn Recurring',
+    'IBERFIT M26 Gates remotos de solo lectura']){
+    assert.ok(source.includes("'"+name+"'"),'release gate removed: '+name);
+  }
+});

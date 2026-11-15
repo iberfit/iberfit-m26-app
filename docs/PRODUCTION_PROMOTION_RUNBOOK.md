@@ -1,3 +1,22 @@
+## 15/11/2026 · Matriz exact-SHA después de merge protegido
+
+Para evitar que una promoción quede sin certificado Device Experience por
+filtros de paths, los cambios del workflow productivo, del verificador LIVE,
+del cortafuegos frontend-only y de su test ahora disparan **Device Experience**
+en PR no Draft y en `push` a Canary. Los gates de Coach/Admin WebAuthn y
+los remotos ya observan `.github/workflows/production-promote.yml` y se
+mantienen intactos; el verificador de promoción exige los siete workflows
+`SUCCESS` sobre el **SHA exacto** del merge.
+
+En PR Draft, Device Experience conserva su protección de cuota: **no ejecuta
+la suite autenticada**; solo en Ready for Review se habilita según su política.
+Esto no modifica el SLA, las pruebas RLS ni las credenciales QA. Una
+disparación prevista **no equivale** al éxito del workflow: revisar CI y
+cada run después de fusionar. Ningún cambio de estos filtros autoriza el
+back-end productivo.
+
+---
+
 ## 15/11/2026 · Cortafuegos productivo Edge/Auth durante REAL TRAINING 360
 
 El workflow de Pages conserva pasos históricos de despliegue Edge y sincronización
