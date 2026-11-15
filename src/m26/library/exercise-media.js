@@ -19,6 +19,18 @@ const MEDIA_FETCH_TIMEOUT_MS=3_000;
 const DYNAMIC_MEDIA_RPC='iberfit_exercise_media_manifest_v1';
 const TRUSTED_MEDIA_ORIGINS=new Set(['https://pjhmrhejsoofmouedavw.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co']);
 const manifestIndexes=new WeakMap();
+// This cache contains public, approved metadata only; never JWTs, clients or
+// private Health/IRI responses. A new deployed version/endpoint/key invalidates
+// the cache; an explicit publication refresh always revalidates.
+const PUBLIC_MEDIA_MAP_TTL_MS=60_000;
+let publicMediaMapCache=null;
+let publicMediaMapInFlight=null;
+
+function publicMediaMapKey(runtimeConfig,urls){
+  const runtime=dynamicRuntime(runtimeConfig)||{origin:'static-only',version:String(runtimeConfig?.version||''),key:''};
+  return JSON.stringify([runtime.origin,runtime.version,runtime.key,...urls]);
+}
+
 
 function normalizedRole(value){
   const role=String(value||'').trim().toLowerCase();
@@ -403,19 +415,48 @@ export async function loadExerciseMediaMap({
   repdbUrl=REPDB_MEDIA_MAP_URL,
   runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},
   timeoutMs=MEDIA_FETCH_TIMEOUT_MS,
+  forceRefresh=false,
 }={}){
   if(typeof fetchImpl!=='function')throw new Error('M26_MEDIA_FETCH_UNAVAILABLE');
   const boundedTimeout=Math.max(500,Math.min(Number(timeoutMs||MEDIA_FETCH_TIMEOUT_MS),10_000));
-  const [iberfitResult,iberfitRichResult,repdbResult,dynamicResult]=await Promise.allSettled([
-    fetchMap(fetchImpl,iberfitUrl,validateIberfitExerciseMediaMap,boundedTimeout),
-    fetchMap(fetchImpl,iberfitRichUrl,validateIberfitExerciseRichMediaMap,boundedTimeout),
-    fetchMap(fetchImpl,repdbUrl,validateExerciseMediaMap,boundedTimeout),
-    fetchDynamicIberfitMap(fetchImpl,runtimeConfig,boundedTimeout),
-  ]);
-  const staticIberfit=iberfitResult.status==='fulfilled'?iberfitResult.value:null;
-  const dynamicIberfit=dynamicResult.status==='fulfilled'?dynamicResult.value:null;
-  const iberfit=mergeIberfitMediaMaps(staticIberfit,dynamicIberfit);
-  const iberfitRich=iberfitRichResult.status==='fulfilled'?iberfitRichResult.value:null;
-  const repdb=repdbResult.status==='fulfilled'?repdbResult.value:null;
-  return createExerciseMediaBundle({iberfit,iberfitRich,repdb});
+  // Do not cache injected/private custom transports. Only the canonical
+  // public manifest URLs used by the real application are eligible.
+  const allowed=fetchImpl===globalThis.fetch&&iberfitUrl===IBERFIT_MEDIA_MAP_URL
+    &&iberfitRichUrl===IBERFIT_RICH_MEDIA_MAP_URL&&repdbUrl===REPDB_MEDIA_MAP_URL;
+  const key=allowed?publicMediaMapKey(runtimeConfig,[iberfitUrl,iberfitRichUrl,repdbUrl]):null;
+  if(allowed&&forceRefresh&&publicMediaMapCache?.key===key)publicMediaMapCache=null;
+  if(allowed&&!forceRefresh&&publicMediaMapCache?.key===key
+    &&publicMediaMapCache.fetchImpl===fetchImpl
+    &&Date.now()-publicMediaMapCache.createdAt>=0
+    &&Date.now()-publicMediaMapCache.createdAt<PUBLIC_MEDIA_MAP_TTL_MS)
+    return publicMediaMapCache.bundle;
+  if(allowed&&!forceRefresh&&publicMediaMapInFlight?.key===key
+    &&publicMediaMapInFlight.fetchImpl===fetchImpl)
+    return publicMediaMapInFlight.promise;
+  const pending=(async()=>{
+    const settled=await Promise.allSettled([
+      fetchMap(fetchImpl,iberfitUrl,validateIberfitExerciseMediaMap,boundedTimeout),
+      fetchMap(fetchImpl,iberfitRichUrl,validateIberfitExerciseRichMediaMap,boundedTimeout),
+      fetchMap(fetchImpl,repdbUrl,validateExerciseMediaMap,boundedTimeout),
+      fetchDynamicIberfitMap(fetchImpl,runtimeConfig,boundedTimeout),
+    ]);
+    const [iberfitResult,iberfitRichResult,repdbResult,dynamicResult]=settled;
+    const staticIberfit=iberfitResult.status==='fulfilled'?iberfitResult.value:null;
+    const dynamicIberfit=dynamicResult.status==='fulfilled'?dynamicResult.value:null;
+    const iberfit=mergeIberfitMediaMaps(staticIberfit,dynamicIberfit);
+    const iberfitRich=iberfitRichResult.status==='fulfilled'?iberfitRichResult.value:null;
+    const repdb=repdbResult.status==='fulfilled'?repdbResult.value:null;
+    return {bundle:createExerciseMediaBundle({iberfit,iberfitRich,repdb}),
+      complete:settled.every(result=>result.status==='fulfilled')};
+  })();
+  if(allowed)publicMediaMapInFlight={key,fetchImpl,promise:pending};
+  try{
+    const {bundle,complete}=await pending;
+    if(allowed&&complete&&publicMediaMapInFlight?.promise===pending)
+      publicMediaMapCache={key,fetchImpl,bundle,createdAt:Date.now()};
+    // A partial fallback remains available but never masks new media for 60s.
+    return bundle;
+  }finally{
+    if(publicMediaMapInFlight?.promise===pending)publicMediaMapInFlight=null;
+  }
 }
