@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "abb43405ef4ce8f1df587335de2b03db249ad9fd",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "1b08e418d166ae502fe6bb2df83f01d0da186d35",
+  "notes": "REAL TRAINING 360 protected Pages-only rollout. U60 closed. Zero Edge/Hosted Auth/SQL deploy. M44 recovered and offsite private. No backend authorization."
+}
