@@ -1,3 +1,15 @@
+## REAL TRAINING 360 · M44 conservación consistente preparada (PR #1343; 15/11/2026)
+
+**Código preparado, NO certificado en respaldo productivo nuevo:** el workflow M44 utiliza `scripts/ops/m44_consistent_source_dump.sh` solo en su trabajo protegido de respaldo PROD (que nunca corre desde una pull request). Abre una transacción PostgreSQL `REPEATABLE READ READ ONLY`, exporta una instantánea MVCC y ejecuta el censo de 13 categorías dentro de esa misma transacción. `pg_dump -Fc --snapshot` importa ese identificador mientras la sesión exportadora permanece abierta. La restauración aislada PG17 ejecuta de nuevo el mismo censo y `m44_auth_vault_cardinality_contract.mjs` bloquea la publicación del archivo cifrado ante cualquier diferencia.
+
+El censo de origen queda dentro del TAR autenticado y cifrado, **nunca en logs ni en los artifacts públicos**. `m44_offsite_archive_guard.py` valida su estructura al extraer el paquete recibido; admite paquetes históricos sin este censo pero rechaza el archivo presente si contiene categorías inesperadas, datos de usuarios, recuentos inválidos o no pertenece a un archivo enriquecido.
+
+**Límites sin ocultar:** este cotejo garantiza solo cardinalidad de filas en el snapshot de la exportación y su restauración. NO confirma identidad de cada fila, permisos/grants/roles restaurados, claves de firma JWT, parámetros alojados de Auth, cifrado/desencriptación de Vault, passwords/sesiones activas, ni funcionamiento de Hosted Auth y Edge. No equivale a recuperación integral de plataforma; esos gates siguen **NO-GO** para U60/U72 PROD. La primera ejecución REAL de esta nueva protección requiere fusión Canary protegida y comprobación de evidencias del job, no basta con tests PR.
+
+**Nueva lectura agregada de 15/11/2026:** QA = 106.990 sesiones y 106.990 refresh tokens para cuatro usuarios sintéticos; PROD = 6 sesiones y 17 refresh tokens, un usuario. No se consultaron tokens ni identidades concretas. El crecimiento QA exige investigar tasa de login/creación por CI y retención antes de limpiar, no revocar ni truncar automáticamente.
+
+---
+
 # M44 — Auth, Vault y Storage: continuidad y recuperación sin secretos
 
 ## Evidencia real de solo lectura (16 de octubre de 2026)

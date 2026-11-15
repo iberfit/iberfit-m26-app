@@ -130,6 +130,13 @@ on:
       - 'tests/m44_pgcustom_acl_archive_contract.test.mjs'
       - 'scripts/ops/m44_acl_toc_selector.mjs'
       - 'tests/m44_acl_toc_selector.test.mjs'
+      - 'scripts/ops/m44_consistent_source_dump.sh'
+      - 'scripts/ops/m44_auth_vault_census.sql'
+      - 'scripts/ops/m44_auth_vault_cardinality_contract.mjs'
+      - 'scripts/ops/m44_offsite_archive_guard.py'
+      - 'tests/m44_auth_vault_cardinality_contract.test.mjs'
+      - 'tests/m44_consistent_source_dump.test.mjs'
+      - 'tests/m44_offsite_archive_guard.test.mjs'
       - 'tests/m44_encrypted_backup_archive_contract.test.mjs'
       - 'tests/m44_storage_backup_bytes_contract.test.mjs'
   push:
@@ -201,7 +208,10 @@ jobs:
             tests/m44_storage_full_recovery_workflow.test.mjs \
             tests/m44_role_globals_encrypted_backup.test.mjs \
             tests/m44_pgcustom_acl_archive_contract.test.mjs \
-            tests/m44_acl_toc_selector.test.mjs
+            tests/m44_acl_toc_selector.test.mjs \
+            tests/m44_auth_vault_cardinality_contract.test.mjs \
+            tests/m44_consistent_source_dump.test.mjs \
+            tests/m44_offsite_archive_guard.test.mjs
 
   synthetic-restore:
     name: m44-synthetic-postgresql17-restore-proof
@@ -356,9 +366,9 @@ jobs:
           umask 077
           mkdir -p "$WORK/plain/storage" "$WORK/cipher"
           echo "$WORK" > "$RUNNER_TEMP/iberfit-backup-work-path"
-          docker run --rm --network host -e IBERFIT_PROD_DATABASE_URL \
-            -v "$WORK/plain:/work" postgres:17-alpine sh -c \
-            'pg_dump -Fc --dbname="$IBERFIT_PROD_DATABASE_URL" -f /work/database.pgcustom 2>/work/pg-private-errors'
+          # The dump and 13-category source census share the SAME exported
+          # repeatable-read MVCC snapshot, with no private rows in logs.
+          bash scripts/ops/m44_consistent_source_dump.sh "$WORK/plain"
           # PostgreSQL globals (roles and memberships) are NOT in pg_dump -Fc.
           # Export WITHOUT any role passwords, only to the ephemeral private
           # workspace. Never print the SQL or grant the runner public access.
@@ -401,7 +411,8 @@ jobs:
           rm -f "$WORK/plain/pg-private-errors"
           tar -C "$WORK/plain" -cf "$WORK/plain.tar" \
             database.pgcustom global-roles.sql storage storage-inventory.json \
-            storage-post-inventory.json platform-catalog-source.json
+            storage-post-inventory.json platform-catalog-source.json \
+            auth-vault-source.json
           echo 'IBERFIT_PROD_DB_AND_STORAGE_PLAINTEXT_STAGED_PRIVATELY'
       - name: Encrypt authenticated recovery archive before any upload
         id: encrypt
@@ -469,6 +480,22 @@ jobs:
           node --input-type=module -e 'import fs from "node:fs";import {validatePlatformCatalog} from "./scripts/ops/m44_platform_recovery_compare.mjs";validatePlatformCatalog(JSON.parse(fs.readFileSync(process.argv[1],"utf8")))' \
             "$WORK/isolated/platform-catalog-source.json"
           node scripts/ops/m44_global_roles_archive_check.mjs "$WORK/isolated/global-roles.sql"
+          # Count only, with the exact MVCC source used by pg_dump; no
+          # Auth identities, tokens, password hashes or Vault values logged.
+          docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
+            -v "$WORK/isolated:/work" \
+            -v "$PWD/scripts/ops/m44_auth_vault_census.sql:/census.sql:ro" \
+            postgres:17-alpine sh -c \
+            'psql -X -A -t -v ON_ERROR_STOP=1 \
+             -h 127.0.0.1 -U supabase_admin -d iberfit_recovery_test \
+             -f /census.sql > /work/isolated-auth-vault-census.json \
+             2> /work/isolated-auth-vault-private-errors'
+          node scripts/ops/m44_auth_vault_cardinality_contract.mjs \
+            "$WORK/isolated/auth-vault-source.json" \
+            "$WORK/isolated/isolated-auth-vault-census.json"
+          echo 'IBERFIT_M44_AUTH_VAULT_STORAGE_CARDINALITY_MATCHED_ONLY'
+          # Counts cannot certify Hosted Auth settings, JWT signing keys,
+          # live sessions, Vault decryptability, grants or platform restore.
           # Role SQL is evidence only, never executed in a PROD connection or
           # claimed to be a restoration of hosted Supabase authentication.
           echo 'IBERFIT_GLOBAL_ROLES_ARCHIVED_BUT_NOT_APPLIED'

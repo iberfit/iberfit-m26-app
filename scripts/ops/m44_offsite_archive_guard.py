@@ -75,6 +75,14 @@ EXTRA_FILES = frozenset((
     "platform-catalog-source.json",
 ))
 ROLE_FILE = "global-roles.sql"
+AUTH_CENSUS_FILE = "auth-vault-source.json"
+AUTH_CENSUS_KEYS = frozenset((
+    "auth_users", "auth_identities", "auth_sessions", "auth_refresh_tokens",
+    "auth_mfa_factors", "auth_webauthn_credentials", "auth_oauth_clients",
+    "auth_sso_providers", "auth_saml_providers", "auth_custom_oauth_providers",
+    "vault_secrets", "storage_buckets", "storage_objects",
+))
+MAX_AUTH_CENSUS_BYTES = 8192
 MAX_ROLES_BYTES = 8 * 1024 * 1024
 CORE_ROLES = (
     "postgres", "anon", "authenticated", "authenticator",
@@ -93,7 +101,7 @@ TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z")
 
 
 def allowed_tar_file(name):
-    return name in EXTRA_FILES or name == ROLE_FILE or name in ("database.pgcustom", "storage/manifest.json") or (
+    return name in EXTRA_FILES or name in (ROLE_FILE, AUTH_CENSUS_FILE) or name in ("database.pgcustom", "storage/manifest.json") or (
         re.fullmatch(r"storage/files/[0-9]{6,12}\.bin", name) is not None)
 
 
@@ -173,6 +181,25 @@ def validate_enriched_archive(base):
             "PLATFORM_CATALOG_INVALID")
 
 
+def validate_optional_auth_census(path):
+    require(path.is_file() and not path.is_symlink(), "AUTH_CENSUS_NOT_REGULAR")
+    require(150 <= path.stat().st_size <= MAX_AUTH_CENSUS_BYTES,
+            "AUTH_CENSUS_SIZE_INVALID")
+    census = protected_json(path)
+    require(isinstance(census, dict) and
+            set(census) == {"schema", "captured_at", "counts"} and
+            census["schema"] == "iberfit.m44.auth-vault-cardinality.v1",
+            "AUTH_CENSUS_SCHEMA_INVALID")
+    stamp = census["captured_at"]
+    require(isinstance(stamp, str) and re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z", stamp),
+        "AUTH_CENSUS_TIME_INVALID")
+    counts = census["counts"]
+    require(isinstance(counts, dict) and set(counts) == AUTH_CENSUS_KEYS
+            and all(type(n) is int and 0 <= n <= 9007199254740991
+                    for n in counts.values()),
+            "AUTH_CENSUS_COUNTS_INVALID")
+
 
 def validate_optional_role_archive(path):
     require(path.is_file() and not path.is_symlink(), "ROLES_NOT_REGULAR")
@@ -215,7 +242,8 @@ def unpack_tar(archive, directory):
                 (base / name).mkdir(parents=True, exist_ok=True)
                 continue
             require(member.isfile() and allowed_tar_file(name), "TAR_UNSAFE_ENTRY")
-            limit = (MAX_JSON_BYTES if name in EXTRA_FILES else
+            limit = (MAX_AUTH_CENSUS_BYTES if name == AUTH_CENSUS_FILE else
+                     MAX_JSON_BYTES if name in EXTRA_FILES else
                      MAX_ROLES_BYTES if name == ROLE_FILE else MAX_TAR_BYTES)
             require(0 <= member.size <= limit, "TAR_MEMBER_TOO_LARGE")
             total += member.size
@@ -239,6 +267,10 @@ def unpack_tar(archive, directory):
     if ROLE_FILE in present:
         require(extension == EXTRA_FILES, "ROLES_WITHOUT_ENRICHED_METADATA")
         validate_optional_role_archive(base / ROLE_FILE)
+    if AUTH_CENSUS_FILE in present:
+        require(extension == EXTRA_FILES and ROLE_FILE in present,
+                "AUTH_CENSUS_WITHOUT_ENRICHED_ARCHIVE")
+        validate_optional_auth_census(base / AUTH_CENSUS_FILE)
     print("IBERFIT_OFFSITE_DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED")
 
 def main():
