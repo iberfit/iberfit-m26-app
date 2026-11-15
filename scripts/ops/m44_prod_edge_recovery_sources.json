@@ -1,7 +1,7 @@
 {
   "schema": "iberfit.m44.prod.edge-recovery-source.v1",
   "source_project_ref": "pjhmrhejsoofmouedavw",
-  "capture_date_utc": "2026-10-16",
+  "capture_date_utc": "2026-11-15",
   "sources": [
     {
       "slug": "iberfit-admin-client-invite-v1",
@@ -60,9 +60,17 @@
       "source_state": "canonical"
     },
     {
+      "slug": "iberfit-evolution-report-emission-v1",
+      "verify_jwt": true,
+      "live_bundle_sha256": "07e2e3b0d4ceff9c303bc45fbb49308a0dffb1bf747374f217edac28dfab7605",
+      "source_path": "supabase/functions/iberfit-evolution-report-emission-v1/index.ts",
+      "source_git_blob_sha1": "d0487ad9800f219b0c241a5d85e0e734ba1ecf9d",
+      "source_state": "canonical"
+    },
+    {
       "slug": "iberfit-exercise-media-auto-factory-v1",
       "verify_jwt": false,
-      "live_bundle_sha256": "1b1698fbc3c8201bf7a0642d260fdeaae8a2544ec20048cb0343f3476f243dd8",
+      "live_bundle_sha256": "64adc4d5145de54714ddef8d6ff4d81a80c95b9e9aa41af8a28686477307854a",
       "source_path": "supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts",
       "source_git_blob_sha1": "3b74be941772ec79bff1f411c842e1b11ede14a4",
       "source_state": "canonical"

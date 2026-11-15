@@ -12,7 +12,7 @@ const fixture=()=>JSON.parse(fs.readFileSync(inventoryPath,'utf8'));
 
 test('M44: every PROD Edge function source has versioned runtime variable NAMES only',()=>{
  const actual=runInventoryCheck();
- assert.equal(actual.functionsAudited,15);
+ assert.equal(actual.functionsAudited,16);
  assert.equal(actual.referencedNamesCatalogued,13);
  assert.equal(actual.runtimeSecretsAvailable,false);
  assert.equal(actual.hostedAuthRecoveryVerified,false);
@@ -51,7 +51,7 @@ test('M44: renamed or undocumented environment keys fail closed',()=>{
  second.classes.external_or_operator_provided.push('UNAUTHORIZED_SECRET_NAME');
  second.classes.external_or_operator_provided.sort();
  // An extra class is permitted only when named and reviewed; no values allowed.
- assert.equal(validateInventory(second).functionsAudited,15);
+ assert.equal(validateInventory(second).functionsAudited,16);
  const third=fixture();
  third.classes.external_or_operator_provided.push('GEMINI_API_KEY');
  assert.throws(()=>validateInventory(third),/NAMES_INVALID|CLASS_DUPLICATE/);
@@ -71,5 +71,5 @@ test('M44: refuse values, altered references, source drift or historical reactiv
  extra.classes.extra_group=[];
  assert.throws(()=>validateInventory(extra),/CLASSES_INVALID/);
  const orig=loadInventory();
- assert.equal(orig.sources.length,15);
+ assert.equal(orig.sources.length,16);
 });

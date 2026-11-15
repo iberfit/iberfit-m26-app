@@ -1,5 +1,12 @@
 # M44 — Recuperabilidad de Edge Functions de producción
 
+## Revalidación remota independiente · 15 de noviembre de 2026
+
+La nueva consulta autorizada a Supabase PROD confirma **16 funciones activas**, sin bajas respecto a la captura original de octubre. El inventario de origen (15) no incluía `iberfit-evolution-report-emission-v1`, y el bundle de `iberfit-exercise-media-auto-factory-v1` había cambiado desde su huella antigua. Se contrastó el contenido real de las fuentes remotas contra GitHub (sin escribir, sin publicar secretos): `index.ts`, `pdf-renderer.js` y `storage-recovery.js` de evolución coinciden exactamente; el `index.ts` de media factory también coincide. Se actualizan las huellas remotas y el inventario de configuración de nombres, **no el código de funciones ni los despliegues**.
+
+El contrato estático ahora exige **16 fuentes** con sus huellas Git verificadas y preserva la copia histórica separada del onboarding retirado. Las 4 funciones PROD con `verify_jwt=false` siguen requiriendo autorización validada dentro de la función y pruebas negativas; el flag, por sí solo, no prueba exposición. La paridad exacta de hashes con esta observación NO acredita la recuperación de secretos, claves JWT, Auth alojado, Vault, ni capacidad de arrancar un nuevo proyecto. La certificación requiere consulta remota independiente y aprobación protegida tras cada futuro despliegue.
+
+
 ## Evidencia de inventario real
 
 Revisión de solo lectura sobre Supabase PROD `pjhmrhejsoofmouedavw` y la rama Canary. Fecha de referencia: 16 de octubre de 2026.
