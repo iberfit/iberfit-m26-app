@@ -32,6 +32,7 @@ function capture(view,id){
 }
 
 test('Coach photogrammetry workspace stays usable by keyboard, touch and compact viewport',async({page},testInfo)=>{
+  const originalGetPaths=[];
   const captures=Object.entries(CAPTURES).map(([view,id])=>capture(view,id));
   const consents=[
     {id:CONSENT_PHYSICAL,client_id:CLIENT,assessment_id:ASSESSMENT,consent_type:'physical_assessment',status:'granted',document_version:'iri-physical-2026.10-v1',recorded_by:null,recorded_at:'2026-10-02T09:00:00Z',note:null},
@@ -59,6 +60,7 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
         const rawStoragePath=url.pathname.replace(/^\/storage\/v1/u,'');
         return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({signedURL:`${rawStoragePath}?token=qa-device`})});
       }
+      originalGetPaths.push(url.pathname);
       return route.fulfill({
         status:200,
         contentType:'image/svg+xml',
@@ -97,10 +99,17 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
   const shell=page.locator('[data-iri-photo-loaded="true"]');
   await expect(shell).toBeVisible({timeout:10_000});
   await expect(page.locator('[data-iri-photo-view]')).toHaveCount(4);
-  await expect(page.locator('[data-iri-photo-canvas] img')).toHaveCount(4);
-  await expect.poll(async()=>page.locator('[data-iri-photo-canvas] img').evaluateAll((images)=>images.every((image)=>image.complete&&image.naturalWidth>0))).toBe(true);
-  const renderedSources=await page.locator('[data-iri-photo-canvas] img').evaluateAll((images)=>images.map((image)=>new URL(image.src).pathname));
-  expect(renderedSources.every((path)=>path.startsWith('/storage/v1/object/sign/iberfit-iri-photogrammetry/'))).toBe(true);
+  // Privacy + Supabase Free: only the selected front original downloads.
+  // The four capture cards remain available, without prefetching hidden photos.
+  await expect(page.locator('[data-iri-photo-canvas] img')).toHaveCount(1);
+  const firstImage=page.locator('[data-iri-photo-canvas="front"] img');
+  await expect(firstImage).toBeVisible();
+  await expect.poll(async()=>firstImage.evaluate((image)=>image.complete&&image.naturalWidth>0)).toBe(true);
+  const renderedPath=await firstImage.evaluate((image)=>new URL(image.src).pathname);
+  expect(renderedPath.startsWith('/storage/v1/object/sign/iberfit-iri-photogrammetry/')).toBe(true);
+  expect(originalGetPaths).toHaveLength(1);
+  expect(originalGetPaths[0]).toContain(`/${ASSESSMENT}/front/`);
+  await firstImage.evaluate((image)=>{image.dataset.iriQaRetained='yes';});
   await expect(page.locator('[data-iri-photo-file]:enabled')).toHaveCount(4);
   await expect(page.locator('[name="physicalAssessmentConsent"]')).toBeChecked();
   await expect(page.locator('[data-iri-photo-analysis="validate"]')).toBeEnabled();
@@ -138,6 +147,26 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
   expect(Math.abs(movedX-requested.x)).toBeLessThanOrEqual(.03);
   expect(Math.abs(movedY-requested.y)).toBeLessThanOrEqual(.03);
   expect(Math.abs(movedY-pelvisBeforeY)).toBeGreaterThan(.02);
+  // Keyboard, marker selection and touch/point edits re-render geometry,
+  // but MUST retain the same decoded image and avoid redundant Storage GETs.
+  await expect(page.locator('[data-iri-photo-canvas="front"] img')).toHaveAttribute('data-iri-qa-retained','yes');
+  expect(originalGetPaths).toHaveLength(1);
+
+  for(const view of ['back','left','right']){
+    await page.locator(`[data-iri-photo-view-select="${view}"]`).click();
+    await expect(page.locator('[data-iri-photo-canvas] img')).toHaveCount(1);
+    const selected=page.locator(`[data-iri-photo-canvas="${view}"] img`);
+    await expect(selected).toBeVisible();
+    await expect.poll(async()=>selected.evaluate((image)=>image.complete&&image.naturalWidth>0)).toBe(true);
+  }
+  // An original is requested precisely once per first visit to a new view.
+  expect(originalGetPaths).toHaveLength(4);
+  for(const view of ['front','back','left','right']){
+    expect(originalGetPaths.filter((path)=>path.includes(`/${ASSESSMENT}/${view}/`))).toHaveLength(1);
+  }
+  await page.locator('[data-iri-photo-view-select="front"]').click();
+  await expect(page.locator('[data-iri-photo-canvas="front"] img')).toBeVisible();
+  await expect(page.locator('[data-iri-photo-canvas] img')).toHaveCount(1);
 
   const layout=await page.evaluate(()=>({
     viewport:innerWidth,
