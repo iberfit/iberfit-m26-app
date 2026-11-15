@@ -1,64 +1,65 @@
-name: IBERFIT Final Production Bundle
-
+name: IBERFIT Production Current Baseline Evidence - NO GO
 on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - '.github/workflows/final-production-bundle.yml'
+      - 'scripts/ops/verify_current_prod_baseline.mjs'
+      - 'scripts/build_final_production_promotion.mjs'
+      - 'scripts/build_final_production_promotion_prod_compat.mjs'
+      - 'tests/m26_prod_current_baseline.test.mjs'
   push:
     branches:
       - canary/rc74-4
-
 permissions:
   contents: read
-
+concurrency:
+  group: iberfit-prod-baseline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
 jobs:
-  build-bundle:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  contract:
+    name: static-release-boundary-no-obsolete-DDL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
     steps:
-      - name: Checkout exact source
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Verify production bundle contracts
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Run historical contract offline and current release firewall
         run: |
           node --test tests/m26_final_production_promotion.test.mjs
           node --test tests/m26_final_production_promotion_prod_compat.test.mjs
-
-      - name: Generate exact production SQL
-        run: node scripts/build_final_production_promotion_prod_compat.mjs --write
-
-      - name: Verify generated artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          ! grep -qi 'm26-canary\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          ! grep -qi 'qa\.rc74\.' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          ! grep -qi 'create[[:space:]]\+\(or[[:space:]]\+replace[[:space:]]\+\)\?function[[:space:]]\+public\.iberfit_auth_assurance_context_v65c' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q "'PRODUCTION'" backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q 'https://app\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q 'https://coach\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q "to_regprocedure('public.iberfit_auth_assurance_context_v65c()') is not null" backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q '20260924185200_coach_launch_identity_bootstrap_v2.sql' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q 'perform public.iberfit_require_privileged_assurance_v65d();' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q 'select u.email,u.last_sign_in_at' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q 'from public.iberfit_organization_memberships m' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q 'FINAL_PROD_POSTCHECK_BOOTSTRAP_ASSURANCE' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q 'FINAL_PROD_POSTCHECK_BOOTSTRAP_SELF_IDENTITY' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q 'FINAL_PROD_POSTCHECK_BOOTSTRAP_ANON_EXECUTE' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q 'FINAL_PROD_POSTCHECK_BOOTSTRAP_AUTH_EXECUTE' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          sha256sum backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql | tee FINAL_PRODUCTION_PROMOTION.sha256
-
-      - name: Upload exact production bundle
+          node --test tests/m26_prod_current_baseline.test.mjs
+          node --test tests/m26_m1_u72_prod_materializer.test.mjs
+          node --test tests/m26_m1_u72_prod_guarded_release_sql.test.mjs
+      - name: Never publish an executable legacy SQL artifact
+        run: test ! -e backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+  current-prod-readonly:
+    name: verify actual PROD catalog as non-promotable evidence only
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' }}
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: m26-canary-readonly
+    env:
+      PROD_SUPABASE_REF: pjhmrhejsoofmouedavw
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Require SHA exact on protected Canary
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
+      - name: Inspect PROD migration ledger, permissions and U60 staged state - READ ONLY
+        run: node scripts/ops/verify_current_prod_baseline.mjs
+      - name: Preserve non-executable evidence only
         uses: actions/upload-artifact@v4
         with:
-          name: final-production-promotion-sql
-          path: |
-            backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-            FINAL_PRODUCTION_PROMOTION.sha256
+          name: iberfit-prod-readonly-NO-GO-${{ github.run_id }}
+          path: recovery/PROD_CURRENT_BASELINE_READONLY.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14

@@ -260,6 +260,9 @@ export function buildFinalProductionPromotion(){
 }
 
 if(process.argv[1]===fileURLToPath(import.meta.url)){
+  // Only pure function imports remain for regression comparisons. PROD has already
+  // applied RC74 and WebAuthn: exporting this 2026-08-31 SQL is unsafe.
+  throw new Error('FINAL_PROD_LEGACY_BUNDLE_RETIRED');
   const sql=buildFinalProductionPromotion();
   const write=process.argv.includes('--write');
   if(write){

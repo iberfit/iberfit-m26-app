@@ -1,3 +1,18 @@
+## Actualización 15/11/2026 · baseline productivo real, protección de SQL obsoleto
+
+**NO ejecutar ni reciclar** el artifact `final-production-promotion-sql` emitido por workflows anteriores. Ese script reproduce una línea base del 31 de agosto; Supabase PROD ya integró RC74 y WebAuthn y sus objetos/permisos son materialmente diferentes. Una prueba estática de generación SQL no es una autorización de ejecución.
+
+El workflow `.github/workflows/final-production-bundle.yml` pasa a actuar como observador de solo lectura: inspecciona en el proyecto PROD exacto las versiones de migración, catálogo, roles y permisos, y publica **únicamente** `PROD_CURRENT_BASELINE_READONLY.json` con `productionReady:false`. Nunca publica DDL, ni llama a endpoints SQL de escritura. Un resultado SUCCESS prueba únicamente que la fotografía del baseline es coherente; NO implica permiso de promoción.
+
+La función pura histórica de construcción SQL se mantiene para pruebas de regresión del baseline, pero ambas vías CLI de exportación están retiradas con `FINAL_PROD_LEGACY_BUNDLE_RETIRED`. El siguiente delta debe:
+- provenir del estado real de PROD obtenido por fuentes independientes;
+- preservar contratos ya instalados, historial y RLS, sin reejecutar migraciones RC74/WebAuthn;
+- disponer de snapshot restaurable, cambios expand/contract, rollback de grants/RPC;
+- superar en QA las mismas verificaciones de RLS por rol, CAS, idempotencia, ejecución longitudinal y PWA;
+- comprobar Hosted Auth/Vault/secretos, permisos/ACL y egress real antes de GO productivo.
+
+---
+
 # IBERFIT M26 · Producción · Runbook permanente
 
 Estado de referencia al 2026-09-02.

@@ -121,6 +121,8 @@ export function buildFinalProductionPromotionProdCompat(){
 }
 
 if(import.meta.url===`file://${process.argv[1]}`){
+  // Pure builder retained for historical tests; CLI artifact emission retired.
+  throw new Error('FINAL_PROD_LEGACY_BUNDLE_RETIRED');
   const sql=buildFinalProductionPromotionProdCompat();
   if(process.argv.includes('--write')){
     fs.mkdirSync(path.dirname(outputPath),{recursive:true});
