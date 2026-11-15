@@ -1,3 +1,7 @@
+# REAL TRAINING 360 PR #1343 · protected Canary integration trigger:
+# request ONE fresh genuine encrypted PROD PostgreSQL+Storage M44 archive and
+# isolated PG17 restore on merge only; no workflow logic/credentials/grants
+# altered. This does NOT certify Hosted Auth/Vault recovery or enable U60 PROD.
 # IBERFIT UNIVERSAL 360 P0 navigation fix · 14-NOV-2026.
 # Protected Canary merge requests a fresh unchanged M44 encrypted PROD
 # PostgreSQL+Storage backup and isolated PG17 restore for the strict <=2h

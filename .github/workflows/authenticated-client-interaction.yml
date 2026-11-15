@@ -11,6 +11,10 @@ on:
       - 'src/m26/modules/route-render.js'
       - 'src/m26/shell/**'
       - 'src/m26/ui/**'
+      # REAL TRAINING 360: occurrence player/CAS changes must reach browser QA.
+      - 'src/m26/workflows/occurrence-*.js'
+      - 'src/m26/workflows/session-execution.js'
+      - 'src/m26/domain/occurrence-commands.js'
       - 'qa/rc64/authenticated-interaction.spec.mjs'
       - 'qa/rc64/u60-dated-ui-readonly.spec.mjs'
       - 'playwright.u60-dated-readonly.config.mjs'
@@ -29,6 +33,10 @@ on:
       - 'src/m26/modules/route-render.js'
       - 'src/m26/shell/**'
       - 'src/m26/ui/**'
+      # REAL TRAINING 360: occurrence player/CAS changes must reach browser QA.
+      - 'src/m26/workflows/occurrence-*.js'
+      - 'src/m26/workflows/session-execution.js'
+      - 'src/m26/domain/occurrence-commands.js'
       - 'qa/rc64/authenticated-interaction.spec.mjs'
       - 'qa/rc64/u60-dated-ui-readonly.spec.mjs'
       - 'playwright.u60-dated-readonly.config.mjs'
@@ -181,9 +189,9 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          # Universal 360 continuation PR #1341 replaces merged PR #1340; keep a strict single-PR allowlist.
-          # A draft may execute this read-only QA proof, never the writer.
-          test "$PR_NUMBER" = "1341"
+          # REAL TRAINING 360 current single PR #1343 replaces merged #1341.
+          # This exact-HEAD QA proof is READ-ONLY; no new backend writes.
+          test "$PR_NUMBER" = "1343"
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           result="$(curl --fail --silent --show-error --max-time 12 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
           test "$(jq -er '.head.sha' <<< "$result")" = "$EXPECTED_HEAD"
