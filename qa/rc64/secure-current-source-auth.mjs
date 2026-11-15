@@ -177,9 +177,33 @@ export function isQaScopedDatedSyntheticWrite(request,{clientId,occurrenceId}={}
   ||!Number.isSafeInteger(cmd.baseRevision)||cmd.baseRevision<1
   ||!cmd.payload||typeof cmd.payload!=='object'||Array.isArray(cmd.payload)
   ||!uuid.test(String(cmd.payload.executionId||'')))return false;
- if(cmd.type==='OCURRENCIA_INICIAR')return Object.keys(cmd.payload).join(',')==='executionId';
- return Number.isSafeInteger(cmd.payload.executionBaseRevision)
-  &&cmd.payload.executionBaseRevision>=1;
+ // The opt-in synthetic QA boundary must match the exact U39 schema.
+ // Extra fields may never cross into a live synthetic write even if U31
+ // would ultimately reject them.
+ const keys=Object.keys(cmd.payload).sort().join(',');
+ const expected={
+  OCURRENCIA_INICIAR:'executionId',
+  OCURRENCIA_PAUSAR:'executionBaseRevision,executionId',
+  OCURRENCIA_REANUDAR:'executionBaseRevision,executionId',
+  OCURRENCIA_GUARDAR_PROGRESO:'executionBaseRevision,executionId,results,skippedSets',
+  OCURRENCIA_COMPLETAR:'executionBaseRevision,executionId,feedback,results,skippedSets',
+ }[cmd.type];
+ if(keys!==expected)return false;
+ if(cmd.type==='OCURRENCIA_INICIAR')return true;
+ if(!Number.isSafeInteger(cmd.payload.executionBaseRevision)
+  ||cmd.payload.executionBaseRevision<1)return false;
+ if(cmd.type==='OCURRENCIA_GUARDAR_PROGRESO'
+  ||cmd.type==='OCURRENCIA_COMPLETAR'){
+  const fields=cmd.type==='OCURRENCIA_COMPLETAR'
+   ?['results','skippedSets','feedback']:['results','skippedSets'];
+  if(fields.some(field=>!cmd.payload[field]
+   ||typeof cmd.payload[field]!=='object'
+   ||Array.isArray(cmd.payload[field])))return false;
+  try{
+   if(new TextEncoder().encode(JSON.stringify(cmd)).byteLength>524288)return false;
+  }catch{return false;}
+ }
+ return true;
 }
 function allowedQaRequest(request,readOnlyRpcs,allowQaSyntheticWrite){
   let url;

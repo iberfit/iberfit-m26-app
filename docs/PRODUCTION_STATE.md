@@ -1,3 +1,13 @@
+## REAL TRAINING 360 · 15/11/2026 · checkpoint HEAD 66632e9 (PR única #1343)
+- GitHub verificado: PR #1343 OPEN, Canary base `1b08e418d166ae502fe6bb2df83f01d0da186d35`, HEAD previo `66632e91053b433a66115a82c35a1dabfeb6d2b3`. **13/13 workflows de ese SHA SUCCESS**, con verificaciones CI/Device/WebAuthn/Audit/QA Real Write/M44 sintético; el éxito agregado NO sustituye comprobar jobs omitidos ni certificar un HEAD nuevo.
+- Reforzado en este mismo PR el filtro de escrituras QA U74 con whitelist exacta de cargas U39 (inicio, pausa, reanudación, progreso y finalización), objetos de progreso estrictos, cota de bytes y regresiones de campos ajenos; se requiere recertificación por SHA antes de merge.
+- M44 backup/restauración real PROD **SKIPPED** en PR por política. Ensayo PG17 sintético de snapshot/censo aprobado; faltan backup productivo fresco y recuperación funcional Hosted Auth/Vault/roles/secrets.
+- Supabase QA/PROD ACTIVE_HEALTHY. U60 EXECUTE authenticated=true QA y false PROD; U72 público ausente en ambos. Auditoría read-only, sin mutaciones DB, Auth, Storage ni #1319.
+- QA observado: 107.152 auth.sessions y 107.152 refresh tokens; 1.218 sesiones creadas en 24h y 162 en última hora (tres actores sintéticos). Causa compatible con login en CI, **no atribuida concluyentemente**; no purgar/revocar sin diseño. Bootstrap QA: 2.514 llamadas, media 1.253,9 ms, máximo 7.910,6 ms, 1.138.432 bloques temporales escritos acumulados.
+- **NO-GO productivo:** egress facturado comparable, bootstrap bajo SLA, M44 Hosted Auth/Vault/Edge real, respaldo nuevo, U72 SQL+rollback y grants U60 controlados, RLS negativa, Canary LIVE exact-SHA, smoke Cliente/Coach/Admin y hardware Connected360. La eliminación destructiva #1319 permanece completamente fuera.
+
+---
+
 ## U74 · Cliente real desde Chromium QA · candidato en PR #1343 · NO CERTIFICADO
 - Se ha preparado, en la MISMA rama/PR, un workflow con **primer intento estrictamente READ-ONLY** sobre cuentas sintéticas reales de QA. Solo un rerun explícito del MISMO run, SHA y fecha certificada permite preparar dos fechas y ejecutar la primera en el navegador real; Coach comprueba la finalización y segunda fecha intacta.
 - La autorización adicional del navegador solo cubre cinco comandos U60 de entrenamiento sobre **una** ocurrencia QA prevalidada. Se prohíben altas, cancelaciones, lotes, otras fechas, otros clientes, service_role y URLs de PROD.

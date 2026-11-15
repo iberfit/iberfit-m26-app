@@ -15,14 +15,36 @@ function request(cmd,{host='gjztkdwfmunnzhtvxrsu.supabase.co',method='POST',acti
   url:()=> 'https://'+host+'/rest/v1/rpc/iberfit_occurrence_api_u60_v1',
   postDataJSON:()=>({p_action:action,p_payload:cmd})};
 }
-test('U74 only allows signed QA occurrence workout transitions',()=>{
+test('U74 allows only the exact U39 payload schema for the signed QA date',()=>{
  assert.equal(isQaScopedDatedSyntheticWrite(request(command),scoped),true);
  for(const type of ['OCURRENCIA_PAUSAR','OCURRENCIA_REANUDAR',
-  'OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR'])
-  assert.equal(isQaScopedDatedSyntheticWrite(request({
-   ...command,type,payload:{...command.payload,executionBaseRevision:1},
-  }),scoped),true);
+  'OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR']){
+  const payload={...command.payload,executionBaseRevision:1};
+  if(type==='OCURRENCIA_GUARDAR_PROGRESO'||type==='OCURRENCIA_COMPLETAR')
+   Object.assign(payload,{results:{},skippedSets:{}});
+  if(type==='OCURRENCIA_COMPLETAR')payload.feedback={};
+  assert.equal(isQaScopedDatedSyntheticWrite(request({...command,type,payload}),scoped),true);
+ }
  assert.equal(isQaReadonlyDatedRequest(request(command),'iberfit_occurrence_api_u60_v1'),false);
+});
+test('U74 rejects nested foreign scope, unknown fields, malformed results and oversized writes',()=>{
+ const base={...command.payload,executionBaseRevision:1};
+ const progress={...command,type:'OCURRENCIA_GUARDAR_PROGRESO',
+  payload:{...base,results:{},skippedSets:{}}};
+ const complete={...command,type:'OCURRENCIA_COMPLETAR',
+  payload:{...progress.payload,feedback:{}}};
+ for(const malformed of [
+  {...command,type:'OCURRENCIA_PAUSAR',payload:{...base,otherOccurrenceId:FOREIGN}},
+  {...command,type:'OCURRENCIA_REANUDAR',payload:{...base,otherClientId:FOREIGN}},
+  {...progress,payload:{...progress.payload,otherClientId:FOREIGN}},
+  {...progress,payload:{...progress.payload,results:[]}},
+  {...progress,payload:{...progress.payload,skippedSets:null}},
+  {...progress,payload:{executionId:base.executionId,executionBaseRevision:1}},
+  {...complete,payload:{...complete.payload,feedback:[]}},
+  {...complete,payload:{...complete.payload,feedback:null}},
+  {...complete,payload:{...complete.payload,unexpected:'cross-scope'}},
+  {...progress,payload:{...progress.payload,results:{oversized:'x'.repeat(524289)}}},
+ ])assert.equal(isQaScopedDatedSyntheticWrite(request(malformed),scoped),false);
 });
 test('U74 denies other owners, dates, destructive actions, malformed CAS and PROD',()=>{
  for(const bad of [
