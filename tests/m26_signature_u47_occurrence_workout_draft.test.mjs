@@ -198,3 +198,30 @@ test('U48 fails closed for missing, foreign, changed and completed server record
    ...args,executionBody:{...base,results:null},
  }),/U47_REHYDRATION_RESULTS_INVALID/);
 });
+
+test('U47 start and pause use authoritative U31/U72 time, not a second client clock',()=>{
+ const d=draft();
+ const start=buildOccurrenceWorkoutCommand(d,{action:'start',operationId:OP1});
+ const persistedAt=new Date(Date.now()-45000).toISOString();
+ applyOccurrenceWorkoutAck(d,start,{...ack(start,2,1),serverAt:persistedAt});
+ assert.equal(d.execution.startedAt,persistedAt);
+ assert.equal(d.execution.activeSince,persistedAt,
+   'fresh ACK and a later private read must share the same timestamp');
+ const bad=draft(OCC2,EXEC2);
+ const badStart=buildOccurrenceWorkoutCommand(bad,{action:'start',operationId:OP1});
+ assert.throws(()=>applyOccurrenceWorkoutAck(bad,badStart,{
+   ...ack(badStart,2,1),serverAt:'invalid',
+ }),/U47_ACK_SERVER_CLOCK_INVALID/);
+ assert.equal(bad.phase,'ready','invalid server time cannot start a local clock');
+ const pause=buildOccurrenceWorkoutCommand(d,{action:'pause',operationId:OP2});
+ const malformed={...ack(pause,2,2),executionStatus:'pausada',
+   accumulatedActiveMs:45000,activeSince:null,serverAt:'not-a-timestamp'};
+ assert.throws(()=>applyOccurrenceWorkoutAck(d,pause,malformed),
+   /U47_ACK_SERVER_CLOCK_INVALID/);
+ assert.equal(d.execution.status,'active','invalid pause clock must not change state');
+ const pausedAt=new Date().toISOString();
+ applyOccurrenceWorkoutAck(d,pause,{...malformed,serverAt:pausedAt});
+ assert.equal(d.execution.status,'paused');
+ assert.equal(d.execution.pausedAt,pausedAt);
+ assert.equal(d.execution.startedAt,persistedAt);
+});

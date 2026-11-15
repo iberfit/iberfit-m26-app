@@ -4,13 +4,14 @@ import fs from 'node:fs';
 const w=fs.readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
 const synthetic=fs.readFileSync('scripts/ops/m44_synthetic_acl_restore_drill.sh','utf8');
 const prod=w.split('  production-backup:')[1]||'';
+const consistent=fs.readFileSync('scripts/ops/m44_consistent_source_dump.sh','utf8');
 test('protected encrypted PG17 custom dump retains owners and GRANT/REVOKE contents',()=>{
- const exportLine=prod.split('\n').find(x=>x.includes("'pg_dump -Fc "));
- assert.ok(exportLine,'production dump command is present');
- assert.match(exportLine,/pg_dump -Fc --dbname=/);
- assert.doesNotMatch(exportLine,/--no-acl|--no-privileges/);
- // Owner metadata is retained by the custom format; omit -O to remove any doubt.
- assert.doesNotMatch(exportLine,/--no-owner/);
+ assert.match(prod,/bash scripts\/ops\/m44_consistent_source_dump\.sh/);
+ assert.match(consistent,/pg_dump -Fc --snapshot=/);
+ assert.match(consistent,/--dbname=/);
+ assert.doesNotMatch(consistent,/--no-acl|--no-privileges|--no-owner/);
+ // Owner metadata remains in the custom dump; isolate --no-owner/--no-acl
+ // exclusively in its first-stage restored destination, not in source dump.
  assert.match(prod,/m44_encrypted_backup_archive\.mjs encrypt/);
  assert.match(prod,/database\.pgcustom global-roles\.sql storage/);
 });

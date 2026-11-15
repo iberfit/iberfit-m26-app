@@ -33,10 +33,12 @@ test('U60 visual QA may read private owner ID but cannot issue arbitrary RPC or 
 });
 
 import {readFileSync} from 'node:fs';
-test('the single Universal 360 PR #1341 remains strictly allowlisted for read-only QA, with exact HEAD fencing',()=>{
+test('the one REAL TRAINING 360 PR #1343 is strictly allowlisted for real Chromium U60 QA with exact HEAD fencing',()=>{
   const workflow=readFileSync('.github/workflows/authenticated-client-interaction.yml','utf8');
-  assert.match(workflow,/test "\$PR_NUMBER" = "1341"/u);
-  assert.doesNotMatch(workflow,/test "\$PR_NUMBER" = "1340"/u);
+  assert.match(workflow,/test "\$PR_NUMBER" = "1343"/u);
+  assert.doesNotMatch(workflow,/test "\$PR_NUMBER" = "1341"/u);
+  assert.match(workflow,/src\/m26\/workflows\/occurrence-\*\.js/u);
+  assert.match(workflow,/playwright\.u60-dated-readonly\.config\.mjs/u);
   assert.match(workflow,/test "\$\(git rev-parse HEAD\)" = "\$EXPECTED_HEAD"/u);
   assert.match(workflow,/test "\$\(jq -er '\.head\.sha' <<< "\$result"\)" = "\$EXPECTED_HEAD"/u);
   assert.match(workflow,/environment: m26-canary-readonly/u);

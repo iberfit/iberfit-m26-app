@@ -73,9 +73,15 @@ for(const [label,token] of [['COACH_MFA',coach],['CLIENT_A',clientA],['CLIENT_B'
   {action:'download',issuanceId:randomUUID()},token);
  const contentType=String(r.headers.get('content-type')||'');
  const denied=await r.json().catch(()=>({}));
+ // A gateway 404 with NOT_FOUND_FUNCTION_BLOB is NOT a proven domain denial.
+ // It can look like a safe failure but means the deployed Edge bundle was
+ // unavailable. Preserve fail-closed semantics and label infra separately.
+ const gatewayError=String(r.headers.get('sb-error-code')||'')
+  .replace(/[^A-Z0-9_\-]/giu,'').slice(0,70);
+ assert.equal(gatewayError,'',label+'_EDGE_DEPLOYMENT_UNAVAILABLE_'+gatewayError);
  assert.ok([403,404].includes(r.status),label+'_DOWNLOAD_MUST_FAIL_CLOSED_'+r.status);
  assert.ok(contentType.includes('application/json'),label+'_DOWNLOAD_MUST_NOT_RETURN_PDF');
- assert.equal(denied.ok,false,label+'_PDF_NOT_DELIVERED');
+ assert.equal(denied.ok,false,label+'_PDF_NOT_DELIVERED_DOMAIN_RESPONSE_REQUIRED');
  assert.equal(denied.signedUrl,undefined,label+'_NO_BEARERLESS_URL');
  passed++;
 }

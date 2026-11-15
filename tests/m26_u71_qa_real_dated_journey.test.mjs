@@ -32,7 +32,7 @@ test('U71 denial never mistakes HTTP success for forbidden',()=>{
 });
 test('U71 stage-2 reuses immutable originally certified Santiago time and same-day slot',()=>{
  const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
- assert.match(s,/const original=mode==='apply'/);
+ assert.match(s,/const original=\['apply','prepare-browser'\]\.includes\(mode\)/);
  assert.match(s,/async function authenticatedStage\(ctx,certified=null\)/);
  assert.match(s,/fixedTime:certified\?\.localTime/);
  assert.match(s,/original\.localTime===plan\.time/);
@@ -44,7 +44,7 @@ test('U71 only QA origin, ordinary JWT, native commands, two-phase write gate',(
  assert.match(s,/M26_QA_ONLY/);assert.match(s,/gjztkdwfmunnzhtvxrsu/);
  assert.doesNotMatch(s,/pjhmrhejsoofmouedavw|SUPABASE_SERVICE_ROLE_KEY/);
  assert.match(s,/buildAppointmentCommand/);assert.match(s,/buildConfirmAppointmentCommand/);
- assert.match(s,/old\.stage==='preflight'/);
+ assert.match(s,/old\.stage===\(mode==='prepare-browser'\?'preflight-browser':'preflight'\)/);
  assert.match(s,/old\.sha===proof\.sha/);
  assert.match(s,/old\.runId===proof\.runId/);
  assert.match(s,/old\.fingerprint===proof\.fingerprint/);
@@ -284,4 +284,20 @@ test('U71 QA protects the two-phase appointment schedule from old completed time
  assert.ok(code.indexOf('const old=await checkedCalendar(')<
   code.lastIndexOf('chooseUnoccupiedDatedSlot({'));
  assert.ok(code.includes('fixedTime:certified?.localTime'));
+});
+
+test('REAL TRAINING 360 current feature branch can run bounded U71 preflight without granting PROD access',()=>{
+ const script=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const workflow=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ const branch='feat/iberfit-real-training-360-20261114';
+ assert.ok(script.includes("'"+branch+"'"));
+ assert.ok(workflow.includes("- '"+branch+"'"));
+ assert.match(workflow,/if: \$\{\{ github\.run_attempt == 1 \}\}/u);
+ assert.match(workflow,/if: \$\{\{ github\.run_attempt == 2 \}\}/u);
+ assert.match(script,/U31_START_SERVER_CLOCK_MISSING/u);
+ assert.match(script,/U31_START_CLOCK_PRIVATE_READ_DRIFT/u);
+ assert.match(script,/Date\.parse\(String\(startedDetail\.body\?\.executionBody\?\.startedAt/u);
+ assert.match(script,/old\.runId===proof\.runId/u);
+ assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
+ assert.doesNotMatch(script,/pjhmrhejsoofmouedavw|SUPABASE_SERVICE_ROLE_KEY/u);
 });

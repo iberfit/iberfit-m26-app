@@ -90,3 +90,13 @@ test('U61 calm Client sync and recovery disclosure is localized in all supported
     assert.ok(translated.length>2);
   }
 });
+
+test('U74 dated remote-write confirmation is translated in EN, FR and PT',()=>{
+ const copy='Confirmando operación en el servidor. No repitas la acción.';
+ assert.equal(iberfitSurfaceTranslate(copy,{language:'en'}),
+  'Confirming the operation with the server. Do not repeat the action.');
+ assert.equal(iberfitSurfaceTranslate(copy,{language:'fr'}),
+  'Confirmation de l’opération auprès du serveur. Ne répétez pas l’action.');
+ assert.equal(iberfitSurfaceTranslate(copy,{language:'pt'}),
+  'A confirmar a operação no servidor. Não repita a ação.');
+});

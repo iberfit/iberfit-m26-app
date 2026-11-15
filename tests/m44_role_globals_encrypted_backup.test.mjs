@@ -57,9 +57,12 @@ test('CLI only prints fixed status; rejects symlink and existing private paths',
 test('backup includes passwordless roles within ciphertext and never replays into production',()=>{
  const w=fs.readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
  const production=w.split('  production-backup:')[1]||'';
- const p=production.indexOf('pg_dump -Fc'),globals=production.indexOf('pg_dumpall'),storage=production.indexOf('m44_storage_backup_bytes.mjs export');
+ const p=production.indexOf('m44_consistent_source_dump.sh'),globals=production.indexOf('pg_dumpall'),storage=production.indexOf('m44_storage_backup_bytes.mjs export');
  const encrypt=production.indexOf('m44_encrypted_backup_archive.mjs encrypt');
  assert.ok(p>0&&p<globals&&globals<storage&&storage<encrypt);
+ const consistent=fs.readFileSync('scripts/ops/m44_consistent_source_dump.sh','utf8');
+ assert.match(consistent,/pg_dump -Fc --snapshot=/);
+ assert.match(consistent,/pg_export_snapshot\(\)/);
  assert.match(w,/pg_dumpall[^\n]*--roles-only[^\n]*--no-role-passwords/);
  assert.match(w,/m44_global_roles_archive_check\.mjs/);
  assert.match(w,/database\.pgcustom\s+global-roles\.sql\s+storage/);

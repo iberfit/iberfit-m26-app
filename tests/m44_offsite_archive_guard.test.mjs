@@ -88,3 +88,36 @@ test('Restored TAR uses an explicit whitelist; traversal and symlink fail closed
   }
  });
 });
+
+test('Optional encrypted Auth/Vault census admits exact 13 count-only fields; rejects any extra identity, bad type or symlink',async()=>{
+ await sandbox(async dir=>{
+  const {KEYS,SCHEMA}=await import('../scripts/ops/m44_auth_vault_cardinality_contract.mjs');
+  const good={schema:SCHEMA,captured_at:'2026-11-15T03:31:27.123456Z',
+   counts:Object.fromEntries(KEYS.map(key=>[key,0]))};
+  const filename=path.join(dir,'auth-vault-source.json');
+  const check=String.raw`import pathlib,runpy,sys
+g=runpy.run_path(sys.argv[1])
+g["validate_optional_auth_census"](pathlib.Path(sys.argv[2]))
+`;
+  const runCheck=()=>run('-c',check,guard,filename);
+  const {writeFile,symlink,unlink}=await import('node:fs/promises');
+  await writeFile(filename,JSON.stringify(good));
+  assert.equal(runCheck().status,0,runCheck().output);
+  for(const bad of [
+   {...good,email:'private@example.invalid'},
+   {...good,counts:{...good.counts,auth_sessions:'1'}},
+   {...good,counts:{...good.counts,auth_users:-1}},
+   {...good,counts:{auth_users:1}},
+  ]){
+   await writeFile(filename,JSON.stringify(bad));
+   const result=runCheck();
+   assert.notEqual(result.status,0);
+   assert.doesNotMatch(result.output,/private@example|auth_sessions|sensitive data/);
+  }
+  await unlink(filename);
+  const original=path.join(dir,'original.json');
+  await writeFile(original,JSON.stringify(good));
+  await symlink(original,filename);
+  assert.notEqual(runCheck().status,0);
+ });
+});

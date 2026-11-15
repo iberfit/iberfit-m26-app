@@ -272,3 +272,40 @@ test('U51 ciphertext write rejection never reports a recorded set as saved',asyn
  assert.equal(service.view().phase,'needs-refresh');
  assert.equal(service.view().unsavedWork,false);
 });
+test('U49 date record-and-advance is ONE atomic encrypted checkpoint before server save',async()=>{
+ const {service,checkpoint:cp,sent}=setup();
+ const scope={clientId:CLIENT,occurrenceId:OCC};
+ await service.open(scope);
+ await service.start();
+ assert.equal(await cp.readCheckpoint(scope),null);
+ const next=await service.recordAndAdvance({reps:8,rpe:7,rir:3,load:20});
+ assert.equal(next.phase,'active');
+ assert.equal(next.executionStatus,'awaiting_feedback');
+ assert.equal(next.unsavedWork,true);
+ const stored=await cp.readCheckpoint(scope);
+ assert.equal(stored.etag,'test-etag-1',
+   'record + advance MUST NOT write two independent checkpoints');
+ assert.equal(stored.snapshot.execution.status,'awaiting_feedback');
+ assert.equal(stored.snapshot.execution.index,1,
+   'the final resolved set and cursor are committed together');
+ assert.equal(Object.values(stored.snapshot.execution.results)[0].reps,8);
+ assert.equal(sent.length,1,'no remote write before durable combined checkpoint');
+ const saved=await service.save();
+ assert.equal(saved.unsavedWork,false);
+ assert.equal(await cp.readCheckpoint(scope),null);
+ assert.equal(sent.length,2);
+ assert.equal(sent[1].type,'OCURRENCIA_GUARDAR_PROGRESO');
+ assert.equal(Object.values(sent[1].payload.results)[0].reps,8);
+});
+test('U49 atomic recording never shows success if durable combined write fails',async()=>{
+ const {service,checkpoint:cp,sent}=setup();
+ const scope={clientId:CLIENT,occurrenceId:OCC};
+ await service.open(scope);await service.start();
+ cp.writeCheckpoint=async()=>{throw new Error('U51_TEST_QUOTA_EXHAUSTED');};
+ await assert.rejects(service.recordAndAdvance({reps:8,rpe:7,rir:3,load:20}),
+   /U51_TEST_QUOTA_EXHAUSTED/);
+ assert.equal(service.view().phase,'needs-refresh');
+ assert.equal(service.view().unsavedWork,false);
+ assert.equal(await cp.readCheckpoint(scope),null);
+ assert.equal(sent.length,1,'failed local CAS must never dispatch remote progress');
+});

@@ -19,7 +19,10 @@ test('U72 date pause and resume need exact independent CAS and server ACK',()=>{
  const pause=buildOccurrenceWorkoutCommand(d,{action:'pause',operationId:op(11)});
  assert.equal(pause.type,'OCURRENCIA_PAUSAR');assert.deepEqual(Object.keys(pause.payload),['executionId','executionBaseRevision']);
  assert.equal(pause.payload.executionBaseRevision,1);assert.equal(d.execution.status,'active');
- assert.throws(()=>applyOccurrenceWorkoutAck(d,pause,ack(pause,2,2,{executionStatus:'en_curso',accumulatedActiveMs:1200,activeSince:null})),/ACK_U72_CLOCK_INVALID/);
+ assert.throws(()=>applyOccurrenceWorkoutAck(d,pause,ack(pause,2,2,{executionStatus:'en_curso',accumulatedActiveMs:1200,activeSince:null,serverAt:'2026-11-12T12:00:03Z'})),/ACK_U72_CLOCK_INVALID/);
+ assert.equal(d.execution.status,'active');
+ assert.throws(()=>applyOccurrenceWorkoutAck(d,pause,ack(pause,2,2,{executionStatus:'pausada',accumulatedActiveMs:1200,activeSince:null})),
+   /U47_ACK_SERVER_CLOCK_INVALID/);
  assert.equal(d.execution.status,'active');
  applyOccurrenceWorkoutAck(d,pause,ack(pause,2,2,{executionStatus:'pausada',accumulatedActiveMs:1200,activeSince:null,serverAt:'2026-11-12T12:00:03Z'}));
  assert.equal(d.execution.status,'paused');assert.equal(d.execution.accumulatedActiveMs,1200);

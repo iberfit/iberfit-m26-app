@@ -1,3 +1,43 @@
+## REAL TRAINING 360 · U74 QA recuperado y FRENTE de release · 15/11/2026
+- **RECUPERACIÓN REAL QA COMPLETADA:** run [#43716735183](https://github.com/iberfit/iberfit-m26-app/actions/runs/43716735183) intento 2 SUCCESS en Chromium touch con escritura auténtica solo sobre la ocurrencia sintética firmada del intento previo. Coach hizo lectura independiente, Cliente B denegado. Fuente QA PostgreSQL READ-ONLY posterior: fecha 15/11 `completada`, revisión de ocurrencia 3, ejecución `cerrada_confirmada` revisión 6, **2 series persistidas y feedback presente**; fecha 22/11 `confirmada`, sin ejecución. Sin borrado, cancelación ni cambios PROD.
+- **FALLOS DE GATE del SHA anterior `9caa1cc0ee79c4874e447aaea2de14abd0199cc6`:** una cadena por traducir a EN/FR/PT bloquea `m26_i18n_residual_gate`, CI y Canary Policy. Se incorpora catálogo de cuatro idiomas + test (no exclusión ni relajación de auditoría).
+- **M44 QA Edge:** en 15/11 13:04 UTC, negativa de PDF produjo en un intento 404 `NOT_FOUND_FUNCTION_BLOB` de gateway Supabase, junto con 403 y 404 JSON de dominio; no es evidencia de fuga, **tampoco certificación de disponibilidad ni denegación MFA de la función**. Los cuatro archivos de la Edge function QA versión 9 ACTIVE `verify_jwt=true` coinciden byte a byte con el repo. La prueba ahora distingue un 404 de gateway de un rechazo real de negocio y falla cerrado; no se encubre como success.
+- **SIGUIENTE CERTIFICACIÓN:** SHA nuevo completo, U74 nueva fixture dos fechas y ACK serie a serie, U71 backend nueva fixture después de U74, QA RLS negativa, M44, Device, WebAuthn, CI y Canary. Mantener sin merge/PROD si un gate falla o si no se comprueba recovery Hosted Auth/Vault, backup PROD fresco, U72/grants U60 y rollback.
+
+---
+
+## REAL TRAINING 360 · 15/11/2026 · diagnóstico E2E y cierre de clics perdidos (PR #1343)
+- SHA previo `3ee26fb00c98855d53f3c9b5cc923cf60d805a40`: **13/15 workflows SUCCESS**, U71 [#43679537393](https://github.com/iberfit/iberfit-m26-app/actions/runs/43679537393) segundo intento FAIL-CLOSED `U71_QA_CLIENT_ACTIVE_EXECUTION`; U74 [#43679537387](https://github.com/iberfit/iberfit-m26-app/actions/runs/43679537387) creó dos fechas, inició/pausó/reanudó y guardó una de dos series; el navegador no encontró feedback final. Los preflights pasaron y no hubo modificaciones PROD.
+- Lectura privada agregada QA: dos ocurrencias nuevas, primera `en_curso` revisión 2 / ejecución revisión 4 con una entrada de resultados, segunda `confirmada`; U71 bloqueó otra ejecución de ese mismo cliente sintético. No eliminar, cancelar, fabricar feedback ni repetir un E2E con la misma fixture.
+- Corregida la carrera de acciones U60: al estar `busy`, deshabilitar botones tanto en navegador como teclado incluso tras re-render, mostrar estado accesible de guardado; en Playwright exigir **ACK de cada serie y salida de busy** antes de pulsar el siguiente control. Un botón simplemente visible no garantiza haber procesado la escritura anterior.
+- El entrenamiento sintético inacabado debe recuperarse mediante acción autenticada, scope y CAS originales y verificación del histórico, sin borrado ni bypass. La nueva revisión CI/QA requiere SHA exacto; sin recuperación U74/U71 y M44 real, **NO MERGE, NO PROD**.
+
+---
+
+## REAL TRAINING 360 · 15/11/2026 · checkpoint HEAD 66632e9 (PR única #1343)
+- GitHub verificado: PR #1343 OPEN, Canary base `1b08e418d166ae502fe6bb2df83f01d0da186d35`, HEAD previo `66632e91053b433a66115a82c35a1dabfeb6d2b3`. **13/13 workflows de ese SHA SUCCESS**, con verificaciones CI/Device/WebAuthn/Audit/QA Real Write/M44 sintético; el éxito agregado NO sustituye comprobar jobs omitidos ni certificar un HEAD nuevo.
+- Reforzado en este mismo PR el filtro de escrituras QA U74 con whitelist exacta de cargas U39 (inicio, pausa, reanudación, progreso y finalización), objetos de progreso estrictos, cota de bytes y regresiones de campos ajenos; se requiere recertificación por SHA antes de merge.
+- M44 backup/restauración real PROD **SKIPPED** en PR por política. Ensayo PG17 sintético de snapshot/censo aprobado; faltan backup productivo fresco y recuperación funcional Hosted Auth/Vault/roles/secrets.
+- Supabase QA/PROD ACTIVE_HEALTHY. U60 EXECUTE authenticated=true QA y false PROD; U72 público ausente en ambos. Auditoría read-only, sin mutaciones DB, Auth, Storage ni #1319.
+- QA observado: 107.152 auth.sessions y 107.152 refresh tokens; 1.218 sesiones creadas en 24h y 162 en última hora (tres actores sintéticos). Causa compatible con login en CI, **no atribuida concluyentemente**; no purgar/revocar sin diseño. Bootstrap QA: 2.514 llamadas, media 1.253,9 ms, máximo 7.910,6 ms, 1.138.432 bloques temporales escritos acumulados.
+- **NO-GO productivo:** egress facturado comparable, bootstrap bajo SLA, M44 Hosted Auth/Vault/Edge real, respaldo nuevo, U72 SQL+rollback y grants U60 controlados, RLS negativa, Canary LIVE exact-SHA, smoke Cliente/Coach/Admin y hardware Connected360. La eliminación destructiva #1319 permanece completamente fuera.
+
+---
+
+## U74 · Cliente real desde Chromium QA · candidato en PR #1343 · NO CERTIFICADO
+- Se ha preparado, en la MISMA rama/PR, un workflow con **primer intento estrictamente READ-ONLY** sobre cuentas sintéticas reales de QA. Solo un rerun explícito del MISMO run, SHA y fecha certificada permite preparar dos fechas y ejecutar la primera en el navegador real; Coach comprueba la finalización y segunda fecha intacta.
+- La autorización adicional del navegador solo cubre cinco comandos U60 de entrenamiento sobre **una** ocurrencia QA prevalidada. Se prohíben altas, cancelaciones, lotes, otras fechas, otros clientes, service_role y URLs de PROD.
+- Esta es preparación de código sin E2E U74 aceptado. Un preflight sin franja válida abortará sin datos escritos. Si se interrumpe tras crear fechas, no repetir escrituras automáticamente: investigar el fixture y conservar evidencia.
+- No cambiar los permisos U60 de PROD, no ejecutar SQL U72 productivo, no modificar clientes reales.
+
+## REAL TRAINING 360 · PR #1343 · 14/11/2026 · READY PARA GATES (NO DESPLEGADO)
+- **Rama única:** `feat/iberfit-real-training-360-20261114`. Base de integración Canary/PROD del último checkpoint: `1b08e418d166ae502fe6bb2df83f01d0da186d35`. PR #1343 está Ready for Review para habilitar gates autenticados; no está fusionada ni equivale a LIVE.
+- **Mejoras en PR:** reloj de inicio U31 anclado al ACK oficial del servidor y validación del clock en pausa U72; registro de serie + avance en UNA transacción local cifrada/corrección de pérdida de cursor; U71 preflight de dos fechas bajo acceso QA y proof de igualdad hora ACK/lectura privada (una sola rama y un replay explícito si procede).
+- **U71 real**: workflow [#43665264998](https://github.com/iberfit/iberfit-m26-app/actions/runs/43665264998) attempt 1 y 2 SUCCESS: JWT reales QA sintéticos Coach/Cliente A/B, dos fechas, primera completada, segunda confirmada, RLS negativo, pause/resume y hora ACK=readback; QA 24→26 ocurrencias (13 completadas, 13 confirmadas). No certifica interfaz con escritura.
+- **Certificación del HEAD previo `f85e55f1b0bad0fd1cce48faf5b4c6d8efef541b`:** CI #43659871326 SUCCESS, Fast Lane #43659871341 SUCCESS, Continuous App Audit #43659871306 SUCCESS. No transferir éxito al siguiente SHA.
+- **Supabase PROD permanece protegido:** U60 autenticado sin EXECUTE, U72 ausente. QA U60/U72 disponibles; no concede funcionalidad PROD. #1319 limpieza destructiva excluida. No se han borrado personas ni tocado Auth, Storage o SQL productivo.
+- **Bloqueadores persistentes:** U71 real hosted E2E, M44 reciente + Hosted Auth/Vault DR, RLS multirol, fotografía IRI, rendimiento/egress, Connected360 Android hardware real, Canary exacto y promoción productiva protegida. No promover sin DO-D real.
+
 ## IBERFIT UNIVERSAL 360 · PR #1341 · 14/11/2026 · ÚNICO WIP, DRAFT, NO PROD
 - **Base autorizada**: Canary `canary/rc74-4` `67cdea194cb0ee87acebde0a89f9487d68ccec7b`, PR #1340 anterior fusionada, frontend-only PROD ya certificado vía workflow #43607772622. La nueva PR #1341 **NO** está fusionada, no desplegada y no habilita backend.
 - **Mejora real en rama**: bienvenida automática para instalar la PWA desde la llegada de nuevos Clientes a `app.iberfit.cl`, incluyendo Android Chrome (evento nativo con gesto, fallback menú), iOS Safari (Añadir a pantalla de inicio), estilo SIGNATURE 360 y respuesta «Ahora no». Reutiliza manifest, SW y controlador; sin tokens, PII, datos ni SQL; no tapa MFA, login, Auth callback, diálogos o entrenamiento activo.

@@ -27,7 +27,7 @@ test('cipher archive alone goes to artifacts, restores cannot reach production',
 });
 test('database and Storage both included and authenticated before sign-off',()=>{
  const production=w.split('  production-backup:')[1]||'';
- const indexes=['pg_dump -Fc','m44_storage_metadata_snapshot.sql:/storage-query.sql:ro','m44_storage_backup_bytes.mjs export',
+ const indexes=['m44_consistent_source_dump.sh','m44_storage_metadata_snapshot.sql:/storage-query.sql:ro','m44_storage_backup_bytes.mjs export',
  'm44_encrypted_backup_archive.mjs encrypt','m44_encrypted_backup_archive.mjs decrypt',
  'm44_storage_backup_bytes.mjs verify','pg_restore --exit-on-error'];
  for(let i=1;i<indexes.length;i++)
@@ -40,6 +40,10 @@ test('database and Storage both included and authenticated before sign-off',()=>
  assert.match(storage,/sha256/);
  assert.match(db,/aes-256-gcm/);
  assert.match(db,/scryptSync/);
+ const consistent=fs.readFileSync(new URL('../scripts/ops/m44_consistent_source_dump.sh',import.meta.url),'utf8');
+ assert.match(consistent,/pg_dump -Fc --snapshot=/);
+ assert.match(consistent,/pg_export_snapshot\(\)/);
+ assert.match(consistent,/REPEATABLE READ READ ONLY/);
  assert.match(storage,/DOWNLOAD_DENIED_OR_MISSING/);
 });
 

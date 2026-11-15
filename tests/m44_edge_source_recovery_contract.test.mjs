@@ -12,10 +12,10 @@ const repo=path.resolve('.');
 const live=()=>({project_ref:'pjhmrhejsoofmouedavw',
  functions:inventory.sources.map(s=>({slug:s.slug,verify_jwt:s.verify_jwt,ezbr_sha256:s.live_bundle_sha256}))});
 
-test('The 15 production Edge functions have a checksum-bound recoverable source; retired endpoint stays retired',()=>{
- assert.equal(inventory.sources.length,15);
+test('The 16 production Edge functions have a checksum-bound recoverable source; retired endpoint stays retired',()=>{
+ assert.equal(inventory.sources.length,16);
  const result=validateLocalSources(inventory,repo);
- assert.equal(result.filesVerified,15);
+ assert.equal(result.filesVerified,16);
  assert.equal(result.sourcePresent,true);
  assert.equal(result.liveParity,false);
  assert.equal(result.platformRecoveryVerified,undefined);
@@ -50,7 +50,12 @@ test('Tampering of an archived deployed source fails closed before release',()=>
      fs.mkdirSync(path.dirname(dst),{recursive:true});
      fs.copyFileSync(src,dst);
    }
-   const extra=['supabase/functions/iberfit-ai/deno.json','supabase/functions/iberfit-client-onboarding-v1/index.ts'];
+   const extra=[
+    'supabase/functions/iberfit-ai/deno.json',
+    'supabase/functions/iberfit-client-onboarding-v1/index.ts',
+    'supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js',
+    'supabase/functions/iberfit-evolution-report-emission-v1/storage-recovery.js',
+   ];
    for(const s of extra){
      const dst=path.join(dir,s);fs.mkdirSync(path.dirname(dst),{recursive:true});
      fs.copyFileSync(path.join(repo,s),dst);
@@ -59,6 +64,10 @@ test('Tampering of an archived deployed source fails closed before release',()=>
    const ai=path.join(dir,'supabase/functions/iberfit-ai/index.ts');
    fs.appendFileSync(ai,'\n// unexpected unauthorized drift\n');
    assert.throws(()=>validateLocalSources(inventory,dir),/SOURCE_CONTENT_DRIFT:iberfit-ai/);
+   fs.copyFileSync(path.join(repo,'supabase/functions/iberfit-ai/index.ts'),ai);
+   const aux=path.join(dir,'supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js');
+   fs.appendFileSync(aux,'\n// unexpected dependency drift\n');
+   assert.throws(()=>validateLocalSources(inventory,dir),/AUXILIARY_SOURCE_DRIFT:iberfit-evolution-report-emission-v1/);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 test('Manifest rejects traversal, incorrect provenance and accidental restoration of retired endpoint',()=>{
