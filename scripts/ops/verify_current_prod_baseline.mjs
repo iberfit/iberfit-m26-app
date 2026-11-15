@@ -3,6 +3,9 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 export const PROD_REF='pjhmrhejsoofmouedavw';
+export const EXACT_LEDGER_SHA256='1fb4006546cc2f1eec6aa3e128e3d0f9ec80d76d43bb955127866033e186de4e';
+export const EXACT_LEDGER_TOTAL=225;
+export const EXACT_LEDGER_LATEST='20261107144120';
 export const REQUIRED_VERSIONS=Object.freeze([
  '20260831163404','20260831164756','20260831164829','20260831170443',
  '20260901012307','20261017003320','20261025182000','20261025194000',
@@ -13,6 +16,9 @@ export const QUERY=[
  'WITH required(version) AS (VALUES '+REQUIRED_VERSIONS.map(x=>"('"+x+"')").join(',')+')',
  'SELECT',
  ' (SELECT count(*)::int FROM required e WHERE EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations m WHERE m.version=e.version)) AS applied_migrations,',
+ ' (SELECT count(*)::int FROM supabase_migrations.schema_migrations) AS migration_total,',
+ ' (SELECT max(version) FROM supabase_migrations.schema_migrations) AS migration_latest,',
+ " (SELECT encode(sha256(convert_to(string_agg(version||':'||coalesce(name,''),E'\\n' ORDER BY version),'UTF8')),'hex') FROM supabase_migrations.schema_migrations) AS migration_ledger_sha256,",
  " (to_regclass('public.iberfit_webauthn_credentials_v1') IS NOT NULL AND to_regclass('public.iberfit_webauthn_challenges_v1') IS NOT NULL AND to_regprocedure('public.iberfit_privileged_assurance_context_v65d()') IS NOT NULL AND to_regprocedure('public.iberfit_require_privileged_assurance_v65d()') IS NOT NULL) AS existing_webauthn,",
  " (to_regclass('public.command_operation_identities_v26') IS NOT NULL AND to_regprocedure('public.iberfit_operation_identity_guard_v26(jsonb,boolean)') IS NOT NULL) AS existing_rc74,",
  " (to_regclass('public.training_session_occurrences_v1') IS NOT NULL AND to_regprocedure('public.iberfit_occurrence_api_u60_v1(text,jsonb)') IS NOT NULL) AS staged_u60,",
@@ -32,11 +38,13 @@ export function certifyCurrentProductionBaseline(input,{sourceSha}={}){
   throw Error('PROD_BASELINE_RESPONSE_INVALID');
  for(const key of ['existing_webauthn','existing_rc74','staged_u60','existing_m44','existing_connected360','prod_environment'])
   if(d[key]!==true)throw Error('PROD_BASELINE_MISSING_'+key.toUpperCase());
- for(const key of ['applied_migrations','enabled_commands','active_locks','active_legacy_executions'])
+ for(const key of ['applied_migrations','migration_total','enabled_commands','active_locks','active_legacy_executions'])
   if(!Number.isInteger(d[key])||d[key]<0||d[key]>100000000)
    throw Error('PROD_BASELINE_NUMBER_INVALID_'+key.toUpperCase());
  if(d.applied_migrations!==REQUIRED_VERSIONS.length)
   throw Error('PROD_BASELINE_MIGRATION_DRIFT');
+ if(d.migration_total!==EXACT_LEDGER_TOTAL||d.migration_latest!==EXACT_LEDGER_LATEST||d.migration_ledger_sha256!==EXACT_LEDGER_SHA256)
+  throw Error('PROD_BASELINE_FULL_LEDGER_DRIFT');
  if(d.enabled_commands!==58)throw Error('PROD_BASELINE_REGISTRY_DRIFT');
  if(d.u60_auth_execute!==false||d.u60_anon_execute!==false)
   throw Error('PROD_BASELINE_U60_GRANT_DRIFT');
@@ -45,7 +53,8 @@ export function certifyCurrentProductionBaseline(input,{sourceSha}={}){
   schema:'iberfit.production.current-baseline-observation.v1',
   sourceSha,sourceBranch:'canary/rc74-4',projectRef:PROD_REF,
   observedState:'RC74_WEBAUTHN_U60_STAGED',readOnly:true,
-  migrationsVerified:d.applied_migrations,legacyPromotionSqlRejected:true,
+  migrationsVerified:d.applied_migrations,ledgerVersionsVerified:EXACT_LEDGER_TOTAL,
+  fullMigrationLedgerVerified:true,legacyPromotionSqlRejected:true,
   activeTraining:d.active_locks>0||d.active_legacy_executions>0,
   hostedAuthVaultSecretsRestored:false,platformAclRestored:false,
   backendPromotionAuthorized:false,productionReady:false,

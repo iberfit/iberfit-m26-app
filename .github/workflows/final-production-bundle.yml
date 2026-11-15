@@ -9,7 +9,8 @@ on:
       - 'scripts/build_final_production_promotion_prod_compat.mjs'
       - 'tests/m26_prod_current_baseline.test.mjs'
   push:
-    branches: [canary/rc74-4]
+    branches:
+      - canary/rc74-4
 permissions:
   contents: read
 concurrency:

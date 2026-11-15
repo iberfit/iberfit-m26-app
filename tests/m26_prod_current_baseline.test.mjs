@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
- PROD_REF,REQUIRED_VERSIONS,QUERY,certifyCurrentProductionBaseline,inspectCurrentProduction,
+ PROD_REF,REQUIRED_VERSIONS,EXACT_LEDGER_SHA256,EXACT_LEDGER_TOTAL,EXACT_LEDGER_LATEST,QUERY,certifyCurrentProductionBaseline,inspectCurrentProduction,
 } from '../scripts/ops/verify_current_prod_baseline.mjs';
 const SHA='cf9283ec321ca12e7df47bf18b450f5a8337c899';
 const valid=()=>({
- applied_migrations:14,existing_webauthn:true,existing_rc74:true,staged_u60:true,
+ applied_migrations:14,migration_total:EXACT_LEDGER_TOTAL,
+ migration_latest:EXACT_LEDGER_LATEST,migration_ledger_sha256:EXACT_LEDGER_SHA256,
+ existing_webauthn:true,existing_rc74:true,staged_u60:true,
  existing_m44:true,existing_connected360:true,prod_environment:true,
  enabled_commands:58,u60_auth_execute:false,u60_anon_execute:false,
  active_locks:0,active_legacy_executions:0,
@@ -14,6 +16,8 @@ const valid=()=>({
 test('real PROD post-August catalog is distinct from old pre-RC74 promotion',()=>{
  assert.equal(PROD_REF,'pjhmrhejsoofmouedavw');
  assert.equal(REQUIRED_VERSIONS.length,14);
+ assert.equal(EXACT_LEDGER_TOTAL,225);
+ assert.match(EXACT_LEDGER_SHA256,/^[0-9a-f]{64}$/u);
  assert.equal(new Set(REQUIRED_VERSIONS).size,14);
  assert.match(QUERY,/supabase_migrations.schema_migrations/u);
  assert.match(QUERY,/iberfit_occurrence_api_u60_v1/u);
@@ -25,6 +29,7 @@ test('current catalog certifies READ-ONLY NO-GO, not deploy approval or secret r
  assert.equal(r.readOnly,true);
  assert.equal(r.projectRef,PROD_REF);
  assert.equal(r.legacyPromotionSqlRejected,true);
+ assert.equal(r.fullMigrationLedgerVerified,true);
  assert.equal(r.productionReady,false);
  assert.equal(r.backendPromotionAuthorized,false);
  assert.equal(r.hostedAuthVaultSecretsRestored,false);
@@ -38,7 +43,10 @@ test('active sessions remain visible in read-only evidence and never purged',()=
 });
 test('missing version, widened grant, drift and malformed payload fail closed',()=>{
  for(const diff of [
-  {applied_migrations:13},{enabled_commands:57},{existing_webauthn:false},
+  {applied_migrations:13},{migration_total:224},
+  {migration_latest:'20261107144121'},
+  {migration_ledger_sha256:'a'.repeat(64)},
+  {enabled_commands:57},{existing_webauthn:false},
   {existing_rc74:false},{staged_u60:false},{existing_m44:false},
   {existing_connected360:false},{prod_environment:false},
   {u60_auth_execute:true},{u60_anon_execute:true},
