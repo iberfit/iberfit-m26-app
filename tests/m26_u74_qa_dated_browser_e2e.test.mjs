@@ -80,3 +80,10 @@ test('U74 requires exact source, explicit second attempt, least privilege and no
  assert.match(browser,/expect\(acks\)\.toEqual\(expected\)/u);
  assert.doesNotMatch(browser,/service_role|pjhmrhejsoofmouedavw/u);
 });
+
+test('U74 uses UTF-8 byte size, never character count, for synthetic progress writes',()=>{
+ const unicode={...command,type:'OCURRENCIA_GUARDAR_PROGRESO',
+  payload:{executionId:command.payload.executionId,executionBaseRevision:1,
+   results:{observation:'á'.repeat(262200)},skippedSets:{}}};
+ assert.equal(isQaScopedDatedSyntheticWrite(request(unicode),scoped),false);
+});

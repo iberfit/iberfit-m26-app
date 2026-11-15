@@ -7,6 +7,11 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 const ROWS=Object.freeze([
   // UNIVERSAL 360: a dated workout remains non-actionable while its
   // authenticated private read is in flight. Four-locale exact translations.
+  // U74: an in-flight dated-workout write cannot accept another touch.
+  ['Confirmando operación en el servidor. No repitas la acción.',
+    'Confirming the operation with the server. Do not repeat the action.',
+    'Confirmation de l’opération auprès du serveur. Ne répétez pas l’action.',
+    'A confirmar a operação no servidor. Não repita a ação.'],
   ['Comprobando estado privado de la fecha…',
     'Checking the private state of this date…',
     'Vérification de l’état privé de cette date…',
