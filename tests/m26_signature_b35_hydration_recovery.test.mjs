@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {createHydrationCoordinator} from '../src/m26/app/hydration-coordinator.js';
+import {loadWearablesWithBoundedRoleEvidence} from '../src/m26/app/wearable-bootstrap-demand.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
@@ -63,6 +64,7 @@ test('B35 late full-snapshot backend response after recovery cannot hydrate cano
     },
     rc39Transport:null,adminTransport:null,communicationTransport:null,
     optionalAuthBootstrap:fn=>fn(),
+    loadWearablesWithBoundedRoleEvidence,
     validatedRuntimeRegistry:()=>({base:{ok:true,missing:[]}}),
     normalizeApplicationContextExtension:()=>({available:false,roles:[],organizationId:null,membershipStatus:null,assignmentScopeEnforced:false}),
     normalizeAuthorizedRoles:({authorizedRoles})=>authorizedRoles,

@@ -17,13 +17,15 @@ test('U85 never pre-renders unverified state, never starts an extra role request
   const source=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
   const begin=source.indexOf('const extensionsPending=');
   const prefetch=source.indexOf('const clientCommunicationPending=',begin);
-  const primary=source.indexOf('const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]',prefetch);
+  const primary=source.indexOf('const [snapshot,installed,extensions,contextExtension,backendV43,wearablePreflight]',prefetch);
   const secondary=source.indexOf('const [adminExtension,communicationExtension,v47Daily]',primary);
   const commit=source.indexOf('store.hydrate(enriched)',secondary);
   assert.ok(begin>0&&prefetch>begin&&primary>prefetch&&secondary>primary&&commit>secondary);
   assert.match(source.slice(prefetch,primary),/verifiedContext.roles.length\?verifiedContext.roles:earlyExtensions.authorizedRoles/u);
   assert.match(source.slice(prefetch,primary),/canPrefetchClientCommunication\(verifiedRoles,preferredEarlyRole\)/u);
   assert.match(source.slice(prefetch,primary),/requireOwner\(\)/u);
+  assert.match(source.slice(prefetch,primary),/loadWearablesWithBoundedRoleEvidence/u);
+  assert.match(source.slice(primary,secondary),/wearablePreflightPending/u);
   assert.match(source.slice(secondary,commit),/if\(activeRole==='client'\)/u);
   assert.match(source.slice(secondary,commit),/communicationTransport.bootstrapOptional\(currentToken\(\),\{application:activeRole\}\)/u);
   assert.match(source.slice(secondary,commit),/requireOwner\(\)/u);
