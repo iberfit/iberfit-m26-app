@@ -1,0 +1,11 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "b71648f08a1a278906f09b30b828a95cf315f68e",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "abb43405ef4ce8f1df587335de2b03db249ad9fd",
+  "notes": "SUPABASE FREE 360 · IRI protected photos on demand; backend/Auth/RLS unchanged; PR #1348; QA gates and M44 restored backup; U60 closed"
+}
