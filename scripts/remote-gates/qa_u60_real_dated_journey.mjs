@@ -169,8 +169,9 @@ function context(mode){
  assert(e.GITHUB_REPOSITORY===REPO
   &&UUID.test(derivedUuid(e.GITHUB_RUN_ID,'check')),'INVALID_RUN_CONTEXT');
  assert(/^[a-f0-9]{40}$/.test(e.GITHUB_SHA),'INVALID_SHA');
- assert((mode==='preflight'&&e.GITHUB_RUN_ATTEMPT==='1')
-   ||(mode==='apply'&&e.GITHUB_RUN_ATTEMPT==='2'),'NON_EXPLICIT_ATTEMPT');
+ assert((['preflight','preflight-browser'].includes(mode)&&e.GITHUB_RUN_ATTEMPT==='1')
+  ||(['apply','prepare-browser','verify-browser'].includes(mode)&&e.GITHUB_RUN_ATTEMPT==='2'),
+  'NON_EXPLICIT_ATTEMPT');
  const key=e.M26_SUPABASE_PUBLISHABLE_KEY;
  assert(key.length>20&&!/service.?role|sb_secret/i.test(key),'PRIVILEGED_KEY_DENIED');
  return {e,key,branch};
@@ -303,17 +304,65 @@ async function authenticatedStage(ctx,certified=null){
  const fingerprint=hash(clientA+':'+chosen.id+':'+chosen.revision+':'+today+':'+future+':'+time);
  return {ctx,coach,a,b,clientA,clientB,chosen,appointments,commands,today,future,time,fingerprint};
 }
+async function verifyBrowserWorkout(ctx){
+ // READ-ONLY after the real Chromium Client workout, never retry its writes.
+ const proof=JSON.parse(await readFile(FILE,'utf8')),f=proof.fixture;
+ assert(proof.stage==='prepare-browser'&&proof.project==='QA'
+  &&proof.status==='QA_BROWSER_FIXTURE_READY'&&proof.writesApplied===true
+  &&proof.sha===ctx.e.GITHUB_SHA&&proof.runId===ctx.e.GITHUB_RUN_ID
+  &&f&&[f.clientId,f.occurrenceId,f.futureOccurrenceId,f.sessionId]
+    .every(x=>UUID.test(x))&&f.occurrenceId!==f.futureOccurrenceId,
+   'UI_PROOF_NOT_SAME_RUN');
+ const [coach,a,b]=await Promise.all([
+  login(ctx,ctx.e.M26_QA_COACH_EMAIL,ctx.e.M26_QA_COACH_PASSWORD),
+  login(ctx,ctx.e.M26_QA_CLIENT_A_EMAIL,ctx.e.M26_QA_CLIENT_A_PASSWORD),
+  login(ctx,ctx.e.M26_QA_CLIENT_B_EMAIL,ctx.e.M26_QA_CLIENT_B_PASSWORD),
+ ]);
+ const [rc,ra,rb,ca,cb]=await Promise.all([
+  value(ctx,coach.jwt,'iberfit_current_role_v26'),
+  value(ctx,a.jwt,'iberfit_current_role_v26'),
+  value(ctx,b.jwt,'iberfit_current_role_v26'),
+  value(ctx,a.jwt,'iberfit_client_id'),value(ctx,b.jwt,'iberfit_client_id'),
+ ]);
+ assert(rc==='coach'&&['client','cliente'].includes(ra)
+  &&['client','cliente'].includes(rb)&&ca===f.clientId&&cb!==ca,
+  'UI_PROOF_OWNER_DRIFT');
+ const calendar=await checkedCalendar(ctx,coach.jwt,f.clientId,f.localDate,f.futureDate);
+ const first=calendar.find(r=>r.id===f.occurrenceId);
+ const second=calendar.find(r=>r.id===f.futureOccurrenceId);
+ assert(first?.sessionId===f.sessionId&&first?.status==='completada'
+  &&second?.sessionId===f.sessionId&&second?.status==='confirmada',
+   'UI_COACH_DATES_NOT_INDEPENDENT');
+ const detail=await rpc(ctx,coach.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:f.clientId,p_occurrence_id:f.occurrenceId});
+ assert(detail.status===200&&detail.body?.kind==='private-occurrence'
+  &&detail.body?.executionBody?.status==='completada'
+  &&detail.body?.executionBody?.occurrenceId===f.occurrenceId
+  &&Object.keys(detail.body?.executionBody?.results||{}).length===f.stepsExpected,
+  'UI_COACH_EXECUTION_NOT_COMMITTED');
+ const forbidden=await u60(ctx,b.jwt,'CALENDARIO',{
+  clientId:f.clientId,startDate:f.localDate,endDate:f.futureDate,limit:10});
+ assert(denied(forbidden),'UI_CROSS_CLIENT_SCOPE_EXPOSED');
+ proof.checks.push('real_chromium_u60_client_write_lifecycle',
+  'coach_readback_first_complete_second_untouched','other_client_denied');
+ proof.status='QA_BROWSER_HOSTED_E2E_SUCCESS';
+ await save(proof);
+ process.stdout.write('IBERFIT_U74_QA_REAL_BROWSER_WRITE_COACH_READBACK_PASS\n');
+}
 async function main(){
  const mode=process.argv[2];
- assert(['preflight','apply'].includes(mode),'STAGE_INVALID');
+ assert(['preflight','apply','preflight-browser','prepare-browser','verify-browser'].includes(mode),'STAGE_INVALID');
  const ctx=context(mode);await currentSha(ctx);
+ if(mode==='verify-browser')return verifyBrowserWorkout(ctx);
  // Read prior clock/date BEFORE any authenticated fetch; never pick a new slot
  // for attempt 2. If the certified slot is no longer future, fail without writes.
- const original=mode==='apply'?JSON.parse(await readFile(PREVIOUS,'utf8')):null;
+ const original=['apply','prepare-browser'].includes(mode)
+  ?JSON.parse(await readFile(PREVIOUS,'utf8')):null;
  if(original){
   const age=Date.now()-Date.parse(original.createdAt);
   assert(original.schema==='iberfit.u71.qa-authenticated-dated-e2e.v1'
-    &&original.stage==='preflight'&&original.status==='READY_FOR_EXPLICIT_RERUN'
+    &&original.stage===(mode==='prepare-browser'?'preflight-browser':'preflight')
+    &&original.status==='READY_FOR_EXPLICIT_RERUN'
     &&original.project==='QA'&&original.sha===ctx.e.GITHUB_SHA
     &&original.runId===ctx.e.GITHUB_RUN_ID
     &&/^\d{4}-\d{2}-\d{2}$/.test(original.localDate)
@@ -334,7 +383,7 @@ async function main(){
    writesApplied:false,checks:['identity_roles_scoped','canary_owner_A_B_distinct',
     'two_calendar_dates_free','native_appointment_preflights_ack','exact_daylight_santiago'],
    status:'PENDING'};
- if(mode==='preflight'){
+ if(['preflight','preflight-browser'].includes(mode)){
   proof.status='READY_FOR_EXPLICIT_RERUN';
   await save(proof);
   process.stdout.write('IBERFIT_U71_QA_READ_ONLY_PREFLIGHT_READY\n');
@@ -342,7 +391,8 @@ async function main(){
  }
  const old=original;
  const age=Date.now()-Date.parse(old.createdAt);
- assert(old.schema===proof.schema&&old.stage==='preflight'
+ assert(old.schema===proof.schema
+  &&old.stage===(mode==='prepare-browser'?'preflight-browser':'preflight')
   &&old.status==='READY_FOR_EXPLICIT_RERUN'&&old.project==='QA'
   &&old.sha===proof.sha&&old.runId===proof.runId
   &&old.fingerprint===proof.fingerprint
@@ -411,6 +461,21 @@ async function main(){
   p_client_id:clientA,p_occurrence_id:occ[0]});
  assert(denied(foreignDetail),'CLIENT_B_PRIVATE_DETAIL_EXPOSED');
  proof.checks.push('owner_scoped_private_detail_and_idor_denied');
+ if(mode==='prepare-browser'){
+  // Only two QA appointments and confirmed dates: Client UI must perform
+  // the actual workout. Never start it from this fixture-preparation stage.
+  const steps=detail.body.prescriptionSnapshot.queue.reduce(
+   (n,item)=>n+Number(item?.sets||0),0);
+  assert(Number.isSafeInteger(steps)&&steps>=1&&steps<=40,
+   'UI_FIXTURE_STEPS_OUT_OF_BOUND');
+  proof.fixture={clientId:clientA,sessionId:chosen.id,
+   occurrenceId:occ[0],futureOccurrenceId:occ[1],
+   localDate:today,futureDate:future,stepsExpected:steps};
+  proof.status='QA_BROWSER_FIXTURE_READY';proof.writesApplied=true;
+  await save(proof);
+  process.stdout.write('IBERFIT_U74_QA_SYNTHETIC_DATED_BROWSER_FIXTURE_READY\n');
+  return;
+ }
  const executionId=derivedUuid(ctx.e.GITHUB_RUN_ID,'first-execution');
  const start={type:'OCURRENCIA_INICIAR',operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'occ-start'),
   clientId:clientA,entityId:occ[0],baseRevision:1,payload:{executionId}};

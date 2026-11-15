@@ -1,0 +1,60 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {isQaReadonlyDatedRequest,isQaScopedDatedSyntheticWrite} from '../qa/rc64/secure-current-source-auth.mjs';
+const CLIENT='10000000-0000-4000-8000-000000000001';
+const OCC='20000000-0000-4000-8000-000000000001';
+const FOREIGN='30000000-0000-4000-8000-000000000001';
+const scoped={clientId:CLIENT,occurrenceId:OCC};
+const command={type:'OCURRENCIA_INICIAR',
+ operationId:'40000000-0000-4000-8000-000000000001',
+ clientId:CLIENT,entityId:OCC,baseRevision:1,
+ payload:{executionId:'50000000-0000-4000-8000-000000000001'}};
+function request(cmd,{host='gjztkdwfmunnzhtvxrsu.supabase.co',method='POST',action='TRANSICION'}={}){
+ return {method:()=>method,
+  url:()=> 'https://'+host+'/rest/v1/rpc/iberfit_occurrence_api_u60_v1',
+  postDataJSON:()=>({p_action:action,p_payload:cmd})};
+}
+test('U74 only allows signed QA occurrence workout transitions',()=>{
+ assert.equal(isQaScopedDatedSyntheticWrite(request(command),scoped),true);
+ for(const type of ['OCURRENCIA_PAUSAR','OCURRENCIA_REANUDAR',
+  'OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR'])
+  assert.equal(isQaScopedDatedSyntheticWrite(request({
+   ...command,type,payload:{...command.payload,executionBaseRevision:1},
+  }),scoped),true);
+ assert.equal(isQaReadonlyDatedRequest(request(command),'iberfit_occurrence_api_u60_v1'),false);
+});
+test('U74 denies other owners, dates, destructive actions, malformed CAS and PROD',()=>{
+ for(const bad of [
+  {...command,clientId:FOREIGN},{...command,entityId:FOREIGN},
+  {...command,type:'OCURRENCIA_CANCELAR'},
+  {...command,type:'OCURRENCIAS_CREAR_LOTE'},
+  {...command,operationId:'bad'},{...command,baseRevision:-1},
+  {...command,payload:{}},{...command,payload:{...command.payload,extra:true}},
+  {...command,unexpected:'extra'},{...command,type:'OCURRENCIA_PAUSAR'},
+ ])
+  assert.equal(isQaScopedDatedSyntheticWrite(request(bad),scoped),false);
+ assert.equal(isQaScopedDatedSyntheticWrite(request(command,{host:'pjhmrhejsoofmouedavw.supabase.co'}),scoped),false);
+ assert.equal(isQaScopedDatedSyntheticWrite(request(command,{action:'CREAR_LOTE'}),scoped),false);
+ assert.equal(isQaScopedDatedSyntheticWrite(request(command,{method:'GET'}),scoped),false);
+});
+test('U74 requires exact source, explicit second attempt, least privilege and no PROD',()=>{
+ const source=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ const workflow=readFileSync('.github/workflows/u74-qa-dated-browser-e2e.yml','utf8');
+ const browser=readFileSync('qa/rc64/u74-dated-ui-write.spec.mjs','utf8');
+ const policy=readFileSync('qa/rc64/secure-current-source-auth.mjs','utf8');
+ assert.match(workflow,/branches: \['feat\/iberfit-real-training-360-20261114'\]/u);
+ assert.match(workflow,/github\.run_attempt == 1/u);
+ assert.match(workflow,/github\.run_attempt == 2/u);
+ assert.match(workflow,/environment: m26-canary-readonly/u);
+ assert.doesNotMatch(workflow,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|IBERFIT_PROD_DATABASE_URL/u);
+ assert.match(source,/proof\.status='QA_BROWSER_FIXTURE_READY'/u);
+ assert.match(source,/proof\.status='QA_BROWSER_HOSTED_E2E_SUCCESS'/u);
+ assert.match(source,/if\(mode==='verify-browser'\)return verifyBrowserWorkout\(ctx\)/u);
+ assert.match(source,/currentSha\(ctx\)/u);
+ assert.match(source,/original\.runId===ctx\.e\.GITHUB_RUN_ID/u);
+ assert.match(policy,/allowQaSyntheticWrite\(request\)===true/u);
+ assert.match(browser,/isQaScopedDatedSyntheticWrite\(request,f\)/u);
+ assert.match(browser,/expect\(acks\)\.toEqual\(expected\)/u);
+ assert.doesNotMatch(browser,/service_role|pjhmrhejsoofmouedavw/u);
+});

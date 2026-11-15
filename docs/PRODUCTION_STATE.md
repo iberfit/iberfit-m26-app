@@ -1,3 +1,9 @@
+## U74 · Cliente real desde Chromium QA · candidato en PR #1343 · NO CERTIFICADO
+- Se ha preparado, en la MISMA rama/PR, un workflow con **primer intento estrictamente READ-ONLY** sobre cuentas sintéticas reales de QA. Solo un rerun explícito del MISMO run, SHA y fecha certificada permite preparar dos fechas y ejecutar la primera en el navegador real; Coach comprueba la finalización y segunda fecha intacta.
+- La autorización adicional del navegador solo cubre cinco comandos U60 de entrenamiento sobre **una** ocurrencia QA prevalidada. Se prohíben altas, cancelaciones, lotes, otras fechas, otros clientes, service_role y URLs de PROD.
+- Esta es preparación de código sin E2E U74 aceptado. Un preflight sin franja válida abortará sin datos escritos. Si se interrumpe tras crear fechas, no repetir escrituras automáticamente: investigar el fixture y conservar evidencia.
+- No cambiar los permisos U60 de PROD, no ejecutar SQL U72 productivo, no modificar clientes reales.
+
 ## REAL TRAINING 360 · PR #1343 · 14/11/2026 · READY PARA GATES (NO DESPLEGADO)
 - **Rama única:** `feat/iberfit-real-training-360-20261114`. Base de integración Canary/PROD del último checkpoint: `1b08e418d166ae502fe6bb2df83f01d0da186d35`. PR #1343 está Ready for Review para habilitar gates autenticados; no está fusionada ni equivale a LIVE.
 - **Mejoras en PR:** reloj de inicio U31 anclado al ACK oficial del servidor y validación del clock en pausa U72; registro de serie + avance en UNA transacción local cifrada/corrección de pérdida de cursor; U71 preflight de dos fechas bajo acceso QA y proof de igualdad hora ACK/lectura privada (una sola rama y un replay explícito si procede).

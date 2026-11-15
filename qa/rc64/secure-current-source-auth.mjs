@@ -155,6 +155,32 @@ export function isQaReadonlyDatedRequest(request,rpc){
   return false;
 }
 
+const U74_TYPES=new Set(['OCURRENCIA_INICIAR','OCURRENCIA_PAUSAR','OCURRENCIA_REANUDAR',
+ 'OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR']);
+export function isQaScopedDatedSyntheticWrite(request,{clientId,occurrenceId}={}){
+ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+ if(!uuid.test(String(clientId||''))||!uuid.test(String(occurrenceId||''))
+  ||request?.method?.().toUpperCase()!=='POST')return false;
+ let url,body;
+ try{url=new URL(request.url());body=request.postDataJSON();}catch{return false;}
+ if(url.origin!==SUPABASE_ORIGIN
+  ||url.pathname!=='/rest/v1/rpc/iberfit_occurrence_api_u60_v1'
+  ||url.search!==''||url.hash!==''
+  ||!body||typeof body!=='object'||Array.isArray(body)
+  ||Object.keys(body).sort().join(',')!=='p_action,p_payload'
+  ||body.p_action!=='TRANSICION')return false;
+ const cmd=body.p_payload;
+ if(!cmd||typeof cmd!=='object'||Array.isArray(cmd)
+  ||Object.keys(cmd).some(k=>!['type','operationId','clientId','entityId','baseRevision','payload'].includes(k))
+  ||!U74_TYPES.has(cmd.type)||cmd.clientId!==clientId||cmd.entityId!==occurrenceId
+  ||!uuid.test(String(cmd.operationId||''))
+  ||!Number.isSafeInteger(cmd.baseRevision)||cmd.baseRevision<1
+  ||!cmd.payload||typeof cmd.payload!=='object'||Array.isArray(cmd.payload)
+  ||!uuid.test(String(cmd.payload.executionId||'')))return false;
+ if(cmd.type==='OCURRENCIA_INICIAR')return Object.keys(cmd.payload).join(',')==='executionId';
+ return Number.isSafeInteger(cmd.payload.executionBaseRevision)
+  &&cmd.payload.executionBaseRevision>=1;
+}
 function allowedQaRequest(request,readOnlyRpcs,allowQaSyntheticWrite){
   let url;
   try{url=new URL(request.url());}catch{return false;}
@@ -171,7 +197,9 @@ function allowedQaRequest(request,readOnlyRpcs,allowQaSyntheticWrite){
   if(method!=='POST'||!url.pathname.startsWith(prefix))return false;
   const rpc=url.pathname.slice(prefix.length);
   if(readOnlyRpcs.has(rpc)){
-    if(['iberfit_occurrence_api_u60_v1','iberfit_occurrence_detail_v1'].includes(rpc))
+    if(rpc==='iberfit_occurrence_api_u60_v1')
+      return isQaReadonlyDatedRequest(request,rpc)||allowQaSyntheticWrite(request)===true;
+    if(rpc==='iberfit_occurrence_detail_v1')
       return isQaReadonlyDatedRequest(request,rpc);
     return true;
   }

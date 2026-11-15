@@ -32,7 +32,7 @@ test('U71 denial never mistakes HTTP success for forbidden',()=>{
 });
 test('U71 stage-2 reuses immutable originally certified Santiago time and same-day slot',()=>{
  const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
- assert.match(s,/const original=mode==='apply'/);
+ assert.match(s,/const original=\['apply','prepare-browser'\]\.includes\(mode\)/);
  assert.match(s,/async function authenticatedStage\(ctx,certified=null\)/);
  assert.match(s,/fixedTime:certified\?\.localTime/);
  assert.match(s,/original\.localTime===plan\.time/);
@@ -44,7 +44,7 @@ test('U71 only QA origin, ordinary JWT, native commands, two-phase write gate',(
  assert.match(s,/M26_QA_ONLY/);assert.match(s,/gjztkdwfmunnzhtvxrsu/);
  assert.doesNotMatch(s,/pjhmrhejsoofmouedavw|SUPABASE_SERVICE_ROLE_KEY/);
  assert.match(s,/buildAppointmentCommand/);assert.match(s,/buildConfirmAppointmentCommand/);
- assert.match(s,/old\.stage==='preflight'/);
+ assert.match(s,/old\.stage===\(mode==='prepare-browser'\?'preflight-browser':'preflight'\)/);
  assert.match(s,/old\.sha===proof\.sha/);
  assert.match(s,/old\.runId===proof\.runId/);
  assert.match(s,/old\.fingerprint===proof\.fingerprint/);
