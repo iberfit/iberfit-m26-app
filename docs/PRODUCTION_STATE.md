@@ -1,3 +1,11 @@
+## REAL TRAINING 360 · 15/11/2026 · diagnóstico E2E y cierre de clics perdidos (PR #1343)
+- SHA previo `3ee26fb00c98855d53f3c9b5cc923cf60d805a40`: **13/15 workflows SUCCESS**, U71 [#43679537393](https://github.com/iberfit/iberfit-m26-app/actions/runs/43679537393) segundo intento FAIL-CLOSED `U71_QA_CLIENT_ACTIVE_EXECUTION`; U74 [#43679537387](https://github.com/iberfit/iberfit-m26-app/actions/runs/43679537387) creó dos fechas, inició/pausó/reanudó y guardó una de dos series; el navegador no encontró feedback final. Los preflights pasaron y no hubo modificaciones PROD.
+- Lectura privada agregada QA: dos ocurrencias nuevas, primera `en_curso` revisión 2 / ejecución revisión 4 con una entrada de resultados, segunda `confirmada`; U71 bloqueó otra ejecución de ese mismo cliente sintético. No eliminar, cancelar, fabricar feedback ni repetir un E2E con la misma fixture.
+- Corregida la carrera de acciones U60: al estar `busy`, deshabilitar botones tanto en navegador como teclado incluso tras re-render, mostrar estado accesible de guardado; en Playwright exigir **ACK de cada serie y salida de busy** antes de pulsar el siguiente control. Un botón simplemente visible no garantiza haber procesado la escritura anterior.
+- El entrenamiento sintético inacabado debe recuperarse mediante acción autenticada, scope y CAS originales y verificación del histórico, sin borrado ni bypass. La nueva revisión CI/QA requiere SHA exacto; sin recuperación U74/U71 y M44 real, **NO MERGE, NO PROD**.
+
+---
+
 ## REAL TRAINING 360 · 15/11/2026 · checkpoint HEAD 66632e9 (PR única #1343)
 - GitHub verificado: PR #1343 OPEN, Canary base `1b08e418d166ae502fe6bb2df83f01d0da186d35`, HEAD previo `66632e91053b433a66115a82c35a1dabfeb6d2b3`. **13/13 workflows de ese SHA SUCCESS**, con verificaciones CI/Device/WebAuthn/Audit/QA Real Write/M44 sintético; el éxito agregado NO sustituye comprobar jobs omitidos ni certificar un HEAD nuevo.
 - Reforzado en este mismo PR el filtro de escrituras QA U74 con whitelist exacta de cargas U39 (inicio, pausa, reanudación, progreso y finalización), objetos de progreso estrictos, cota de bytes y regresiones de campos ajenos; se requiere recertificación por SHA antes de merge.

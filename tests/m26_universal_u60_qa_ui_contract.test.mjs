@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {
+import {guardDatedBusyActions,
   createDatedOccurrenceQaUi,qaDatedCalendarRange,formatDatedElapsed,
   plannedDatedSetDraft,applyPlannedDatedSetDraft,
   suggestedConfirmedDatedAppointments,datedCoachPreviewMatchesForm,
@@ -564,4 +564,21 @@ test('U60 invalid set and final feedback preserve typed values without caching c
     'typed fields may only be restored inside the original role/date/revision');
   assert.match(uiSource,/if\(failed&&!disposed/u,
     'successful remote writes must never replay stale form fields');
+});
+
+test('U74 busy dated actions are disabled across every re-render until server ACK',()=>{
+ const markup='<button type="button" data-iberdates-action="u60-record">Guardar</button>'+
+  '<button type="button" data-iberdates-action="u60-complete">Finalizar</button>'+
+  '<input name="u60Rpe" value="7">';
+ const busy=guardDatedBusyActions(markup,true);
+ assert.match(busy,/<button type="button" disabled aria-disabled="true" data-iberdates-action="u60-record"/u);
+ assert.match(busy,/<button type="button" disabled aria-disabled="true" data-iberdates-action="u60-complete"/u);
+ assert.match(busy,/<input name="u60Rpe" value="7">/u);
+ assert.equal(guardDatedBusyActions(markup,false),markup);
+ const ui=readFileSync('src/m26/workflows/occurrence-qa-ui.js','utf8');
+ assert.match(ui,/guardDatedBusyActions\(lockedMarkup\+controls\+body,busy\)/u);
+ assert.match(ui,/data-u60-saving/u);
+ const browser=readFileSync('qa/rc64/u74-dated-ui-write.spec.mjs','utf8');
+ assert.match(browser,/acks\.filter\(x=>x==='OCURRENCIA_GUARDAR_PROGRESO'\)/u);
+ assert.match(browser,/not\.toHaveAttribute\('aria-busy','true'/u);
 });

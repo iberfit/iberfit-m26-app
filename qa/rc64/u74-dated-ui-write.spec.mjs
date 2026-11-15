@@ -125,9 +125,19 @@ test('U74 real Client touch UI: signed date, pause, resume, each series, finish 
   await player.locator('[name="u60Reps"]').fill('8');
   await player.locator('[name="u60Load"]').fill('20');
   await player.locator('[name="u60Rpe"]').fill('7');
+  await expect(record).toBeEnabled({timeout:25000});
   await record.click();
-  if(i<f.stepsExpected-1)
-   await expect(player.locator('[data-iberdates-action="u60-record"]')).toBeVisible({timeout:25000});
+  // Playwright.click resolves before the async server CAS finishes. A
+  // merely visible next button can still be busy and drop a second click.
+  // Require the real progress ACK AND a settled UI after EACH observed set.
+  await expect.poll(()=>acks.filter(x=>x==='OCURRENCIA_GUARDAR_PROGRESO').length,
+    {timeout:30000}).toBe(i+1);
+  await expect(panel).not.toHaveAttribute('aria-busy','true',{timeout:30000});
+  if(i<f.stepsExpected-1){
+   const next=player.locator('[data-iberdates-action="u60-record"]');
+   await expect(next).toBeVisible({timeout:25000});
+   await expect(next).toBeEnabled({timeout:25000});
+  }
  }
  await expect(player.locator('[name="u60FinalRpe"]')).toBeVisible({timeout:25000});
  await player.locator('[name="u60FinalRpe"]').fill('7');

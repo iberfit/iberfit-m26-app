@@ -206,6 +206,14 @@ const DATED_DRAFT_FIELDS=Object.freeze([
   'u60FinalRpe','u60FinalComment','u60Pain','u60PainNotes',
   'u60Session','u60Dates',
 ]);
+// A remote workout ACK is asynchronous. Re-rendering an enabled action while
+// busy makes a rapid second touch silently disappear. Disable every dated
+// action until the exact command has resolved, including after re-renders.
+export function guardDatedBusyActions(markup,busy=false){
+  return busy===true
+    ?String(markup).replaceAll('<button type="button"', '<button type="button" disabled aria-disabled="true"')
+    :String(markup);
+}
 export function captureDatedUnsubmittedFields(panel){
   const values=Object.create(null);
   for(const name of DATED_DRAFT_FIELDS){
@@ -489,7 +497,9 @@ export function createDatedOccurrenceQaUi({
       '<p class="m26-eyebrow">'+(productionReleased?'Training360 · Entrenamiento':'Training360 · Canary')+'</p>'+
       '<h2>Entrenamiento por fechas independientes</h2>'+
       '<p>Cada fecha tiene su ejecución y confirmación propias. Nunca se reutiliza el inicio de la sesión original.</p>'+
-      '</div></div>'+status+lockedMarkup+controls+body+'</section>';
+      '</div></div>'+status+
+      (busy?'<p class="m26-field-help" role="status" aria-live="polite" data-u60-saving>Confirmando operación en el servidor. No repitas la acción.</p>':'')+
+      guardDatedBusyActions(lockedMarkup+controls+body,busy)+'</section>';
   }
   function verifiedRow(id,scope){
     const rowsFor=dateRows(scope);
