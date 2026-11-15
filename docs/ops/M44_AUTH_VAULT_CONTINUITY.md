@@ -4,6 +4,8 @@
 
 El censo de origen queda dentro del TAR autenticado y cifrado, **nunca en logs ni en los artifacts públicos**. `m44_offsite_archive_guard.py` valida su estructura al extraer el paquete recibido; admite paquetes históricos sin este censo pero rechaza el archivo presente si contiene categorías inesperadas, datos de usuarios, recuentos inválidos o no pertenece a un archivo enriquecido.
 
+La comprobación local del contrato se refuerza con `scripts/ops/m44_synthetic_mvcc_auth_restore.sh`: el propio workflow M44 prepara dos bases PostgreSQL 17 efímeras, comprueba `pg_export_snapshot → pg_dump --snapshot → pg_restore` y compara las 13 categorías con recuentos sintéticos no triviales. Esta prueba **no conecta a QA ni PROD**. El trabajo de respaldo real sigue restringido a una integración protegida en Canary.
+
 **Límites sin ocultar:** este cotejo garantiza solo cardinalidad de filas en el snapshot de la exportación y su restauración. NO confirma identidad de cada fila, permisos/grants/roles restaurados, claves de firma JWT, parámetros alojados de Auth, cifrado/desencriptación de Vault, passwords/sesiones activas, ni funcionamiento de Hosted Auth y Edge. No equivale a recuperación integral de plataforma; esos gates siguen **NO-GO** para U60/U72 PROD. La primera ejecución REAL de esta nueva protección requiere fusión Canary protegida y comprobación de evidencias del job, no basta con tests PR.
 
 **Nueva lectura agregada de 15/11/2026:** QA = 106.990 sesiones y 106.990 refresh tokens para cuatro usuarios sintéticos; PROD = 6 sesiones y 17 refresh tokens, un usuario. No se consultaron tokens ni identidades concretas. El crecimiento QA exige investigar tasa de login/creación por CI y retención antes de limpiar, no revocar ni truncar automáticamente.

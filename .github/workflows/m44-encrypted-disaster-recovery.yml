@@ -131,6 +131,7 @@ on:
       - 'scripts/ops/m44_acl_toc_selector.mjs'
       - 'tests/m44_acl_toc_selector.test.mjs'
       - 'scripts/ops/m44_consistent_source_dump.sh'
+      - 'scripts/ops/m44_synthetic_mvcc_auth_restore.sh'
       - 'scripts/ops/m44_auth_vault_census.sql'
       - 'scripts/ops/m44_auth_vault_cardinality_contract.mjs'
       - 'scripts/ops/m44_offsite_archive_guard.py'
@@ -312,6 +313,9 @@ jobs:
             psql -d iberfit_isolated_restore -At -c 'SELECT count(*) FROM public.iberfit_restore_fixture')"
           test "$result" = '1'
           echo 'IBERFIT_SYNTHETIC_POSTGRES17_ENCRYPTED_RESTORE_SUCCESS'
+      - name: Real PostgreSQL 17 exported MVCC snapshot and 13-category Auth Vault parity
+        shell: bash
+        run: bash scripts/ops/m44_synthetic_mvcc_auth_restore.sh
 
   production-backup:
     name: m44-prod-db-storage-encrypted-backup-and-restore

@@ -90,3 +90,19 @@ test('Malformed census, invalid exported snapshot and dump failure all fail clos
   });
  }
 });
+
+test('M44 runs the real exported snapshot and restored 13-table census in isolated PG17 CI',()=>{
+ const w=fs.readFileSync(WORKFLOW,'utf8');
+ const script=fs.readFileSync('scripts/ops/m44_synthetic_mvcc_auth_restore.sh','utf8');
+ assert.match(w,/Real PostgreSQL 17 exported MVCC snapshot and 13-category Auth Vault parity/);
+ assert.match(w,/bash scripts\/ops\/m44_synthetic_mvcc_auth_restore\.sh/);
+ assert.match(script,/iberfit_m44_snapshot_synthetic_source/);
+ assert.match(script,/iberfit_m44_snapshot_synthetic_restored/);
+ assert.match(script,/m44_consistent_source_dump\.sh/);
+ assert.match(script,/pg_restore --exit-on-error/);
+ assert.match(script,/m44_auth_vault_cardinality_contract\.mjs/);
+ assert.match(script,/CREATE TABLE auth\.sessions/);
+ assert.match(script,/CREATE TABLE vault\.secrets/);
+ assert.match(script,/CREATE TABLE storage\.objects/);
+ assert.doesNotMatch(script,/https:\/\/[a-z0-9]+\.supabase\.co|pjhmrhejsoofmouedavw|gjztkdwfmunnzhtvxrsu/);
+});
