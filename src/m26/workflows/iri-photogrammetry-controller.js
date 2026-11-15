@@ -43,6 +43,17 @@ const LANDMARK_LABELS=Object.freeze({
 });
 const ALL_VIEWS=Object.freeze([...IRI_PHOTO_VIEWS]);
 
+export function iriPhotoShouldRenderOriginal(view,activeView,url){
+  return ALL_VIEWS.includes(view)&&view===activeView&&typeof url==='string'&&url.length>0;
+}
+
+// Reuse the same decoded original on geometry rerenders, never across views or signatures.
+export function iriPhotoShouldReuseOriginal(image,view,activeView,url){
+  return iriPhotoShouldRenderOriginal(view,activeView,url)
+    &&image?.dataset?.iriPhotoOriginalImage===view
+    &&image?.getAttribute?.('src')===url;
+}
+
 function clean(value,max=1000){
   return String(value??'').replace(/[\u0000-\u001f\u007f]/gu,' ').replace(/\s+/gu,' ').trim().slice(0,max);
 }
@@ -293,18 +304,20 @@ export function createIriPhotogrammetryController({
         :[];
     }));
   }
-  function captureCard(view){
+  function captureCard(view,preservedOriginals){
     const capture=remote?.latestCaptures?.[view]||null;
     const pending=pendingForView(view);
     const url=signedUrls[view]||'';
+    const visibleOriginal=iriPhotoShouldRenderOriginal(view,activeView,url);
+    const retainedOriginal=visibleOriginal&&preservedOriginals.has(view);
     const points=landmarks?.[view]||{};
     const photoAllowed=photoConsentActive();
     const measurements=currentMeasurements();
     const calibration=calibrationByView?.[view]||null;
     return `<article class="m26-photo-view${activeView===view?' is-active':''}" data-iri-photo-view="${view}" data-active="${activeView===view?'true':'false'}" aria-hidden="${activeView===view?'false':'true'}">
       <div class="m26-photo-view-head"><div><p class="m26-eyebrow">${escapeHtml(VIEW_LABELS[view])}</p><h4>${capture?'Original protegido':'Captura pendiente'}</h4></div><span class="m26-photo-state">${escapeHtml(capture?captureQualityCopy(capture):pending?'Subida incompleta':'Sin foto')}</span></div>
-      <div class="m26-photo-stage" data-iri-photo-stage="${view}" tabindex="${url?'0':'-1'}" aria-label="${escapeHtml(VIEW_LABELS[view])}. ${url?'Activa una referencia o una calibración y pulsa sobre la imagen.':'Sin fotografía activa.'}">
-        ${url?`<div class="m26-photo-canvas" data-iri-photo-canvas="${view}"><img src="${escapeHtml(url)}" alt="Vista ${escapeHtml(VIEW_LABELS[view].toLowerCase())} para análisis privado" referrerpolicy="no-referrer" draggable="false"><svg class="m26-photo-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="false">${overlayMarkup(view,landmarks,measurements,calibrationByView)}${Object.entries(points).map(([key,point])=>pointMarkup(view,key,point)).join('')}</svg></div>`:'<div class="m26-photo-placeholder"><span>Sin vista activa</span><small>El original permanece privado.</small></div>'}
+      <div class="m26-photo-stage" data-iri-photo-stage="${view}" tabindex="${visibleOriginal?'0':'-1'}" aria-label="${escapeHtml(VIEW_LABELS[view])}. ${url?'Activa una referencia o una calibración y pulsa sobre la imagen.':'Sin fotografía activa.'}">
+        ${visibleOriginal?`<div class="m26-photo-canvas" data-iri-photo-canvas="${view}"><img ${retainedOriginal?'':`src="${escapeHtml(url)}"`} data-iri-photo-original-image="${view}" loading="eager" decoding="async" alt="Vista ${escapeHtml(VIEW_LABELS[view].toLowerCase())} para análisis privado" referrerpolicy="no-referrer" draggable="false"><svg class="m26-photo-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="false">${overlayMarkup(view,landmarks,measurements,calibrationByView)}${Object.entries(points).map(([key,point])=>pointMarkup(view,key,point)).join('')}</svg></div>`:'<div class="m26-photo-placeholder"><span>Sin vista activa</span><small>El original permanece privado.</small></div>'}
       </div>
       <div class="m26-photo-view-actions">
         <label class="m26-photo-file ${photoAllowed?'':'is-disabled'}">Tomar o elegir foto
@@ -327,6 +340,11 @@ export function createIriPhotogrammetryController({
     const ctx=context();
     if(!ctx.canManage||!ctx.assessmentId){node.innerHTML='<p class="m26-photo-empty">La fotogrametría está disponible únicamente para Coach/Admin sobre un IRI inicial válido.</p>';return;}
     if(!remote){node.innerHTML=iriPhotoLoadStatusMarkup(loadError);return;}
+    const preservedOriginals=new Map();
+    for(const image of node.querySelectorAll?.('[data-iri-photo-original-image]')||[]){
+      const view=String(image?.dataset?.iriPhotoOriginalImage||'');
+      if(iriPhotoShouldReuseOriginal(image,view,activeView,signedUrls[view]||''))preservedOriginals.set(view,image);
+    }
     const physical=granted(remote.physicalConsent,'physical_assessment',IRI_PHYSICAL_CONSENT_VERSION);
     const photo=photoConsentActive();
     const quality=currentQuality();
@@ -362,7 +380,7 @@ export function createIriPhotogrammetryController({
         ${ALL_VIEWS.map((view)=>`<button type="button" data-iri-photo-view-select="${view}" aria-pressed="${activeView===view?'true':'false'}" class="${activeView===view?'is-active':''}"><span>${escapeHtml(VIEW_LABELS[view])}</span><small>${remote.latestCaptures?.[view]?'Capturada':'Pendiente'}</small></button>`).join('')}
       </nav>
       ${pendingCount?`<p class="m26-photo-notice is-warning">${pendingCount} subida${pendingCount===1?'':'s'} preparada${pendingCount===1?'':'s'} pendiente${pendingCount===1?'':'s'} de finalizar. Puedes recuperarla sin sobrescribir el original.</p>`:''}
-      <div class="m26-photo-grid">${ALL_VIEWS.map(captureCard).join('')}</div>
+      <div class="m26-photo-grid">${ALL_VIEWS.map((view)=>captureCard(view,preservedOriginals)).join('')}</div>
       <section class="m26-photo-analysis">
         <div class="m26-photo-analysis-head"><div><p class="m26-eyebrow">Análisis derivado · v2</p><h4>Ángulos, distancias calibradas y evidencia cruzada</h4><p>Los ángulos nacen de los puntos validados. Los centímetros sólo aparecen cuando existe una escala física explícita.</p></div><span data-iri-analysis-revision="${Number(remote.analysisV2?.revision||0)}">Motor v2 · revisión ${Number(remote.analysisV2?.revision||0)}</span></div>
         ${metricRows(measurements)}
@@ -377,6 +395,11 @@ export function createIriPhotogrammetryController({
       </section>
       <p data-iri-photo-status role="status" aria-live="polite"></p>
     </section>`;
+    // No src on placeholders: moving an already-loaded image does not re-fetch it.
+    for(const [view,image] of preservedOriginals){
+      const placeholder=node.querySelector?.(`[data-iri-photo-original-image="${view}"]`);
+      if(placeholder&&!placeholder.hasAttribute?.('src'))placeholder.replaceWith?.(image);
+    }
     syncPhysicalConsentControl();
     positionPoints();
   }
