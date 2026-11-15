@@ -10,6 +10,16 @@ import {buildOccurrenceScopedCommand} from '../domain/occurrence-commands.js';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const DATE=/^\d{4}-\d{2}-\d{2}$/u;
 const fail=reason=>{throw new Error('U47_'+reason);};
+// The U31 start ACK exposes the same PostgreSQL clock as the persisted
+// execution. Use it instead of starting a second, device-local clock after
+// network latency. Older isolated mocks without serverAt remain compatible.
+function authoritativeAckClock(value,{required=false}={}){
+  if(value==null&&!required)return null;
+  if(typeof value!=='string'||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u.test(value)||
+    !Number.isFinite(Date.parse(value)))fail('ACK_SERVER_CLOCK_INVALID');
+  return new Date(value).toISOString();
+}
 function uuid(value){
   if(typeof value!=='string'||!UUID.test(value))fail('IDENTITY_INVALID');
   return value.toLowerCase();
@@ -168,6 +178,8 @@ export function applyOccurrenceWorkoutAck(draft,command,ack){
     fail('ACK_IDENTITY_MISMATCH');
   const action=Object.keys(writes).find(k=>writes[k]===command.type);
   if(!action)fail('ACK_ACTION_INVALID');
+  const serverAt=['start','pause'].includes(action)
+    ?authoritativeAckClock(ack.serverAt,{required:action==='pause'}):null;
   const status=action==='complete'?'completada':'en_curso';
   if(['pause','resume'].includes(action)){
     const paused=action==='pause';
@@ -188,6 +200,10 @@ export function applyOccurrenceWorkoutAck(draft,command,ack){
       ||ack.remoteRevision<=draft.occurrenceRevision
       ||ack.executionRevision!==1)fail('ACK_START_INVALID');
     startExecution(draft.execution);
+    if(serverAt){
+      draft.execution.startedAt=serverAt;
+      draft.execution.activeSince=serverAt;
+    }
     draft.phase='active';
   }else{
     if(draft.phase!=='active'
@@ -201,7 +217,7 @@ export function applyOccurrenceWorkoutAck(draft,command,ack){
     if(action==='pause'){
       if(draft.execution.status!=='active')fail('ACK_PAUSE_INVALID');
       draft.execution.status='paused';draft.execution.activeSince=null;
-      draft.execution.pausedAt=ack.serverAt;
+      draft.execution.pausedAt=serverAt;
       draft.execution.accumulatedActiveMs=ack.accumulatedActiveMs;
     }
     if(action==='resume'){
