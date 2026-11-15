@@ -17,6 +17,7 @@ const BRANCHES=new Set([
  'canary/rc74-4',
  'feat/coach-a-verified-evidence-20261111',
  'feat/iberfit-m1-training-reliability-20261112',
+ 'feat/iberfit-real-training-360-20261114',
 ]);
 const branchFromRef=ref=>{
  const prefix='refs/heads/';
@@ -416,7 +417,20 @@ async function main(){
  const started=await u60(ctx,a.jwt,'TRANSICION',start);
  assert(started.status===200&&started.body?.kind==='ack'&&started.body?.status==='en_curso',
    'CLIENT_CANNOT_START_'+started.status);
- proof.checks.push('first_dated_execution_started');await save(proof);
+ // U31 must return the same authoritative clock persisted in the private
+ // execution. This detects client-time drift without reading private data
+ // for another owner or trusting a local workout timer.
+ const startServerAt=Date.parse(String(started.body.serverAt||''));
+ assert(Number.isFinite(startServerAt),'U31_START_SERVER_CLOCK_MISSING');
+ const startedDetail=await rpc(ctx,a.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:clientA,p_occurrence_id:occ[0]});
+ assert(startedDetail.status===200&&
+  startedDetail.body?.occurrence?.id===occ[0]&&
+  startedDetail.body?.executionBody?.id===executionId&&
+  Date.parse(String(startedDetail.body?.executionBody?.startedAt||''))===startServerAt,
+  'U31_START_CLOCK_PRIVATE_READ_DRIFT');
+ proof.checks.push('first_dated_execution_started',
+  'u31_start_ack_and_private_clock_agree');await save(proof);
  const startRetry=await u60(ctx,a.jwt,'TRANSICION',start);
  assert(startRetry.status===200&&startRetry.body?.kind==='ack'&&startRetry.body?.duplicate===true,
    'CLIENT_RETRY_STARTED_TWICE');

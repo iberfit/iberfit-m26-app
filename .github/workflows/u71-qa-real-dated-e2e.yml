@@ -16,6 +16,8 @@ on:
       - 'canary/rc74-4'
       - 'feat/coach-a-verified-evidence-20261111'
       - 'feat/iberfit-m1-training-reliability-20261112'
+      # Current one-PR REAL TRAINING 360 WIP; QA only and two-phase explicit replay.
+      - 'feat/iberfit-real-training-360-20261114'
     paths:
       - '.github/workflows/u71-qa-real-dated-e2e.yml'
       - 'scripts/remote-gates/qa_u60_real_dated_journey.mjs'

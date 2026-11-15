@@ -285,3 +285,19 @@ test('U71 QA protects the two-phase appointment schedule from old completed time
   code.lastIndexOf('chooseUnoccupiedDatedSlot({'));
  assert.ok(code.includes('fixedTime:certified?.localTime'));
 });
+
+test('REAL TRAINING 360 current feature branch can run bounded U71 preflight without granting PROD access',()=>{
+ const script=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const workflow=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ const branch='feat/iberfit-real-training-360-20261114';
+ assert.ok(script.includes("'"+branch+"'"));
+ assert.ok(workflow.includes("- '"+branch+"'"));
+ assert.match(workflow,/if: \$\{\{ github\.run_attempt == 1 \}\}/u);
+ assert.match(workflow,/if: \$\{\{ github\.run_attempt == 2 \}\}/u);
+ assert.match(script,/U31_START_SERVER_CLOCK_MISSING/u);
+ assert.match(script,/U31_START_CLOCK_PRIVATE_READ_DRIFT/u);
+ assert.match(script,/Date\.parse\(String\(startedDetail\.body\?\.executionBody\?\.startedAt/u);
+ assert.match(script,/original\.runId===proof\.runId/u);
+ assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
+ assert.doesNotMatch(script,/pjhmrhejsoofmouedavw|SUPABASE_SERVICE_ROLE_KEY/u);
+});

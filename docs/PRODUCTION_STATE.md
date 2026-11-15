@@ -1,3 +1,10 @@
+## REAL TRAINING 360 · PR #1343 · 14/11/2026 · WIP=1 (NO DESPLEGADO)
+- **Rama única:** `feat/iberfit-real-training-360-20261114`. Base de integración Canary/PROD del último checkpoint: `1b08e418d166ae502fe6bb2df83f01d0da186d35`. PR #1343 es todavía borrador y no equivale a LIVE.
+- **Mejoras en PR:** reloj de inicio U31 anclado al ACK oficial del servidor y validación del clock en pausa U72; registro de serie + avance en UNA transacción local cifrada/corrección de pérdida de cursor; U71 preflight de dos fechas bajo acceso QA y proof de igualdad hora ACK/lectura privada (una sola rama y un replay explícito si procede).
+- **Certificación del HEAD previo `f85e55f1b0bad0fd1cce48faf5b4c6d8efef541b`:** CI #43659871326 SUCCESS, Fast Lane #43659871341 SUCCESS, Continuous App Audit #43659871306 SUCCESS. No transferir éxito al siguiente SHA.
+- **Supabase PROD permanece protegido:** U60 autenticado sin EXECUTE, U72 ausente. QA U60/U72 disponibles; no concede funcionalidad PROD. #1319 limpieza destructiva excluida. No se han borrado personas ni tocado Auth, Storage o SQL productivo.
+- **Bloqueadores persistentes:** U71 real hosted E2E, M44 reciente + Hosted Auth/Vault DR, RLS multirol, fotografía IRI, rendimiento/egress, Connected360 Android hardware real, Canary exacto y promoción productiva protegida. No promover sin DO-D real.
+
 ## IBERFIT UNIVERSAL 360 · PR #1341 · 14/11/2026 · ÚNICO WIP, DRAFT, NO PROD
 - **Base autorizada**: Canary `canary/rc74-4` `67cdea194cb0ee87acebde0a89f9487d68ccec7b`, PR #1340 anterior fusionada, frontend-only PROD ya certificado vía workflow #43607772622. La nueva PR #1341 **NO** está fusionada, no desplegada y no habilita backend.
 - **Mejora real en rama**: bienvenida automática para instalar la PWA desde la llegada de nuevos Clientes a `app.iberfit.cl`, incluyendo Android Chrome (evento nativo con gesto, fallback menú), iOS Safari (Añadir a pantalla de inicio), estilo SIGNATURE 360 y respuesta «Ahora no». Reutiliza manifest, SW y controlador; sin tokens, PII, datos ni SQL; no tapa MFA, login, Auth callback, diálogos o entrenamiento activo.
