@@ -40,10 +40,12 @@ test('Client and multi-role accounts always get their normal, fresh wearable rea
 });
 
 test('slow or rejected role proof fails open for the read, not for authorization',async()=>{
-  for(const roleEvidence of [new Promise(()=>{}),Promise.reject(new Error('offline-context'))]){
+  // Construct the failure only when its rejection handler is attached;
+  // otherwise Node reports an unrelated unhandled rejection before this loop.
+  for(const makeEvidence of [()=>new Promise(()=>{}),()=>Promise.reject(new Error('offline-context'))]){
     let calls=0;
     const result=await loadWearablesWithBoundedRoleEvidence({
-      roleEvidence,fetchWearable:async()=>{calls++;return {ready:true};},
+      roleEvidence:makeEvidence(),fetchWearable:async()=>{calls++;return {ready:true};},
       fallback:{ready:false},waitMs:5,
     });
     assert.equal(result.skipped,false);
