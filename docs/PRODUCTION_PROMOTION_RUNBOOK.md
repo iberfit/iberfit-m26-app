@@ -1,3 +1,9 @@
+## Corrección de observación PROD 15/11/2026 · RLS mantenida
+
+El control de metadatos solo puede ejecutarse por `POST /database/query/read-only`, rol `supabase_read_only_user`, con SQL `SELECT` de `pg_catalog` y `supabase_migrations`. No invocar `iberfit_environment()` ni leer filas de `public.domain_entities_v26`, `active_execution_locks_v26`, `training_session_occurrences_v1` o `iberfit_system_settings`; esas lecturas exigen autorización diferente. El artefacto `catalog-only-no-go.v2` acredita **metadatos exclusivamente**, nunca estado operacional, recuperación Auth/Vault ni permiso de release. Cualquier HTTP fallido bloquea el gate. Jamás ampliar grants ni degradar RLS para permitir una medición.
+
+---
+
 ## Actualización 15/11/2026 · baseline productivo real, protección de SQL obsoleto
 
 **NO ejecutar ni reciclar** el artifact `final-production-promotion-sql` emitido por workflows anteriores. Ese script reproduce una línea base del 31 de agosto; Supabase PROD ya integró RC74 y WebAuthn y sus objetos/permisos son materialmente diferentes. Una prueba estática de generación SQL no es una autorización de ejecución.
