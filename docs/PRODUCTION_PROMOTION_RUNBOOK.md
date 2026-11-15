@@ -1,3 +1,25 @@
+## 15/11/2026 · Preflight SQL no mutante de U72/U60 sobre estado REAL PROD
+
+Se añade `scripts/release/m1_u72_prod_readonly_preflight.mjs` con consulta
+`QUERY` SELECT agregada de hashes/propietarios/ACL, migraciones, settings,
+RLS, triggers y **existencia de entrenamientos activos/pausados** sin filas
+personales. Su evaluador puro detecta ausencia de cualquiera de las condiciones,
+cambio de ambiente, U72 instalado prematuramente, escalada de privilegios y
+drift de contrato U60; cada fallo es cerrado.
+
+La ejecución administrativa de solo lectura del 15/11/2026 contra PROD real
+acreditó: cuatro funciones base con hashes canónicos, ocho migraciones,
+dos fences, RLS y negación de acceso directo, 0 ejecuciones activas/pausadas
+y U72 no instalado. **Esta verificación puntual no acredita** recuperación
+de Auth alojado, firma JWT, Vault/secretos externos, egress facturado,
+punto M44 dentro de la ventana de corte ni E2E LIVE; el contrato devuelve
+expresamente `productionReleaseAuthorized:false` y no puede ejecutar SQL
+remoto. No reusar una prueba antigua como GO: volver a observar justo antes
+de cualquier instalación, bajo acceso autorizado, sin relajar RLS del rol
+`supabase_read_only_user`.
+
+---
+
 ## 15/11/2026 · Matriz exact-SHA después de merge protegido
 
 Para evitar que una promoción quede sin certificado Device Experience por
