@@ -6,6 +6,7 @@ import {
   createDatedOccurrenceQaUi,qaDatedCalendarRange,formatDatedElapsed,
   plannedDatedSetDraft,applyPlannedDatedSetDraft,
   suggestedConfirmedDatedAppointments,datedCoachPreviewMatchesForm,
+  captureDatedUnsubmittedFields,restoreDatedUnsubmittedFields,
 } from '../src/m26/workflows/occurrence-qa-ui.js';
 import {M26_ACTION_REGISTRY} from '../src/m26/ui/interactive-audit.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
@@ -522,4 +523,45 @@ test('U60 appointment assistant messages are translated in all supported locales
     for(const language of ['en','fr','pt'])
       assert.notEqual(iberfitSurfaceTranslate(source,{language}),source);
   }
+});
+
+test('U60 invalid set and final feedback preserve typed values without caching credentials',()=>{
+  const names={
+    u60Reps:{type:'number',value:'8'},
+    u60Load:{type:'text',value:'62.5'},
+    u60Rpe:{type:'number',value:'12'},
+    u60Notes:{type:'text',value:'Molestia en rodilla derecha'},
+    u60FinalComment:{type:'textarea',value:'Sensación real del entrenamiento'},
+    u60Pain:{type:'checkbox',checked:true},
+    u60PainNotes:{type:'text',value:'Molestia leve'},
+    u60Dates:{type:'textarea',value:'2026-11-18 08:00\\n2026-11-20 08:00'},
+    u60Phrase:{type:'password',value:'NEVER-COPY-THIS-SECRET'},
+  };
+  const panel=values=>({querySelector:selector=>{
+    const match=selector.match(/^\\[name="([^"]+)"\\]$/u);
+    return values[match?.[1]]||null;
+  }});
+  const saved=captureDatedUnsubmittedFields(panel(names));
+  assert.equal(saved.u60Reps,'8');
+  assert.equal(saved.u60Rpe,'12','invalid effort input is kept for correction');
+  assert.equal(saved.u60Pain,true);
+  assert.equal(saved.u60Dates,'2026-11-18 08:00\\n2026-11-20 08:00');
+  assert.equal(Object.hasOwn(saved,'u60Phrase'),false,
+    'vault recovery phrase must NEVER be captured');
+  assert.equal(JSON.stringify(saved).includes('NEVER-COPY-THIS-SECRET'),false);
+  const fresh=Object.fromEntries(Object.entries(names).map(([name,node])=>
+    [name,{...node,value:node.type==='password'?'':node.type==='checkbox'?undefined:''}]));
+  const count=restoreDatedUnsubmittedFields(panel(fresh),saved);
+  assert.ok(count>=7);
+  for(const field of ['u60Reps','u60Load','u60Rpe','u60Notes',
+    'u60FinalComment','u60PainNotes','u60Dates'])
+    assert.equal(fresh[field].value,names[field].value,field);
+  assert.equal(fresh.u60Pain.checked,true);
+  assert.equal(fresh.u60Phrase.value,'');
+  assert.equal(restoreDatedUnsubmittedFields(panel(fresh),null),0);
+  const uiSource=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
+  assert.match(uiSource,/originalDraftScope===draftScopeSignature\\(\\)/u,
+    'typed fields may only be restored inside the original role/date/revision');
+  assert.match(uiSource,/if\\(failed&&!disposed/u,
+    'successful remote writes must never replay stale form fields');
 });

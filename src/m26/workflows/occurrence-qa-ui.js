@@ -196,6 +196,42 @@ export function datedHasUnsubmittedInputs(panel){
     :String(input?.value??'').trim().length>0);
 }
 
+// An invalid observation must not erase a typed set, Coach schedule or
+// final feedback merely because the error banner rerenders the player.
+// This is a small in-memory *UI-only* snapshot; never journal credentials,
+// generate a server ACK, or persist data before the user submits the form.
+const DATED_DRAFT_FIELDS=Object.freeze([
+  'u60Reps','u60Seconds','u60DistanceKm','u60DistanceM','u60Load',
+  'u60Rpe','u60Rir','u60Pace','u60PaceSwim','u60Notes','u60SkipReason',
+  'u60FinalRpe','u60FinalComment','u60Pain','u60PainNotes',
+  'u60Session','u60Dates',
+]);
+export function captureDatedUnsubmittedFields(panel){
+  const values=Object.create(null);
+  for(const name of DATED_DRAFT_FIELDS){
+    const element=panel?.querySelector?.('[name="'+name+'"]');
+    if(!element||element.type==='password')continue;
+    if(element.type==='checkbox')values[name]=element.checked===true;
+    else if(typeof element.value==='string')values[name]=element.value.slice(0,2048);
+  }
+  return values;
+}
+export function restoreDatedUnsubmittedFields(panel,values){
+  if(!values||typeof values!=='object'||Array.isArray(values))return 0;
+  let count=0;
+  for(const name of DATED_DRAFT_FIELDS){
+    if(!Object.hasOwn(values,name))continue;
+    const element=panel?.querySelector?.('[name="'+name+'"]');
+    if(!element||element.type==='password')continue;
+    if(element.type==='checkbox'&&typeof values[name]==='boolean'){
+      element.checked=values[name];count++;
+    }else if(element.type!=='checkbox'&&typeof values[name]==='string'){
+      element.value=values[name].slice(0,2048);count++;
+    }
+  }
+  return count;
+}
+
 export function createDatedOccurrenceQaUi({
   enabled=false,productionReleased=false,newStartsEnabled=true,
   root,ownerId,projectRef,transport,getAuthContext,
@@ -266,6 +302,20 @@ export function createDatedOccurrenceQaUi({
   }
   function workoutView(){
     return focus?runtime.workout.view():null;
+  }
+  // Restoration is permitted only for the SAME authenticated role/client,
+  // occurrence and exact server-derived execution step/revisions. Never
+  // resurrect stale inputs after an ACK, role switch or recovery conflict.
+  function draftScopeSignature(){
+    const scope=visibleOwner();
+    const v=scope&&focus?.clientId===scope.clientId&&focus.role===scope.role
+      ?workoutView():null;
+    const step=v?.currentStep;
+    return JSON.stringify([
+      generation,scope?.role,scope?.clientId,focus?.occurrenceId,
+      v?.phase,v?.occurrenceRevision,v?.executionRevision,v?.executionStatus,
+      v?.unsavedWork,step?.blockId,step?.exerciseId,step?.setNumber,
+    ]);
   }
   function hasBlockingWorkout(){
     if(!focus)return false;
@@ -849,6 +899,10 @@ export function createDatedOccurrenceQaUi({
         return;
       }
     }
+    const draftInputs=captureDatedUnsubmittedFields(
+      button.closest?.('[data-u60-panel]'));
+    const originalDraftScope=draftScopeSignature();
+    let failed=false;
     let payload={phrase:''};
     busy=true;failure='';
     try{
@@ -876,8 +930,15 @@ export function createDatedOccurrenceQaUi({
       }
       repaint();
       await perform(action,button,payload);
-    }catch(error){failure=humanError(error);}
-    finally{payload.phrase='';busy=false;repaint();}
+    }catch(error){failed=true;failure=humanError(error);}
+    finally{
+      payload.phrase='';busy=false;repaint();
+      // No cross-owner, stale-step or uncertain-write drafts, and never a
+      // recovery phrase. Only restore editable fields after a failed action.
+      if(failed&&!disposed&&originalDraftScope===draftScopeSignature())
+        restoreDatedUnsubmittedFields(
+          root.querySelector?.('[data-u60-panel]'),draftInputs);
+    }
   }
   function tick(){
     // No global DOM lookup while the operator is outside dated execution.
