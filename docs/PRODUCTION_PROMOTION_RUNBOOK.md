@@ -1,3 +1,60 @@
+## 15/11/2026 · Preflight SQL no mutante de U72/U60 sobre estado REAL PROD
+
+Se añade `scripts/release/m1_u72_prod_readonly_preflight.mjs` con consulta
+`QUERY` SELECT agregada de hashes/propietarios/ACL, migraciones, settings,
+RLS, triggers y **existencia de entrenamientos activos/pausados** sin filas
+personales. Su evaluador puro detecta ausencia de cualquiera de las condiciones,
+cambio de ambiente, U72 instalado prematuramente, escalada de privilegios y
+drift de contrato U60; cada fallo es cerrado.
+
+La ejecución administrativa de solo lectura del 15/11/2026 contra PROD real
+acreditó: cuatro funciones base con hashes canónicos, ocho migraciones,
+dos fences, RLS y negación de acceso directo, 0 ejecuciones activas/pausadas
+y U72 no instalado. **Esta verificación puntual no acredita** recuperación
+de Auth alojado, firma JWT, Vault/secretos externos, egress facturado,
+punto M44 dentro de la ventana de corte ni E2E LIVE; el contrato devuelve
+expresamente `productionReleaseAuthorized:false` y no puede ejecutar SQL
+remoto. No reusar una prueba antigua como GO: volver a observar justo antes
+de cualquier instalación, bajo acceso autorizado, sin relajar RLS del rol
+`supabase_read_only_user`.
+
+---
+
+## 15/11/2026 · Matriz exact-SHA después de merge protegido
+
+Para evitar que una promoción quede sin certificado Device Experience por
+filtros de paths, los cambios del workflow productivo, del verificador LIVE,
+del cortafuegos frontend-only y de su test ahora disparan **Device Experience**
+en PR no Draft y en `push` a Canary. Los gates de Coach/Admin WebAuthn y
+los remotos ya observan `.github/workflows/production-promote.yml` y se
+mantienen intactos; el verificador de promoción exige los siete workflows
+`SUCCESS` sobre el **SHA exacto** del merge.
+
+En PR Draft, Device Experience conserva su protección de cuota: **no ejecuta
+la suite autenticada**; solo en Ready for Review se habilita según su política.
+Esto no modifica el SLA, las pruebas RLS ni las credenciales QA. Una
+disparación prevista **no equivale** al éxito del workflow: revisar CI y
+cada run después de fusionar. Ningún cambio de estos filtros autoriza el
+back-end productivo.
+
+---
+
+## 15/11/2026 · Cortafuegos productivo Edge/Auth durante REAL TRAINING 360
+
+El workflow de Pages conserva pasos históricos de despliegue Edge y sincronización
+Hosted Auth sin rollback transaccional equivalente a Cloudflare Pages.
+**Mientras no exista una promoción independiente reversible para esos recursos**,
+`production-promote.yml` solo admite `frontendOnly:true`, destino exacto,
+SHA de origen y SHA LIVE anterior válidos. La comprobación
+`enforce_frontend_only_release_boundary.mjs` corre ANTES de cualquier escritura
+productiva; además `verify_frontend_only_promotion.mjs` exige diff realmente
+frontend-only. El modo backend ausente, false o ambiguo aborta sin tocar PROD.
+No se borra código histórico ni se relajan RLS, Auth, gates ni rollback.
+Esta barrera NO certifica recuperación Hosted Auth/Vault, NO habilita U60/U72
+y NO autoriza la promoción de REAL TRAINING 360. #1319 permanece excluido.
+
+---
+
 ## Corrección de observación PROD 15/11/2026 · RLS mantenida
 
 El control de metadatos solo puede ejecutarse por `POST /database/query/read-only`, rol `supabase_read_only_user`, con SQL `SELECT` de `pg_catalog` y `supabase_migrations`. No invocar `iberfit_environment()` ni leer filas de `public.domain_entities_v26`, `active_execution_locks_v26`, `training_session_occurrences_v1` o `iberfit_system_settings`; esas lecturas exigen autorización diferente. El artefacto `catalog-only-no-go.v2` acredita **metadatos exclusivamente**, nunca estado operacional, recuperación Auth/Vault ni permiso de release. Cualquier HTTP fallido bloquea el gate. Jamás ampliar grants ni degradar RLS para permitir una medición.
@@ -104,7 +161,7 @@ El preview puede tardar unos segundos en quedar disponible de forma coherente de
 
 ## Modo opcional `frontendOnly` · SIGNATURE 360 sin mutaciones de backend
 
-El pipeline oficial sigue exigiendo `release/prod-<SHA>`, un único commit de manifiesto, un SHA exacto proveniente de Canary, backup/restauración M44 reciente, CI, regresiones, preview, identidad LIVE, auditoría de solo lectura y rollback. **Por defecto no cambia ningún paso**: una release ordinaria continúa desplegando los Edge brokers y aplicando las verificaciones de Hosted Auth cuando corresponda.
+El pipeline oficial sigue exigiendo `release/prod-<SHA>`, un único commit de manifiesto, un SHA exacto proveniente de Canary, backup/restauración M44 reciente, CI, regresiones, preview, identidad LIVE, auditoría de solo lectura y rollback. **Desde la protección REAL TRAINING 360**, la vía de Pages solo acepta `frontendOnly:true` y fija `M26_U60_PROD_MODE: 'closed'`. El despliegue de Edge/Hosted Auth por este workflow queda bloqueado antes de cualquier escritura hasta que exista una vía backend independiente con recuperación probada, rollback y autorización explícita. El verificador de preview y LIVE exige además que el runtime publicado mantenga U60 cerrado.
 
 Para una release estrictamente **frontend-only** (ningún archivo desplegable de Edge, servidor o Auth cambiado respecto a la versión PROD realmente servida), el manifiesto puede incluir:
 

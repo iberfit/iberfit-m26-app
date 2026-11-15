@@ -1,3 +1,19 @@
+## 15/11/2026 · Reposición protegida del punto de recuperación por cambios de release
+
+El disparador `push` del workflow M44 incluye ahora
+`.github/workflows/production-promote.yml`. Tras una futura fusión protegida
+de la PR principal, se generará **un nuevo punto cifrado M44 PostgreSQL+Storage**
+para el SHA integrado, siempre sujeto a sus condiciones, permisos, fallo cerrado
+y cifrado; los PR no tienen permiso de ejecutar el trabajo de respaldo PROD.
+
+Esto NO equivale a un backup fresco mientras la PR esté abierta: exige verificar
+el run real, su restauración, antigüedad <=2h en el corte, integridad de ciphertext
+y traslado externo a Drive antes de que caduque el artifact. Tampoco acredita
+Hosted Auth/JWT/Vault/Edge secrets ni autoriza U72/U60. No se ejecuta desde
+este documento ninguna consulta/escritura productiva.
+
+---
+
 ## REAL TRAINING 360 · M44 conservación consistente preparada (PR #1343; 15/11/2026)
 
 **Código preparado, NO certificado en respaldo productivo nuevo:** el workflow M44 utiliza `scripts/ops/m44_consistent_source_dump.sh` solo en su trabajo protegido de respaldo PROD (que nunca corre desde una pull request). Abre una transacción PostgreSQL `REPEATABLE READ READ ONLY`, exporta una instantánea MVCC y ejecuta el censo de 13 categorías dentro de esa misma transacción. `pg_dump -Fc --snapshot` importa ese identificador mientras la sesión exportadora permanece abierta. La restauración aislada PG17 ejecuta de nuevo el mismo censo y `m44_auth_vault_cardinality_contract.mjs` bloquea la publicación del archivo cifrado ante cualquier diferencia.

@@ -9,6 +9,8 @@ test('M1 U72 protected Canary integration renews real M44 recovery with no PR pr
  assert.match(on,/  push:\n    branches: \['canary\/rc74-4'\]\n    paths:/u);
  const push=on.match(/  push:\n([\s\S]*?)(?:\n  workflow_dispatch:|$)/u)?.[1]||'';
  assert.match(push,/scripts\/release\/materialize_u72_prod_sql\.mjs/u);
+ assert.match(push,/\.github\/workflows\/production-promote\.yml/u);
+ assert.doesNotMatch(on,/  pull_request:[\s\S]*?m44-prod-db-storage-encrypted-backup-and-restore[\s\S]*?if: always\(\)/u);
  assert.match(push,/\.github\/workflows\/m44-encrypted-disaster-recovery\.yml/u);
  assert.doesNotMatch(push,/branches: \['main'\]|branches: \['master'\]|'feature\//u);
  assert.match(workflow,/name: m44-prod-db-storage-encrypted-backup-and-restore/u);

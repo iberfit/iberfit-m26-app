@@ -24,6 +24,9 @@ env:
   PROD_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_R5hU49RTDLAFFx46j4b4Hg_l8o0Pg2k'
   QA_SUPABASE_REF: 'gjztkdwfmunnzhtvxrsu'
   WRANGLER_VERSION: '4.120.0'
+  # Frontend-only Pages deployment must never expose U60 before U72 + grants.
+  M26_U60_PROD_MODE: 'closed'
+  M26_VERIFY_DATED_TRAINING_MODE: 'closed'
 
 jobs:
   promote-production:
@@ -82,6 +85,11 @@ jobs:
           git fetch --no-tags origin "$SOURCE_BRANCH"
           test "$(git rev-parse "origin/$SOURCE_BRANCH")" = "$SOURCE_SHA"
           test -z "$(git diff --name-only "$SOURCE_SHA" HEAD -- ':!.iberfit/production-release.json')"
+
+      # Fail closed: Pages rollback cannot revert Edge or Hosted Auth.
+      # Full backend activation must use a distinct certified reversible process.
+      - name: Enforce frontend-only release boundary before any backend mutation
+        run: node scripts/release/enforce_frontend_only_release_boundary.mjs
 
       - name: Certify exact Canary CI, deploy and privileged WebAuthn (fail closed)
         env:
@@ -324,6 +332,8 @@ jobs:
           grep -Fq "\"projectRef\": \"$PROD_SUPABASE_REF\"" "$V"
           grep -Fq '"enabled": true' "$R"
           grep -Fq '"qaOnly": false' "$R"
+          grep -Fq '"datedTrainingProductionReleased": false' "$R"
+          grep -Fq '"datedTrainingProductionStartsEnabled": false' "$R"
           grep -Fq "$PROD_SUPABASE_REF" "$R"
           grep -Fq "$PROD_SUPABASE_URL" "$R"
           grep -Fq 'sb_publishable_' "$R"
