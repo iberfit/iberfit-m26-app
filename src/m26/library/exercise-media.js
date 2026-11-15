@@ -432,7 +432,7 @@ export async function loadExerciseMediaMap({
     return publicMediaMapCache.bundle;
   if(allowed&&!forceRefresh&&publicMediaMapInFlight?.key===key
     &&publicMediaMapInFlight.fetchImpl===fetchImpl)
-    return publicMediaMapInFlight.promise;
+    return publicMediaMapInFlight.promise.then(({bundle})=>bundle);
   const pending=(async()=>{
     const settled=await Promise.allSettled([
       fetchMap(fetchImpl,iberfitUrl,validateIberfitExerciseMediaMap,boundedTimeout),
