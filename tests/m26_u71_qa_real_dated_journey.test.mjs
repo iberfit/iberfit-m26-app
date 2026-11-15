@@ -297,7 +297,7 @@ test('REAL TRAINING 360 current feature branch can run bounded U71 preflight wit
  assert.match(script,/U31_START_SERVER_CLOCK_MISSING/u);
  assert.match(script,/U31_START_CLOCK_PRIVATE_READ_DRIFT/u);
  assert.match(script,/Date\.parse\(String\(startedDetail\.body\?\.executionBody\?\.startedAt/u);
- assert.match(script,/original\.runId===proof\.runId/u);
+ assert.match(script,/old\.runId===proof\.runId/u);
  assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
  assert.doesNotMatch(script,/pjhmrhejsoofmouedavw|SUPABASE_SERVICE_ROLE_KEY/u);
 });
