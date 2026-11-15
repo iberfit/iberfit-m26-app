@@ -1,0 +1,92 @@
+name: IBERFIT U74 QA Existing Synthetic Recovery
+on:
+  push:
+    branches: ['feat/iberfit-real-training-360-20261114']
+    paths:
+      - '.github/workflows/u74-qa-recover-existing.yml'
+      - 'scripts/remote-gates/qa_u74_existing_recovery.mjs'
+      - 'qa/rc64/u74-recover-existing.spec.mjs'
+      - 'playwright.u74-recovery.config.mjs'
+      - 'tests/m26_u74_existing_recovery.test.mjs'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: iberfit-qa-shared-auth-readonly
+  queue: max
+  cancel-in-progress: false
+jobs:
+  one-fixture:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    environment: m26-canary-readonly
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+      M26_QA_ONLY: 'true'
+      M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+      M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+      M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+      M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+      M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+      M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+      M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+      M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm}
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Guard exact historical recovery source and owner scope
+        run: node --test tests/m26_u74_existing_recovery.test.mjs
+      - name: Recover immutable failed U74 QA browser fixture (no secrets)
+        uses: actions/download-artifact@v4
+        with:
+          name: iberfit-u74-browser-43679537387-2
+          run-id: 43679537387
+          github-token: ${{ github.token }}
+          path: .tmp/u74-old
+      - name: First attempt READ ONLY inspect the single interrupted QA execution
+        if: ${{ github.run_attempt == 1 }}
+        run: node scripts/remote-gates/qa_u74_existing_recovery.mjs preflight
+      - name: Preserve exact first-attempt immutable proof
+        if: ${{ github.run_attempt == 1 }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-u74-recovery-preflight-${{ github.run_id }}
+          path: recovery/u74-existing-resume/evidence.json
+          if-no-files-found: error
+          retention-days: 2
+      - name: Download SAME run/SHA read-only proof, explicit attempt two only
+        if: ${{ github.run_attempt == 2 }}
+        uses: actions/download-artifact@v4
+        with:
+          name: iberfit-u74-recovery-preflight-${{ github.run_id }}
+          run-id: ${{ github.run_id }}
+          github-token: ${{ github.token }}
+          path: .tmp/u74-first
+      - name: Ensure original server state is unchanged before any write
+        if: ${{ github.run_attempt == 2 }}
+        run: node scripts/remote-gates/qa_u74_existing_recovery.mjs admit
+      - name: Build exact-source authenticated mobile QA shell
+        if: ${{ github.run_attempt == 2 }}
+        run: node qa/rc64/build-authenticated-surface.mjs
+      - name: Resume only missing QA set, real Client UI then final ACK
+        if: ${{ github.run_attempt == 2 }}
+        run: npx playwright test --config playwright.u74-recovery.config.mjs
+      - name: Coach independently reads completion and untouched second date, B denied
+        if: ${{ github.run_attempt == 2 }}
+        run: node scripts/remote-gates/qa_u74_existing_recovery.mjs verify
+      - name: Preserve redacted recovery status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-u74-recovery-result-${{ github.run_id }}-${{ github.run_attempt }}
+          path: recovery/u74-existing-resume/evidence.json
+          if-no-files-found: warn
+          retention-days: 14
