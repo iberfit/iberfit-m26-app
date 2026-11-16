@@ -5,7 +5,7 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {profileAvatarPath,AVATAR_BUCKET} from '../../src/m26/profile/client-avatar.js';
-import {isFutureIssuedJwtClockSkew} from '../../src/m26/supabase-transport.js';
+import {qaM42ReadOnlyRpcWithFutureIatRetry} from './qa_m42_readonly_future_iat_retry.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu',BASE='https://'+REF+'.supabase.co';
 const NAMES=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -44,18 +44,7 @@ async function login(email,password){
  return r.body.access_token;
 }
 async function rpc(name,token,json={}){
- const path='/rest/v1/rpc/'+name;
- let r=await send(path,{method:'POST',token,json});
- // M42 only retries canonical read bootstrap on an exact future-issued JWT
- // PostgREST signature. No fallback for generic 401/403, expired JWT,
- // authentication failures or any mutating RPC.
- if(name==='iberfit_bootstrap_v26'){
-  let retries=0;
-  while(isFutureIssuedJwtClockSkew({status:r.status,body:r.body})&&retries<3){
-   await new Promise(resolve=>setTimeout(resolve,[350,800,1300][retries++]));
-   r=await send(path,{method:'POST',token,json});
-  }
- }
+ const r=await qaM42ReadOnlyRpcWithFutureIatRetry({name,token,json,send});
  // Record ONLY HTTP status and a well-formed PostgREST code, never token,
  // body, claims, identity or error text in published QA evidence.
  const code=String(r.body?.code||'').trim();

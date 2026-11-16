@@ -141,9 +141,11 @@ test('future JWT skew cannot cause a mutating-command retry or retry expired boo
 
 test('M42 private avatar gate restricts bootstrap JWT skew recovery and redacts 401 diagnostics',()=>{
   const source=readFileSync(new URL('../scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs',import.meta.url),'utf8');
-  assert.match(source,/name==='iberfit_bootstrap_v26'/u);
-  assert.match(source,/isFutureIssuedJwtClockSkew\(\{status:r\.status,body:r\.body\}\)&&retries<3/u);
-  assert.match(source,/\[350,800,1300\]\[retries\+\+\]/u);
+  const retry=readFileSync(new URL('../scripts/remote-gates/qa_m42_readonly_future_iat_retry.mjs',import.meta.url),'utf8');
+  assert.match(source,/qaM42ReadOnlyRpcWithFutureIatRetry\(\{name,token,json,send\}\)/u);
+  assert.match(retry,/new Set\(\['iberfit_bootstrap_v26','iberfit_current_role_v26'\]\)/u);
+  assert.match(retry,/isFutureIssuedJwtClockSkew\(\{status:response\?\.status,body:response\?\.body\}\)/u);
+  assert.match(retry,/RETRY_DELAYS=Object\.freeze\(\[350,800,1300\]\)/u);
   assert.match(source,/\^\[A-Z0-9\]\{3,12\}\$/u);
   assert.doesNotMatch(source,/console\.log\([^)]*r\.body/u);
 });
