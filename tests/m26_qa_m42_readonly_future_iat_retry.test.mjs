@@ -44,6 +44,6 @@ test('M42 retries at most 3 times, exhausting future-iat remains a failing 401',
 });
 test('M42 real gate uses only centralized exact clock skew helper',()=>{
  const source=readFileSync(new URL('../scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs',import.meta.url),'utf8');
- assert.match(source,/qaM42ReadOnlyRpcWithFutureIatRetry\\(\\{name,token,json,send\\}\\)/u);
- assert.doesNotMatch(source,/if\\(r\\.status===401\\)|retryAny|skipRoleCheck/u);
+ assert.match(source,/qaM42ReadOnlyRpcWithFutureIatRetry\(\{name,token,json,send\}\)/u);
+ assert.doesNotMatch(source,/if\(r\.status===401\)|retryAny|skipRoleCheck/u);
 });
