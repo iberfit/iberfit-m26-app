@@ -19,6 +19,8 @@ on:
       - 'src/m26/workflows/session-recovery.js'
       - 'src/m26/command-bus.js'
       - 'src/m26/communication/**'
+      # Coach Clientes manager rendering must satisfy the REAL 5s touch-to-paint browser SLA.
+      - 'src/m26/engagement/engagement-controller.js'
       - 'src/m26/modules/**'
       - 'src/m26/intelligence/**'
       - 'src/m26/design/role-surfaces.css'
@@ -74,6 +76,8 @@ on:
       - 'src/m26/workflows/session-recovery.js'
       - 'src/m26/command-bus.js'
       - 'src/m26/communication/**'
+      # Coach Clientes manager rendering must satisfy the REAL 5s touch-to-paint browser SLA.
+      - 'src/m26/engagement/engagement-controller.js'
       - 'src/m26/modules/**'
       - 'src/m26/intelligence/**'
       - 'src/m26/design/role-surfaces.css'

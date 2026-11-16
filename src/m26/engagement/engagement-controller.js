@@ -133,9 +133,21 @@ export function createEngagementController({root,store,draftRepository,service,s
   if(!root?.addEventListener||!store?.getState||!draftRepository?.save)throw new Error('M26_ENGAGEMENT_CONTROLLER_REQUIRED');let mounted=false;let restoreScheduled=false;let renewalUiScheduled=false;let actionOutcomeUiScheduled=false;let renewalObserver=null;
   const actionFlights=createEngagementActionFlightGuard();
   function context(){const state=store.getState();const role=String(state.identity?.role||'').toLowerCase();const clientId=['client','cliente'].includes(role)?state.identity?.clientId:state.selectedClientId;return {state,role,clientId};}
+  // UI-only managers must never duplicate the authenticated Coach archive
+  // for a route repaint. This snapshot is a separate, frozen representation
+  // of the server-authorized canonical state; action/command handlers keep
+  // using context() and a fresh, defensively cloned owner-scoped state.
+  function presentationContext(){
+    const state=typeof store.getRenderSnapshot==='function'
+      ?store.getRenderSnapshot():store.getState();
+    const role=String(state.identity?.role||'').toLowerCase();
+    const clientId=['client','cliente'].includes(role)
+      ?state.identity?.clientId:state.selectedClientId;
+    return {state,role,clientId};
+  }
   function requireClient(){const {clientId}=context();if(!clientId)throw new Error('M26_CLIENT_CONTEXT_REQUIRED');return clientId;}
   function ensureCommercialRenewalManagers(){
-    const {state,role}=context();
+    const {state,role}=presentationContext();
     if(!['admin','coach'].includes(role))return false;
     const documentLike=root.ownerDocument||globalThis.document;
     if(!documentLike?.createElement)return false;
@@ -172,7 +184,7 @@ export function createEngagementController({root,store,draftRepository,service,s
   }
   function scheduleCommercialRenewalManagers(){if(renewalUiScheduled)return;renewalUiScheduled=true;const run=()=>{renewalUiScheduled=false;ensureCommercialRenewalManagers();};if(typeof globalThis.queueMicrotask==='function')globalThis.queueMicrotask(run);else Promise.resolve().then(run);}
   function ensureActionOutcomeManagers(){
-    const {state,role}=context();
+    const {state,role}=presentationContext();
     if(!['admin','coach'].includes(role))return false;
     if(service?.capabilities?.actionOutcomeTracking?.ready!==true)return false;
     const documentLike=root.ownerDocument||globalThis.document;
