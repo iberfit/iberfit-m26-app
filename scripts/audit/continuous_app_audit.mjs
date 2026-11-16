@@ -308,29 +308,37 @@ function auditRouteGuardAndRendering(){
 }
 
 async function fetchAuditUrl(url,label){
-  const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),15000);
+  // Only public credential-free GET. One bounded retry for a transient
+  // network exception; NEVER turn HTTP 403/500 or invalid content into OK.
+  const readOnce=async()=>{
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),15000);
+    try{
+      const response=await fetch(url,{
+        method:'GET',
+        redirect:'follow',
+        cache:'no-store',
+        headers:{
+          'accept':'text/html,application/javascript,text/plain;q=0.9,*/*;q=0.8',
+          'user-agent':'IBERFIT-M26-Continuous-Auditor/1.0',
+        },
+        signal:controller.signal,
+      });
+      const body=await response.text();
+      return {response,body};
+    }finally{
+      clearTimeout(timeout);
+    }
+  };
   try{
-    const response=await fetch(url,{
-      method:'GET',
-      redirect:'follow',
-      cache:'no-store',
-      headers:{
-        'accept':'text/html,application/javascript,text/plain;q=0.9,*/*;q=0.8',
-        'user-agent':'IBERFIT-M26-Continuous-Auditor/1.0',
-      },
-      signal:controller.signal,
+    return await readOnlyPublicProbeWithRetry(readOnce,{
+      delay:()=>new Promise(resolve=>setTimeout(resolve,250)),
     });
-    const body=await response.text();
-    return {response,body};
   }catch(error){
-    addFinding('critical','LIVE_READ_FAILED',`No se pudo leer ${label}: ${error?.message||String(error)}.`,{url});
+    addFinding('critical','LIVE_READ_FAILED','No se pudo leer '+label+': '+(error?.message||String(error))+'.',{url});
     return null;
-  }finally{
-    clearTimeout(timeout);
   }
 }
-
 
 function auditProductionSecurityHeaders(response){
   const header=(name)=>String(response.headers.get(name)||'').trim();
