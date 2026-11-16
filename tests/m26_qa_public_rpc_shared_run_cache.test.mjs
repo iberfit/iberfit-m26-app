@@ -79,3 +79,57 @@ test('cache roots are scoped: separate job and SHA cannot reuse a different run'
   const two=route();await createQaPublicRpcMemo({sharedCacheRoot:other}).serve(two,req,url);
   assert.equal(one.seen.network+two.seen.network,2);
 });
+
+test('two parallel Playwright worker memos share one real public read through a bounded file lease',async t=>{
+  const root=await rootFor(t),req=makeReq(),url=new URL(req.url());
+  const firstMemo=createQaPublicRpcMemo({sharedCacheRoot:root});
+  const nextMemo=createQaPublicRpcMemo({sharedCacheRoot:root});
+  let release,notify;
+  const gate=new Promise(resolve=>{release=resolve});
+  const started=new Promise(resolve=>{notify=resolve});
+  const first=route(),next=route();
+  first.fetch=async()=>{
+    first.seen.network++;
+    notify();
+    await gate;
+    return {status:()=>200,body:async()=>Buffer.from('[{"id":"public-synthetic"}]'),
+      headers:()=>({'content-type':'application/json'})};
+  };
+  const a=firstMemo.serve(first,req,url);
+  await started;
+  const b=nextMemo.serve(next,req,url);
+  await new Promise(resolve=>setTimeout(resolve,40));
+  assert.equal(next.seen.network,0,'second worker must not race another public first read');
+  release();
+  assert.deepEqual(await Promise.all([a,b]),[true,true]);
+  assert.equal(first.seen.network+next.seen.network,1);
+  assert.equal(nextMemo.stats().sharedHits,1);
+  assert.deepEqual(next.seen.fulfill[0].body,first.seen.fulfill[0].body);
+  assert.equal((await fs.readdir(root)).filter(name=>name.endsWith('.lease')).length,0);
+});
+
+test('failed first public RPC does not poison the next worker or fabricate a 200',async t=>{
+  const root=await rootFor(t),req=makeReq(),url=new URL(req.url());
+  const firstMemo=createQaPublicRpcMemo({sharedCacheRoot:root});
+  const nextMemo=createQaPublicRpcMemo({sharedCacheRoot:root});
+  let release,notify;
+  const gate=new Promise(resolve=>{release=resolve});
+  const started=new Promise(resolve=>{notify=resolve});
+  const first=route('{"error":"unavailable"}',503),next=route();
+  first.fetch=async()=>{
+    first.seen.network++;
+    notify();
+    await gate;
+    return {status:()=>503,body:async()=>Buffer.from('{"error":"unavailable"}'),
+      headers:()=>({'content-type':'application/json'})};
+  };
+  const a=firstMemo.serve(first,req,url);
+  await started;
+  const b=nextMemo.serve(next,req,url);
+  release();
+  assert.deepEqual(await Promise.all([a,b]),[true,true]);
+  assert.equal(first.seen.fulfill[0].status,503);
+  assert.equal(next.seen.fulfill[0].status,200);
+  assert.equal(first.seen.network+next.seen.network,2);
+  assert.equal(nextMemo.stats().sharedHits,0);
+});
