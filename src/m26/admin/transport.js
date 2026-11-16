@@ -1,4 +1,5 @@
 import {createM26Transport} from '../supabase-transport.js';
+import {createQaInFlightReadGate} from '../domain/qa-inflight-read-gate.js';
 
 const RPC=Object.freeze({context:'iberfit_application_context_v14',bootstrap:'iberfit_admin_bootstrap_v14',execute:'iberfit_admin_execute_v14'});
 const CLIENT_INVITE_FUNCTION='/functions/v1/iberfit-admin-client-invite-v1';
@@ -24,7 +25,7 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     return authTransport;
   };
 
-  async function request(path,token,body,{timeout=timeoutMs}={}){
+  async function requestDirect(path,token,body,{timeout=timeoutMs}={}){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),Math.max(1_000,Math.min(Number(timeout)||timeoutMs,30_000)));
@@ -62,6 +63,17 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     }finally{
       clearTimeout(timer);
     }
+  }
+
+  const qaPendingReads=createQaInFlightReadGate({enabled:runtime?.qaOnly===true});
+  function request(path,token,body,options={}){
+    if(path==='/rest/v1/rpc/iberfit_application_context_v14'
+      &&body&&typeof body==='object'&&!Array.isArray(body)
+      &&Object.keys(body).length===0&&Object.keys(options).length===0){
+      return qaPendingReads.run({token,name:path,params:'{}',
+        request:()=>requestDirect(path,token,body,options)});
+    }
+    return requestDirect(path,token,body,options);
   }
 
   async function rpc(name,token,params={}){

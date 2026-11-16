@@ -1,3 +1,4 @@
+import {createQaInFlightReadGate} from '../domain/qa-inflight-read-gate.js';
 const RPC=Object.freeze({
   roles:'iberfit_authorized_application_roles_v13',
   listChanges:'iberfit_appointment_change_requests_v13',
@@ -30,7 +31,7 @@ export function createRc39Transport({runtime,fetchImpl=globalThis.fetch}={}){
   if(!key)throw new Error('M26_RC39_PUBLIC_KEY_REQUIRED');
   const timeoutMs=requestTimeout(runtime);
 
-  async function rpc(name,token,params={}){
+  async function rpcDirect(name,token,params={}){
     const auth=String(token||'');
     if(!auth)throw new Error('M26_AUTH_REQUIRED');
     const controller=new AbortController();
@@ -68,6 +69,16 @@ export function createRc39Transport({runtime,fetchImpl=globalThis.fetch}={}){
     }finally{
       clearTimeout(timer);
     }
+  }
+  const qaPendingReads=createQaInFlightReadGate({enabled:runtime?.qaOnly===true});
+  function rpc(name,token,params={}){
+    if((name===RPC.roles||name===RPC.listChanges)
+      &&params&&typeof params==='object'&&!Array.isArray(params)
+      &&Object.keys(params).length===0){
+      return qaPendingReads.run({token,name,params:'{}',
+        request:()=>rpcDirect(name,token,params)});
+    }
+    return rpcDirect(name,token,params);
   }
   async function optional(name,token,params={},options={}){
     try{return {available:true,data:await rpc(name,token,params)};}
