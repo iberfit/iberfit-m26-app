@@ -1,3 +1,4 @@
+import {createQaInFlightReadGate} from '../domain/qa-inflight-read-gate.js';
 const MISSING=/PGRST202|not find the function|M26_HTTP_404/i;
 const DEFAULT_TIMEOUT_MS=12_000;
 const NOTIFICATION_PREFERENCE_KEYS=Object.freeze([
@@ -41,7 +42,7 @@ export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch
   const key=String(runtime?.publishableKey||runtime?.anonKey||'');
   const timeoutMs=requestTimeout(runtime);
 
-  async function request(path,token,params={}){
+  async function requestDirect(path,token,params={}){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),timeoutMs);
@@ -78,6 +79,22 @@ export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch
     }finally{
       clearTimeout(timer);
     }
+  }
+
+  const qaPendingReads=createQaInFlightReadGate({enabled:runtime?.qaOnly===true});
+  function request(path,token,params={}){
+    const supported=path==='/rest/v1/rpc/iberfit_notification_preferences_status_v1'
+      ?params&&typeof params==='object'&&!Array.isArray(params)
+        &&Object.keys(params).length===0
+      :path==='/rest/v1/rpc/iberfit_communication_bootstrap_v14'
+        &&params&&typeof params==='object'&&!Array.isArray(params)
+        &&Object.keys(params).length===1
+        &&['client','coach'].includes(params.p_application);
+    if(supported){
+      return qaPendingReads.run({token,name:path,params:JSON.stringify(params),
+        request:()=>requestDirect(path,token,params)});
+    }
+    return requestDirect(path,token,params);
   }
 
   const rpc=(name,token,params={})=>request(`/rest/v1/rpc/${name}`,token,params);

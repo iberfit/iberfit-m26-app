@@ -1,4 +1,5 @@
 import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
+import {createQaInFlightReadGate} from './domain/qa-inflight-read-gate.js';
 import {compactQaCanonicalExecutionSummaries} from './domain/qa-canonical-summary-transport.js';
 const DEFAULT_TIMEOUT_MS = 12_000;
 const EXACT_REMOTE_HOSTS = new Set(['app.iberfit.cl', 'coach.iberfit.cl', 'm26-canary.iberfit.cl']);
@@ -288,7 +289,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   const fetchImpl = dependencies.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') throw new Error('M26_FETCH_UNAVAILABLE');
 
-  async function request(path, options = {}) {
+  async function requestDirect(path, options = {}) {
     if(typeof path!=='string'||!path.startsWith('/')||path.startsWith('//')||/[\u0000-\u001f\u007f]/.test(path))throw new Error('M26_REQUEST_PATH_INVALID');
     const controller = new AbortController();
     // Only the password exchange may use a shorter attempt budget. One
@@ -352,6 +353,32 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       if(timer!==null)clearTimeout(timer);
       externalSignal?.removeEventListener?.('abort',abortFromCaller);
     }
+  }
+
+  // Exact, audited, read-only endpoints. Do NOT include canonical bootstrap,
+  // history cursor pages, writes, session refresh, mutation preflights or MFA
+  // ceremonies: those must retain independent cancellation/freshness.
+  const qaPendingReads=createQaInFlightReadGate({enabled:runtime.qaOnly===true});
+  const qaReadOnlyPosts=new Set([
+    '/rest/v1/rpc/iberfit_privileged_assurance_context_v65d',
+    '/rest/v1/rpc/m26_backend_bootstrap_v43',
+    '/rest/v1/rpc/m26_wearable_bootstrap_v44',
+  ]);
+  async function request(path,options={}){
+    const keys=Object.keys(options||{});
+    const onlyStandard=keys.every(key=>key==='token'||key==='method'||key==='body');
+    const safeRead=onlyStandard&&typeof options?.token==='string'&&options.token.length>0
+      &&(
+        (options.method==='POST'&&options.body==='{}'&&qaReadOnlyPosts.has(path))
+        ||(options.method==='GET'&&options.body===undefined
+          &&(path==='/auth/v1/user'
+             ||path.startsWith('/rest/v1/domain_command_registry_v26?select=')))
+      );
+    if(!safeRead)return requestDirect(path,options);
+    return qaPendingReads.run({
+      token:options.token,name:path,params:options.body??'',
+      request:()=>requestDirect(path,options),
+    });
   }
 
   const authRetryDelay=typeof dependencies.authRetryDelay==='function'
