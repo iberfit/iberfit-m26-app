@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const get=path=>readFileSync(new URL(path,import.meta.url),'utf8');
-const migration=get('../supabase/qa-rollouts/p0_free_qa_bootstrap_workmem_4mb_v1.sql');
+const migration=get('../supabase/qa-migrations/20261116204059_p0_free_qa_bootstrap_workmem_4mb_v1.sql');
 const rollback=get('../supabase/qa-rollbacks/p0_free_qa_bootstrap_workmem_4mb_v1.rollback.sql');
 
 test('P0 QA bootstrap 4MB is function-local only; no global memory or billing degradation',()=>{
