@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,validatedDatedCandidates} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -199,7 +199,7 @@ test('U71 avoids full Client historical bootstrap while keeping real QA owner, s
  assert.match(gate,/value\(ctx,a\.jwt,'iberfit_u71_dated_candidates_qa_v1'\)/u);
  assert.doesNotMatch(gate,/value\(ctx,a\.jwt,'iberfit_bootstrap_v26'\)/u);
  assert.match(gate,/CANDIDATE_CROSS_CLIENT_EXPOSED/u);
- assert.match(gate,/validatedDatedCandidates\(raw,clientA,today\)/u);
+ assert.match(gate,/validatedDatedCandidates\(raw,clientA,candidateDay\)/u);
  assert.match(sql,/SECURITY DEFINER/u);
  assert.match(sql,/SET search_path TO ''/u);
  assert.match(sql,/auth\.uid\(\)/u);
@@ -300,4 +300,31 @@ test('REAL TRAINING 360 current feature branch can run bounded U71 preflight wit
  assert.match(script,/old\.runId===proof\.runId/u);
  assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
  assert.doesNotMatch(script,/pjhmrhejsoofmouedavw|SUPABASE_SERVICE_ROLE_KEY/u);
+});
+
+test('U71 23:51 Santiago moves to next-day 00:20 without weakening 25-55 minutes',()=>{
+ const at=Date.parse('2026-11-16T02:51:00Z');
+ const c=chileanClock(new Date(at));
+ const d=u71PlanningDays(c);
+ assert.deepEqual(d,{candidateDay:'2026-11-15',today:'2026-11-16',
+  future:'2026-11-23',rollover:true});
+ const slot=chooseUnoccupiedDatedSlot({today:d.today,future:d.future,clockDay:c.day,
+  clockMinute:c.minute,calendar:[],duration:45,nowMs:at});
+ assert.equal(slot.time,'00:20');
+ assert.equal(Date.parse(slot.start1)-at,29*60_000);
+ const replay=chooseUnoccupiedDatedSlot({today:d.today,future:d.future,clockDay:d.today,
+  clockMinute:2,calendar:[],duration:45,fixedTime:slot.time,
+  nowMs:Date.parse('2026-11-16T03:02:00Z')});
+ assert.equal(replay.start1,slot.start1);
+ assert.throws(()=>chooseUnoccupiedDatedSlot({today:d.today,future:d.future,clockDay:d.today,
+  clockMinute:21,calendar:[],duration:45,fixedTime:slot.time,
+  nowMs:Date.parse('2026-11-16T03:21:00Z')}),/U71_QA_NO_CONFLICT_FREE_SLOT/);
+});
+test('U71 daytime and restricted day gap still enforce the existing window',()=>{
+ const d=u71PlanningDays({day:'2026-11-16',minute:600});
+ assert.equal(d.rollover,false);
+ assert.equal(d.today,d.candidateDay);
+ assert.throws(()=>chooseUnoccupiedDatedSlot({today:'2026-11-20',future:'2026-11-27',
+  clockDay:d.today,clockMinute:600,calendar:[],duration:45,
+  nowMs:Date.parse('2026-11-16T13:00:00Z')}),/U71_QA_SLOT_INPUT_INVALID/);
 });

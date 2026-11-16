@@ -47,6 +47,15 @@ export function dayOffset(day,n){
  const dt=new Date(day+'T12:00:00Z');dt.setUTCDate(dt.getUTCDate()+n);
  return dt.toISOString().slice(0,10);
 }
+// Keep current-day server candidate authorization, but choose a valid
+// next-day QA appointment if the 25-minute lead passes midnight Santiago.
+export function u71PlanningDays({day,minute}={}){
+ assert(/^\d{4}-\d{2}-\d{2}$/.test(String(day))&&
+  Number.isInteger(minute)&&minute>=0&&minute<1440,'PLANNING_CLOCK_INVALID');
+ const rollover=Math.ceil((minute+25)/5)*5>=1440;
+ const today=rollover?dayOffset(day,1):day;
+ return Object.freeze({candidateDay:day,today,future:dayOffset(today,7),rollover});
+}
 export function sameClientCalendar(response,owner){
  // Never certify a supposedly empty calendar from a truncated first page:
  // the same QA identities legitimately retain training history.
@@ -117,20 +126,22 @@ export function validatedDatedCandidates(raw,owner,day){
  * Missing schedule coverage/fully occupied window aborts BEFORE any write.
  */
 export function chooseUnoccupiedDatedSlot({
- today,future,duration,clockMinute,calendar,fixedTime=null,nowMs=Date.now()
+ today,future,duration,clockMinute,calendar,fixedTime=null,clockDay=today,nowMs=Date.now()
 }={}){
  assert(/^\d{4}-\d{2}-\d{2}$/.test(String(today))&&
   /^\d{4}-\d{2}-\d{2}$/.test(String(future))&&
   Array.isArray(calendar)&&calendar.length<=50&&
   Number.isInteger(clockMinute)&&clockMinute>=0&&clockMinute<1440&&
+  (clockDay===today||dayOffset(clockDay,1)===today)&&
   Number.isFinite(duration)&&duration>=10&&duration<=240&&
   Number.isFinite(nowMs),'QA_SLOT_INPUT_INVALID');
+ const nextDayOffset=clockDay===today?0:1440;
  const from=fixedTime
   ?Number(fixedTime.slice(0,2))*60+Number(fixedTime.slice(3,5))
-  :Math.ceil((clockMinute+25)/5)*5;
+  :Math.ceil((clockMinute+25)/5)*5-nextDayOffset;
  assert(!fixedTime||/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(fixedTime),
   'QA_SLOT_CERTIFIED_TIME_INVALID');
- const deadline=fixedTime?from:Math.min(1439,clockMinute+55);
+ const deadline=fixedTime?from:Math.min(1439,clockMinute+55-nextDayOffset);
  const busy=calendar.filter(row=>row.status!=='cancelada'&&
   (row.startsAt!=null||row.endsAt!=null)).map(row=>{
   const a=Date.parse(String(row.startsAt||'')),
@@ -272,8 +283,9 @@ async function authenticatedStage(ctx,certified=null){
  assert(UUID.test(clientA)&&UUID.test(clientB)&&clientA!==clientB,'CLIENT_OWNERS');
  assert(environment?.environment==='QA'&&environment.realDataAllowed===false
   &&environment.productionBlocked===true,'ENV_ISOLATION');
- const clock=chileanClock(),today=clock.day,future=dayOffset(today,7);
- const candidates=validatedDatedCandidates(raw,clientA,today);
+ const clock=chileanClock();
+ const {candidateDay,today,future}=u71PlanningDays(clock);
+ const candidates=validatedDatedCandidates(raw,clientA,candidateDay);
  assert(candidates.length>0,'NO_SUITABLE_SYNTHETIC_PRESCRIPTION');
  // The exact available slot is selected from the complete authorised dated
  // calendar after a candidate prescription is chosen; no time conflicts.
@@ -289,7 +301,7 @@ async function authenticatedStage(ctx,certified=null){
  assert(chosen,'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
  const {time,start1,start2,end1,end2}=chooseUnoccupiedDatedSlot({
   today,future,duration:chosen.duration,clockMinute:clock.minute,
-  calendar:old,fixedTime:certified?.localTime||null});
+  clockDay:clock.day,calendar:old,fixedTime:certified?.localTime||null});
  const foreign=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:2});
  assert(denied(foreign),'CROSS_CLIENT_SCOPE_BROKEN');
  const appointments=[{date:today,startAt:start1,endAt:end1},{date:future,startAt:start2,endAt:end2}];

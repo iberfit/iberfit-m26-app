@@ -229,10 +229,14 @@ test('production controller uses owner-aware coordinator and stale-error fence',
   assert.match(source,/createHydrationCoordinator\(hydratePass,\{getOwner:\(\)=>hydrationLeaseFor\(session\)\}\)/u);
   assert.match(source,/hydrationSessionLeases\.set\(next,hydrationLeaseFor\(ownerSession\)\)/u);
   assert.match(hydrateSource,/if\(!signal\?\.aborted&&hydrationLeaseFor\(session\)===requestedOwner\)\{/u);
-  assert.match(hydrateSource,/if\(coachHistoryDemand\)store\.setHydration\('ready'\)/u);
+  assert.match(hydrateSource,/if\(coachHistoryDemand\)\{/u);
+  assert.match(hydrateSource,/store\.setHydrationFast\('ready'\)/u);
+  assert.match(hydrateSource,/else store\.setHydration\('ready'\)/u);
+  assert.match(hydrateSource,/store\.setHydrationFast\('error',error\)/u);
   assert.match(hydrateSource,/else store\.setHydration\('error',error\)/u);
   assert.match(hydrateSource,/requireOwner\(\); \/\/ No stale account/u);
   assert.match(hydrateSource,/if\(coachHistoryDemand\)\{[\s\S]*assertHistoryLease\(\)/u);
-  assert.match(hydrateSource,/qaStage\('rc64-hydrate-store-start'\);\s*store\.hydrate\(enriched\)/u);
+  assert.match(hydrateSource,/qaStage\('rc64-hydrate-store-start'\);\s*if\(typeof store\.hydrateFast==='function'\)store\.hydrateFast\(enriched\)/u);
+  assert.match(hydrateSource,/else store\.hydrate\(enriched\)/u);
   assert.match(hydrateSource,/M26_COACH_HISTORY_CONCURRENT_CHANGE/u);
 });
