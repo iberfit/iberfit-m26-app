@@ -788,7 +788,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       ?JSON.stringify(store.getState().remoteRevisions||{}):null;
     const ackLease=coachHistoryDemand
       ?JSON.stringify(store.getState().lastAck??null):null;
-    store.setHydration('loading');
+    if(typeof store.setHydrationFast==='function')store.setHydrationFast('loading');
+    else store.setHydration('loading');
     try{
       // QA-only Coach rollout. Never infer authorization from this account
       // selector: both versioned RPCs independently enforce real WebAuthn,
@@ -977,7 +978,8 @@ export async function createM26Application({root=document.querySelector('#app'),
           throw new Error('M26_COACH_HISTORY_CONCURRENT_CHANGE');
       }
       qaStage('rc64-hydrate-store-start');
-      store.hydrate(enriched);
+      if(typeof store.hydrateFast==='function')store.hydrateFast(enriched);
+      else store.hydrate(enriched);
       if(qaAtomicCoach)qaCoachHistory={
         status:coachHistoryDemand?'ready':'idle',
         clientId:coachHistoryDemand?requestedHistoryClient:null,
@@ -990,8 +992,13 @@ export async function createM26Application({root=document.querySelector('#app'),
       // A selected client's optional archive must never evict an already
       // authenticated core or force a new password/passkey ceremony.
       if(!signal?.aborted&&hydrationLeaseFor(session)===requestedOwner){
-        if(coachHistoryDemand)store.setHydration('ready');
-        else store.setHydration('error',error);
+        if(coachHistoryDemand){
+          if(typeof store.setHydrationFast==='function')store.setHydrationFast('ready');
+          else store.setHydration('ready');
+        }else{
+          if(typeof store.setHydrationFast==='function')store.setHydrationFast('error',error);
+          else store.setHydration('error',error);
+        }
       }
       throw error;
     }

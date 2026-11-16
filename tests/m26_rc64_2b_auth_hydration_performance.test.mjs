@@ -88,6 +88,6 @@ test('RC64.2B coach state keeps defensive collection isolation without a redunda
 test('RC64.2B first hydration skips full-state JSON equality work but rehydration retains dedupe guard',()=>{
   const store=read('src/m26/canonical-store.js');
   assert.match(store,/const initialHydration=!state\?\.identity\|\|state\?\.hydration\?\.status!=='ready';/u);
-  assert.match(store,/if\(!initialHydration&&sameJson\(next,state\)\)return getState\(\);/u);
+  assert.match(store,/if\(!initialHydration&&sameJson\(next,state\)\)return returnSnapshot\?getState\(\):false;/u);
   assert.match(store,/function sameJson\(a,b\)/u);
 });

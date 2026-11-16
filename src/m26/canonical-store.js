@@ -164,26 +164,34 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return true;
   }
 
-  function setHydration(status, error = null) {
-    const nextError=errorText(error);const current=state.hydration||{};
-    const hasAuthenticatedSnapshot=Boolean(state.identity)&&current.status==='ready';
-    const keepAuthenticated=hasAuthenticatedSnapshot&&(status==='loading'||(status==='error'&&!authorizationFailure(error)));
-    const nextStatus=keepAuthenticated?'ready':status;
-    const nextRefreshing=hasAuthenticatedSnapshot&&status==='loading';
+  // Fast callers discard the returned snapshot; preserve the public contract
+  // and all notifications while avoiding a second Coach archive clone.
+  function commitHydrationStatus(status,error,returnSnapshot){
+    const nextError=errorText(error),current=state.hydration||{};
+    const verified=Boolean(state.identity)&&current.status==='ready';
+    const keep=verified&&(status==='loading'||(status==='error'&&!authorizationFailure(error)));
+    const nextStatus=keep?'ready':status;
+    const refreshing=verified&&status==='loading';
     const visibleError=status==='loading'?null:nextError;
-    if(current.status===nextStatus&&current.error===visibleError&&Boolean(current.refreshing)===nextRefreshing)return getState();
-    state = { ...state, hydration: { ...current, status: nextStatus, error: visibleError, refreshing: nextRefreshing } };
-    emit();return getState();
-  }
-
-  function hydrate(snapshot) {
-    const next=stateFromBootstrap(snapshot, state);
-    const initialHydration=!state?.identity||state?.hydration?.status!=='ready';
-    if(!initialHydration&&sameJson(next,state))return getState();
-    state = next;
+    if(current.status===nextStatus&&current.error===visibleError&&Boolean(current.refreshing)===refreshing)
+      return returnSnapshot?getState():false;
+    state={...state,hydration:{...current,status:nextStatus,error:visibleError,refreshing}};
     emit();
-    return getState();
+    return returnSnapshot?getState():true;
   }
+  function setHydration(status,error=null){return commitHydrationStatus(status,error,true);}
+  function setHydrationFast(status,error=null){return commitHydrationStatus(status,error,false);}
+
+  function commitHydrate(snapshot,returnSnapshot){
+    const next=stateFromBootstrap(snapshot,state);
+    const initialHydration=!state?.identity||state?.hydration?.status!=='ready';
+    if(!initialHydration&&sameJson(next,state))return returnSnapshot?getState():false;
+    state=next;
+    emit();
+    return returnSnapshot?getState():true;
+  }
+  function hydrate(snapshot){return commitHydrate(snapshot,true);}
+  function hydrateFast(snapshot){return commitHydrate(snapshot,false);}
 
   // Stage a complete, server-owner-verified archive atomically. No partially
   // received page may update the Client UI or overwrite an active draft/ACK.
@@ -266,5 +274,5 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return ()=>selectionListeners.delete(listener);
   }
 
-  return Object.freeze({ getState, getRenderSnapshot, getNavigationSnapshot, getSessionActorSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection, getOnboardingAccessSnapshot, getCoachLaunchJourney });
+  return Object.freeze({ setHydrationFast, hydrateFast, getState, getRenderSnapshot, getNavigationSnapshot, getSessionActorSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection, getOnboardingAccessSnapshot, getCoachLaunchJourney });
 }
