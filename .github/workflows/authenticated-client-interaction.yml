@@ -20,6 +20,8 @@ on:
       - 'playwright.u60-dated-readonly.config.mjs'
       - 'tests/m26_m1_u60_qa_readonly_network_boundary.test.mjs'
       - 'qa/rc64/secure-current-source-auth.mjs'
+      # Database-only QA bootstrap changes also require live Client auth certification.
+      - 'supabase/qa-migrations/**'
       - 'qa/rc64/build-authenticated-surface.mjs'
       - 'qa/rc64/real-shell-server.mjs'
       - 'playwright.authenticated-interaction.config.mjs'
@@ -42,6 +44,8 @@ on:
       - 'playwright.u60-dated-readonly.config.mjs'
       - 'tests/m26_m1_u60_qa_readonly_network_boundary.test.mjs'
       - 'qa/rc64/secure-current-source-auth.mjs'
+      # Database-only QA bootstrap changes also require live Client auth certification.
+      - 'supabase/qa-migrations/**'
       - 'qa/rc64/build-authenticated-surface.mjs'
       - 'qa/rc64/real-shell-server.mjs'
       - 'playwright.authenticated-interaction.config.mjs'
