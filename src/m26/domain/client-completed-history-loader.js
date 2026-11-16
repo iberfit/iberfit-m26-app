@@ -28,7 +28,7 @@ export function createClientCompletedHistoryLoader({
       fail('OWNER_REQUIRED');
     if(!Array.isArray(sections)||!sections.length||sections.length>2
        ||new Set(sections).size!==sections.length||sections.some(s=>!SECTIONS.has(s))
-       ||!Number.isInteger(limit)||limit<1||limit>32)
+       ||!Number.isInteger(limit)||limit<1||limit>64)
       fail('ARGUMENTS_INVALID');
     assertCurrent(owner,clientId,signal);
     const key=sections.join('|')+':'+limit;

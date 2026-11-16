@@ -4,7 +4,7 @@ const SCHEMA='iberfit.client.completed-history.page.qa.v1';
 const TYPES=new Set(['session','session_execution']);
 const COMPLETED=new Set(['completado','completada','completed']);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-const MAX_ITEMS=32,MAX_BYTES=300_000,MAX_TOTAL=100_000;
+const MAX_ITEMS=64,MAX_BYTES=300_000,MAX_TOTAL=100_000;
 function fail(code){throw new Error('M26_CLIENT_HISTORY_'+code);}
 function validDate(s){return typeof s==='string'&&s.length<=50&&Number.isFinite(Date.parse(s));}
 function micros(s){

@@ -1,3 +1,9 @@
+## SUPABASE FREE 360 · QA page64 · candidato 16/11/2026 (NO PROD)
+- Base Canary: d5294d338f24da1eeeda8ede129ac9170ba9c1f7. Única rama/PR sobre #1209.
+- QA read-only synthetic Client A: 699 sesiones + 716 ejecuciones; 32 filas => 45 páginas (22+23), 64 filas => 23 páginas (11+12). Mayor lote saneado de 64: 214982 bytes sesión, 79633 ejecución (<300000 por página).
+- Alcance: solamente historial Client A QA en demanda; tres funciones SQL encadenadas (lector, rc29, bootstrap) con hashes, owner y ACL exactos, rollback; sin datos/roles/permiso nuevo, Auth, RLS, Storage, PROD o #1319.
+- Estado a la creación: código candidato, SQL NO aplicado, CI y pruebas reales pendientes. Esta proyección no es GB facturados ni reducción certificada, y #1209 sigue abierto.
+
 ## REAL TRAINING 360 · P0 CORRECCIÓN DE GATE PROD · 15/11/2026
 
 - Baseline protegido `e081c4cc0bb029e1694d6dd81dae69895158b179`. Los runs postmerge [#43730961140](https://github.com/iberfit/iberfit-m26-app/actions/runs/43730961140) y [#43731651999](https://github.com/iberfit/iberfit-m26-app/actions/runs/43731651999) acabaron `HTTP_400` en el inspector automatizado. **No se ejecutaron migraciones, grants, escrituras ni deploys PROD.**

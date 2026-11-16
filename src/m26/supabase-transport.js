@@ -1092,7 +1092,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
        ].includes(key)))
       throw new Error('M26_FREE_HISTORY_ARGUMENTS_INVALID');
     if(!['session','session_execution'].includes(params.p_section)
-       ||!Number.isInteger(params.p_limit)||params.p_limit<1||params.p_limit>32
+       ||!Number.isInteger(params.p_limit)||params.p_limit<1||params.p_limit>64
        ||(params.p_cursor!==null&&params.p_cursor!==undefined
          &&(!params.p_cursor||typeof params.p_cursor!=='object'||Array.isArray(params.p_cursor))))
       throw new Error('M26_FREE_HISTORY_ARGUMENTS_INVALID');
