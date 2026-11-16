@@ -43,5 +43,6 @@ test('release identity audit preserves mandatory checks and CRITICAL persistent 
   assert.match(source,/addFinding\('critical','LIVE_READ_FAILED'/u);
   assert.match(source,/if\(!versionResult\?\.response\?\.ok\|\|!swResult\?\.response\?\.ok\)return/u);
   assert.match(source,/LIVE_VERSION_JSON_INVALID/u);
+  assert.match(source,/LIVE_READ_HTTP_REJECTED/u);
   assert.doesNotMatch(source,/ignoreNetworkError|skipLiveIdentity|trustVersionWithoutLiveRead/u);
 });

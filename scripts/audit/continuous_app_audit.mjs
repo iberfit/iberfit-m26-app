@@ -331,9 +331,15 @@ async function fetchAuditUrl(url,label){
     }
   };
   try{
-    return await readOnlyPublicProbeWithRetry(readOnce,{
+    const result=await readOnlyPublicProbeWithRetry(readOnce,{
       delay:()=>new Promise(resolve=>setTimeout(resolve,250)),
     });
+    if(!result?.response?.ok){
+      const status=Number(result?.response?.status)||0;
+      addFinding('critical','LIVE_READ_HTTP_REJECTED','Respuesta HTTP '+status+' al leer '+label+'.',{url,status});
+      return null;
+    }
+    return result;
   }catch(error){
     addFinding('critical','LIVE_READ_FAILED','No se pudo leer '+label+': '+(error?.message||String(error))+'.',{url});
     return null;
