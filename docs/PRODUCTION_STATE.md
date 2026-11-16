@@ -1,3 +1,9 @@
+## SUPABASE FREE 360 · QA role JWT resilience · 16/11/2026 (PR #1354)
+- Real QA gate M42 avatar cross-owner hit PGRST303/401 in the read-only \`iberfit_current_role_v26\` call immediately after synthetic Auth login (run 43921150424), while authenticated-client, isolated-write and Connected360 checks passed. This is an independently observed failure, not proof of future-iat until payload class is validated.
+- The candidate adds up to three delays (350/800/1300 ms) **only** for exactly \`PGRST303\` + message \`JWT issued at future\` + status 401 and only for the two known non-mutating RPCs \`iberfit_bootstrap_v26\` and \`iberfit_current_role_v26\`; uses identical JWT, never retries arbitrary 401/403, writes, expired/revoked JWT, or changes a negative RLS result. The original test remains mandatory; a persistent error fails closed.
+- Dedicated unit tests cover recovered/skew exhausted/expired/forbidden/other RPC and same bearer. No PROD changes, Auth/RLS/Storage/GRANT or personal data touched.
+- Still PENDING new exact SHA complete CI, M42 real QA pass, device and deployment; #1209 open.
+
 ## SUPABASE FREE 360 · QA page64 · candidato 16/11/2026 (NO PROD)
 - Base Canary: d5294d338f24da1eeeda8ede129ac9170ba9c1f7. Única rama/PR sobre #1209.
 - QA read-only synthetic Client A: 699 sesiones + 716 ejecuciones; 32 filas => 45 páginas (22+23), 64 filas => 23 páginas (11+12). Mayor lote saneado de 64: 214982 bytes sesión, 79633 ejecución (<300000 por página).
