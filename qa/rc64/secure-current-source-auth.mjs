@@ -383,23 +383,42 @@ export function createQaPublicRpcMemo({now=()=>Date.now(),sharedCacheRoot}={}){
     let work=pending.get(key);
     if(!work){
       work=(async()=>{
-        networkReads++;
-        // No redirects, no privilege: fetch the ACTUAL QA public RPC once.
-        const response=await route.fetch({maxRedirects:0,maxRetries:0});
-        const status=response.status(),body=await response.body();
-        const headers={
-          'content-type':String(response.headers()['content-type']||'application/json'),
-          'access-control-allow-origin':'*',
-          'x-content-type-options':'nosniff',
-        };
-        if(status===200&&validQaPublicRpcBody(url,body)){
+        const sharedHeaders={'content-type':'application/json; charset=utf-8',
+          'access-control-allow-origin':'*','x-content-type-options':'nosniff'};
+        // Only an already-validated anonymous public request enters this path.
+        const resolved=await shared.coalesce(key,{
+          readCached:async()=>{
+            const copy=await shared.read(key);
+            if(!copy||!validQaPublicRpcBody(url,copy.body))return null;
+            return {status:200,body:copy.body,headers:sharedHeaders,createdAt:copy.createdAt};
+          },
+          fetchLive:async()=>{
+            networkReads++;
+            // No redirects, no privilege: fetch the ACTUAL QA public RPC.
+            const response=await route.fetch({maxRedirects:0,maxRetries:0});
+            const status=response.status(),body=await response.body();
+            const headers={
+              'content-type':String(response.headers()['content-type']||'application/json'),
+              'access-control-allow-origin':'*',
+              'x-content-type-options':'nosniff',
+            };
+            if(status===200&&validQaPublicRpcBody(url,body)){
+              if(cache.size>=QA_PUBLIC_MAX_ENTRIES)cache.delete(cache.keys().next().value);
+              cache.set(key,{createdAt:now(),body,headers});
+              // Failure to write the ephemeral public file never masks QA.
+              await shared.write(key,body);
+            }
+            return {status,body,headers};
+          },
+        });
+        if(resolved.source==='shared'){
+          const {createdAt,status,body,headers}=resolved.result;
           if(cache.size>=QA_PUBLIC_MAX_ENTRIES)cache.delete(cache.keys().next().value);
-          cache.set(key,{createdAt:now(),body,headers});
-          // Fail-open for caching only: the live backend response remains
-          // authoritative even if the ephemeral public cache cannot be written.
-          await shared.write(key,body);
+          cache.set(key,{createdAt,body,headers});
+          cacheHits++;sharedHits++;
+          return {status,body,headers};
         }
-        return {status,body,headers};
+        return resolved.result;
       })().finally(()=>pending.delete(key));
       pending.set(key,work);
     }else cacheHits++;

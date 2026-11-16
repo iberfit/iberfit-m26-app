@@ -59,5 +59,48 @@ export function createQaPublicRpcRunCache({
     }catch{return false;}
     finally{if(temp)await fs.rm(temp,{force:true}).catch(()=>{});}
   }
-  return Object.freeze({read,write,enabled:Boolean(folder)});
+  // The only caller is the allowlisted, anonymous QA public-RPC memo.
+  // A per-run/SHA file lease avoids simultaneous first reads by Playwright
+  // workers. Never serialize JWT, private response bodies or identifiers.
+  // If the writer crashes or the filesystem is unavailable, fall back to the
+  // real backend within a small deadline: no fabricated success.
+  async function coalesce(key,{readCached,fetchLive,waitMs=250,pollMs=25}={}){
+    if(typeof readCached!=='function'||typeof fetchLive!=='function')
+      throw new Error('M26_QA_PUBLIC_LEASE_CALLBACK_INVALID');
+    const cached=async()=>{try{return await readCached();}catch{return null;}};
+    const network=async()=>({source:'live',result:await fetchLive()});
+    if(!folder)return network();
+    const lease=path.join(folder,hex(key)+'.lease');
+    try{await fs.mkdir(folder,{recursive:true,mode:0o700});}
+    catch{return network();}
+    let handle;
+    try{handle=await fs.open(lease,'wx',0o600);}
+    catch(error){
+      if(error?.code!=='EEXIST')return network();
+      const deadline=Date.now()+Math.max(0,Math.min(500,Number(waitMs)||0));
+      do{
+        const item=await cached();
+        if(item)return {source:'shared',result:item};
+        try{await fs.stat(lease);}catch{
+          const last=await cached();
+          if(last)return {source:'shared',result:last};
+          break;
+        }
+        const remaining=deadline-Date.now();
+        if(remaining<=0)break;
+        await new Promise(resolve=>setTimeout(resolve,
+          Math.min(remaining,Math.max(10,Math.min(100,Number(pollMs)||25)))));
+      }while(Date.now()<deadline);
+      return network();
+    }
+    try{
+      const item=await cached();
+      if(item)return {source:'shared',result:item};
+      return await network();
+    }finally{
+      await handle.close().catch(()=>{});
+      await fs.rm(lease,{force:true}).catch(()=>{});
+    }
+  }
+  return Object.freeze({read,write,coalesce,enabled:Boolean(folder)});
 }
