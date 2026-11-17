@@ -1,4 +1,4 @@
-// M42 synthetic QA-only: bounded repeat of TWO read-only endpoints.
+// M42 synthetic QA-only: bounded repeat of THREE explicitly allowlisted read-only endpoints.
 // Protects against clock skew immediately after Auth issues a new JWT.
 // Never refreshes or swaps token, never retries arbitrary 401/403 or any write.
 import {isFutureIssuedJwtClockSkew} from '../../src/m26/supabase-transport.js';
