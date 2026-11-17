@@ -9,16 +9,23 @@ const REQUIRED=new Set([
 ]);
 const WORKFLOW='IBERFIT QA Real Write Certification';
 export function priorQaRunCanSubstitute(run,jobs,{sha,branch,currentId}={}){
+ // A previous run is reusable ONLY after *all five* real-write jobs actually
+ // completed successfully on the exact same PR head. Partial success and
+ // in-progress runs can still fail/cancel: never turn them into certification.
  if(!run||!Array.isArray(jobs)||run.name!==WORKFLOW||
     run.event!=='pull_request'||run.head_sha!==sha||
     run.head_branch!==branch||!Number.isSafeInteger(Number(run.id))||
-    Number(run.id)>=Number(currentId))return false;
- if(run.status==='completed'&&run.conclusion!=='success')return false;
- if(!['completed','in_progress','queued','pending'].includes(run.status))return false;
- const real=jobs.filter(j=>REQUIRED.has(j?.name));
- if(run.status==='completed')return real.some(j=>j.conclusion==='success');
- return real.some(j=>['queued','pending','in_progress'].includes(j.status)||
-   j.conclusion==='success');
+    Number(run.id)>=Number(currentId)||
+    run.status!=='completed'||run.conclusion!=='success')return false;
+ const verified=new Set();
+ for(const job of jobs){
+   if(!REQUIRED.has(job?.name))continue;
+   // Duplicate jobs or rerun attempts make the API evidence ambiguous.
+   if(verified.has(job.name)||job.status!=='completed'||job.conclusion!=='success')
+     return false;
+   verified.add(job.name);
+ }
+ return verified.size===REQUIRED.size;
 }
 export async function qaSameHeadDedupe({repository,sha,branch,runId,token,
  apiBase='https://api.github.com/',fetchImpl=globalThis.fetch}={}){
@@ -46,7 +53,7 @@ export async function qaSameHeadDedupe({repository,sha,branch,runId,token,
  const prior=list.workflow_runs.filter(x=>x.name===WORKFLOW&&
    x.event==='pull_request'&&x.head_sha===sha&&x.head_branch===branch&&
    Number(x.id)<Number(runId)&&
-   (x.status!=='completed'||x.conclusion==='success'))
+   x.status==='completed'&&x.conclusion==='success')
    .sort((a,b)=>Number(a.id)-Number(b.id));
  for(const run of prior){
    const response=await fetchJson('/repos/'+repository+'/actions/runs/'+run.id+'/jobs?per_page=100');

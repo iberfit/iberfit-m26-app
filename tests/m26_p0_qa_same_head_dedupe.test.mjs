@@ -1,43 +1,71 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {qaSameHeadDedupe,priorQaRunCanSubstitute} from '../scripts/ops/qa_same_head_run_dedupe.mjs';
+
 const sha='a'.repeat(40),branch='perf/free',repo='iberfit/iberfit-m26-app';
+const REQUIRED=[
+ 'write-persist-idempotency-isolation','M42 private Client avatar real RLS',
+ 'connected360-v45-authenticated-synthetic-write',
+ 'M43 real Coach-Client QA E2E','M43 real Client browser current-source',
+];
 const run=(id,extra={})=>({id,name:'IBERFIT QA Real Write Certification',
  event:'pull_request',head_sha:sha,head_branch:branch,
  status:'completed',conclusion:'success',...extra});
-const job=(status,conclusion)=>[{name:'write-persist-idempotency-isolation',status,conclusion}];
-const fake=(runs,jobs)=>async url=>{
+const jobs=()=>REQUIRED.map(name=>({name,status:'completed',conclusion:'success'}));
+const fake=(runs,byRun)=>async url=>{
  const u=new URL(url),id=Number(u.pathname.match(/\/runs\/(\d+)\/jobs$/u)?.[1]);
- const data=Number.isInteger(id)?{total_count:(jobs[id]||[]).length,jobs:jobs[id]||[]}
+ const data=Number.isInteger(id)?{total_count:(byRun[id]||[]).length,jobs:byRun[id]||[]}
  :{total_count:runs.length,workflow_runs:runs};
  return {ok:true,status:200,json:async()=>data};
 };
 const args=fetchImpl=>({repository:repo,sha,branch,runId:'200',
  token:'synthetic-test-token',fetchImpl});
-test('same SHA and earlier real QA evidence can replace duplicate',async()=>{
- const result=await qaSameHeadDedupe(args(fake([run(100)],{100:job('completed','success')})));
- assert.deepEqual(result,{skip:true,priorRunId:100});
+
+test('only five complete successful real QA jobs on the identical head replace a duplicate',async()=>{
+ assert.deepEqual(
+  await qaSameHeadDedupe(args(fake([run(100)],{100:jobs()}))),
+  {skip:true,priorRunId:100});
 });
-test('draft, failed, other SHA and other branch never suppress fresh QA',async()=>{
+
+test('never reuse a partially green, skipped, duplicated or running QA certification',async()=>{
+ const all=jobs();
  const cases=[
- {old:run(100),jobs:job('completed','skipped')},
- {old:run(100,{conclusion:'failure'}),jobs:job('completed','success')},
- {old:run(100,{head_sha:'b'.repeat(40)}),jobs:job('completed','success')},
- {old:run(100,{head_branch:'other'}),jobs:job('completed','success')},
- {old:run(250),jobs:job('completed','success')},
+  all.slice(0,1),
+  all.slice(0,4),
+  all.map((j,i)=>i===4?{...j,conclusion:'skipped'}:j),
+  all.map((j,i)=>i===1?{...j,status:'in_progress',conclusion:null}:j),
+  all.map((j,i)=>i===2?{...j,conclusion:'failure'}:j),
+  [...all,all[0]],
  ];
- for(const c of cases){
-  const result=await qaSameHeadDedupe(args(fake([c.old],{[c.old.id]:c.jobs})));
-  assert.equal(result.skip,false);
+ for(const evidence of cases){
+  assert.equal(priorQaRunCanSubstitute(run(100),evidence,{sha,branch,currentId:200}),false);
+  assert.deepEqual(
+   await qaSameHeadDedupe(args(fake([run(100)],{100:evidence}))),
+   {skip:false,priorRunId:null});
+ }
+ const active=run(100,{status:'in_progress',conclusion:null});
+ assert.equal(priorQaRunCanSubstitute(active,all,{sha,branch,currentId:200}),false);
+ assert.deepEqual(
+  await qaSameHeadDedupe(args(fake([active],{100:all}))),
+  {skip:false,priorRunId:null});
+});
+
+test('other SHA, branch, run order, failed run and wrong event cannot suppress QA',async()=>{
+ const cases=[
+  run(100,{conclusion:'failure'}),
+  run(100,{head_sha:'b'.repeat(40)}),
+  run(100,{head_branch:'other'}),
+  run(250),
+  run(100,{event:'push'}),
+  run(100,{status:'queued',conclusion:null}),
+  run(100,{status:'completed',conclusion:'cancelled'}),
+ ];
+ for(const old of cases){
+  const result=await qaSameHeadDedupe(args(fake([old],{[old.id]:jobs()})));
+  assert.deepEqual(result,{skip:false,priorRunId:null});
  }
 });
-test('in-progress established QA replaces duplicate, but preflight alone does not',()=>{
- assert.equal(priorQaRunCanSubstitute(run(100,{status:'in_progress',conclusion:null}),
-  job('queued',null),{sha,branch,currentId:200}),true);
- assert.equal(priorQaRunCanSubstitute(run(100,{status:'in_progress',conclusion:null}),
-  [{name:'P0 Supabase Free - reject superseded PR before QA',status:'in_progress'}],
-  {sha,branch,currentId:200}),false);
-});
+
 test('GitHub outages/uncertainty fail closed; cannot silently bypass certification',async()=>{
  await assert.rejects(qaSameHeadDedupe({...args(fake([],{})),apiBase:'https://wrong.site/'}),/ENDPOINT_INVALID/);
  await assert.rejects(qaSameHeadDedupe({...args(fake([],{})),sha:'invalid'}),/ARGS_INVALID/);
@@ -45,7 +73,8 @@ test('GitHub outages/uncertainty fail closed; cannot silently bypass certificati
  await assert.rejects(qaSameHeadDedupe(args(fake(Array.from({length:101},(_,i)=>run(i+1)),{}))),
   /RUN_LIST_UNVERIFIED/);
 });
-test('all remote write workflows remain required for unique candidate and push',async()=>{
+
+test('all five authenticated QA jobs remain required on PR and Canary push',async()=>{
  const {readFileSync}=await import('node:fs');
  const src=readFileSync(new URL('../.github/workflows/qa-real-write-cert.yml',import.meta.url),'utf8');
  assert.match(src,/steps\.dedupe\.outputs\.run != 'false'/u);
