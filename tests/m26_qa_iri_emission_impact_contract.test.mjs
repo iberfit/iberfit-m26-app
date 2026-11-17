@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {shouldCertifyIriReport,detectIriImpact,IRI_CERTIFICATION_PATHS} from '../scripts/remote-gates/qa_iri_emission_impact_gate.mjs';
+import {shouldCertifyIriReport,detectIriImpact,IRI_CERTIFICATION_PATHS,iriWorkflowFingerprint} from '../scripts/remote-gates/qa_iri_emission_impact_gate.mjs';
 const w=readFileSync('.github/workflows/qa-real-write-cert.yml','utf8');
 const job=w.split('  qa-real-write:')[1]?.split('  m43-real-coach-client-qa:')[0]||'';
 const impact=job.split('      - name: Determine whether immutable QA IRI PDF emission needs recertification')[1]?.split('      - name: Deploy exact QA IRI report brokers')[0]||'';
@@ -29,6 +29,10 @@ test('Unrelated QA writes preserve QA real write without generating redundant PD
  assert.equal(shouldCertifyIriReport(['docs/NOTICE.md','src/m26/command-bus.js']),false);
  assert.equal(shouldCertifyIriReport(['src/m26/command-bus.js','supabase/migrations/new.sql']),true);
  assert.ok(IRI_CERTIFICATION_PATHS.length>=12);
+ // Changes to the impact classifier itself are tested locally, but they do
+ // not redeploy unchanged PDF broker code on every CI update.
+ assert.equal(shouldCertifyIriReport(['scripts/remote-gates/qa_iri_emission_impact_gate.mjs']),false);
+ assert.equal(shouldCertifyIriReport(['tests/m26_qa_iri_emission_impact_contract.test.mjs']),false);
 });
 test('Unknown environment or failed git diff forces a real IRI certification',()=>{
  assert.equal(detectIriImpact({env:{QA_IRI_EVENT_NAME:'pull_request',QA_IRI_BASE_SHA:'bad',GITHUB_SHA:'bad'},git:()=>{throw Error('unexpected');}}).run,true);
@@ -66,4 +70,34 @@ test('QA write/persist gate unconditionally runs, but report emission has exactl
  assert.match(job,/name: Preserve minimised write evidence\s*\n\s*if: always\(\)/u);
  assert.match(job,/environment: m26-canary-readonly/u);
  assert.match(job,/group: iberfit-qa-shared-auth-readonly/u);
+});
+
+test('Unchanged IRI workflow steps do not redeploy unchanged PDF broker on CI-only workflow change',()=>{
+  const base='1'.repeat(40),head='2'.repeat(40),env={QA_IRI_EVENT_NAME:'push',QA_IRI_BASE_SHA:base,GITHUB_SHA:head};
+  const old=w;
+  const changed=w.replace("  # Separate pending certifications by PR:", "  # Bound unrelated CI work without altering IRI steps:");
+  assert.ok(iriWorkflowFingerprint(old));
+  assert.equal(iriWorkflowFingerprint(old),iriWorkflowFingerprint(changed));
+  const git=(_command,args)=>{
+    if(args[0]==='diff')return Buffer.from('.github/workflows/qa-real-write-cert.yml\0');
+    if(args[0]==='show')return Buffer.from(args[1].startsWith(base+':')?old:changed);
+    return Buffer.alloc(0);
+  };
+  const outcome=detectIriImpact({env,git});
+  assert.equal(outcome.run,false);
+  assert.equal(outcome.reason,'unrelated-workflow-change');
+});
+test('Any change to PDF broker deployment step or missing step forces certification',()=>{
+  const base='1'.repeat(40),head='2'.repeat(40),env={QA_IRI_EVENT_NAME:'push',QA_IRI_BASE_SHA:base,GITHUB_SHA:head};
+  const affected=w.replace("Deploy exact QA IRI report brokers", "Deploy exact QA IRI report brokers");
+  const modified=w.replace("--no-verify-jwt", "--verify-jwt");
+  assert.notEqual(iriWorkflowFingerprint(w),iriWorkflowFingerprint(modified));
+  const outcome=detectIriImpact({env,git:(_command,args)=>{
+    if(args[0]==='diff')return Buffer.from('.github/workflows/qa-real-write-cert.yml\0');
+    if(args[0]==='show')return Buffer.from(args[1].startsWith(base+':')?w:modified);
+    return Buffer.alloc(0);
+  }});
+  assert.equal(outcome.run,true);
+  assert.equal(outcome.reason,'iri-workflow-changed');
+  assert.equal(iriWorkflowFingerprint('bad'),null);
 });

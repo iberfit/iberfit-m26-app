@@ -43,6 +43,18 @@ function preferencePayloadFromRoot(root){
   }
   return Object.keys(out).length?Object.freeze(out):null;
 }
+// Check DOM visibility before loading account-scoped server consent.
+function hasVisibleNotificationPreferenceControl(root){
+  const controls=root?.querySelectorAll?.('[data-m26-preference^="notifications."]')||[];
+  for(const control of controls){
+    if(control?.type!=='checkbox')continue;
+    if(typeof control.getClientRects==='function'&&!control.getClientRects().length)continue;
+    const style=root?.ownerDocument?.defaultView?.getComputedStyle?.(control);
+    if(style?.visibility==='hidden'||style?.visibility==='collapse')continue;
+    return true;
+  }
+  return false;
+}
 function mergePreferencePayload(left,right){
   const merged={...(left||{}),...(right||{})};
   return Object.keys(merged).length?Object.freeze(merged):null;
@@ -189,6 +201,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let pushStatusInFlight=null;
   let lastPushSyncAt=0;
   let lastPushControl=null;
+  let lastPushState=null;
   let preferenceSyncInFlight=null;
   let preferenceHydrationInFlight=null;
   let queuedPreferencePayload=null;
@@ -362,14 +375,21 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     if(!control)return false;
     const now=Date.now();
     if(control!==lastPushControl){
-      // Shell replaced the element while a remote status call was in flight.
-      // No stale response may paint the old control, or suppress a new query.
+      // Fence the replaced DOM. Restore a recent status only for this actor.
+      // Explicit actions, reconnect and account switches always revalidate.
       pushStatusGeneration+=1;
       pushStatusInFlight=null;
       lastPushControl=control;
+      if(!force&&lastPushState&&now-lastPushSyncAt<30_000){
+        applyPushState(control,lastPushState);
+        return true;
+      }
       force=true;
     }
-    if(!force&&now-lastPushSyncAt<30_000)return true;
+    if(!force&&lastPushState&&now-lastPushSyncAt<30_000){
+      applyPushState(control,lastPushState);
+      return true;
+    }
     if(pushStatusInFlight)return pushStatusInFlight;
     const requestGeneration=pushStatusGeneration;
     const requestLifecycle=lifecycleGeneration;
@@ -382,6 +402,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
         const state=await service.webPush.status();
         if(!isCurrent())return false;
         lastPushSyncAt=Date.now();
+        lastPushState=state;
         applyPushState(control,state);
         return true;
       }catch(error){
@@ -453,6 +474,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   }
   async function hydrateNotificationPreferences({force=false}={}){
     if(!mounted||!service?.notificationPreferences?.status)return false;
+    if(!hasVisibleNotificationPreferenceControl(root))return false;
+    if(!force&&lastPreferenceSyncAt>0&&Date.now()-lastPreferenceSyncAt<60_000)return true;
     // Never start parallel preference reads for the same session. Role/identity
     // transitions explicitly invalidate the old in-flight request.
     if(preferenceSyncInFlight||queuedPreferencePayload||retryPreferencePayload)return false;
@@ -488,24 +511,28 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     pushBusy=true;
     const lifecycle=lifecycleGeneration;
     button.disabled=true;
+    let statusConfirmed=false;
     try{
       if(action==='enable')await service.webPush.enable();
       else await service.webPush.disableCurrent();
       if(!mounted||lifecycle!==lifecycleGeneration)return false;
       toast(action==='enable'?'Avisos activados en este dispositivo.':'Avisos desactivados en este dispositivo.');
       lastPushSyncAt=0;
-      await syncPushControl({force:true});
+      statusConfirmed=await syncPushControl({force:true});
       return true;
     }catch(error){
       if(!mounted||lifecycle!==lifecycleGeneration)return false;
       toast(pushErrorMessage(error));
-      await syncPushControl({force:true});
+      statusConfirmed=await syncPushControl({force:true});
       return false;
     }finally{
       if(mounted&&lifecycle===lifecycleGeneration){
         pushBusy=false;
         const control=root.querySelector?.('[data-m26-web-push-control]');
-        if(control)void syncPushControl({force:true});
+        if(control){
+          if(statusConfirmed&&lastPushState)applyPushState(control,lastPushState);
+          else void syncPushControl({force:true});
+        }
       }
     }
   }
@@ -665,6 +692,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       pushBusy=false;
       lastPushControl=null;
       lastPushSyncAt=0;
+      lastPushState=null;
       pendingMessageDrafts.clear();
       messageEditRevisions.clear();
       messageRetryFence.clear();
@@ -682,7 +710,12 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       restoreMessageDrafts(root,pendingMessageDrafts);
       applyInboxFilter();
     }
-    queueMicrotask(()=>{void syncPushControl();});
+    const lifecycle=lifecycleGeneration;
+    queueMicrotask(()=>{
+      if(!mounted||lifecycle!==lifecycleGeneration)return;
+      void hydrateNotificationPreferences();
+      void syncPushControl();
+    });
   }
   function onOnline(){
     if(!mounted)return;
@@ -729,6 +762,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       root.removeEventListener('m26:shell-rendered',onShellRendered);
       windowLike?.removeEventListener?.('online',onOnline);
       lastPushControl=null;
+      lastPushState=null;
+      lastPushSyncAt=0;
       pushStatusInFlight=null;
       pushBusy=false;
       preferenceSyncInFlight=null;
