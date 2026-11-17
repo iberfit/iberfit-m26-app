@@ -6,6 +6,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {profileAvatarPath,AVATAR_BUCKET} from '../../src/m26/profile/client-avatar.js';
 import {qaM42ReadOnlyRpcWithFutureIatRetry} from './qa_m42_readonly_future_iat_retry.mjs';
+import {readQaClientIdentity} from './qa_client_identity_rpc.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu',BASE='https://'+REF+'.supabase.co';
 const NAMES=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -85,12 +86,19 @@ async function main(){
   login(process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD),
   login(process.env.M26_QA_CLIENT_A_EMAIL,process.env.M26_QA_CLIENT_A_PASSWORD),
   login(process.env.M26_QA_CLIENT_B_EMAIL,process.env.M26_QA_CLIENT_B_PASSWORD)]);
+ const readIdentity=(session,label)=>readQaClientIdentity({
+  label,
+  readRole:()=>rpc('iberfit_current_role_v26',session),
+  readClientId:()=>rpc('iberfit_client_id',session),
+ });
  const [env,ca,cb,role]=await Promise.all([
-  rpc('iberfit_environment',a),rpc('iberfit_bootstrap_v26',a),
-  rpc('iberfit_bootstrap_v26',b),rpc('iberfit_current_role_v26',coach)]);
+  rpc('iberfit_environment',a),
+  readIdentity(a,'M42_QA_CLIENT_A'),
+  readIdentity(b,'M42_QA_CLIENT_B'),
+  rpc('iberfit_current_role_v26',coach)]);
  check(env?.environment==='QA'&&env.productionBlocked===true&&env.realDataAllowed===false,'QA_NOT_PRODUCTION');
- check(role==='coach'&&['client','cliente'].includes(String(ca?.user?.role||'').toLowerCase()),'ACTOR_ROLE');
- const idA=String(ca?.user?.clientId||''),idB=String(cb?.user?.clientId||'');
+ check(role==='coach'&&['client','cliente'].includes(ca.role)&&['client','cliente'].includes(cb.role),'ACTOR_ROLE');
+ const idA=ca.clientId,idB=cb.clientId;
  check(/^[a-f0-9-]{36}$/iu.test(idA)&&/^[a-f0-9-]{36}$/iu.test(idB)&&idA!==idB,'TWO_CLIENTS');
  check(await rpc('iberfit_can_manage_iri_private_v1',coach,{p_client_id:idA})===true,'COACH_ASSIGNED');
  const before=await send(privateUrl(idA),{token:a,readBytes:true});

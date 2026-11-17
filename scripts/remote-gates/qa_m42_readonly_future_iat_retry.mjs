@@ -1,9 +1,9 @@
-// M42 synthetic QA-only: bounded repeat of TWO read-only endpoints.
+// M42 synthetic QA-only: bounded repeat of THREE explicitly allowlisted read-only endpoints.
 // Protects against clock skew immediately after Auth issues a new JWT.
 // Never refreshes or swaps token, never retries arbitrary 401/403 or any write.
 import {isFutureIssuedJwtClockSkew} from '../../src/m26/supabase-transport.js';
 
-const QA_CLOCK_SKEW_READS=new Set(['iberfit_bootstrap_v26','iberfit_current_role_v26']);
+const QA_CLOCK_SKEW_READS=new Set(['iberfit_bootstrap_v26','iberfit_current_role_v26','iberfit_client_id']);
 const RETRY_DELAYS=Object.freeze([350,800,1300]);
 export async function qaM42ReadOnlyRpcWithFutureIatRetry({
   name,token,json={},send,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),

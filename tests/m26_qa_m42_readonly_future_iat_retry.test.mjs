@@ -13,8 +13,8 @@ function capture(outputs){
   };
   return {calls,delays,send,sleep:async ms=>{delays.push(ms)}};
 }
-test('M42 profile role and bootstrap retry ONLY typed future-iat using identical JWT',async()=>{
- for(const name of ['iberfit_current_role_v26','iberfit_bootstrap_v26']){
+test('M42 profile role, thin client identity and bootstrap retry ONLY typed future-iat using identical JWT',async()=>{
+ for(const name of ['iberfit_current_role_v26','iberfit_client_id','iberfit_bootstrap_v26']){
   const t=capture([future,valid]);
   const result=await qaM42ReadOnlyRpcWithFutureIatRetry({name,token:'synthetic-jwt',send:t.send,sleep:t.sleep});
   assert.equal(result.status,200);
