@@ -57,6 +57,8 @@ on:
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'tests/m26_remote_gate_client_role_contract.test.mjs'
       - 'tests/m26_p0_free_qa_trigger_routing_contract.test.mjs'
+      - 'tests/m26_fast_lane_contract.test.mjs'
+      - 'tests/m26_p0_free_qa_remote_auth_gate_scoping.test.mjs'
       - 'tests/m26_remote_gate_webauthn_origin.test.mjs'
       - 'tests/m26_shared_qa_auth_concurrency_contract.test.mjs'
       - 'tests/m26_canary_exact_qa_auth_lock.test.mjs'
