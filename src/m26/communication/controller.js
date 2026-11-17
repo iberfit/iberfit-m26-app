@@ -189,6 +189,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let pushStatusInFlight=null;
   let lastPushSyncAt=0;
   let lastPushControl=null;
+  let lastPushState=null;
   let preferenceSyncInFlight=null;
   let preferenceHydrationInFlight=null;
   let queuedPreferencePayload=null;
@@ -362,14 +363,21 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     if(!control)return false;
     const now=Date.now();
     if(control!==lastPushControl){
-      // Shell replaced the element while a remote status call was in flight.
-      // No stale response may paint the old control, or suppress a new query.
+      // Fence the replaced DOM. Restore a recent status only for this actor.
+      // Explicit actions, reconnect and account switches always revalidate.
       pushStatusGeneration+=1;
       pushStatusInFlight=null;
       lastPushControl=control;
+      if(!force&&lastPushState&&now-lastPushSyncAt<30_000){
+        applyPushState(control,lastPushState);
+        return true;
+      }
       force=true;
     }
-    if(!force&&now-lastPushSyncAt<30_000)return true;
+    if(!force&&lastPushState&&now-lastPushSyncAt<30_000){
+      applyPushState(control,lastPushState);
+      return true;
+    }
     if(pushStatusInFlight)return pushStatusInFlight;
     const requestGeneration=pushStatusGeneration;
     const requestLifecycle=lifecycleGeneration;
@@ -382,6 +390,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
         const state=await service.webPush.status();
         if(!isCurrent())return false;
         lastPushSyncAt=Date.now();
+        lastPushState=state;
         applyPushState(control,state);
         return true;
       }catch(error){
@@ -488,24 +497,28 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     pushBusy=true;
     const lifecycle=lifecycleGeneration;
     button.disabled=true;
+    let statusConfirmed=false;
     try{
       if(action==='enable')await service.webPush.enable();
       else await service.webPush.disableCurrent();
       if(!mounted||lifecycle!==lifecycleGeneration)return false;
       toast(action==='enable'?'Avisos activados en este dispositivo.':'Avisos desactivados en este dispositivo.');
       lastPushSyncAt=0;
-      await syncPushControl({force:true});
+      statusConfirmed=await syncPushControl({force:true});
       return true;
     }catch(error){
       if(!mounted||lifecycle!==lifecycleGeneration)return false;
       toast(pushErrorMessage(error));
-      await syncPushControl({force:true});
+      statusConfirmed=await syncPushControl({force:true});
       return false;
     }finally{
       if(mounted&&lifecycle===lifecycleGeneration){
         pushBusy=false;
         const control=root.querySelector?.('[data-m26-web-push-control]');
-        if(control)void syncPushControl({force:true});
+        if(control){
+          if(statusConfirmed&&lastPushState)applyPushState(control,lastPushState);
+          else void syncPushControl({force:true});
+        }
       }
     }
   }
@@ -665,6 +678,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       pushBusy=false;
       lastPushControl=null;
       lastPushSyncAt=0;
+      lastPushState=null;
       pendingMessageDrafts.clear();
       messageEditRevisions.clear();
       messageRetryFence.clear();
@@ -729,6 +743,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       root.removeEventListener('m26:shell-rendered',onShellRendered);
       windowLike?.removeEventListener?.('online',onOnline);
       lastPushControl=null;
+      lastPushState=null;
+      lastPushSyncAt=0;
       pushStatusInFlight=null;
       pushBusy=false;
       preferenceSyncInFlight=null;
