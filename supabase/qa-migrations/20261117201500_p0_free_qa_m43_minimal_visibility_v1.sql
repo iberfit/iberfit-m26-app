@@ -1,5 +1,5 @@
 -- IBERFIT #1209 · QA-only, read-only canonical bootstrap visibility probe.
--- The same authenticated, SECURITY DEFINER bootstrap is executed server-side;
+-- The same authenticated canonical bootstrap is executed server-side;
 -- ONLY two booleans cross the network for a synthetic Client's foreign entity.
 -- No write, no caching, no publication shortcut, no PROD creation.
 DO $guard$
