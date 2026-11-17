@@ -69,6 +69,8 @@ test('U74 requires exact source, explicit second attempt, least privilege and no
  assert.match(workflow,/feat\/real-training-360-one-release-20261117/u);
  assert.match(source,/feat\/real-training-360-one-release-20261117/u);
  assert.match(workflow,/20261117_m1_u72_prod_guarded_materialized_v1\.sql/u);
+ assert.match(workflow,/src\/m26\/supabase-transport\.js/u);
+ assert.match(workflow,/src\/m26\/app\/application\.js/u);
  assert.match(workflow,/github\.run_attempt == 1/u);
  assert.match(workflow,/github\.run_attempt == 2/u);
  assert.match(workflow,/environment: m26-canary-readonly/u);

@@ -20,6 +20,10 @@ on:
       - 'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql'
       - 'src/m26/workflows/occurrence-*.js'
       - 'src/m26/app/workflow-controller.js'
+      # The transport and auth shell form part of the dated Client journey:
+      # a changed RPC mapping must trigger a new exact-SHA browser proof.
+      - 'src/m26/supabase-transport.js'
+      - 'src/m26/app/application.js'
       - 'src/m26/modules/route-render.js'
       - 'tests/m26_u72_prod_materialized_candidate.test.mjs'
 permissions:
