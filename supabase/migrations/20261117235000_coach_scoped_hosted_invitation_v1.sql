@@ -250,6 +250,7 @@ declare
   v_org uuid;
   v_actor uuid:=auth.uid();
   v_status text:=lower(btrim(coalesce(p_delivery_status,'')));
+  v_op text:=btrim(coalesce(p_operation_id,''));
   v_code text:=upper(regexp_replace(btrim(coalesce(p_error_code,'')),'[^A-Za-z0-9_:-]+','','g'));
   v_access public.client_access_v26%rowtype;
   v_summary text;
@@ -283,14 +284,33 @@ begin
   v_org:=nullif(v_context->>'organizationId','')::uuid;
   if v_org is null or v_actor is null then raise exception 'V26_INVITE_FINALIZE_CONTEXT_REQUIRED' using errcode='42501'; end if;
   if v_status not in ('sent','error') then raise exception 'V26_INVITE_DELIVERY_STATUS_INVALID' using errcode='22023'; end if;
+  if v_op='' or length(v_op)>200 then
+    raise exception 'V26_INVITATION_OPERATION_INVALID' using errcode='22023';
+  end if;
   perform public.iberfit_assert_client_org_scope_v65e(v_org,p_client_id::text);
 
+  -- Serialize all completions, including Admin. Reject stale operations
+  -- and never downgrade a provider-accepted invitation to error.
+  select * into v_access from public.client_access_v26 a
+    where a.client_id=p_client_id for update;
+  if not found then raise exception 'V26_INVITE_ACCESS_NOT_FOUND' using errcode='P0002'; end if;
+  if v_access.last_invitation_operation_id is distinct from v_op then
+    raise exception 'V26_INVITATION_OPERATION_STALE' using errcode='42501';
+  end if;
+  if v_access.invitation_delivery_status is distinct from 'pending' then
+    if v_access.invitation_delivery_status = v_status then
+      return jsonb_build_object('ok',true,'clientId',p_client_id,
+        'accessStatus',v_access.status,'deliveryStatus',v_status,
+        'attemptCount',v_access.invitation_attempt_count,
+        'lastAttemptAt',v_access.last_invitation_attempt_at,
+        'sentAt',v_access.invitation_sent_at,'errorCode',v_access.invitation_error_code,
+        'activatedAt',v_access.activated_at);
+    end if;
+    raise exception 'V26_INVITATION_DELIVERY_TRANSITION_DENIED' using errcode='42501';
+  end if;
   -- Recheck lifecycle at final delivery; an Admin may revoke while email is sent.
   if coalesce(v_context->'roles','[]'::jsonb)?'coach'
      and not coalesce(v_context->'roles','[]'::jsonb)?'admin' then
-    select * into v_access from public.client_access_v26 a
-      where a.client_id=p_client_id for update;
-    if not found then raise exception 'V26_INVITE_ACCESS_NOT_FOUND' using errcode='P0002'; end if;
     if v_access.status in ('suspendido','revocado') then
       raise exception 'V26_COACH_INVITE_ACCESS_REVOKED' using errcode='42501';
     end if;
@@ -301,6 +321,8 @@ begin
     invitation_error_code=case when v_status='error' then left(coalesce(nullif(v_code,''),'INVITATION_SEND_FAILED'),100) else null end,
     updated_at=now(),revision=revision+1
   where client_id=p_client_id
+    and last_invitation_operation_id=v_op
+    and invitation_delivery_status='pending'
   returning * into v_access;
   if not found then raise exception 'V26_INVITE_ACCESS_NOT_FOUND' using errcode='P0002'; end if;
 

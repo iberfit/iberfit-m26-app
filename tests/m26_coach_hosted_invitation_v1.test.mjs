@@ -68,3 +68,22 @@ test('Hosted Auth acceptance cannot delete the user and retains a recoverable pe
   assert.match(adminEdge,/V26_INVITATION_RECONCILIATION_REQUIRED/u);
   assert.match(adminEdge,/provider_accepted_reconciliation_pending/u);
 });
+
+test('Coach/Admin finalize is operation-scoped, terminal-idempotent and serialized',()=>{
+  const qa=fs.readFileSync('supabase/qa-migrations/20261117224500_coach_invitation_finalize_cas_v2.sql','utf8');
+  const revert=fs.readFileSync('supabase/qa-rollbacks/20261117224500_coach_invitation_finalize_cas_v2_rollback.sql','utf8');
+  for(const src of [sql,qa]){
+    assert.match(src,/V26_INVITATION_OPERATION_STALE/u);
+    assert.match(src,/V26_INVITATION_DELIVERY_TRANSITION_DENIED/u);
+    assert.match(src,/last_invitation_operation_id is distinct from v_op/u);
+    assert.match(src,/invitation_delivery_status is distinct from 'pending'/u);
+    assert.match(src,/and last_invitation_operation_id=v_op/u);
+    assert.match(src,/and invitation_delivery_status='pending'/u);
+    assert.match(src,/for update/u);
+  }
+  assert.match(qa,/M26_QA_FINALIZER_BASELINE_OR_ENV_DRIFT/u);
+  assert.match(qa,/M26_QA_FINALIZER_READBACK_FAILED/u);
+  assert.match(revert,/M26_QA_FINALIZER_ROLLBACK_DRIFT/u);
+  assert.match(revert,/a4cc1e25bba797774ec3b7e1c4536947/u);
+  assert.doesNotMatch(qa,/GRANT\s+EXECUTE/iu);
+});
