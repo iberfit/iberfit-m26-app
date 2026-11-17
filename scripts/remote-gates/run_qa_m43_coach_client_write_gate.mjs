@@ -6,6 +6,7 @@
  */
 import {randomUUID} from 'node:crypto';
 import {expandQaClientCanonicalBodyEnvelope} from '../../src/m26/production-state.js';
+import {readQaM43MinimalVisibility} from './qa_m43_minimal_bootstrap_visibility.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
@@ -59,6 +60,11 @@ async function rpc(name,session,params={}){
 const bootstrap=async session=>expandQaClientCanonicalBodyEnvelope(
   await rpc('iberfit_bootstrap_v26',session)
 );
+// Foreign-client probes still execute the canonical bootstrap on the server.
+// Preserve both projection checks, but don't transfer an entire private
+// historical snapshot merely to assert one exact entity is absent.
+const foreignVisibility=(session,entityType,entityId)=>
+  readQaM43MinimalVisibility({rpc,session,entityType,entityId});
 const contains=(snapshot,id,entity)=>(snapshot?.data?.m26Entities||[])
   .some(item=>item.entityType===entity&&String(item.entityId)===id);
 const baseContains=(snapshot,id,collection)=>(snapshot?.data?.[collection]||[])
@@ -208,7 +214,8 @@ async function main(){
   // M37 enables reviewed guided sessions atomically during publication.
   // Do not send a redundant SESION_HABILITAR after a confirmed state change.
   // Legacy supervised or non-atomic flows still require explicit enablement.
-  let [clientVisible,otherVisible]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  let [clientVisible,otherVisibility]=await Promise.all([
+    bootstrap(clientA),foreignVisibility(clientB,'session',draft.id)]);
   const canonical=clientVisible?.data?.m26Entities?.find(item=>
     item.entityType==='session'&&String(item.entityId)===String(draft.id));
   // M37 requires the publish ACK itself to include atomic enablement. A
@@ -222,7 +229,7 @@ async function main(){
   check(readyRevision===Number(canonical.revision),'CANONICAL_SESSION_REVISION');
   check(contains(clientVisible,draft.id,'session')||baseContains(clientVisible,draft.id,'sessions'),
     'CLIENT_SEES_PUBLISHED_SESSION');
-  check(!contains(otherVisible,draft.id,'session')&&!baseContains(otherVisible,draft.id,'sessions'),
+  check(!otherVisibility.canonicalVisible&&!otherVisibility.legacyVisible,
     'OTHER_CLIENT_CANNOT_SEE_SESSION');
   evidence.phase='session-published-and-enabled';
 
@@ -248,10 +255,11 @@ async function main(){
     'CLIENT_FINISH_IDEMPOTENT_REPLAY');
   evidence.phase='real-client-execution';
 
-  const [finalA,finalB]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  const [finalA,finalForeign]=await Promise.all([
+    bootstrap(clientA),foreignVisibility(clientB,'session_execution',execution.id)]);
   check(contains(finalA,execution.id,'session_execution')||baseContains(finalA,execution.id,'sessionExecutions'),
     'CLIENT_COMPLETED_HISTORY_VISIBLE');
-  check(!contains(finalB,execution.id,'session_execution')&&!baseContains(finalB,execution.id,'sessionExecutions'),
+  check(!finalForeign.canonicalVisible&&!finalForeign.legacyVisible,
     'FOREIGN_CLIENT_HISTORY_PRIVATE');
   check(!leaked&&!contains(finalA,savedId,'planning')&&!baseContains(finalA,savedId,'trainingCycles'),
     'UNPUBLISHED_SECOND_CYCLE_HIDDEN');
@@ -285,14 +293,15 @@ async function main(){
   acceptSessionPreview(uiDraft,catalog);
   const uiPublished=await send(coach,buildPublishSessionCommand(uiDraft,catalog,0),
     'INTERACTIVE_SESSION_PUBLISH');
-  const [uiClient,uiOther]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  const [uiClient,uiForeign]=await Promise.all([
+    bootstrap(clientA),foreignVisibility(clientB,'session',uiDraft.id)]);
   const uiCanonical=uiClient?.data?.m26Entities?.find(item=>
     item.entityType==='session'&&String(item.entityId)===String(uiDraft.id));
   check(verifyM43AtomicGuidedEnablement({
     canonical:uiCanonical,publishedResult:uiPublished.result,
     sessionId:uiDraft.id,clientId:idA,
   }).ok,'INTERACTIVE_SESSION_ATOMIC_ENABLEMENT');
-  check(!contains(uiOther,uiDraft.id,'session')&&!baseContains(uiOther,uiDraft.id,'sessions'),
+  check(!uiForeign.canonicalVisible&&!uiForeign.legacyVisible,
     'INTERACTIVE_SESSION_FOREIGN_PRIVATE');
   // Browser completion MUST occur in the downstream authenticated test,
   // not in this Node writer. Otherwise a fake read-only test can pass.
@@ -312,15 +321,15 @@ async function main(){
   acceptSessionPreview(runningDraft,catalog);
   const runningPublished=await send(coach,buildPublishSessionCommand(runningDraft,catalog,0),
     'RUNNING_INTERACTIVE_SESSION_PUBLISH');
-  const [runningClient,runningOther]=await Promise.all([bootstrap(clientA),bootstrap(clientB)]);
+  const [runningClient,runningForeign]=await Promise.all([
+    bootstrap(clientA),foreignVisibility(clientB,'session',runningDraft.id)]);
   const runningCanonical=runningClient?.data?.m26Entities?.find(item=>
     item.entityType==='session'&&String(item.entityId)===String(runningDraft.id));
   check(verifyM43AtomicGuidedEnablement({
     canonical:runningCanonical,publishedResult:runningPublished.result,
     sessionId:runningDraft.id,clientId:idA,
   }).ok,'RUNNING_INTERACTIVE_ATOMIC_ENABLEMENT');
-  check(!contains(runningOther,runningDraft.id,'session')&&
-    !baseContains(runningOther,runningDraft.id,'sessions'),
+  check(!runningForeign.canonicalVisible&&!runningForeign.legacyVisible,
     'RUNNING_INTERACTIVE_FOREIGN_PRIVATE');
   check(runningCanonical?.status==='disponible','RUNNING_INTERACTIVE_READY_FOR_BROWSER');
   // No SESION_INICIAR is issued by this writer for the running fixture.
