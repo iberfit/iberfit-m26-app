@@ -24,7 +24,7 @@ function createHarness(){
   const service={notificationPreferences:{
     async status(){prefReads++;return{ok:true,preferences:prefs}},
     applyRemote:v=>{applied.push(v);return true},
-    async update:v=>{updates.push(v);return{ok:true}}
+    async update(v){updates.push(v);return{ok:true}}
   },webPush:{
     async status(){pushReads++;return{active:false,supported:true,configured:true,permission:'granted'}},
     async enable(){enableCalls++;return{ok:true}},async disableCurrent(){return{ok:true}}
