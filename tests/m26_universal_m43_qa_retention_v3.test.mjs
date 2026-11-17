@@ -23,7 +23,7 @@ test('M43 QA 2026-11-12 ledger v3 appends only 40 strict completed records, reta
  assert.ok(v3.sha256EntityScopeRevisionAndTitle.every(x=>/^[0-9a-f]{64}$/u.test(x)));
  assert.match(v3.selection,/no appointment, active execution lock or foreign-client domain event/u);
  assert.match(v3.selection,/exactly one completed same-owner canonical execution/u);
- assert.match(safety,/m43-qa-retained-history-v3\.json/u);
+ assert.match(safety,/m43-qa-retained-history-v4\.json/u);
 });
 test('M43 protects 150 concurrent QA fixture ceiling, does not erase or grant cross-owner access',()=>{
  assert.equal(M43_SYNTHETIC_SESSION_LIMIT,150);
