@@ -34,3 +34,23 @@ test('catalog snapshot is read-only, includes same-name overwrite markers',()=>{
  assert.match(sql,/FROM storage\.objects;/);
  assert.doesNotMatch(sql,/\b(?:delete|update|insert|truncate|alter|drop)\s+/i);
 });
+
+test('REAL TRAINING 360 backend candidate requests exactly one encrypted PROD M44 proof only after Canary merge',()=>{
+ const yaml=readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
+ const section=yaml.slice(yaml.indexOf('\non:'),yaml.indexOf('\npermissions:'));
+ const pull=section.slice(section.indexOf('  pull_request:'),section.indexOf('  push:'));
+ const push=section.slice(section.indexOf('  push:'),section.indexOf('  workflow_dispatch:'));
+ const exact=[
+  'supabase/migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql',
+  'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql',
+ ];
+ for(const path of exact){
+   assert.ok(push.includes("      - '"+path+"'"),'POSTMERGE_M44_TRIGGER_MISSING:'+path);
+   assert.ok(!pull.includes(path),'M44_PROD_TRIGGER_MUST_NOT_RUN_FOR_DRAFT:'+path);
+   assert.equal(yaml.split("'"+path+"'").length-1,1,'M44_TRIGGER_MUST_BE_EXACT_ONCE:'+path);
+ }
+ assert.match(yaml,/if: github\.event_name != 'pull_request'/u);
+ assert.match(yaml,/name: iberfit-prod-ciphertext-\$\{\{ github\.run_id \}\}/u);
+ assert.match(yaml,/Reopen ciphertext and verify restored Storage bytes in isolated workspace/u);
+ assert.doesNotMatch(push,/^\s+- 'supabase\/migrations\/\*\*'/mu);
+});
