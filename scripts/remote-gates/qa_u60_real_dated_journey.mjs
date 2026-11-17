@@ -18,6 +18,7 @@ const BRANCHES=new Set([
  'feat/coach-a-verified-evidence-20261111',
  'feat/iberfit-m1-training-reliability-20261112',
  'feat/iberfit-real-training-360-20261114',
+ 'feat/real-training-360-one-release-20261117',
 ]);
 const branchFromRef=ref=>{
  const prefix='refs/heads/';

@@ -65,7 +65,10 @@ test('U74 requires exact source, explicit second attempt, least privilege and no
  const workflow=readFileSync('.github/workflows/u74-qa-dated-browser-e2e.yml','utf8');
  const browser=readFileSync('qa/rc64/u74-dated-ui-write.spec.mjs','utf8');
  const policy=readFileSync('qa/rc64/secure-current-source-auth.mjs','utf8');
- assert.match(workflow,/branches: \['feat\/iberfit-real-training-360-20261114'\]/u);
+ assert.match(workflow,/feat\/iberfit-real-training-360-20261114/u);
+ assert.match(workflow,/feat\/real-training-360-one-release-20261117/u);
+ assert.match(source,/feat\/real-training-360-one-release-20261117/u);
+ assert.match(workflow,/20261117_m1_u72_prod_guarded_materialized_v1\.sql/u);
  assert.match(workflow,/github\.run_attempt == 1/u);
  assert.match(workflow,/github\.run_attempt == 2/u);
  assert.match(workflow,/environment: m26-canary-readonly/u);
@@ -86,4 +89,19 @@ test('U74 uses UTF-8 byte size, never character count, for synthetic progress wr
   payload:{executionId:command.payload.executionId,executionBaseRevision:1,
    results:{observation:'á'.repeat(262200)},skippedSets:{}}};
  assert.equal(isQaScopedDatedSyntheticWrite(request(unicode),scoped),false);
+});
+
+test('U74 actual Real Training branch retains signed two-attempt QA boundaries',()=>{
+ const wf=readFileSync('.github/workflows/u74-qa-dated-browser-e2e.yml','utf8');
+ const js=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ assert.match(wf,/branches:\s*\n\s+- 'feat\/iberfit-real-training-360-20261114'\s*\n\s+- 'feat\/real-training-360-one-release-20261117'/u);
+ for(const attempt of [1,2])assert.match(wf,new RegExp('github\\\\.run_attempt == '+attempt));
+ for(const action of ['preflight-browser','prepare-browser','verify-browser'])
+   assert.ok(wf.includes('qa_u60_real_dated_journey.mjs '+action));
+ assert.match(js,/BRANCH_HEAD_MOVED/u);
+ assert.match(js,/PREFLIGHT_MISSING_STALE_OR_CHANGED/u);
+ assert.match(js,/old\.sha===proof\.sha/u);
+ assert.match(js,/old\.runId===proof\.runId/u);
+ assert.match(js,/ENV_ISOLATION/u);
+ assert.doesNotMatch(wf,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|pjhmrhejsoofmouedavw/u);
 });

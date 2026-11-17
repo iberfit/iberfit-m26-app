@@ -52,6 +52,7 @@ test('U71 only QA origin, ordinary JWT, native commands, two-phase write gate',(
  assert.match(s,/COACH_EXECUTION_DETAIL_NOT_COMMITTED/);
  assert.match(s,/branchFromRef\(e\.GITHUB_REF\)/);
  assert.match(s,/BRANCH_NOT_ALLOWLISTED/);
+ assert.match(s,/feat\/real-training-360-one-release-20261117/u);
  assert.match(s,/feat\/iberfit-universal-360-one-release-20261106/);
  const wf=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
  assert.match(wf,/feat\/iberfit-universal-360-one-release-20261106/);
