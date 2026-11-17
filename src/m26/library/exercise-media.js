@@ -25,6 +25,57 @@ const manifestIndexes=new WeakMap();
 const PUBLIC_MEDIA_MAP_TTL_MS=60_000;
 let publicMediaMapCache=null;
 let publicMediaMapInFlight=null;
+// Public, version-scoped exercise metadata only. The 60s window is identical
+// to the existing memory TTL; a page reload must not repeat the same public
+// Supabase RPC and three static requests when their manifest is still fresh.
+// Never put an auth token, Client/Coach data or the publishable key into storage.
+const PUBLIC_MEDIA_SESSION_SCHEMA='iberfit.public-media-session.v1';
+const PUBLIC_MEDIA_SESSION_MAX_CHARS=2_000_000;
+const PUBLIC_MEDIA_SESSION_PREFIX='iberfit-public-media-session-v1:';
+function publicMediaSessionKey(raw,urls){
+  const runtime=dynamicRuntime(raw);
+  return runtime?PUBLIC_MEDIA_SESSION_PREFIX+runtime.origin+':'+runtime.version+':'+JSON.stringify(urls):null;
+}
+function mediaSessionStorage(){
+  try{return globalThis.sessionStorage||null;}catch{return null;}
+}
+function clearPublicMediaSession(raw,urls){
+  const key=publicMediaSessionKey(raw,urls);
+  if(!key)return;
+  try{mediaSessionStorage()?.removeItem(key);}catch{}
+}
+function readPublicMediaSession(raw,urls){
+  const key=publicMediaSessionKey(raw,urls);
+  if(!key)return null;
+  try{
+    const rawValue=mediaSessionStorage()?.getItem(key);
+    if(!rawValue||rawValue.length>PUBLIC_MEDIA_SESSION_MAX_CHARS)return null;
+    const entry=JSON.parse(rawValue),age=Date.now()-entry?.createdAt;
+    if(entry?.schema!==PUBLIC_MEDIA_SESSION_SCHEMA||entry?.scope!==key
+      ||!Number.isSafeInteger(entry?.createdAt)
+      ||age<0||age>=PUBLIC_MEDIA_MAP_TTL_MS
+      ||!entry?.bundle||entry.bundle.kind!==EXERCISE_MEDIA_BUNDLE_KIND)return null;
+    // Validate the public manifest afresh after deserializing untrusted
+    // sessionStorage. A malformed/partial cache falls back to network.
+    return createExerciseMediaBundle({
+      iberfit:entry.bundle.iberfit,
+      iberfitRich:entry.bundle.iberfitRich,
+      repdb:entry.bundle.repdb,
+    });
+  }catch{return null;}
+}
+function writePublicMediaSession(raw,urls,bundle,createdAt){
+  const key=publicMediaSessionKey(raw,urls);
+  if(!key)return;
+  try{
+    const serialized=JSON.stringify({
+      schema:PUBLIC_MEDIA_SESSION_SCHEMA,scope:key,createdAt,bundle,
+    });
+    if(serialized.length<=PUBLIC_MEDIA_SESSION_MAX_CHARS)
+      mediaSessionStorage()?.setItem(key,serialized);
+  }catch{} // Storage quota/private mode must never block exercise media.
+}
+
 
 function publicMediaMapKey(runtimeConfig,urls){
   const runtime=dynamicRuntime(runtimeConfig)||{origin:'static-only',version:String(runtimeConfig?.version||''),key:''};
@@ -424,12 +475,23 @@ export async function loadExerciseMediaMap({
   const allowed=fetchImpl===globalThis.fetch&&iberfitUrl===IBERFIT_MEDIA_MAP_URL
     &&iberfitRichUrl===IBERFIT_RICH_MEDIA_MAP_URL&&repdbUrl===REPDB_MEDIA_MAP_URL;
   const key=allowed?publicMediaMapKey(runtimeConfig,[iberfitUrl,iberfitRichUrl,repdbUrl]):null;
-  if(allowed&&forceRefresh&&publicMediaMapCache?.key===key)publicMediaMapCache=null;
+  const urls=[iberfitUrl,iberfitRichUrl,repdbUrl];
+  if(allowed&&forceRefresh){
+    if(publicMediaMapCache?.key===key)publicMediaMapCache=null;
+    clearPublicMediaSession(runtimeConfig,urls);
+  }
   if(allowed&&!forceRefresh&&publicMediaMapCache?.key===key
     &&publicMediaMapCache.fetchImpl===fetchImpl
     &&Date.now()-publicMediaMapCache.createdAt>=0
     &&Date.now()-publicMediaMapCache.createdAt<PUBLIC_MEDIA_MAP_TTL_MS)
     return publicMediaMapCache.bundle;
+  if(allowed&&!forceRefresh){
+    const sessionBundle=readPublicMediaSession(runtimeConfig,urls);
+    if(sessionBundle){
+      publicMediaMapCache={key,fetchImpl,bundle:sessionBundle,createdAt:Date.now()};
+      return sessionBundle;
+    }
+  }
   if(allowed&&!forceRefresh&&publicMediaMapInFlight?.key===key
     &&publicMediaMapInFlight.fetchImpl===fetchImpl)
     return publicMediaMapInFlight.promise.then(({bundle})=>bundle);
@@ -452,8 +514,11 @@ export async function loadExerciseMediaMap({
   if(allowed)publicMediaMapInFlight={key,fetchImpl,promise:pending};
   try{
     const {bundle,complete}=await pending;
-    if(allowed&&complete&&publicMediaMapInFlight?.promise===pending)
-      publicMediaMapCache={key,fetchImpl,bundle,createdAt:Date.now()};
+    if(allowed&&complete&&publicMediaMapInFlight?.promise===pending){
+      const createdAt=Date.now();
+      publicMediaMapCache={key,fetchImpl,bundle,createdAt};
+      writePublicMediaSession(runtimeConfig,urls,bundle,createdAt);
+    }
     // A partial fallback remains available but never masks new media for 60s.
     return bundle;
   }finally{
