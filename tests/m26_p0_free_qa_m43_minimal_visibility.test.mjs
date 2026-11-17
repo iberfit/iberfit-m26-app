@@ -71,7 +71,7 @@ test('M43 writer keeps whole A and B bootstrap for fixture baseline, uses four r
   const writer=readFileSync('scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs','utf8');
   assert.match(writer,/bootstrap\(clientA\),bootstrap\(clientB\),rpc\('iberfit_current_role_v26'/u);
   assert.match(writer,/selectM43QaFixtureForSafeCapacity\(a,b/u);
-  assert.match(writer,/const \[finalA,finalForeign\]=await Promise\.all\(\[bootstrap\(clientA\),/u);
+  assert.match(writer,/const \[finalA,finalForeign\]=await Promise\.all\(\[\s*bootstrap\(clientA\),/u);
   for(const marker of [
     "'OTHER_CLIENT_CANNOT_SEE_SESSION'","'FOREIGN_CLIENT_HISTORY_PRIVATE'",
     "'INTERACTIVE_SESSION_FOREIGN_PRIVATE'","'RUNNING_INTERACTIVE_FOREIGN_PRIVATE'",
