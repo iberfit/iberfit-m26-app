@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-const n='20261117143700_p0_free_qa_iri_withdrawal_rls_duplicate_v1';
+const n='20261117143515_p0_free_qa_iri_withdrawal_rls_duplicate_v1';
 const up=readFileSync('supabase/qa-migrations/'+n+'.sql','utf8');
 const down=readFileSync('supabase/qa-rollbacks/'+n+'_rollback.sql','utf8');
 const raw=s=>s.replace(/--[^\n]*/gu,'');
