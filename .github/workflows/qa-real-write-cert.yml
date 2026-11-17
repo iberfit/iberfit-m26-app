@@ -6,6 +6,8 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs'
+      - 'scripts/ops/qa_same_head_run_dedupe.mjs'
+      - 'tests/m26_p0_qa_same_head_dedupe.test.mjs'
       - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
       - 'scripts/remote-gates/qa_client_delete_acl_denial.mjs'
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
@@ -31,6 +33,8 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs'
+      - 'scripts/ops/qa_same_head_run_dedupe.mjs'
+      - 'tests/m26_p0_qa_same_head_dedupe.test.mjs'
       - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
       - 'scripts/remote-gates/qa_client_delete_acl_denial.mjs'
       - 'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs'
@@ -76,7 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
-      current: ${{ steps.verify.outputs.current }}
+      current: ${{ steps.verify.outputs.current == 'true' && steps.dedupe.outputs.run != 'false' }}
     steps:
       - name: Verify head of live PR without calling Supabase
         id: verify
@@ -113,6 +117,19 @@ jobs:
             echo "P0_QA_SUPERSEDED_PR_SKIP: no QA credentials or HTTP to Supabase"
             echo "current=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Checkout QA cost guard without credentials
+        if: ${{ steps.verify.outputs.current == 'true' && github.event_name == 'pull_request' }}
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Avoid duplicate same-head QA certification
+        id: dedupe
+        if: ${{ steps.verify.outputs.current == 'true' && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QA_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          QA_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: node scripts/ops/qa_same_head_run_dedupe.mjs
 
   m42-avatar-private-real-qa:
     needs: pr-current-head

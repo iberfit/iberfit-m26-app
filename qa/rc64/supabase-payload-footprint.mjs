@@ -43,7 +43,8 @@ export function createQaSupabasePayloadFootprint(){
       groups.set(group,{group,requests:0,httpErrors:0,sampledResponses:0,
         sampledDecodedBytes:0,maxDecodedBytes:0,unreadableSamples:0,inFlightSamples:0,
       sampledBrowserWireBodyBytes:0,sampledBrowserWireHeadersBytes:0,
-      browserWireSamples:0,browserWireUnavailable:0});
+      browserWireSamples:0,browserWireUnavailable:0,observedWireResponses:0,
+      observedWireBodyBytes:0,observedWireHeadersBytes:0,observedWireUnavailable:0});
     }
     const row=groups.get(group);
     row.requests++;
@@ -74,15 +75,38 @@ export function createQaSupabasePayloadFootprint(){
     });
     pending.add(work);
   };
+  const onFinished=request=>{
+    if(closed)return;
+    const group=fixedGroup(request.url?.()),row=group?groups.get(group):null;
+    if(!row)return;
+    // No network call or private data access: Playwright browser accounting.
+    const task=Promise.resolve().then(()=>request.sizes()).then(sizes=>{
+      const body=Number(sizes?.responseBodySize),headers=Number(sizes?.responseHeadersSize);
+      if(!Number.isSafeInteger(body)||body<0||
+        !Number.isSafeInteger(headers)||headers<0){
+        row.observedWireUnavailable++;
+        return;
+      }
+      row.observedWireResponses++;
+      row.observedWireBodyBytes+=body;
+      row.observedWireHeadersBytes+=headers;
+    }).catch(()=>{row.observedWireUnavailable++;})
+      .finally(()=>pending.delete(task));
+    pending.add(task);
+  };
   return Object.freeze({
     attach(context){
       if(closed||typeof context?.on!=='function')throw Error('QA_EGRESS_CONTEXT_REQUIRED');
       context.on('response',onResponse);
+      context.on('requestfinished',onFinished);
       contexts.push(context);
     },
     async flush(){
       closed=true;
-      for(const context of contexts)context.off?.('response',onResponse);
+      for(const context of contexts){
+        context.off?.('response',onResponse);
+        context.off?.('requestfinished',onFinished);
+      }
       await Promise.allSettled([...pending]);
       const endpoints=[...groups.values()].map(({inFlightSamples,...row})=>({
         ...row,
@@ -98,6 +122,9 @@ export function createQaSupabasePayloadFootprint(){
         responseBodyPersisted:false,
         requestsIssuedByObserver:0,
         browserWireIsNotSupabaseBilling:true,
+        observedAllWireResponses:endpoints.reduce((n,x)=>n+x.observedWireResponses,0),
+        observedAllWireBodyBytes:endpoints.reduce((n,x)=>n+x.observedWireBodyBytes,0),
+        observedAllWireHeadersBytes:endpoints.reduce((n,x)=>n+x.observedWireHeadersBytes,0),
         endpoints,
       };
     },
