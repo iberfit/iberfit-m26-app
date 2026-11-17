@@ -33,7 +33,7 @@
         "SUPABASE_SERVICE_ROLE_KEY",
         "SUPABASE_URL"
       ],
-      "deployment_policy": "historical_source_not_to_deploy"
+      "deployment_policy": "canonical"
     },
     {
       "slug": "iberfit-admin-media-review-v1",

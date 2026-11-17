@@ -36,18 +36,19 @@ export function loadInventory(file=INVENTORY){
   for(const x of obj.sources){
     if(!SLUG.test(x.slug)||names.has(x.slug)||typeof x.verify_jwt!=='boolean'||
        !HEX64.test(x.live_bundle_sha256)||!HEX40.test(x.source_git_blob_sha1)||
-       !['canonical','recovered_canonical_from_live','historical_live_snapshot_not_deploy_target'].includes(x.source_state)||
+       !['canonical','recovered_canonical_from_live','canonical_live_snapshot_pending_release','historical_live_snapshot_not_deploy_target'].includes(x.source_state)||
        typeof x.source_path!=='string'||x.source_path.startsWith('/')||
        x.source_path.split('/').some(k=>k==='..'||k==='.'||k==='')||
        !x.source_path.endsWith('.ts'))throw Error(PREFIX+'ENTRY_INVALID');
     if(x.source_state==='historical_live_snapshot_not_deploy_target'){
       // Historical production bytes are immutable recovery evidence, not deploy targets.
-      const historic={
-        'iberfit-client-onboarding-v1':'scripts/ops/m44_legacy_edge_source/iberfit-client-onboarding-v1-prod-20261016.ts',
-        'iberfit-admin-client-invite-v1':'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts',
-      };
-      if(historic[x.slug]!==x.source_path)
+      if(x.slug!=='iberfit-client-onboarding-v1'||
+        x.source_path!=='scripts/ops/m44_legacy_edge_source/iberfit-client-onboarding-v1-prod-20261016.ts')
         throw Error(PREFIX+'ARCHIVE_BOUNDARY_INVALID');
+    }else if(x.source_state==='canonical_live_snapshot_pending_release'){
+      if(x.slug!=='iberfit-admin-client-invite-v1'||
+         x.source_path!=='scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts')
+        throw Error(PREFIX+'LIVE_PENDING_RELEASE_BOUNDARY_INVALID');
     }else if(x.source_path!==`supabase/functions/${x.slug}/index.ts`)
       throw Error(PREFIX+'CANONICAL_PATH_INVALID');
     names.add(x.slug);
