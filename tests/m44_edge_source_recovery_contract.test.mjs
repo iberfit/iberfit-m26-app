@@ -77,3 +77,14 @@ test('Manifest rejects traversal, incorrect provenance and accidental restoratio
  }),repo),/PATH_ESCAPE|SOURCE_PATH_INVALID|SOURCE_TYPE_INVALID/);
  assert.throws(()=>loadInventory(path.join(repo,'package.json')),/MANIFEST_INVALID/);
 });
+
+test('Invitation Edge preserves the deployed PROD recovery snapshot independently from the candidate',()=>{
+ const historical=inventory.sources.find(s=>s.slug==='iberfit-admin-client-invite-v1');
+ assert.equal(historical.source_state,'historical_live_snapshot_not_deploy_target');
+ assert.equal(historical.source_path,'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts');
+ const archived=fs.readFileSync(path.join(repo,historical.source_path),'utf8');
+ const candidate=fs.readFileSync(path.join(repo,'supabase/functions/iberfit-admin-client-invite-v1/index.ts'),'utf8');
+ assert.notEqual(archived,candidate);
+ assert.match(archived,/admin-client-invite-v26\.5/u);
+ assert.match(candidate,/admin-client-invite-v26\.6/u);
+});

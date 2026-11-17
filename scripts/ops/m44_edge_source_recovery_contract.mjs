@@ -41,8 +41,12 @@ export function loadInventory(file=INVENTORY){
        x.source_path.split('/').some(k=>k==='..'||k==='.'||k==='')||
        !x.source_path.endsWith('.ts'))throw Error(PREFIX+'ENTRY_INVALID');
     if(x.source_state==='historical_live_snapshot_not_deploy_target'){
-      if(x.slug!=='iberfit-client-onboarding-v1'||
-         !x.source_path.startsWith('scripts/ops/m44_legacy_edge_source/'))
+      // Historical production bytes are immutable recovery evidence, not deploy targets.
+      const historic={
+        'iberfit-client-onboarding-v1':'scripts/ops/m44_legacy_edge_source/iberfit-client-onboarding-v1-prod-20261016.ts',
+        'iberfit-admin-client-invite-v1':'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts',
+      };
+      if(historic[x.slug]!==x.source_path)
         throw Error(PREFIX+'ARCHIVE_BOUNDARY_INVALID');
     }else if(x.source_path!==`supabase/functions/${x.slug}/index.ts`)
       throw Error(PREFIX+'CANONICAL_PATH_INVALID');
