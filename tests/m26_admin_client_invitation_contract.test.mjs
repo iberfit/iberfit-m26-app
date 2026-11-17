@@ -31,10 +31,12 @@ test('existing Auth identities are reused without creating duplicates', () => {
   assert.match(migration, /V26_INVITE_IDENTITY_EMAIL_MISMATCH/);
 });
 
-test('new Auth identity is compensated if database binding fails', () => {
-  assert.match(edge, /createdAuthUserId/);
-  assert.match(edge, /deleteUser\(createdAuthUserId\)/);
-  assert.match(edge, /iberfit_admin_client_invitation_bind_v26/);
+test('accepted Hosted Auth invitation never deletes a user after a binding failure', () => {
+  assert.equal(edge.includes('service.auth.admin.deleteUser'),false);
+  assert.ok(edge.includes('providerAccepted=true'));
+  assert.ok(edge.includes('if(providerAccepted&&clientId&&UUID.test(clientId))'));
+  assert.ok(edge.includes('V26_INVITATION_RECONCILIATION_REQUIRED'));
+  assert.ok(edge.includes('iberfit_admin_client_invitation_bind_v26'));
 });
 
 test('invitation flow remains fail-closed behind actor authentication, admin authorization and privileged assurance', () => {
@@ -56,7 +58,7 @@ test('invitation Edge Function isolates canonical origins by deployed project', 
   assert.match(edge, /DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF[\s\S]{0,180}\['https:\/\/app\.iberfit\.cl'\]/u);
   assert.match(edge, /:[\s\n]*\[\],[\s\n]*\);/u);
   assert.doesNotMatch(edge, /coach\.iberfit\.cl/u);
-  assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.5';/u);
+  assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.6';/u);
 });
 
 
