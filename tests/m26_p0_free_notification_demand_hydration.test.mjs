@@ -50,7 +50,7 @@ test('identity switch revalidates both private preference and device state',asyn
  assert.equal(h.counts().pushReads,before.pushReads+1);h.controller.destroy();
 });
 test('same actor push UI replacement reuses recent status, while explicit action checks once',async()=>{
- const h=createHarness();h.controller.mount();await tick();const before=h.counts().pushReads;
+ const h=createHarness();h.controller.mount();await tick();h.render();await tick();const before=h.counts().pushReads;
  const element=h.switchPush();h.render();await tick();assert.equal(h.counts().pushReads,before);
  assert.equal(element.state.textContent,'Avisos desactivados en este dispositivo.');
  h.action();await tick();await tick();assert.equal(h.counts().enableCalls,1);
