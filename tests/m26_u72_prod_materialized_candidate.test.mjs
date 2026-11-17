@@ -17,3 +17,12 @@ test('U72 rollback cannot lose historical dated sessions',()=>{
   assert.match(rollback,/DROP FUNCTION private\.iberfit_u72_occurrence_pause_resume_v1/u);
   assert.match(rollback,/REVOKE ALL ON FUNCTION public\.iberfit_occurrence_api_u60_v1/u);
 });
+
+test('U72 SQL installer has one readback and all four delimited QA definitions',()=>{
+  assert.equal((install.match(/^\\s*CREATE OR REPLACE FUNCTION /gmu)||[]).length,4);
+  assert.equal((install.match(/^\\$function\\$;$/gmu)||[]).length,4);
+  assert.equal((install.match(/^DO \\$m1_production_u72_verify\\$$/gmu)||[]).length,1);
+  assert.equal((install.match(/^COMMIT;$/gmu)||[]).length,1);
+  assert.ok(install.includes("AND (p_payload->>'clientId') ~* '^[0-9a-f-]{36}$'"));
+  assert.ok(install.includes("AND (p_payload->>'entityId') ~* '^[0-9a-f-]{36}$'"));
+});

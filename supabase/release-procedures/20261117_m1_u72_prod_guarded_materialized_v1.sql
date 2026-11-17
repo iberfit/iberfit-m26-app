@@ -256,7 +256,7 @@ BEGIN
   );
   RETURN v_ack;
 END;
-$function$
+$function$;
 
 -- QA_MD5=944aaac897289954a9c589292d8faf87
 CREATE OR REPLACE FUNCTION public.iberfit_occurrence_api_u60_v1(p_action text, p_payload jsonb)
@@ -281,76 +281,8 @@ BEGIN
     -- The shared per-client advisory key serializes every transition.
     IF p_action='TRANSICION' AND (p_payload->>'type') IN
       ('OCURRENCIA_GUARDAR_PROGRESO','OCURRENCIA_COMPLETAR')
-      AND (p_payload->>'clientId') ~* '^[0-9a-f-]{36}
-DO $m1_production_u72_verify$
-BEGIN
-  IF (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment') IS DISTINCT FROM 'PRODUCTION'
-  THEN RAISE EXCEPTION 'M1_U72_PROD_READBACK_ENV_CHANGED'; END IF;
-  IF md5(pg_get_functiondef('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure))<>'1270cf1db8c9a162ccc5736207a258e1'
-    THEN RAISE EXCEPTION 'M1_U72_CANDIDATE_U72_DRIFT'; END IF;
-  IF md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))<>'944aaac897289954a9c589292d8faf87'
-    THEN RAISE EXCEPTION 'M1_U72_CANDIDATE_GATEWAY_DRIFT'; END IF;
-  IF md5(pg_get_functiondef('private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'::regprocedure))<>'dd1027122e0843b44529cf87dad746b5'
-    THEN RAISE EXCEPTION 'M1_U72_CANDIDATE_DETAIL_DRIFT'; END IF;
-  IF md5(pg_get_functiondef('private.iberfit_u60_dated_mirror_receipt_guard_v1()'::regprocedure))<>'65e675f56c67aa8f9ddc4b36f3a9a73d'
-    THEN RAISE EXCEPTION 'M1_U72_CANDIDATE_RECEIPT_GUARD_DRIFT'; END IF;
-
-  IF EXISTS(SELECT 1 FROM pg_proc p
-    CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) acl
-    WHERE p.oid='private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure
-      AND acl.grantee=0 AND acl.privilege_type='EXECUTE')
-  OR has_function_privilege('authenticated','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
-  OR has_function_privilege('anon','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
-  OR has_function_privilege('service_role','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
-  OR has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
-  OR has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
-  OR EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid IN (
-     'private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure,
-     'public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure,
-     'private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'::regprocedure,
-     'private.iberfit_u60_dated_mirror_receipt_guard_v1()'::regprocedure)
-     AND (NOT p.prosecdef OR pg_get_userbyid(p.proowner)<>'postgres'
-       OR NOT (p.proconfig @> ARRAY['search_path=""']::text[]))) THEN
-    RAISE EXCEPTION 'M1_U72_PROD_AUTH_ACL_DRIFT' USING errcode='42501';
-  END IF;
-END $m1_production_u72_verify$;
-COMMIT;
-
-      AND (p_payload->>'entityId') ~* '^[0-9a-f-]{36}
-DO $m1_production_u72_verify$
-BEGIN
-  IF (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment') IS DISTINCT FROM 'PRODUCTION'
-  THEN RAISE EXCEPTION 'M1_U72_PROD_READBACK_ENV_CHANGED'; END IF;
-  IF md5(pg_get_functiondef('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure))<>'1270cf1db8c9a162ccc5736207a258e1'
-    THEN RAISE EXCEPTION 'M1_U72_CANDIDATE_U72_DRIFT'; END IF;
-  IF md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))<>'944aaac897289954a9c589292d8faf87'
-    THEN RAISE EXCEPTION 'M1_U72_CANDIDATE_GATEWAY_DRIFT'; END IF;
-  IF md5(pg_get_functiondef('private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'::regprocedure))<>'dd1027122e0843b44529cf87dad746b5'
-    THEN RAISE EXCEPTION 'M1_U72_CANDIDATE_DETAIL_DRIFT'; END IF;
-  IF md5(pg_get_functiondef('private.iberfit_u60_dated_mirror_receipt_guard_v1()'::regprocedure))<>'65e675f56c67aa8f9ddc4b36f3a9a73d'
-    THEN RAISE EXCEPTION 'M1_U72_CANDIDATE_RECEIPT_GUARD_DRIFT'; END IF;
-
-  IF EXISTS(SELECT 1 FROM pg_proc p
-    CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) acl
-    WHERE p.oid='private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure
-      AND acl.grantee=0 AND acl.privilege_type='EXECUTE')
-  OR has_function_privilege('authenticated','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
-  OR has_function_privilege('anon','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
-  OR has_function_privilege('service_role','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
-  OR has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
-  OR has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
-  OR EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid IN (
-     'private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure,
-     'public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure,
-     'private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'::regprocedure,
-     'private.iberfit_u60_dated_mirror_receipt_guard_v1()'::regprocedure)
-     AND (NOT p.prosecdef OR pg_get_userbyid(p.proowner)<>'postgres'
-       OR NOT (p.proconfig @> ARRAY['search_path=""']::text[]))) THEN
-    RAISE EXCEPTION 'M1_U72_PROD_AUTH_ACL_DRIFT' USING errcode='42501';
-  END IF;
-END $m1_production_u72_verify$;
-COMMIT;
- THEN
+      AND (p_payload->>'clientId') ~* '^[0-9a-f-]{36}$'
+      AND (p_payload->>'entityId') ~* '^[0-9a-f-]{36}$' THEN
       IF public.iberfit_can_access_client_v26((p_payload->>'clientId')::uuid)
         AND public.iberfit_canary_enabled_v26((p_payload->>'clientId')::uuid)
         AND public.iberfit_current_role_v26() IN ('coach','cliente') THEN
@@ -384,7 +316,7 @@ COMMIT;
   END IF;
   RETURN v_reply;
 END;
-$function$
+$function$;
 
 -- QA_MD5=dd1027122e0843b44529cf87dad746b5
 CREATE OR REPLACE FUNCTION private.iberfit_u60_occurrence_detail_v1(p_client_id uuid, p_occurrence_id uuid)
@@ -550,7 +482,7 @@ BEGIN
       'revision',v_occ.revision,'executionId',v_occ.execution_id),
     'prescriptionSnapshot',v_snapshot,'executionBody',v_execution_body);
 END;
-$function$
+$function$;
 
 -- QA_MD5=65e675f56c67aa8f9ddc4b36f3a9a73d
 CREATE OR REPLACE FUNCTION private.iberfit_u60_dated_mirror_receipt_guard_v1()
@@ -598,7 +530,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$function$
+$function$;
 
 -- Newly created private U72 helper must not inherit PostgreSQL PUBLIC execute.
 REVOKE ALL ON FUNCTION private.iberfit_u72_occurrence_pause_resume_v1(jsonb) FROM PUBLIC, anon, authenticated, service_role;

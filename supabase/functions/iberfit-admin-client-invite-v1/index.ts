@@ -1,6 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 
-const FUNCTION_VERSION='admin-client-invite-v26.5';
+const FUNCTION_VERSION='admin-client-invite-v26.6';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
 function deploymentProjectRef(value:string){
@@ -111,7 +111,7 @@ Deno.serve(async(req:Request)=>{
   let createReceipt:Record<string,unknown>|null=null;
   let clientId=normalized.clientId||'';
   let email='';
-  let createdAuthUserId='';
+  let providerAccepted=false;
 
   try{
     if(normalized.type==='ADMIN_CLIENTE_CREAR'){
@@ -183,14 +183,15 @@ Deno.serve(async(req:Request)=>{
       if(!(Array.isArray(bindData)?bindData[0]:bindData)?.ok)throw new Error('V26_INVITATION_BIND_INVALID_RESPONSE');
       const {error:recoveryError}=await publicAuth.auth.resetPasswordForEmail(email,{redirectTo});
       if(recoveryError)throw recoveryError;
+      providerAccepted=true;
       deliveryMode='recovery-existing-user';
     }else{
       const name=String(prepared.name||'Cliente IBERFIT').trim().slice(0,200)||'Cliente IBERFIT';
       const {data:inviteData,error:inviteError}=await service.auth.admin.inviteUserByEmail(email,{redirectTo,data:{name,role:'client',client_id:clientId}});
       if(inviteError)throw inviteError;
+      providerAccepted=true;
       authUserId=String(inviteData?.user?.id||'');
       if(!UUID.test(authUserId))throw new Error('V26_INVITATION_AUTH_USER_INVALID');
-      createdAuthUserId=authUserId;
       const {data:bindData,error:bindError}=await userClient.rpc('iberfit_admin_client_invitation_bind_v26',{p_client_id:clientId,p_auth_user_id:authUserId});
       if(bindError)throw bindError;
       if(!(Array.isArray(bindData)?bindData[0]:bindData)?.ok)throw new Error('V26_INVITATION_BIND_INVALID_RESPONSE');
@@ -200,15 +201,21 @@ Deno.serve(async(req:Request)=>{
     if(finalError)throw finalError;
     const finalized=(Array.isArray(finalData)?finalData[0]:finalData) as Record<string,unknown>|null;
     if(!finalized||finalized.ok!==true)throw new Error('V26_INVITATION_FINALIZE_INVALID_RESPONSE');
-    createdAuthUserId='';
     return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,invitation:{...finalized,email,deliveryMode}},origin);
   }catch(error){
     const errorCode=codeOf(error);
+    // An accepted Auth email is irreversible. Never delete its identity or claim delivery failed.
+    // Leave the invitation pending for reconciliation instead of issuing another email.
+    if(providerAccepted&&clientId&&UUID.test(clientId)){
+      return reply(200,{...(createReceipt||{}),ok:true,
+        kind:String(createReceipt?.kind||'ack'),operationId:normalized.operationId,
+        commandType:normalized.type,entityId:clientId,clientId,version:FUNCTION_VERSION,
+        invitation:{deliveryStatus:'pending',accessStatus:'invitacion_pendiente',
+          reason:'provider_accepted_reconciliation_pending',
+          errorCode:'V26_INVITATION_RECONCILIATION_REQUIRED',email:email||null}},origin);
+    }
     if(/ADMIN_REQUIRED|AUTH_REQUIRED|WEBAUTHN|ASSURANCE|FORBIDDEN/u.test(errorCode)){
       return reply(403,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
-    }
-    if(createdAuthUserId&&UUID.test(createdAuthUserId)){
-      try{await service.auth.admin.deleteUser(createdAuthUserId);}catch{}
     }
     if(clientId&&UUID.test(clientId)){
       try{await userClient.rpc('iberfit_admin_client_invitation_finalize_v26',{p_client_id:clientId,p_operation_id:normalized.operationId,p_delivery_status:'error',p_error_code:errorCode});}catch{}
