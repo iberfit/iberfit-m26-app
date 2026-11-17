@@ -12,6 +12,7 @@ on:
       - 'src/m26/workflows/session-execution.js'
       - 'src/m26/workflows/session-recovery.js'
       - 'src/m26/command-bus.js'
+      - 'src/m26/command-catalog.js'
       - 'src/m26/workflows/iri-photogrammetry-*.js'
       - 'src/m26/workflows/iri-photogrammetry.css'
       - 'src/m26/security/**'
@@ -27,7 +28,13 @@ on:
       - 'tests/m26_signature_u26_*.test.mjs'
       - 'qa/coach-webauthn-recurring/**'
       - 'qa/admin-webauthn-recurring/**'
-      - 'scripts/remote-gates/**'
+      # Only files executed/imported by the authenticated READ-ONLY remote gate.
+      # QA writer-only helpers are covered by qa-real-write-cert.yml; do not
+      # start an extra multibrowser remote suite for those maintenance changes.
+      - 'scripts/remote-gates/run_authenticated_readonly_gate.mjs'
+      - 'scripts/remote-gates/readonly-network-policy.mjs'
+      - 'scripts/remote-gates/readonly-gate-bootstrap-privacy.mjs'
+      - 'scripts/remote-gates/readonly-gate-client-isolation.mjs'
       - 'scripts/prelaunch/**'
       - 'scripts/generate_rc74_4_runtime_config.mjs'
       - 'scripts/ops/prepare_canary_deploy_surface.mjs'
@@ -49,6 +56,7 @@ on:
       - '.github/workflows/canary-exact-deploy.yml'
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'tests/m26_remote_gate_client_role_contract.test.mjs'
+      - 'tests/m26_p0_free_qa_trigger_routing_contract.test.mjs'
       - 'tests/m26_remote_gate_webauthn_origin.test.mjs'
       - 'tests/m26_shared_qa_auth_concurrency_contract.test.mjs'
       - 'tests/m26_canary_exact_qa_auth_lock.test.mjs'
