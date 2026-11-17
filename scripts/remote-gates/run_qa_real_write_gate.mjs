@@ -1,5 +1,6 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash,randomUUID} from 'node:crypto';
+import {readQaClientIdentity} from './qa_client_identity_rpc.mjs';
 
 const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
@@ -119,17 +120,14 @@ function assertRejected(result,label,reason){
   }
 }
 
-async function bootstrapClient(session,label){
-  const bootstrap=await rpc('iberfit_bootstrap_v26',session.token,{});
-  const role=String(bootstrap?.user?.role||'').trim().toLowerCase();
-  const clientId=String(bootstrap?.user?.clientId||bootstrap?.user?.client_id||'').trim();
-  if(!['client','cliente'].includes(role)||!/^[0-9a-f-]{36}$/iu.test(clientId)){
-    throw new Error(`${label}_CLIENT_CONTEXT_INVALID`);
-  }
-  if(bootstrap?.environment?.name==='production'||bootstrap?.environment==='production'){
-    throw new Error(`${label}_PRODUCTION_FORBIDDEN`);
-  }
-  return {bootstrap,clientId};
+async function clientIdentity(session,label){
+  // QA isolation is already enforced by the fixed project ref, M26_QA_ONLY
+  // and the separately asserted iberfit_environment RPC below.
+  return readQaClientIdentity({
+    label,
+    readRole:()=>rpc('iberfit_current_role_v26',session.token,{}),
+    readClientId:()=>rpc('iberfit_client_id',session.token,{}),
+  });
 }
 
 async function selectCheckin(token,entityId,clientId){
@@ -190,8 +188,8 @@ if(coachInviteAttempt.status!==403){
 }
 
 const [{clientId:clientAId},{clientId:clientBId}]=await Promise.all([
-  bootstrapClient(clientA,'QA_WRITE_CLIENT_A'),
-  bootstrapClient(clientB,'QA_WRITE_CLIENT_B'),
+  clientIdentity(clientA,'QA_WRITE_CLIENT_A'),
+  clientIdentity(clientB,'QA_WRITE_CLIENT_B'),
 ]);
 if(clientAId===clientBId)throw new Error('QA_WRITE_CLIENTS_NOT_DISTINCT');
 
