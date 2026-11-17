@@ -8,7 +8,8 @@ BEGIN
      OR (SELECT (value#>>'{}')::boolean FROM public.iberfit_system_settings WHERE key='real_data_allowed') IS DISTINCT FROM false
   THEN RAISE EXCEPTION 'M26_QA_FINALIZER_ROLLBACK_ENV_DENIED' USING errcode='42501'; END IF;
   v_def:=pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure);
-  IF position('V26_INVITATION_OPERATION_STALE' IN v_def)=0
+  IF md5(v_def) IS DISTINCT FROM '168dc6bd262169a58a6d9ff12558078d'
+    OR position('V26_INVITATION_OPERATION_STALE' IN v_def)=0
     OR position('V26_INVITATION_DELIVERY_TRANSITION_DENIED' IN v_def)=0
   THEN RAISE EXCEPTION 'M26_QA_FINALIZER_ROLLBACK_DRIFT' USING errcode='42501'; END IF;
 END $qa_finalizer_rollback_guard$;

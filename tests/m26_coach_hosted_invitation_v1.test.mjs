@@ -85,5 +85,6 @@ test('Coach/Admin finalize is operation-scoped, terminal-idempotent and serializ
   assert.match(qa,/M26_QA_FINALIZER_READBACK_FAILED/u);
   assert.match(revert,/M26_QA_FINALIZER_ROLLBACK_DRIFT/u);
   assert.match(revert,/a4cc1e25bba797774ec3b7e1c4536947/u);
+  assert.match(revert,/168dc6bd262169a58a6d9ff12558078d/u);
   assert.doesNotMatch(qa,/GRANT\s+EXECUTE/iu);
 });
