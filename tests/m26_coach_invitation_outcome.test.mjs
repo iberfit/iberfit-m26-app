@@ -19,3 +19,20 @@ test('Provider acknowledgment is not evidence that the customer opened email',()
   assert.match(message,/proveedor/u);
   assert.match(message,/recepción debe confirmarla el cliente/u);
 });
+
+
+test('All Coach invitation receipt messages have four-language static translations',async()=>{
+  const {iberfitSurfaceTranslate}=await import('../src/m26/ui/i18n-surface.js');
+  const messages=[
+    'El proveedor no confirmó la invitación.',
+    'La invitación falló. Comprueba su estado antes de volver a enviarla.',
+    'Este cliente ya tiene acceso IBERFIT activo.',
+    'El proveedor aceptó la invitación. La recepción debe confirmarla el cliente.',
+    'Hay una invitación en curso. Comprueba su estado antes de volver a enviarla.',
+    'No se pudo confirmar el estado de la invitación.',
+  ];
+  for(const message of messages)for(const language of ['en','fr','pt']){
+    const translation=iberfitSurfaceTranslate(message,{language});
+    assert.notEqual(translation,message,language+': '+message);
+  }
+});
