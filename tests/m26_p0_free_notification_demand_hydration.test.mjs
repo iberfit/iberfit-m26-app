@@ -36,13 +36,13 @@ function createHarness(){
     action:()=>events.get('click')?.({preventDefault(){},target:{closest:k=>k==='[data-m26-web-push-action]'?{dataset:{m26WebPushAction:'enable'},disabled:false}:null}}),
     counts:()=>({prefReads,pushReads,enableCalls})};
 }
-test('hidden settings never fetch consent on mount, paint or reconnect',async()=>{
- const h=createHarness();h.controller.mount();await tick();h.render();await tick();h.online();await tick();assert.equal(h.counts().prefReads,0);h.controller.destroy();
+test('remote consent always hydrates on mount and reconnect, including Coach inbox',async()=>{
+ const h=createHarness();h.controller.mount();await tick();h.render();await tick();h.online();await tick();assert.equal(h.counts().prefReads,3,'remote consent remains authoritative without opening settings');h.controller.destroy();
 });
-test('opening settings hydrates once, reconnect rechecks, and no default writes occur',async()=>{
- const h=createHarness();h.controller.mount();await tick();h.visible();h.render();await tick();assert.equal(h.counts().prefReads,1);
- h.render();await tick();assert.equal(h.counts().prefReads,1);h.online();await tick();assert.equal(h.counts().prefReads,2);
- assert.equal(h.updates.length,0);assert.equal(h.applied.length,2);h.controller.destroy();
+test('remote preference refresh remains read-only and does not refetch on an ordinary same-actor shell repaint',async()=>{
+ const h=createHarness();h.controller.mount();await tick();h.visible();h.render();await tick();assert.equal(h.counts().prefReads,2);
+ h.render();await tick();assert.equal(h.counts().prefReads,2);h.online();await tick();assert.equal(h.counts().prefReads,3);
+ assert.equal(h.updates.length,0);assert.equal(h.applied.length,3);h.controller.destroy();
 });
 test('identity switch revalidates both private preference and device state',async()=>{
  const h=createHarness();h.controller.mount();await tick();h.visible();h.render();await tick();const before=h.counts();

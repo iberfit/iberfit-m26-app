@@ -43,18 +43,6 @@ function preferencePayloadFromRoot(root){
   }
   return Object.keys(out).length?Object.freeze(out):null;
 }
-// Check DOM visibility before loading account-scoped server consent.
-function hasVisibleNotificationPreferenceControl(root){
-  const controls=root?.querySelectorAll?.('[data-m26-preference^="notifications."]')||[];
-  for(const control of controls){
-    if(control?.type!=='checkbox')continue;
-    if(typeof control.getClientRects==='function'&&!control.getClientRects().length)continue;
-    const style=root?.ownerDocument?.defaultView?.getComputedStyle?.(control);
-    if(style?.visibility==='hidden'||style?.visibility==='collapse')continue;
-    return true;
-  }
-  return false;
-}
 function mergePreferencePayload(left,right){
   const merged={...(left||{}),...(right||{})};
   return Object.keys(merged).length?Object.freeze(merged):null;
@@ -474,8 +462,6 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   }
   async function hydrateNotificationPreferences({force=false}={}){
     if(!mounted||!service?.notificationPreferences?.status)return false;
-    if(!hasVisibleNotificationPreferenceControl(root))return false;
-    if(!force&&lastPreferenceSyncAt>0&&Date.now()-lastPreferenceSyncAt<60_000)return true;
     // Never start parallel preference reads for the same session. Role/identity
     // transitions explicitly invalidate the old in-flight request.
     if(preferenceSyncInFlight||queuedPreferencePayload||retryPreferencePayload)return false;
@@ -710,12 +696,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       restoreMessageDrafts(root,pendingMessageDrafts);
       applyInboxFilter();
     }
-    const lifecycle=lifecycleGeneration;
-    queueMicrotask(()=>{
-      if(!mounted||lifecycle!==lifecycleGeneration)return;
-      void hydrateNotificationPreferences();
-      void syncPushControl();
-    });
+    queueMicrotask(()=>{void syncPushControl();});
   }
   function onOnline(){
     if(!mounted)return;
