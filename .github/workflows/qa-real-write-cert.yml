@@ -253,7 +253,9 @@ jobs:
         run: node scripts/remote-gates/qa_iri_emission_impact_gate.mjs
 
       - name: Deploy exact QA IRI report brokers
-        if: ${{ steps.iri-impact.outputs.run_iri == 'true' }}
+        # Certification and deployment are independent. A workflow/CI-only
+        # diff can require the report test but must not redeploy unchanged code.
+        if: ${{ steps.iri-impact.outputs.deploy_iri == 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu

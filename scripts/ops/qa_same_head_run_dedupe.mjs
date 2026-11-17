@@ -16,7 +16,10 @@ export function priorQaRunCanSubstitute(run,jobs,{sha,branch,currentId}={}){
  if(run.status==='completed'&&run.conclusion!=='success')return false;
  if(!['completed','in_progress','queued','pending'].includes(run.status))return false;
  const real=jobs.filter(j=>REQUIRED.has(j?.name));
- if(run.status==='completed')return real.some(j=>j.conclusion==='success');
+ // Completed runs may have individual required jobs SKIPPED despite an
+ // overall successful workflow. Never treat partial coverage as certification.
+ if(run.status==='completed')return REQUIRED.size===real.length
+    &&real.every(j=>j.conclusion==='success');
  return real.some(j=>['queued','pending','in_progress'].includes(j.status)||
    j.conclusion==='success');
 }

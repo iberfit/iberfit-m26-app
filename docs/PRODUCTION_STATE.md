@@ -1,3 +1,14 @@
+## P0 SUPABASE FREE · hardening rollout: no duplicate IRI Edge Function deploy on unchanged code (17/11/2026)
+- Base Canary SHA `d586b2b41b7fcae48b290af14ceab168faa68229`; #1357 merged and Cloudflare exact deploy #43988237943 SUCCESS (`productionTouched:false`), **but postmerge not fully green**.
+- Real postmerge Device Client A tablet CPU throttle failed strict 10s (QA `bootstrap_v26` 6161ms HTTP 200; shell eventually mounted at ~14s). Root cause not yet certified; must keep SLA and follow exact run #43988237956.
+- More relevant Free/CI: postmerge QA write run #43988237997 unnecessarily executed `supabase functions deploy` for unchanged IRI brokers solely because `.github/workflows/qa-real-write-cert.yml` was modified in #1357. QA fixture bundling failed `exit 135`, before actual RLS/write tests. Fix conservatively splits **report certification** from **Edge Function redeployment**:
+  * `run_iri=true` on all original sensitive changes, manual, unknown diff; no coverage reduction.
+  * `deploy_iri=true` only on actual function code/vendor changes or `supabase/config.toml`; manual/unknown diffs still force deploy fail-closed.
+  * QA full client IRI report certification still executes on workflow-only changes against previously deployed QA functions.
+- Strengthen QA same-head dedup: completed-success workflow qualifies only when **all five mandatory jobs** finished success; skipped/absent jobs cannot substitute for real safety evidence.
+- Regression tests cover workflow-only diff, schema-only, function code, config, fail-closed, bypass prevention. No change SQL, data, permissions, auth, PROD or event routing. Do not mark PR #1357 postmerge fully green.
+- Financial source unchanged until new dashboard screenshot: current cycle 12 Nov–12 Dic uncached 1,109/5GB, cached 0,286/5GB; no measured reduction yet. #1209 OPEN.
+
 ## SUPABASE FREE P0 · deduplicación de certificación QA por SHA + medición de wire sin red adicional · 16/11/2026
 - Base Canary verificada \`4e4b0efd8d30b860431c681e0b00f1a950ac0ead\`: PR #1356 squash, despliegue Cloudflare exacto y 34 checks posteriores SUCCESS + 2 SKIPPED + 0 FAIL.
 - La nueva puerta QA Real Write compara mediante **solo GitHub API** el workflow, rama y HEAD exactos; si una ejecución anterior real ya terminó SUCCESS o está corriendo/encolada, bloquea la segunda batería duplicada. Draft/skipped/failed/cancelled/otro SHA no sustituyen una certificación. Ante error GitHub la puerta falla cerrada y no llama Supabase. Push postmerge conserva todas sus pruebas; no cancela escrituras.
