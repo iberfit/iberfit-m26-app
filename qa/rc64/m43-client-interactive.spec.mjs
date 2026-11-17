@@ -1,6 +1,7 @@
 import {test,expect} from '@playwright/test';
-import {mkdir} from 'node:fs/promises';
+import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
+import {createQaSupabaseWireMeter} from './qa-supabase-wire-meter.mjs';
 import {m43QaRunMarkers} from '../../scripts/remote-gates/m43-qa-fixture-safety.mjs';
 import {
   CANARY_ORIGIN,QA_PROJECT_REF,SUPABASE_ORIGIN,installCurrentSourceQaNetworkPolicy,
@@ -58,6 +59,7 @@ test('Client executes exact synthetic guided workout through real UI and confirm
 
   let clientId=null,sessionId=null,executionId=null;
   const allowed=[],confirmedProgress=[],blocked=[],pageErrors=[],unexpectedHttp=[];
+  const mobileWire=createQaSupabaseWireMeter(page,{origin:SUPABASE_ORIGIN});
   // No business write is allowed until this Client has obtained its own ID
   // from the real server and selected the exact run-marked synthetic card.
   function allowExactSyntheticWrite(request){
@@ -340,6 +342,7 @@ test('Client executes exact synthetic guided workout through real UI and confirm
     onBlocked:label=>blocked.push(label),
   });
   const desktopPage=await runningDesktopContext.newPage();
+  const desktopWire=createQaSupabaseWireMeter(desktopPage,{origin:SUPABASE_ORIGIN});
   desktopPage.on('pageerror',error=>pageErrors.push(String(error?.message||error).slice(0,180)));
   desktopPage.on('response',async response=>{
     try{
@@ -480,6 +483,14 @@ test('Client executes exact synthetic guided workout through real UI and confirm
       historyAfterReload:1,duplicateWritesAfterReload:allowed.length-runningWritesBeforeReload,
       networkErrors:unexpectedHttp.length,blockedWrites:0},null,2)),
     contentType:'application/json',
+  });
+  const wireEvidence={schema:'iberfit.qa.supabase.browser-wire-report.v1',
+    synthetic:true,productionTouched:false,billableEgressVerified:false,
+    scope:'one synthetic strength+running browser journey, not a 24h invoice',
+    mobile:await mobileWire.stop(),desktop:await desktopWire.stop()};
+  await writeFile(join(dir,'supabase-wire-evidence.json'),JSON.stringify(wireEvidence,null,2)+'\n');
+  await testInfo.attach('m43-qa-supabase-wire-evidence',{
+    body:Buffer.from(JSON.stringify(wireEvidence,null,2)),contentType:'application/json',
   });
   await runningDesktopContext.close();
 });
