@@ -1834,11 +1834,11 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     if(!uuid.test(String(clientId||''))||!String(operationId||'').trim())
       throw new Error('M26_COACH_INVITE_INPUT_INVALID');
     const command={
-      type:'COACH_CLIENTE_REENVIAR_INVITACION',
+      type:'ADMIN_CLIENTE_REENVIAR_INVITACION',
       operationId:String(operationId),entityId:String(clientId),
       payload:{clientId:String(clientId)},
     };
-    const result=await request('/functions/v1/iberfit-coach-client-invite-v1',{
+    const result=await request('/functions/v1/iberfit-admin-client-invite-v1',{
       method:'POST',token,body:JSON.stringify({command}),
     });
     if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))

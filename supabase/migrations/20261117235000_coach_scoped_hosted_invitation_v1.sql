@@ -71,7 +71,7 @@ begin
         )
       )
     )
-  ) then raise exception 'V26_INVITE_ROLE_OR_CLIENT_SCOPE_REQUIRED' using errcode='42501'; end if;
+  ) then raise exception 'V26_INVITE_ROLE_OR_CLIENT_SCOPE_FORBIDDEN' using errcode='42501'; end if;
   v_org:=nullif(v_context->>'organizationId','')::uuid;
   if v_org is null or v_actor is null then raise exception 'V26_INVITE_CONTEXT_REQUIRED' using errcode='42501'; end if;
   if p_client_id is null or v_op='' then raise exception 'V26_INVITE_PREPARE_INVALID' using errcode='22023'; end if;
@@ -178,7 +178,7 @@ begin
         )
       )
     )
-  ) then raise exception 'V26_INVITE_ROLE_OR_CLIENT_SCOPE_REQUIRED' using errcode='42501'; end if;
+  ) then raise exception 'V26_INVITE_ROLE_OR_CLIENT_SCOPE_FORBIDDEN' using errcode='42501'; end if;
   v_org:=nullif(v_context->>'organizationId','')::uuid;
   if v_org is null or v_actor is null or p_client_id is null or p_auth_user_id is null then raise exception 'V26_INVITE_BIND_CONTEXT_REQUIRED' using errcode='42501'; end if;
   perform public.iberfit_assert_client_org_scope_v65e(v_org,p_client_id::text);
@@ -279,7 +279,7 @@ begin
         )
       )
     )
-  ) then raise exception 'V26_INVITE_ROLE_OR_CLIENT_SCOPE_REQUIRED' using errcode='42501'; end if;
+  ) then raise exception 'V26_INVITE_ROLE_OR_CLIENT_SCOPE_FORBIDDEN' using errcode='42501'; end if;
   v_org:=nullif(v_context->>'organizationId','')::uuid;
   if v_org is null or v_actor is null then raise exception 'V26_INVITE_FINALIZE_CONTEXT_REQUIRED' using errcode='42501'; end if;
   if v_status not in ('sent','error') then raise exception 'V26_INVITE_DELIVERY_STATUS_INVALID' using errcode='22023'; end if;
