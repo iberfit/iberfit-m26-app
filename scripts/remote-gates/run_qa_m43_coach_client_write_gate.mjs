@@ -7,6 +7,7 @@
 import {randomUUID} from 'node:crypto';
 import {expandQaClientCanonicalBodyEnvelope} from '../../src/m26/production-state.js';
 import {readQaM43MinimalVisibility} from './qa_m43_minimal_bootstrap_visibility.mjs';
+import {readQaM43OwnerProjection} from './qa_m43_owner_projection.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {buildCycleCommand} from '../../src/m26/workflows/planning-workflow.js';
 import {createExerciseCatalog} from '../../src/m26/exercises/catalog.js';
@@ -65,6 +66,11 @@ const bootstrap=async session=>expandQaClientCanonicalBodyEnvelope(
 // historical snapshot merely to assert one exact entity is absent.
 const foreignVisibility=(session,entityType,entityId)=>
   readQaM43MinimalVisibility({rpc,session,entityType,entityId});
+// Same authenticated canonical bootstrap executes server-side; only scoped
+// Client-own visibility and publish revision cross the wire. Full snapshots
+// remain mandatory at fixture selection, recovery, and final history audit.
+const ownerProjection=(session,entityType,entityId,clientId)=>
+  readQaM43OwnerProjection({rpc,session,entityType,entityId,clientId});
 const contains=(snapshot,id,entity)=>(snapshot?.data?.m26Entities||[])
   .some(item=>item.entityType===entity&&String(item.entityId)===id);
 const baseContains=(snapshot,id,collection)=>(snapshot?.data?.[collection]||[])
@@ -175,8 +181,8 @@ async function main(){
   await send(coach,buildCycleCommand(cycle(savedId,RUN_MARKERS.unpublishedCycleTitle)),
     'SECOND_CYCLE_PRESERVED');
   evidence.phase='two-plans-validated';
-  const before=await bootstrap(clientA);
-  const leaked=contains(before,savedId,'planning')||baseContains(before,savedId,'trainingCycles');
+  const before=await ownerProjection(clientA,'planning',savedId,idA);
+  const leaked=before.canonicalVisible||before.legacyVisible;
   if(leaked)evidence.warnings.push('UNPUBLISHED_PLAN_VISIBLE_IN_CLIENT_RAW_BOOTSTRAP');
   const approved=await send(coach,{type:'PLAN_APROBAR',entityType:'planning',
     entityId:planId,clientId:idA,baseRevision:Number(validated.result.remoteRevision),
@@ -214,10 +220,10 @@ async function main(){
   // M37 enables reviewed guided sessions atomically during publication.
   // Do not send a redundant SESION_HABILITAR after a confirmed state change.
   // Legacy supervised or non-atomic flows still require explicit enablement.
-  let [clientVisible,otherVisibility]=await Promise.all([
-    bootstrap(clientA),foreignVisibility(clientB,'session',draft.id)]);
-  const canonical=clientVisible?.data?.m26Entities?.find(item=>
-    item.entityType==='session'&&String(item.entityId)===String(draft.id));
+  const [clientReady,otherVisibility]=await Promise.all([
+    ownerProjection(clientA,'session',draft.id,idA),
+    foreignVisibility(clientB,'session',draft.id)]);
+  const canonical=clientReady.canonical;
   // M37 requires the publish ACK itself to include atomic enablement. A
   // second command here masked regressions that would strand real Clients on
   // a visible but unstartable session. Fail before any start mutation.
@@ -227,7 +233,7 @@ async function main(){
   check(enablement.ok,'GUIDED_ATOMIC_ENABLEMENT_'+enablement.reason);
   const readyRevision=enablement.revision;
   check(readyRevision===Number(canonical.revision),'CANONICAL_SESSION_REVISION');
-  check(contains(clientVisible,draft.id,'session')||baseContains(clientVisible,draft.id,'sessions'),
+  check(clientReady.canonicalVisible||clientReady.legacyVisible,
     'CLIENT_SEES_PUBLISHED_SESSION');
   check(!otherVisibility.canonicalVisible&&!otherVisibility.legacyVisible,
     'OTHER_CLIENT_CANNOT_SEE_SESSION');
@@ -293,10 +299,12 @@ async function main(){
   acceptSessionPreview(uiDraft,catalog);
   const uiPublished=await send(coach,buildPublishSessionCommand(uiDraft,catalog,0),
     'INTERACTIVE_SESSION_PUBLISH');
-  const [uiClient,uiForeign]=await Promise.all([
-    bootstrap(clientA),foreignVisibility(clientB,'session',uiDraft.id)]);
-  const uiCanonical=uiClient?.data?.m26Entities?.find(item=>
-    item.entityType==='session'&&String(item.entityId)===String(uiDraft.id));
+  const [uiReady,uiForeign]=await Promise.all([
+    ownerProjection(clientA,'session',uiDraft.id,idA),
+    foreignVisibility(clientB,'session',uiDraft.id)]);
+  const uiCanonical=uiReady.canonical;
+  check(uiReady.canonicalVisible||uiReady.legacyVisible,
+    'INTERACTIVE_SESSION_VISIBLE_TO_OWNER');
   check(verifyM43AtomicGuidedEnablement({
     canonical:uiCanonical,publishedResult:uiPublished.result,
     sessionId:uiDraft.id,clientId:idA,
@@ -321,10 +329,12 @@ async function main(){
   acceptSessionPreview(runningDraft,catalog);
   const runningPublished=await send(coach,buildPublishSessionCommand(runningDraft,catalog,0),
     'RUNNING_INTERACTIVE_SESSION_PUBLISH');
-  const [runningClient,runningForeign]=await Promise.all([
-    bootstrap(clientA),foreignVisibility(clientB,'session',runningDraft.id)]);
-  const runningCanonical=runningClient?.data?.m26Entities?.find(item=>
-    item.entityType==='session'&&String(item.entityId)===String(runningDraft.id));
+  const [runningReady,runningForeign]=await Promise.all([
+    ownerProjection(clientA,'session',runningDraft.id,idA),
+    foreignVisibility(clientB,'session',runningDraft.id)]);
+  const runningCanonical=runningReady.canonical;
+  check(runningReady.canonicalVisible||runningReady.legacyVisible,
+    'RUNNING_SESSION_VISIBLE_TO_OWNER');
   check(verifyM43AtomicGuidedEnablement({
     canonical:runningCanonical,publishedResult:runningPublished.result,
     sessionId:runningDraft.id,clientId:idA,
