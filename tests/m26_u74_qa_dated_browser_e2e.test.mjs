@@ -107,3 +107,14 @@ test('U74 actual Real Training branch retains signed two-attempt QA boundaries',
  assert.match(js,/ENV_ISOLATION/u);
  assert.doesNotMatch(wf,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|pjhmrhejsoofmouedavw/u);
 });
+
+test('U74 persisted preflight binds same synthetic source, revision, SHA, run and date',()=>{
+ const src=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ assert.match(src,/candidateId:plan\.chosen\.id,candidateRevision:plan\.chosen\.revision/u);
+ assert.match(src,/UUID\.test\(original\.candidateId\)/u);
+ assert.match(src,/old\.candidateId===proof\.candidateId/u);
+ assert.match(src,/old\.candidateRevision===proof\.candidateRevision/u);
+ assert.match(src,/selectCertifiedDatedCandidate\(candidates,old,today,future,certified\)/u);
+ assert.match(src,/CERTIFIED_SOURCE_REVISION_CHANGED/u);
+ assert.match(src,/CERTIFIED_SOURCE_DATES_OCCUPIED/u);
+});

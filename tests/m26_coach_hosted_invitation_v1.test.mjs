@@ -88,3 +88,12 @@ test('Coach/Admin finalize is operation-scoped, terminal-idempotent and serializ
   assert.match(revert,/168dc6bd262169a58a6d9ff12558078d/u);
   assert.doesNotMatch(qa,/GRANT\s+EXECUTE/iu);
 });
+
+test('QA denied invite checks the exact hosted Edge version without relaxing bearer rejection',()=>{
+ const gate=fs.readFileSync('scripts/remote-gates/run_qa_real_write_gate.mjs','utf8');
+ const version=adminEdge.match(/^const FUNCTION_VERSION='(admin-client-invite-v26\.\d+)';$/mu);
+ assert.ok(version,'Edge source version must remain explicit');
+ assert.ok(gate.includes("String(invalidInviteAuth.body?.version||'')!=='"+version[1]+"'"));
+ assert.match(gate,/invalidInviteAuth\.status!==401/u);
+ assert.match(gate,/V26_AUTH_REQUIRED/u);
+});

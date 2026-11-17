@@ -89,6 +89,20 @@ export function firstAvailableDatedCandidate(candidates,calendar,today,future){
  }
  return candidates.find(row=>row&&UUID.test(row.id)&&!reserved.has(row.id))||null;
 }
+// Stage two must reuse the immutable synthetic prescription certified by the
+// signed read-only first attempt. Never silently switch to a different source.
+export function selectCertifiedDatedCandidate(candidates,calendar,today,future,certified=null){
+ if(!certified)return firstAvailableDatedCandidate(candidates,calendar,today,future);
+ assert(UUID.test(certified.candidateId)&&
+  Number.isSafeInteger(certified.candidateRevision)&&certified.candidateRevision>=1,
+  'CERTIFIED_SOURCE_INVALID');
+ const selected=candidates.find(row=>row.id===certified.candidateId&&
+  row.revision===certified.candidateRevision);
+ assert(selected,'CERTIFIED_SOURCE_REVISION_CHANGED');
+ assert(firstAvailableDatedCandidate([selected],calendar,today,future),
+  'CERTIFIED_SOURCE_DATES_OCCUPIED');
+ return selected;
+}
 export function denied(x){
  return [401,403,404].includes(x?.status)||
   (x?.status===200&&['rejected','conflict'].includes(x.body?.kind)
@@ -298,7 +312,7 @@ async function authenticatedStage(ctx,certified=null){
  // intended dates for the chosen prescription, and never start if an
  // unrelated workout is already active for this Client.
  assert(!old.some(row=>row.status==='en_curso'),'QA_CLIENT_ACTIVE_EXECUTION');
- const chosen=firstAvailableDatedCandidate(candidates,old,today,future);
+ const chosen=selectCertifiedDatedCandidate(candidates,old,today,future,certified);
  assert(chosen,'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
  const {time,start1,start2,end1,end2}=chooseUnoccupiedDatedSlot({
   today,future,duration:chosen.duration,clockMinute:clock.minute,
@@ -378,6 +392,9 @@ async function main(){
     &&original.status==='READY_FOR_EXPLICIT_RERUN'
     &&original.project==='QA'&&original.sha===ctx.e.GITHUB_SHA
     &&original.runId===ctx.e.GITHUB_RUN_ID
+    &&UUID.test(original.candidateId)
+    &&Number.isSafeInteger(original.candidateRevision)
+    &&original.candidateRevision>=1
     &&/^\d{4}-\d{2}-\d{2}$/.test(original.localDate)
     &&/^\d{4}-\d{2}-\d{2}$/.test(original.futureDate)
     &&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(original.localTime)
@@ -390,6 +407,7 @@ async function main(){
  const proof={schema:'iberfit.u71.qa-authenticated-dated-e2e.v1',stage:mode,
    project:'QA',sha:ctx.e.GITHUB_SHA,runId:ctx.e.GITHUB_RUN_ID,
    createdAt:new Date().toISOString(),fingerprint:plan.fingerprint,
+   candidateId:plan.chosen.id,candidateRevision:plan.chosen.revision,
    localDate:plan.today,futureDate:plan.future,localTime:plan.time,
    sourceFixture:'existing QA synthetic published prescription',
    realJwtForCoachAndTwoClients:true,prodTouched:false,serviceRole:false,
@@ -409,6 +427,8 @@ async function main(){
   &&old.status==='READY_FOR_EXPLICIT_RERUN'&&old.project==='QA'
   &&old.sha===proof.sha&&old.runId===proof.runId
   &&old.fingerprint===proof.fingerprint
+  &&old.candidateId===proof.candidateId
+  &&old.candidateRevision===proof.candidateRevision
   &&old.localDate===proof.localDate&&old.futureDate===proof.futureDate
   &&old.localTime===proof.localTime&&Number.isFinite(age)
   &&age>=0&&age<7200000,'PREFLIGHT_MISSING_STALE_OR_CHANGED');

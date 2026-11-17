@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,selectCertifiedDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -119,7 +119,7 @@ test('U71 exact branch preflight is allowlisted but never writes on first attemp
  assert.match(workflow,/feat\/coach-a-verified-evidence-20261111/u);
  assert.match(workflow,/github\.run_attempt == 1/u);
  assert.match(workflow,/github\.run_attempt == 2/u);
- assert.match(script,/firstAvailableDatedCandidate\(candidates,old,today,future\)/u);
+ assert.match(script,/selectCertifiedDatedCandidate\(candidates,old,today,future,certified\)/u);
  assert.match(script,/old\.sha===proof\.sha/u);
  assert.match(script,/old\.fingerprint===proof\.fingerprint/u);
  assert.doesNotMatch(workflow,/IBERFIT_PROD_DATABASE_URL|SERVICE_ROLE_KEY/u);
@@ -328,4 +328,17 @@ test('U71 daytime and restricted day gap still enforce the existing window',()=>
  assert.throws(()=>chooseUnoccupiedDatedSlot({today:'2026-11-20',future:'2026-11-27',
   clockDay:d.today,clockMinute:600,calendar:[],duration:45,
   nowMs:Date.parse('2026-11-16T13:00:00Z')}),/U71_QA_SLOT_INPUT_INVALID/);
+});
+
+test('U74 exact preflight candidate survives unrelated QA source additions',()=>{
+ const ids=['10000000-0000-4000-8000-000000000011','10000000-0000-4000-8000-000000000012'];
+ const candidates=[{id:ids[0],revision:3},{id:ids[1],revision:4}];
+ const today='2026-11-17',future='2026-11-24';
+ const certified={candidateId:ids[1],candidateRevision:4};
+ assert.equal(selectCertifiedDatedCandidate(candidates,[],today,future,certified).id,ids[1]);
+ assert.equal(selectCertifiedDatedCandidate([{id:'10000000-0000-4000-8000-000000000010',revision:1},...candidates],[],today,future,certified).id,ids[1]);
+ assert.throws(()=>selectCertifiedDatedCandidate([{id:ids[1],revision:5}],[],today,future,certified),/CERTIFIED_SOURCE_REVISION_CHANGED/);
+ assert.throws(()=>selectCertifiedDatedCandidate(candidates,[{sessionId:ids[1],localDate:today}],today,future,certified),/CERTIFIED_SOURCE_DATES_OCCUPIED/);
+ assert.throws(()=>selectCertifiedDatedCandidate(candidates,[],today,future,{candidateId:ids[0],candidateRevision:0}),/CERTIFIED_SOURCE_INVALID/);
+ assert.equal(selectCertifiedDatedCandidate(candidates,[],today,future,null).id,ids[0]);
 });
