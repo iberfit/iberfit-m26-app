@@ -65,6 +65,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'log-habit':{roles:['admin','coach','client'],domain:'engagement'},
   'save-private-note':{roles:['admin','coach'],domain:'engagement'},
   'create-client-draft':{roles:['admin','coach'],domain:'workflow'},
+  'coach-send-client-invite':{roles:['coach'],domain:'client-access'},
   'complete-iri':{roles:['admin','coach'],domain:'workflow'},
   'save-iri-draft':{roles:['admin','coach'],domain:'workflow'},
   'save-report-draft':{roles:['admin','coach'],domain:'workflow'},

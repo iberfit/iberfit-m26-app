@@ -1828,6 +1828,24 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...result});
   }
 
+  async function coachInviteClient(token,{clientId,operationId}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+    if(!uuid.test(String(clientId||''))||!String(operationId||'').trim())
+      throw new Error('M26_COACH_INVITE_INPUT_INVALID');
+    const command={
+      type:'COACH_CLIENTE_REENVIAR_INVITACION',
+      operationId:String(operationId),entityId:String(clientId),
+      payload:{clientId:String(clientId)},
+    };
+    const result=await request('/functions/v1/iberfit-coach-client-invite-v1',{
+      method:'POST',token,body:JSON.stringify({command}),
+    });
+    if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))
+      throw new Error('M26_COACH_INVITE_NOT_CONFIRMED');
+    return Object.freeze(result);
+  }
+
   async function createClientDraft(token, payload = {}) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');
@@ -2165,6 +2183,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     occurrencePrivateRead,
     occurrenceCommand,
     clientOnboardingPreflight,
+    coachInviteClient,
     createReportDraft,
     createClientDraft,
     preflight: async (token, command) => normalizeRpcResponse(await rpc(runtime.rpc.preflight, token, { p_command: command })),

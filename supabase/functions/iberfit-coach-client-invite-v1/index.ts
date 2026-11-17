@@ -1,0 +1,178 @@
+import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
+
+const FUNCTION_VERSION='coach-client-invite-v1';
+const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
+const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
+function deploymentProjectRef(value:string){
+  try{
+    const host=new URL(String(value||'')).hostname.toLowerCase();
+    const match=host.match(/^([a-z0-9]{20})\.supabase\.co$/u);
+    return match?.[1]||'';
+  }catch{return '';}
+}
+const DEPLOYMENT_PROJECT_REF=deploymentProjectRef(Deno.env.get('SUPABASE_URL')||'');
+const ALLOWED_ORIGINS=new Set(
+  DEPLOYMENT_PROJECT_REF===QA_PROJECT_REF
+    ?['https://m26-canary.iberfit.cl']
+    :DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF
+      ?['https://app.iberfit.cl']
+      :[],
+);
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const MAX_BODY=160_000;
+
+function cors(origin=''){
+  const headers:Record<string,string>={
+    'access-control-allow-headers':'authorization, apikey, content-type, x-client-info',
+    'access-control-allow-methods':'POST, OPTIONS',
+    'access-control-max-age':'600',
+    'cache-control':'no-store',
+    'content-type':'application/json; charset=utf-8',
+    'vary':'Origin',
+    'x-content-type-options':'nosniff',
+  };
+  if(ALLOWED_ORIGINS.has(origin))headers['access-control-allow-origin']=origin;
+  return headers;
+}
+function reply(status:number,body:unknown,origin=''){
+  return new Response(status===204?null:JSON.stringify(body),{status,headers:cors(origin)});
+}
+function codeOf(error:unknown,fallback='V26_INVITATION_SEND_FAILED'){
+  const raw=String((error as {message?:string})?.message||error||'').toUpperCase();
+  const match=raw.match(/\b(?:V|M26|IBERFIT)_[A-Z0-9_:-]{2,100}\b/u);
+  if(match)return match[0].slice(0,100);
+  if(/ALREADY.*REGISTER|USER.*EXISTS|ALREADY.*EXISTS/u.test(raw))return 'V26_AUTH_USER_ALREADY_EXISTS';
+  if(/RATE|LIMIT/u.test(raw))return 'V26_INVITATION_RATE_LIMITED';
+  return fallback;
+}
+function normalizeEmail(value:unknown){
+  const email=String(value||'').trim().toLowerCase();
+  if(email.length<5||email.length>254||!email.includes('@')||/[\u0000-\u001f\u007f]/u.test(email))throw new Error('V26_INVITATION_EMAIL_INVALID');
+  return email;
+}
+function normalizeCommand(value:unknown){
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('V26_INVITATION_COMMAND_INVALID');
+  const command=value as Record<string,unknown>;
+  const type=String(command.type||'').trim().toUpperCase();
+  if(type!=='COACH_CLIENTE_REENVIAR_INVITACION')throw new Error('V26_INVITATION_COMMAND_INVALID');
+  const operationId=String(command.operationId||'').trim();
+  if(operationId.length<3||operationId.length>200||/[\u0000-\u001f\u007f]/u.test(operationId))throw new Error('V26_INVITATION_OPERATION_INVALID');
+  let clientId='';
+  if(type==='COACH_CLIENTE_REENVIAR_INVITACION'){
+    const payload=command.payload&&typeof command.payload==='object'&&!Array.isArray(command.payload)
+      ?command.payload as Record<string,unknown>
+      :{};
+    clientId=String(payload.clientId||command.entityId||'').trim();
+    if(!UUID.test(clientId))throw new Error('V26_INVITATION_CLIENT_INVALID');
+  }
+  return {command,type,operationId,clientId};
+}
+async function findAuthUserByEmail(service:ReturnType<typeof createClient>,email:string){
+  for(let page=1;page<=10;page+=1){
+    const {data,error}=await service.auth.admin.listUsers({page,perPage:1000});
+    if(error)throw error;
+    const user=(data?.users||[]).find((item)=>String(item.email||'').trim().toLowerCase()===email)||null;
+    if(user)return user;
+    if((data?.users||[]).length<1000)return null;
+  }
+  throw new Error('V26_AUTH_USER_LOOKUP_LIMIT');
+}
+
+Deno.serve(async(req:Request)=>{
+  const origin=String(req.headers.get('origin')||'').trim().toLowerCase();
+  if(req.method==='OPTIONS')return reply(ALLOWED_ORIGINS.has(origin)?204:403,{},origin);
+  if(req.method!=='POST')return reply(405,{ok:false,code:'V26_METHOD_NOT_ALLOWED',version:FUNCTION_VERSION},origin);
+  if(!ALLOWED_ORIGINS.has(origin))return reply(403,{ok:false,code:'V26_ORIGIN_FORBIDDEN',version:FUNCTION_VERSION},origin);
+
+  const authorization=String(req.headers.get('authorization')||'').trim();
+  if(!authorization.startsWith('Bearer ')||authorization.length>20000)return reply(401,{ok:false,code:'V26_AUTH_REQUIRED',version:FUNCTION_VERSION},origin);
+  const raw=await req.text();
+  if(raw.length<2||raw.length>MAX_BODY)return reply(400,{ok:false,code:'V26_BODY_INVALID',version:FUNCTION_VERSION},origin);
+
+  let parsed:unknown;
+  try{parsed=JSON.parse(raw);}catch{return reply(400,{ok:false,code:'V26_BODY_INVALID',version:FUNCTION_VERSION},origin);}
+  let normalized:{command:Record<string,unknown>;type:string;operationId:string;clientId:string};
+  try{normalized=normalizeCommand((parsed as Record<string,unknown>)?.command);}catch(error){return reply(400,{ok:false,code:codeOf(error,'V26_INVITATION_COMMAND_INVALID'),version:FUNCTION_VERSION},origin);}
+
+  const supabaseUrl=String(Deno.env.get('SUPABASE_URL')||'').trim();
+  const anonKey=String(Deno.env.get('SUPABASE_ANON_KEY')||'').trim();
+  const serviceRole=String(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'').trim();
+  if(!supabaseUrl||!anonKey||!serviceRole)return reply(500,{ok:false,code:'V26_SERVER_CONFIG_MISSING',version:FUNCTION_VERSION},origin);
+
+  const userClient=createClient(supabaseUrl,anonKey,{
+    auth:{persistSession:false,autoRefreshToken:false},
+    global:{headers:{Authorization:authorization,Origin:origin}},
+  });
+  const {data:actorAuth,error:actorAuthError}=await userClient.auth.getUser();
+  const actorUserId=String(actorAuth?.user?.id||'').trim();
+  if(actorAuthError||!UUID.test(actorUserId)){
+    return reply(401,{ok:false,code:'V26_AUTH_REQUIRED',version:FUNCTION_VERSION},origin);
+  }
+  let createReceipt:Record<string,unknown>|null=null;
+  let clientId=normalized.clientId||'';
+  let email='';
+  // Auth invitations can already have been mailed before database binding.
+  // Preserve the identity and reconcile on a later safe retry.
+
+  try{
+    createReceipt={
+      ok:true,kind:'ack',operationId:normalized.operationId,
+      commandType:normalized.type,entityType:'client',entityId:clientId,clientId,
+    };
+
+    const {data:prepareData,error:prepareError}=await userClient.rpc('iberfit_admin_client_invitation_prepare_v26',{p_client_id:clientId,p_operation_id:normalized.operationId});
+    if(prepareError)throw prepareError;
+    const prepared=(Array.isArray(prepareData)?prepareData[0]:prepareData) as Record<string,unknown>|null;
+    if(!prepared||prepared.ok!==true)throw new Error('V26_INVITATION_PREPARE_INVALID_RESPONSE');
+    email=normalizeEmail(prepared.email);
+    if(prepared.shouldSend!==true){
+      return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,invitation:{deliveryStatus:prepared.deliveryStatus||null,accessStatus:prepared.accessStatus||null,reason:prepared.reason||'not_required',email}},origin);
+    }
+
+    const service=createClient(supabaseUrl,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
+    const publicAuth=createClient(supabaseUrl,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
+    const redirectTo=`${origin}/`;
+    const existing=await findAuthUserByEmail(service,email);
+    let authUserId='';
+    let deliveryMode='invite';
+
+    if(existing){
+      authUserId=String(existing.id||'');
+      if(!UUID.test(authUserId))throw new Error('V26_AUTH_USER_INVALID');
+      const {data:bindData,error:bindError}=await userClient.rpc('iberfit_admin_client_invitation_bind_v26',{p_client_id:clientId,p_auth_user_id:authUserId});
+      if(bindError)throw bindError;
+      if(!(Array.isArray(bindData)?bindData[0]:bindData)?.ok)throw new Error('V26_INVITATION_BIND_INVALID_RESPONSE');
+      const {error:recoveryError}=await publicAuth.auth.resetPasswordForEmail(email,{redirectTo});
+      if(recoveryError)throw recoveryError;
+      deliveryMode='recovery-existing-user';
+    }else{
+      const name=String(prepared.name||'Cliente IBERFIT').trim().slice(0,200)||'Cliente IBERFIT';
+      const {data:inviteData,error:inviteError}=await service.auth.admin.inviteUserByEmail(email,{redirectTo,data:{name,role:'client',client_id:clientId}});
+      if(inviteError)throw inviteError;
+      authUserId=String(inviteData?.user?.id||'');
+      if(!UUID.test(authUserId))throw new Error('V26_INVITATION_AUTH_USER_INVALID');
+      // Preserve the newly invited identity for a safe retry if binding fails.
+      const {data:bindData,error:bindError}=await userClient.rpc('iberfit_admin_client_invitation_bind_v26',{p_client_id:clientId,p_auth_user_id:authUserId});
+      if(bindError)throw bindError;
+      if(!(Array.isArray(bindData)?bindData[0]:bindData)?.ok)throw new Error('V26_INVITATION_BIND_INVALID_RESPONSE');
+    }
+
+    const {data:finalData,error:finalError}=await userClient.rpc('iberfit_admin_client_invitation_finalize_v26',{p_client_id:clientId,p_operation_id:normalized.operationId,p_delivery_status:'sent',p_error_code:null});
+    if(finalError)throw finalError;
+    const finalized=(Array.isArray(finalData)?finalData[0]:finalData) as Record<string,unknown>|null;
+    if(!finalized||finalized.ok!==true)throw new Error('V26_INVITATION_FINALIZE_INVALID_RESPONSE');
+    return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,invitation:{...finalized,email,deliveryMode}},origin);
+  }catch(error){
+    const errorCode=codeOf(error);
+    // Never delete an Auth identity after inviteUserByEmail may have sent an
+    // invitation. A later authorized retry can safely bind the same identity.
+    if(/ADMIN_REQUIRED|AUTH_REQUIRED|WEBAUTHN|ASSURANCE|FORBIDDEN|SCOPE_REQUIRED/u.test(errorCode)){
+      return reply(403,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
+    }
+    if(clientId&&UUID.test(clientId)){
+      try{await userClient.rpc('iberfit_admin_client_invitation_finalize_v26',{p_client_id:clientId,p_operation_id:normalized.operationId,p_delivery_status:'error',p_error_code:errorCode});}catch{}
+      return reply(200,{...(createReceipt||{}),ok:true,kind:String(createReceipt?.kind||'ack'),operationId:normalized.operationId,commandType:normalized.type,entityId:clientId,clientId,version:FUNCTION_VERSION,invitation:{deliveryStatus:'error',accessStatus:'invitacion_pendiente',errorCode,email:email||null}},origin);
+    }
+    return reply(400,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
+  }
+});

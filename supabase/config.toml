@@ -422,6 +422,11 @@ verify_jwt = true
 [functions.iberfit-admin-client-invite-v1]
 verify_jwt = false
 
+# Coach invitation uses verified bearer, scoped SQL and optional privileged WebAuthn.
+# Auth getUser() is validated inside the Edge, as in the Admin invitation broker.
+[functions.iberfit-coach-client-invite-v1]
+verify_jwt = false
+
 
 # IRI issued-report broker performs its own bearer validation with auth.getUser()
 # and then calls fail-closed authorization RPCs. This keeps QA/PROD behavior

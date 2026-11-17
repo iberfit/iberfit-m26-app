@@ -170,8 +170,8 @@ test('Admin and Coach surfaces both retain real client-create capability',()=>{
   assert.match(routeVm,/canCreate:\s*\['admin',\s*'coach'\]\.includes\(role\)/u);
   assert.match(route,/data-workflow-form="client-onboarding"/u);
   assert.match(route,/Crear expediente y abrir diagnóstico IRI/u);
-  assert.match(route,/El acceso a la app se gestiona por separado desde Administración\./u);
-  assert.match(route,/El acceso del cliente se gestiona por separado desde Administración\./u);
+  assert.match(route,/El acceso a IBERFIT se gestiona después del alta: el Coach responsable o Administración pueden invitar\./u);
+  assert.match(route,/El Coach responsable o Administración podrán enviar la invitación tras crear el expediente\./u);
   assert.doesNotMatch(route,/enviará la invitación al correo cuando corresponda/u);
 
   assert.match(workflow,/async function createClient\(\)[\s\S]*?requireCoach\(\)/u);
