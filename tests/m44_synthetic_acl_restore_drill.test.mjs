@@ -18,8 +18,13 @@ test('synthetic fixture drill refuses any nonlocal or nonliteral password connec
  }
 });
 test('workflow can never consume production credentials or call Supabase endpoints',()=>{
- assert.match(yaml,/image: supabase\/postgres:17\.6\.1\.147/);
- assert.match(yaml,/postgres:17-alpine sh \/drill\.sh/);
+ assert.match(yaml,/supabase\/postgres:17\.6\.1\.147/);
+ assert.match(yaml,/docker run --detach --name "\$container" --network none/);
+ assert.match(yaml,/docker exec[\s\S]*?"\$container" sh \/drill\.sh/);
+ assert.match(yaml,/docker inspect --format/);
+ assert.match(yaml,/docker port "\$container"/);
+ assert.match(yaml,/IBERFIT_M44_SYNTHETIC_DATABASE_NETWORK_NONE_NO_PORTS_VERIFIED/);
+ assert.doesNotMatch(yaml,/--network host|ports:|--publish|-p 5432:5432|services:/);
  assert.match(yaml,/IBERFIT_M44_SYNTHETIC_ONLY=true/);
  assert.match(yaml,/permissions:\s*\n  contents: read/);
  assert.match(yaml,/PGHOST=127\.0\.0\.1/);
@@ -69,4 +74,64 @@ test('selective recovery replays only ACL and DEFAULT ACL, never table rows or D
  // commented out. Importing the full schema into an already-restored
  // database would hide duplication and could overwrite tenant data.
  assert.match(sh,/print ";" \$0; next/);
+});
+
+test('recovered ACL is also exercised with real tenant-scoped DML RLS',()=>{
+ assert.match(sh,/CREATE ROLE iberfit_m44_fixture_writer NOLOGIN/);
+ assert.match(sh,/tenant_id integer NOT NULL/);
+ assert.match(sh,/GRANT SELECT, INSERT, UPDATE, DELETE ON m44_acl_fixture\.exercise TO iberfit_m44_fixture_writer/);
+ for(const kind of ['SELECT','INSERT','UPDATE','DELETE']){
+  assert.match(sh,new RegExp('CREATE POLICY m44_writer_'+
+   kind.toLowerCase()+'_scope[\\s\\S]*?FOR '+kind+
+   ' TO iberfit_m44_fixture_writer'));
+ }
+ assert.match(sh,/FOR INSERT TO iberfit_m44_fixture_writer WITH CHECK \(tenant_id = 1\)/);
+ assert.match(sh,/FOR UPDATE TO iberfit_m44_fixture_writer\s+USING \(tenant_id = 1\) WITH CHECK \(tenant_id = 1\)/);
+ assert.match(sh,/SET LOCAL ROLE iberfit_m44_fixture_writer/);
+ assert.match(sh,/BEGIN; SET LOCAL ROLE[\s\S]*?ROLLBACK/);
+ assert.match(sh,/violates row-level security policy/);
+ assert.match(sh,/WHERE id=2 RETURNING id/);
+ assert.match(sh,/SET tenant_id=2 WHERE id=1/);
+ assert.match(sh,/IBERFIT_M44_RLS_DML_SOURCE_AND_FULL_RESTORE_SYNTHETIC_VERIFIED/);
+ assert.match(sh,/IBERFIT_M44_RLS_DML_ACL_ONLY_REPLAY_SYNTHETIC_VERIFIED/);
+ assert.match(sh,/IBERFIT_M44_RLS_DML_STRIPPED_UNEXPECTEDLY_PERMITTED/);
+ assert.match(sh,/IBERFIT_M44_RLS_DML_ACL_ONLY_REPLAY_DIVERGED/);
+});
+
+test('synthetic drill remains valid POSIX sh after any source change',()=>{
+ const result=spawnSync('sh',['-n','scripts/ops/m44_synthetic_acl_restore_drill.sh'],
+  {encoding:'utf8',env:{PATH:process.env.PATH},timeout:7000});
+ assert.equal(result.status,0,result.stderr);
+});
+
+test('schema USAGE and per-column SELECT privileges are restored, not inferred from RLS',()=>{
+ assert.match(sh,/CREATE ROLE iberfit_m44_fixture_column_reader NOLOGIN/);
+ assert.match(sh,/CREATE ROLE iberfit_m44_fixture_schema_denied NOLOGIN/);
+ assert.match(sh,/GRANT SELECT\(content\) ON m44_acl_fixture\.exercise TO iberfit_m44_fixture_column_reader/);
+ assert.match(sh,/GRANT SELECT ON m44_acl_fixture\.exercise TO iberfit_m44_fixture_schema_denied/);
+ assert.match(sh,/CREATE POLICY m44_column_reader_scope/);
+ assert.match(sh,/CREATE POLICY m44_schema_denied_open/);
+ assert.match(sh,/has_column_privilege/);
+ assert.match(sh,/has_schema_privilege/);
+ assert.match(sh,/NOT has_schema_privilege/);
+ assert.match(sh,/NOT has_column_privilege/);
+ assert.match(sh,/'1,1,1,1,1,1,1,1,1,1,1,1'/);
+ assert.match(sh,/SET ROLE iberfit_m44_fixture_column_reader/);
+ assert.match(sh,/SET ROLE iberfit_m44_fixture_schema_denied/);
+ assert.match(sh,/SELECT tenant_id FROM m44_acl_fixture\.exercise/);
+ assert.match(sh,/permission denied for schema/);
+ assert.match(sh,/permission denied for \(table\|column\)/);
+ assert.match(sh,/verify_fine_grants "\$src"/);
+ assert.match(sh,/verify_fine_grants "\$repaired"/);
+ assert.match(sh,/verify_fine_grants "\$stripped"/);
+ assert.match(sh,/IBERFIT_M44_SCHEMA_COLUMN_ACL_FULL_RESTORE_SYNTHETIC_VERIFIED/);
+ assert.match(sh,/IBERFIT_M44_SCHEMA_COLUMN_ACL_ONLY_REPLAY_SYNTHETIC_VERIFIED/);
+});
+
+test('tenant visibility is exact and all synthetic writes must rollback',()=>{
+ assert.match(sh,/count\(\*\)=1 AND min\(content\)='synthetic-visible'/);
+ assert.match(sh,/string_agg\(id::text/);
+ assert.match(sh,/1:1:synthetic-visible,2:2:synthetic-hidden/);
+ assert.match(sh,/IBERFIT_M44_ACL_FIXTURE_CONTENT_CHANGED_AFTER_ROLLBACK/);
+ assert.match(sh,/IBERFIT_M44_SYNTHETIC_DATA_CONTENT_AND_ROLLBACK_VERIFIED/);
 });
