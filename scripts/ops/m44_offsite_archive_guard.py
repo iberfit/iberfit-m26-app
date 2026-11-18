@@ -75,6 +75,10 @@ EXTRA_FILES = frozenset((
     "platform-catalog-source.json",
 ))
 ROLE_FILE = "global-roles.sql"
+VAULT_ROOT_FILE = "vault-root-key.json"
+HOSTED_AUTH_FILE = "hosted-auth-config.json"
+MAX_VAULT_ROOT_BYTES = 1024
+MAX_HOSTED_AUTH_BYTES = 2 * 1024 * 1024
 AUTH_CENSUS_FILE = "auth-vault-source.json"
 AUTH_CENSUS_KEYS = frozenset((
     "auth_users", "auth_identities", "auth_sessions", "auth_refresh_tokens",
@@ -101,7 +105,7 @@ TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z")
 
 
 def allowed_tar_file(name):
-    return name in EXTRA_FILES or name in (ROLE_FILE, AUTH_CENSUS_FILE) or name in ("database.pgcustom", "storage/manifest.json") or (
+    return name in EXTRA_FILES or name in (ROLE_FILE, AUTH_CENSUS_FILE, VAULT_ROOT_FILE, HOSTED_AUTH_FILE) or name in ("database.pgcustom", "storage/manifest.json") or (
         re.fullmatch(r"storage/files/[0-9]{6,12}\.bin", name) is not None)
 
 
@@ -201,6 +205,53 @@ def validate_optional_auth_census(path):
             "AUTH_CENSUS_COUNTS_INVALID")
 
 
+def validate_optional_platform_credentials(base):
+    # Only check plaintext INSIDE the operator's authenticated decrypt workspace.
+    # Never print even a digest of Vault root keys or hosted Auth settings.
+    root_path = base / VAULT_ROOT_FILE
+    auth_path = base / HOSTED_AUTH_FILE
+    for item, limit in ((root_path, MAX_VAULT_ROOT_BYTES),
+                        (auth_path, MAX_HOSTED_AUTH_BYTES)):
+        require(item.is_file() and not item.is_symlink() and
+                125 <= item.stat().st_size <= limit,
+                "PLATFORM_SECRET_FILE_INVALID")
+    root = protected_json(root_path)
+    require(isinstance(root, dict) and
+            set(root) == {"schema", "project_ref", "root_key"} and
+            root["schema"] == "iberfit.m44.vault-root-key-archive.v1" and
+            root["project_ref"] == "pjhmrhejsoofmouedavw" and
+            isinstance(root["root_key"], str) and
+            re.fullmatch(r"[0-9a-f]{64}", root["root_key"]) is not None,
+            "VAULT_KEY_ARCHIVE_INVALID")
+    hosted = protected_json(auth_path)
+    require(isinstance(hosted, dict) and
+            set(hosted) == {"schema", "project_ref", "config"} and
+            hosted["schema"] == "iberfit.m44.hosted-auth-config-archive.v1" and
+            hosted["project_ref"] == "pjhmrhejsoofmouedavw" and
+            isinstance(hosted["config"], dict) and
+            len(hosted["config"]) >= 8,
+            "HOSTED_AUTH_ARCHIVE_INVALID")
+    config = hosted["config"]
+    require(config.get("site_url") == "https://app.iberfit.cl/" and
+            config.get("disable_signup") is True and
+            config.get("external_anonymous_users_enabled") is not True and
+            config.get("mailer_autoconfirm") is not True and
+            config.get("mailer_allow_unverified_email_sign_ins") is not True and
+            config.get("mailer_secure_email_change_enabled") is True,
+            "HOSTED_AUTH_SECURITY_DRIFT")
+    for name in ("smtp_host", "smtp_admin_email", "smtp_user",
+                 "smtp_sender_name"):
+        require(isinstance(config.get(name), str) and
+                bool(config[name].strip()), "HOSTED_AUTH_SMTP_INVALID")
+    try:
+        strength = int(config.get("password_min_length"))
+        port = int(config.get("smtp_port"))
+    except (ValueError, TypeError):
+        raise ValueError("IBERFIT_OFFSITE_HOSTED_AUTH_NUMERIC_INVALID")
+    require(strength >= 8 and 1 <= port <= 65535,
+            "HOSTED_AUTH_LIMIT_INVALID")
+
+
 def validate_optional_role_archive(path):
     require(path.is_file() and not path.is_symlink(), "ROLES_NOT_REGULAR")
     size = path.stat().st_size
@@ -242,7 +293,9 @@ def unpack_tar(archive, directory):
                 (base / name).mkdir(parents=True, exist_ok=True)
                 continue
             require(member.isfile() and allowed_tar_file(name), "TAR_UNSAFE_ENTRY")
-            limit = (MAX_AUTH_CENSUS_BYTES if name == AUTH_CENSUS_FILE else
+            limit = (MAX_VAULT_ROOT_BYTES if name == VAULT_ROOT_FILE else
+                     MAX_HOSTED_AUTH_BYTES if name == HOSTED_AUTH_FILE else
+                     MAX_AUTH_CENSUS_BYTES if name == AUTH_CENSUS_FILE else
                      MAX_JSON_BYTES if name in EXTRA_FILES else
                      MAX_ROLES_BYTES if name == ROLE_FILE else MAX_TAR_BYTES)
             require(0 <= member.size <= limit, "TAR_MEMBER_TOO_LARGE")
@@ -271,6 +324,15 @@ def unpack_tar(archive, directory):
         require(extension == EXTRA_FILES and ROLE_FILE in present,
                 "AUTH_CENSUS_WITHOUT_ENRICHED_ARCHIVE")
         validate_optional_auth_census(base / AUTH_CENSUS_FILE)
+    newer = present.intersection({VAULT_ROOT_FILE, HOSTED_AUTH_FILE})
+    if newer:
+        require(newer == {VAULT_ROOT_FILE, HOSTED_AUTH_FILE}
+                and extension == EXTRA_FILES
+                and ROLE_FILE in present and AUTH_CENSUS_FILE in present,
+                "PLATFORM_SECRETS_ARCHIVE_PARTIAL")
+        validate_optional_platform_credentials(base)
+    # The structure of secrets is verified only; no Auth or Vault restore
+    # is claimed, and no secret value is printed or hashed into logs.
     print("IBERFIT_OFFSITE_DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED")
 
 def main():
