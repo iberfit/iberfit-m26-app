@@ -133,6 +133,8 @@ on:
       - 'scripts/ops/m44_platform_recovery_catalog.sql'
       - 'scripts/ops/m44_global_roles_archive_check.mjs'
       - 'scripts/ops/m44_real_global_roles_replay.sh'
+      - 'scripts/ops/m44_isolated_backend_cutover_drill.sh'
+      - 'tests/m44_isolated_backend_cutover_drill.test.mjs'
       - 'tests/m44_real_global_roles_replay.test.mjs'
       - 'tests/m44_role_globals_encrypted_backup.test.mjs'
       - 'tests/m44_storage_metadata_parity.test.mjs'
@@ -157,6 +159,7 @@ on:
       - 'scripts/ops/m44_vault_root_key_archive.mjs'
       - 'scripts/ops/m44_hosted_auth_config_archive.mjs'
       - 'scripts/ops/m44_real_global_roles_replay.sh'
+      - 'scripts/ops/m44_isolated_backend_cutover_drill.sh'
       # One independently reviewed M1 U72 release source change triggers a
       # FRESH encrypted PROD DB+Storage backup and isolated PG17 restore.
       # Only protected Canary push; never PR, feature branch or QA writes.
@@ -232,6 +235,7 @@ jobs:
             tests/m44_storage_full_recovery_workflow.test.mjs \
             tests/m44_role_globals_encrypted_backup.test.mjs \
             tests/m44_real_global_roles_replay.test.mjs \
+            tests/m44_isolated_backend_cutover_drill.test.mjs \
             tests/m44_pgcustom_acl_archive_contract.test.mjs \
             tests/m44_acl_toc_selector.test.mjs \
             tests/m44_auth_vault_cardinality_contract.test.mjs \
@@ -557,6 +561,26 @@ jobs:
           echo 'IBERFIT_GLOBAL_ROLES_ARCHIVED_BUT_NOT_APPLIED'
           echo 'IBERFIT_SOURCE_CATALOG_ENCRYPTED_PLATFORM_RECOVERY_NOT_YET_VERIFIED'
           echo 'IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS'
+          # Separate, non-authorizing trial: rehydrate the SAME real PG17
+          # archive in a SECOND disposable local DB preserving owners+ACL,
+          # and rehearse U72 install, U60 grants/revoke, guarded rollback and
+          # Coach invite install/rollback. Even a failed experiment must NOT
+          # corrupt or invalidate the already certified encrypted backup.
+          # The script never receives a PROD URL/token or leaves localhost.
+          if env -u IBERFIT_PROD_DATABASE_URL \
+              -u SUPABASE_ACCESS_TOKEN \
+              -u IBERFIT_PROD_STORAGE_SERVICE_KEY \
+              -u IBERFIT_BACKUP_PASSPHRASE \
+              -u IBERFIT_PROD_STORAGE_URL \
+              M44_SQL_DRILL_ENABLED=true \
+              PGHOST=127.0.0.1 PGPORT=5432 PGUSER=supabase_admin \
+              PGDATABASE=iberfit_recovery_acl_test \
+              bash scripts/ops/m44_isolated_backend_cutover_drill.sh "$WORK/isolated"; then
+            echo 'M44_ISOLATED_BACKEND_SQL_ROLLBACK_REHEARSAL_VERIFIED_ONLY'
+          else
+            echo 'M44_ISOLATED_BACKEND_SQL_ROLLBACK_NOT_CERTIFIED'
+          fi
+          echo 'M44_HOSTED_AUTH_VAULT_EDGE_RUNTIME_NOT_CERTIFIED'
       # Role recovery is attempted only on the already-restored real archive
       # inside a FRESH isolated PG17 with --network none. It never mutates
       # PROD or QA, and can fail without invalidating the DB/Storage backup.
