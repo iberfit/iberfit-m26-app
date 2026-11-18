@@ -52,7 +52,7 @@ test('malformed or external runner targets fail before any database operations',
    PATH:process.env.PATH,GITHUB_ACTIONS:'true',RUNNER_OS:'Linux',
    M44_SQL_DRILL_ENABLED:'true',PGHOST:'127.0.0.1',PGPORT:'5432',
    PGUSER:'supabase_admin',PGDATABASE:'iberfit_recovery_acl_test',
-   PGPASSWORD:'local-not-real',RUNNER_TEMP:'/tmp/not-valid',
+   PGPASSWORD:'test',RUNNER_TEMP:'/tmp/not-valid',
    IBERFIT_PROD_DATABASE_URL:'',SUPABASE_ACCESS_TOKEN:'',
    IBERFIT_PROD_STORAGE_SERVICE_KEY:'',
   };
