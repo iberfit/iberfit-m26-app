@@ -14,6 +14,7 @@ import {
   qaPublicRpcMemoStats,
 } from './secure-current-source-auth.mjs';
 import {evaluateRecoveredFirstFactor,mayRetryUserLoginAfterNetworkError} from './recovered-first-factor-contract.mjs';
+import {evaluateRecoveredAssuranceTransport,ASSURANCE_FAILURE_LABEL} from './recovered-assurance-transport-contract.mjs';
 import {createQaSupabasePayloadFootprint} from './supabase-payload-footprint.mjs';
 import {shouldAwaitFinalAssuranceResponse} from './assurance-clock-skew-gate.mjs';
 
@@ -392,6 +393,7 @@ test('current authenticated contract separates privileged fail-closed identities
     // Read-only diagnostic phases; never record secrets or identifying data.
     const authPhases=[];
     const authNetworkFailureCodes=[];
+    const assuranceEvents=[];
     const firstFactorEvents=[];
     const firstFactorNetworkFailureCodes=[];
     const rpcStarts=new WeakMap();
@@ -460,7 +462,10 @@ test('current authenticated contract separates privileged fail-closed identities
           authPhases.push('first-factor-request');
           firstFactorEvents.push('issued');
         }
-        if(url.pathname===ASSURANCE_PATH)authPhases.push('assurance-request');
+        if(url.pathname===ASSURANCE_PATH){
+          authPhases.push('assurance-request');
+          assuranceEvents.push('issued');
+        }
       }catch{}
     });
     page.on('response',(response)=>{
@@ -483,6 +488,7 @@ test('current authenticated contract separates privileged fail-closed identities
         const phase=url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password'
           ?'first-factor':url.pathname===ASSURANCE_PATH?'assurance':null;
         if(phase)authPhases.push(phase+'-http-'+String(response.status()));
+        if(phase==='assurance')assuranceEvents.push('http-'+String(response.status()));
         if(phase==='first-factor')firstFactorEvents.push('http-'+String(response.status()));
       }catch{}
     });
@@ -499,6 +505,7 @@ test('current authenticated contract separates privileged fail-closed identities
           }
           if(url.pathname===ASSURANCE_PATH){
             authPhases.push('assurance-requestfailed');
+            assuranceEvents.push('requestfailed');
             // Record only a bounded Chromium network failure code. Never
             // capture request URL, JWT, request headers or response payload.
             const errorText=String(request.failure()?.errorText||'');
@@ -632,10 +639,28 @@ test('current authenticated contract separates privileged fail-closed identities
       // interruption is not the same as an unresolved critical failure.
       // This strict classifier MUST still reject 401/403, unknown network codes,
       // multiple attempts, unpaired failures and every non-auth failing request.
+      const assuranceRecovery=evaluateRecoveredAssuranceTransport({
+        events:assuranceEvents,
+        networkFailureCodes:authNetworkFailureCodes,
+        externalFailures,
+        serverAssuranceVerified:assurance?.ok===true,
+      });
+      if(assuranceRecovery.reason==='ASSURANCE_RECOVERY_NOT_PROVEN'){
+        // Fixed enum telemetry only; no JWT, identities, response bodies or URLs.
+        console.error('RC64_ASSURANCE_TRANSPORT_PROOF_DENIED:'+JSON.stringify({
+          accountKind:account.kind,
+          events:assuranceEvents.slice(-8),
+          networkCodes:authNetworkFailureCodes.slice(-3),
+          unresolvedCount:assuranceRecovery.remainingFailures.filter(x=>x===ASSURANCE_FAILURE_LABEL).length,
+        }));
+      }
+      expect(assuranceRecovery.reason,
+        'Assurance failures must have a fresh successful server proof after transport recovery')
+        .not.toBe('ASSURANCE_RECOVERY_NOT_PROVEN');
       const firstFactorRecovery=evaluateRecoveredFirstFactor({
         events:firstFactorEvents,
         networkFailureCodes:firstFactorNetworkFailureCodes,
-        externalFailures,
+        externalFailures:assuranceRecovery.remainingFailures,
         authenticated:true, // after authenticated role-specific assertions above
         userRetryCount:firstFactorUserRetryCount,
       });
@@ -653,6 +678,7 @@ test('current authenticated contract separates privileged fail-closed identities
         role:account.role,
         authenticated:true,
         firstFactorRecoveredOnce:firstFactorRecovery.recovered,
+        assuranceTransportRecoveredOnce:assuranceRecovery.recovered,
         firstFactorExplicitUserRetryCount:firstFactorUserRetryCount,
         privilegedGate:account.kind==='privileged'?'webauthn-required':'not-required',
         browserEngine:browserName,
