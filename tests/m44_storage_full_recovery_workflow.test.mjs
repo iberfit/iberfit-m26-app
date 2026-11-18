@@ -58,7 +58,8 @@ test('REAL TRAINING 360 backend candidate requests exactly one encrypted PROD M4
 test('M44 real restore uses random one-time local credentials, localhost-only TCP and guaranteed cleanup',()=>{
  const source=readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
  const job=source.slice(source.indexOf('  production-backup:'));
- assert.match(job,/export PGPASSWORD="\$\(openssl rand -hex 32\)"/u);
+ assert.match(job,/PGPASSWORD=\$\(openssl rand -hex 32\)/u);
+ assert.match(job,/POSTGRES_PASSWORD=\$PGPASSWORD/u);
  assert.match(job,/--publish 127\.0\.0\.1:5432:5432/u);
  assert.match(job,/--env POSTGRES_PASSWORD/u);
  assert.match(job,/trap 'docker stop iberfit-m44-local-restore/u);

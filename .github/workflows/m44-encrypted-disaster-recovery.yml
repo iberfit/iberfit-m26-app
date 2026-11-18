@@ -456,9 +456,11 @@ jobs:
           # Real PROD data is restored only into an isolated PG17 container.
           # No static or predictable password; never print the random secret.
           set +x
-          export PGPASSWORD="$(openssl rand -hex 32)"
+          PGPASSWORD=$(openssl rand -hex 32)
+          export PGPASSWORD
           test "${#PGPASSWORD}" -eq 64 || { echo 'M44_LOCAL_CREDENTIAL_GENERATION_FAILED'; exit 51; }
-          export POSTGRES_PASSWORD="$PGPASSWORD"
+          POSTGRES_PASSWORD=$PGPASSWORD
+          export POSTGRES_PASSWORD
           trap 'docker stop iberfit-m44-local-restore >/dev/null 2>&1 || true; unset PGPASSWORD POSTGRES_PASSWORD' EXIT
           docker run --detach --rm --pull=always \
             --name iberfit-m44-local-restore \
