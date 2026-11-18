@@ -66,13 +66,18 @@ test('malformed or external runner targets fail before any database operations',
  }
 });
 test('installer sequence is guarded, reversible and checks data counts',()=>{
- const ordered=['BASELINE','U72_INSTALL','U72_INSTALLED',
- 'U60_ENABLE','U60_OPEN','U60_DISABLE','U60_CLOSED',
- 'U72_ROLLBACK','U72_RESTORED','COACH_INSTALL','COACH_INSTALLED',
- 'COACH_ROLLBACK','COACH_RESTORED','CUSTOMER_OR_AUTH_TABLE_COUNT_DRIFT'];
- const loc=ordered.map(k=>s.indexOf(k));
+ const ordered=[
+  'check_sql BASELINE ','apply U72_INSTALL ','check_sql U72_INSTALLED ',
+  'apply U60_ENABLE ','check_sql U60_OPEN ','apply U60_DISABLE ',
+  'check_sql U60_CLOSED ','apply U72_ROLLBACK ',
+  'check_sql U72_RESTORED ','apply COACH_INSTALL ',
+  'check_sql COACH_INSTALLED ','apply COACH_ROLLBACK ','check_sql COACH_RESTORED ',
+ ];
+ // Only executable stage lines count. Comments and file inventory occur earlier.
+ const loc=ordered.map(k=>s.indexOf('\n'+k));
  assert.ok(loc.every(n=>n>=0));
  assert.ok(loc.every((n,i)=>i===0||n>loc[i-1]));
+ assert.ok(s.includes('CUSTOMER_OR_AUTH_TABLE_COUNT_DRIFT'));
  assert.ok(s.includes("SELECT count(*) FROM auth.users"));
  assert.ok(s.includes("SELECT count(*) FROM public.training_session_occurrences_v1"));
  assert.ok(s.includes("SELECT count(*) FROM vault.secrets"));
