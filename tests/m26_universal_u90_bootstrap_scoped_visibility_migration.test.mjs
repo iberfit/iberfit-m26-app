@@ -101,7 +101,7 @@ test('UNIVERSAL U91 SonarCloud duplication exemptions are exact immutable SQL ar
    'supabase/qa-migrations/20261111033000_p0_qa_bootstrap_revision_visibility_index.sql',
    'supabase/qa-rollbacks/20261111033000_p0_qa_bootstrap_revision_visibility_index.rollback.sql',
  ]);
- // Seven additional immutable migration/rollback/source recovery artifacts
+ // Nine additional immutable migration/rollback/source recovery artifacts
  // are excluded ONLY from duplication analysis; never from Sonar scanning.
  // This exact allowlist forbids expanding the exception to runtime code.
  const newRecoveryExact=new Set([
@@ -112,8 +112,10 @@ test('UNIVERSAL U91 SonarCloud duplication exemptions are exact immutable SQL ar
    'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql',
    'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql',
    'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts',
+   'supabase/qa-migrations/20261118015500_p0_free_completed_session_scalar_fast_v1.sql',
+   'supabase/qa-rollbacks/20261118015500_p0_free_completed_session_scalar_fast_v1.rollback.sql',
  ]);
- assert.equal(patterns.length,19);
+ assert.equal(patterns.length,21);
  assert.equal(new Set(patterns).size,patterns.length);
  for(const entry of newRecoveryExact)assert.ok(patterns.includes(entry),entry);
  const historic=patterns.filter(entry=>!p0Exact.has(entry)&&!newRecoveryExact.has(entry));
