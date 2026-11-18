@@ -98,3 +98,26 @@ test('QA rollout is pinned to Client A and fails closed for every PROD runtime',
  assert.match(bus,/Number\.isSafeInteger\(revision\)&&revision>command\.baseRevision/u);
  assert.match(bus,/getRefreshOwner\(\)!==owner/u);
 });
+
+test('QA cannot coalesce different training executions even for the same client',async()=>{
+ const p=setup({windowMs:25});
+ const first=await p.bus.execute(p.command(3),{onAck:()=>{}});
+ assert.equal(first.refreshDeferred,true);
+ const second=p.command(4);
+ second.entityId='p0-other-execution';
+ second.payload.progressSnapshot.id='p0-other-execution';
+ const ack=await p.bus.execute(second,{onAck:()=>{}});
+ assert.equal(ack.refreshDeferred,false,'distinct workout must flush its own read');
+ assert.deepEqual(p.refreshes,['ack']);
+ await delay(50);
+ assert.equal(p.refreshes.length,1,'old deferred read was superseded by full revalidation');
+ assert.equal(p.sent.length,2,'both real writes retained');
+ p.bus.dispose();
+});
+test('continuous progress cannot indefinitely postpone the QA authoritative server read',()=>{
+ const code=readFileSync('src/m26/command-bus.js','utf8');
+ assert.match(code,/firstScheduledAt=existing\\?\\.firstScheduledAt\\?\\?Date\\.now\\(\\)/u);
+ assert.match(code,/2\\*refreshWindow-\\(Date\\.now\\(\\)-firstScheduledAt\\)/u);
+ assert.match(code,/const delayMs=Math\\.min\\(refreshWindow,maxRemaining\\)/u);
+ assert.match(code,/pendingProgressRefresh\\.scope===executionLineage\\(command\\)/u);
+});

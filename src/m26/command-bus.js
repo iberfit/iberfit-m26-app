@@ -180,6 +180,9 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
       &&kind==='ack'
       &&command?.type==='EJECUCION_GUARDAR_PROGRESO'
       &&command?.entityType==='session_execution'
+      // A later workout is a different reconciliation scope. Never drop
+      // an earlier session's deferred read just to combine their traffic.
+      &&(!pendingProgressRefresh||pendingProgressRefresh.scope===executionLineage(command))
       &&String(response?.operationId||'')===String(command?.operationId||'')
       &&String(response?.entityId||'')===String(command?.entityId||'')
       &&String(response?.clientId||'')===String(command?.clientId||'')
@@ -189,9 +192,16 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
   function scheduleProgressRefresh(command,response,reason){
     const owner=getRefreshOwner(),scope=executionLineage(command);
     if(!owner||typeof owner!=='object'||!scope)return false;
+    const existing=pendingProgressRefresh;
+    if(existing&&(existing.scope!==scope||existing.owner!==owner))return false;
+    // 15s quiet-window and at most 30s since the FIRST confirmed ACK:
+    // a continuous stream of sets may not defer authorization freshness forever.
+    const firstScheduledAt=existing?.firstScheduledAt??Date.now();
+    const maxRemaining=Math.max(1,2*refreshWindow-(Date.now()-firstScheduledAt));
+    const delayMs=Math.min(refreshWindow,maxRemaining);
     cancelProgressRefresh();
     const job={owner,scope,commandType:command.type,operationId:command.operationId,
-      response,reason,timer:null};
+      response,reason,firstScheduledAt,timer:null};
     job.timer=setTimeout(()=>{
       if(pendingProgressRefresh!==job)return;
       pendingProgressRefresh=null;
@@ -203,7 +213,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
             commandType:job.commandType,operationId:job.operationId,
           });}catch{}
         });
-    },refreshWindow);
+    },delayMs);
     if(typeof job.timer?.unref==='function')job.timer.unref();
     pendingProgressRefresh=job;
     return true;
