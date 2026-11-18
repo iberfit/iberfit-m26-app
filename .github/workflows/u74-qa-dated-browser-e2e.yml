@@ -1,3 +1,6 @@
+# REAL TRAINING 360 18-NOV-2026: exact-head U74 reattestation after QA-only
+# scalar recovery, runtime ACK/readback changes and Sonar allowlist repair.
+# This is a push trigger ONLY; preserve signed two-attempt QA synthetic gate.
 name: IBERFIT U74 Real QA Dated Browser Write E2E
 
 # Attempt 1 is read-only. Explicit rerun of the SAME job, runId, SHA
