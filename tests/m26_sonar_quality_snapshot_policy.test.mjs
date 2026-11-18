@@ -10,14 +10,18 @@ const snapshots=[
   "supabase/qa-rollbacks/20261117224500_coach_invitation_finalize_cas_v2_rollback.sql",
   "supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql",
   "supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql",
-  "scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts"
+  "scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts",
+  "supabase/qa-migrations/20261118015500_p0_free_completed_session_scalar_fast_v1.sql",
+  "supabase/qa-rollbacks/20261118015500_p0_free_completed_session_scalar_fast_v1.rollback.sql"
 ];
 
 test('Sonar CPD exceptions target only exact immutable backup and rollback source files',()=>{
  const line=config.split(/\r?\n/u).find(x=>x.startsWith('sonar.cpd.exclusions='));
  assert.ok(line);
  const entries=line.slice('sonar.cpd.exclusions='.length).split(',');
+ assert.equal(entries.length,21,'Only the 12 certified older snapshots, 7 prior exact recovery files and 2 new QA rollback copies');
  assert.equal(new Set(entries).size,entries.length);
+ for(const path of entries)assert.ok(existsSync(path),'Missing immutable recovery file: '+path);
  for(const path of snapshots){
   assert.ok(existsSync(path),'Missing recovery snapshot: '+path);
   assert.ok(entries.includes(path),'Unregistered immutable recovery source: '+path);
