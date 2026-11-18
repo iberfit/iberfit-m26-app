@@ -56,11 +56,40 @@ apply(){
  db psql -X -q -v ON_ERROR_STOP=1 -f "$pathname" \
    >"$out/apply-$code.log" 2>&1 || fail "SQL_APPLY_$code"
 }
+# On the REAL Supabase PG17 snapshot, some owner/ACL roles may be absent
+# from a fresh local Supabase image. Reconcile NAMES ONLY, using inert
+# NOLOGIN placeholders. NEVER replay archived options or role memberships,
+# never create a login or treat this as successful hosted Auth recovery.
+# This is a strictly isolated prerequisite before owner+ACL restore.
+db psql -X -A -t -v ON_ERROR_STOP=1 -d postgres \
+  -c "SELECT rolname FROM pg_catalog.pg_roles WHERE rolname NOT LIKE 'pg_%' ORDER BY rolname" \
+  >"$out/existing-roles.txt" 2>"$out/role-catalog-private.log" || fail LOCAL_ROLE_CATALOG_FAILED
+node scripts/ops/m44_prepare_missing_local_roles.mjs \
+  "$work/global-roles.sql" "$out/existing-roles.txt" "$out/missing-role-ddl.sql" \
+  >"$out/role-plan-private.log" 2>&1 || fail ROLE_PLAN_REJECTED
+db psql -X -q -v ON_ERROR_STOP=1 -d postgres \
+  -f /backup/backend-drill-private/missing-role-ddl.sql \
+  >"$out/role-create-private.log" 2>&1 || fail LOCAL_ROLE_PLACEHOLDERS_FAILED
+echo 'M44_LOCAL_ROLE_PLACEHOLDERS_NOLOGIN_ONLY'
+
 # This is a NEW database in the already isolated local service; unlike the
 # initial M44 data-only proof, owners and ACL are not disabled.
 db createdb "$PGDATABASE" >"$out/createdb.log" 2>&1 || fail FRESH_DATABASE_CREATION_FAILED
-db pg_restore --exit-on-error -d "$PGDATABASE" /backup/database.pgcustom \
-  >"$out/pg-restore-full-acl.log" 2>&1 || fail FULL_OWNER_ACL_RESTORE_FAILED
+if ! db pg_restore --exit-on-error -d "$PGDATABASE" /backup/database.pgcustom \
+  >"$out/pg-restore-full-acl.log" 2>&1; then
+  # Categorize privately; never log object identifiers, names or SQL.
+  if grep -Eqi 'role [^[:space:]]+ does not exist' "$out/pg-restore-full-acl.log"; then
+    echo 'M44_BACKEND_DRILL_RESTORE_FAILURE_CLASS:OWNER_ROLE_MISSING' >&2
+  elif grep -Eqi 'permission denied|must be owner' "$out/pg-restore-full-acl.log"; then
+    echo 'M44_BACKEND_DRILL_RESTORE_FAILURE_CLASS:LOCAL_PRIVILEGES' >&2
+  elif grep -Eqi 'already exists' "$out/pg-restore-full-acl.log"; then
+    echo 'M44_BACKEND_DRILL_RESTORE_FAILURE_CLASS:OBJECT_CONFLICT' >&2
+  else
+    echo 'M44_BACKEND_DRILL_RESTORE_FAILURE_CLASS:OTHER' >&2
+  fi
+  fail FULL_OWNER_ACL_RESTORE_FAILED
+fi
+echo 'M44_REAL_SNAPSHOT_FULL_OWNER_ACL_RESTORED_ISOLATED_ONLY'
 check_sql BASELINE "SELECT (
  (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment')='PRODUCTION'
  AND md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='5914acf371015a6bbeeaf95f99e056e3'
