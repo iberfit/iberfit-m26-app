@@ -109,3 +109,71 @@ test('TAR must include both new secrets and legacy role/census/catalog requireme
  assert.match(source,/PLATFORM_SECRET_FILE_NOT_PRIVATE/u);
  assert.doesNotMatch(source,/print\(.*root_key/u);
 });
+
+test('full synthetic new-format TAR is readable, but a partial credentials pair is rejected',async()=>{
+ await sandbox(async({dir})=>{
+  const src=path.join(dir,'archive-source');
+  const storage=path.join(src,'storage');
+  await mkdir(storage,{recursive:true});
+  const save=async(rel,val)=>{
+   const dest=path.join(src,rel);
+   await writeFile(dest,typeof val==='string'?val:JSON.stringify(val),{mode:0o600});
+  };
+  await save('vault-root-key.json',root());
+  await save('hosted-auth-config.json',hosted());
+  const catalogKeys=['roles','role_memberships','relation_security',
+   'default_privileges','function_security','policies','triggers',
+   'constraints','indexes','extensions','bucket_configuration','migration_history'];
+  await save('platform-catalog-source.json',{
+   schema:'iberfit.m44.platform.catalog.v1',
+   ...Object.fromEntries(catalogKeys.map(k=>[k,'0'.repeat(64)]))
+  });
+  await save('storage/manifest.json',{
+   schema:'iberfit.storage.backup.v1',
+   project:'pjhmrhejsoofmouedavw',objects:[]
+  });
+  await save('storage-inventory.json',[]);
+  await save('storage-post-inventory.json',[]);
+  await save('database.pgcustom','PGDMP'+'.'.repeat(30));
+  const roles=['postgres','anon','authenticated','authenticator','service_role',
+   'supabase_admin','supabase_auth_admin','supabase_storage_admin'];
+  await save('global-roles.sql',[
+   '-- PostgreSQL database cluster dump',
+   ...roles.map(x=>'CREATE ROLE '+x+';'),
+   'ALTER ROLE postgres WITH LOGIN;',
+   '-- PostgreSQL database cluster dump complete'
+  ].join('\n'));
+  const {KEYS,SCHEMA}=await import('../scripts/ops/m44_auth_vault_cardinality_contract.mjs');
+  await save('auth-vault-source.json',{
+   schema:SCHEMA,captured_at:'2026-11-15T03:31:27.123456Z',
+   counts:Object.fromEntries(KEYS.map(k=>[k,0]))
+  });
+  const names=['database.pgcustom','storage','storage-inventory.json',
+   'storage-post-inventory.json','platform-catalog-source.json',
+   'global-roles.sql','auth-vault-source.json',
+   'vault-root-key.json','hosted-auth-config.json'];
+  const archive=path.join(dir,'latest.tar');
+  const build=list=>spawnSync('tar',['-C',src,'-cf',archive,...list],{
+   encoding:'utf8',timeout:5000
+  });
+  assert.equal(build(names).status,0);
+  const out=path.join(dir,'restored');
+  await mkdir(out);
+  const valid=spawnSync('python3',[guard,'unpack',archive,out],{
+   encoding:'utf8',timeout:5000
+  });
+  assert.equal(valid.status,0,valid.stderr);
+  assert.match(valid.stdout,/DECRYPTED_ARCHIVE_STRUCTURE_VERIFIED/);
+  assert.doesNotMatch(valid.stdout,/PLATFORM_RECOVERY_VERIFIED/);
+  const partial=names.filter(n=>n!=='hosted-auth-config.json');
+  assert.equal(build(partial).status,0);
+  const out2=path.join(dir,'reject');
+  await mkdir(out2);
+  const invalid=spawnSync('python3',[guard,'unpack',archive,out2],{
+   encoding:'utf8',timeout:5000
+  });
+  assert.notEqual(invalid.status,0);
+  assert.doesNotMatch(invalid.stdout,/ARCHIVE_STRUCTURE_VERIFIED/);
+  assert.doesNotMatch(invalid.stdout+invalid.stderr,/a{64}|smtp.invalid/);
+ });
+});
