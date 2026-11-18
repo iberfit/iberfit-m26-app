@@ -10,6 +10,7 @@ import {buildAppointmentCommand,buildConfirmAppointmentCommand,buildCancelAppoin
 import {applyAdaptiveContext} from '../intelligence/adaptive-context.js';
 import {generateSessionProposal} from '../intelligence/session-engine.js';
 import {createM26Id} from '../platform/id.js';
+import {coachInvitationOutcome} from '../workflows/coach-invitation-outcome.js';
 import {createExerciseSearchIndex} from '../exercises/search.js';
 import {exerciseDisplayName} from '../exercises/names.js';
 import {normalizeAppointmentModality,normalizeClientModality} from '../domain/modality.js';
@@ -354,7 +355,7 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
 }
 
 export function createWorkflowController({
-  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,updateExerciseMeasurementProfile=null,refreshCatalog=async()=>catalog,
+  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,inviteClientAccess=null,createCustomExercise=null,renameExercise=null,updateExerciseMeasurementProfile=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
   issueIriReport=null,getIriReportHistory=null,openIriIssuedReport=null,withdrawIriIssuedReport=null,
   issueEvolutionReport=null,getLatestEvolutionPdf=null,getEvolutionPdfHistory=null,openEvolutionPdfById=null,downloadEvolutionPdf=null,withdrawEvolutionPdf=null,
@@ -1276,6 +1277,30 @@ export function createWorkflowController({
   }
   function queueScan(){if(scanQueued)return;scanQueued=true;queueMicrotask(scanRouteForms);}
 
+
+  async function sendCoachClientInvitation(button){
+    const {role,clientId}=context();
+    if(role!=='coach')throw new Error('M26_COACH_INVITE_ROLE_REQUIRED');
+    const target=String(button?.dataset?.clientId||clientId||'').trim();
+    requireVisibleClient(target);
+    if(!isOnline())throw new Error('M26_COACH_INVITE_ONLINE_REQUIRED');
+    if(typeof inviteClientAccess!=='function')throw new Error('M26_COACH_INVITE_UNAVAILABLE');
+    const receipt=await inviteClientAccess({clientId:target,operationId:createM26Id()});
+    const outcome=coachInvitationOutcome(receipt);
+    if(outcome.kind==='error')
+      throw new Error(String(receipt?.invitation?.errorCode||'M26_COACH_INVITE_DELIVERY_UNCONFIRMED'));
+    // Never relabel a confirmed send as a failure if the subsequent refresh
+    // is interrupted. The Coach must see that repeating may duplicate email.
+    let refreshOk=true;
+    try{await refreshState({reason:'coach-client-invitation'});}
+    catch(error){
+      refreshOk=false;
+      emit(root,'m26:workflow-error',{action:'coach-invite-refresh',code:String(error?.message||error)});
+    }
+    emit(root,'m26:toast',{message:refreshOk?outcome.message:
+      outcome.message+' No se actualizó la vista; comprueba el acceso antes de repetir.'});
+    return receipt;
+  }
 
   async function createClient(){
     requireCoach();if(typeof createClientDraft!=='function')throw new Error('M26_CLIENT_CREATE_UNAVAILABLE');if(!isOnline())throw new Error('M26_OFFLINE_CLIENT_CREATE_NOT_ALLOWED');
@@ -2403,19 +2428,24 @@ export function createWorkflowController({
 
   async function executeWorkflowAction(action,button){
     const {clientId}=context();
-    const key=action==='start-published-session'
-      ?['m42-session-entry',clientId,String(button?.dataset?.entityId||'auto')].join(':')
-      :publicationActionKey({action,entity:button?.dataset?.publicationEntity,
+    const key=action==='coach-send-client-invite'
+      ?['coach-client-invitation',String(clientId||'')].join(':')
+      :action==='start-published-session'
+        ?['m42-session-entry',clientId,String(button?.dataset?.entityId||'auto')].join(':')
+        :publicationActionKey({action,entity:button?.dataset?.publicationEntity,
         entityId:button?.dataset?.entityId||button?.closest?.('form')?.elements?.namedItem?.('entityId')?.value,clientId});
     if(key&&inFlightMutations.has(key))return;
     if(key)inFlightMutations.add(key);
     const wasDisabled=Boolean(button?.disabled);if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
     try{
-      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='cancel-appointment')await cancelAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')await startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else if(action==='open-published-evolution-report')openPublishedEvolutionReport(button);else if(action==='issue-evolution-pdf')await handleIssuedEvolutionPdf(button,{issue:true});else if(action==='open-issued-evolution-pdf')await handleIssuedEvolutionPdf(button);else if(action==='show-issued-evolution-history')await showIssuedEvolutionHistory(button);else if(action==='withdraw-issued-evolution-pdf')await withdrawIssuedEvolutionPdf(button);else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
+      if(action==='create-client-draft')await createClient();else if(action==='coach-send-client-invite')await sendCoachClientInvitation(button);else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='save-report-draft')await saveReportDraft(button?.closest?.('[data-workflow-form="report-approval"]'));else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='save-plan-draft')await savePlanDraft(button?.closest?.('[data-workflow-form="planning"]'));else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='cancel-appointment')await cancelAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder(button);else if(action==='start-published-session')await startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else if(action==='open-published-evolution-report')openPublishedEvolutionReport(button);else if(action==='issue-evolution-pdf')await handleIssuedEvolutionPdf(button,{issue:true});else if(action==='open-issued-evolution-pdf')await handleIssuedEvolutionPdf(button);else if(action==='show-issued-evolution-history')await showIssuedEvolutionHistory(button);else if(action==='withdraw-issued-evolution-pdf')await withdrawIssuedEvolutionPdf(button);else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
     }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report','issue-client-iri-report','issue-coach-iri-report','refresh-issued-iri-history','open-issued-iri-report','withdraw-issued-iri-report'].includes(action);const isEvolutionPdf=['issue-evolution-pdf','open-issued-evolution-pdf','show-issued-evolution-history','withdraw-issued-evolution-pdf'].includes(action);const scope=isEvolutionPdf?'report':isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');
       // Some Client routes show a workout CTA without a session-status node.
       // Never let a failed workspace entry become an invisible no-op.
       if(action==='start-published-session'&&!root.querySelector?.('[data-workflow-status="session"]')){
+        try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:friendlyError(error)}}));}catch{}
+      }
+      if(action==='coach-send-client-invite'){
         try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:friendlyError(error)}}));}catch{}
       }
       emit(root,'m26:workflow-error',{action,code:String(error?.message||error)});}

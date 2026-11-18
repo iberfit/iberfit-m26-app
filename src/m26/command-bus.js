@@ -110,7 +110,7 @@ export function sanitizeOperation(operation) {
   };
 }
 
-export function createCommandBus({ transport, repository, getToken, rehydrate, onPostAckRefreshError=()=>{}, registry=M26_COMMAND_REGISTRY, getRole=()=>null, now=()=>Date.now() }) {
+export function createCommandBus({ transport, repository, getToken, rehydrate, onPostAckRefreshError=()=>{}, registry=M26_COMMAND_REGISTRY, getRole=()=>null, now=()=>Date.now(), progressAckRefreshWindowMs=0, getRefreshOwner=()=>null }) {
   if (!transport?.preflight || !transport?.execute) throw new Error('M26_TRANSPORT_REQUIRED');
   if (!repository?.put || !repository?.remove || !repository?.list) throw new Error('M26_OPERATION_REPOSITORY_REQUIRED');
   if (typeof getToken !== 'function') throw new Error('M26_TOKEN_PROVIDER_REQUIRED');
@@ -155,6 +155,84 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
     return scope?(confirmedExecutionRevisions.get(scope)||0):0;
   }
   let flushInFlight=null;
+  // P0 FREE pilot: an exact server-confirmed Client progress ACK already
+  // advances the live CAS before any snapshot fetch. Group only QA synthetic
+  // progress readbacks in a bounded window; no write or Auth response is
+  // cached, no generic read/role-change is skipped, and PROD defaults OFF.
+  const refreshWindow=Number(progressAckRefreshWindowMs);
+  if(!Number.isFinite(refreshWindow)||refreshWindow<0||refreshWindow>30000||
+    typeof getRefreshOwner!=='function')
+    throw new Error('M26_ACK_REFRESH_POLICY_INVALID');
+  let pendingProgressRefresh=null,disposed=false;
+  function cancelProgressRefresh(){
+    if(!pendingProgressRefresh)return false;
+    clearTimeout(pendingProgressRefresh.timer);
+    pendingProgressRefresh=null;
+    return true;
+  }
+  function eligibleProgressAck(command,response,kind,{
+    queuedOffline=false,localReceiptOk=true,lineageOk=true,onAck=null,
+  }={}){
+    // The real command RPC returns identity and revision inside an
+    // immutable receipt (snake_case); top-level entityId/clientId are not
+    // part of the canonical ACK. Never infer ownership from request alone.
+    const receipt=response?.receipt;
+    const revision=Number(response?.remoteRevision);
+    return refreshWindow>0&&!disposed
+      &&typeof rehydrate==='function'&&typeof onAck==='function'
+      &&queuedOffline!==true&&localReceiptOk===true&&lineageOk===true
+      &&kind==='ack'&&response?.duplicate===false
+      &&getRole?.()==='client'
+      &&command?.type==='EJECUCION_GUARDAR_PROGRESO'
+      &&command?.entityType==='session_execution'
+      // A later workout is a different reconciliation scope. Never drop
+      // an earlier session's deferred read just to combine their traffic.
+      &&(!pendingProgressRefresh||pendingProgressRefresh.scope===executionLineage(command))
+      &&String(response?.operationId||'')===String(command?.operationId||'')
+      &&receipt!==null&&typeof receipt==='object'&&!Array.isArray(receipt)
+      &&String(receipt.operation_id||'')===String(command?.operationId||'')
+      &&String(receipt.command_type||'')===String(command?.type||'')
+      &&String(receipt.entity_type||'')===String(command?.entityType||'')
+      &&String(receipt.entity_id||'')===String(command?.entityId||'')
+      &&String(receipt.client_id||'')===String(command?.clientId||'')
+      &&String(receipt.actor_user_id||'').length>0
+      &&receipt.base_revision!==null&&receipt.base_revision!==undefined
+      &&receipt.remote_revision!==null&&receipt.remote_revision!==undefined
+      &&Number.isSafeInteger(command?.baseRevision)
+      &&Number(receipt.base_revision)===command.baseRevision
+      &&Number.isSafeInteger(revision)&&revision>command.baseRevision
+      &&Number(receipt.remote_revision)===revision;
+  }
+  function scheduleProgressRefresh(command,response,reason){
+    const owner=getRefreshOwner(),scope=executionLineage(command);
+    if(!owner||typeof owner!=='object'||!scope)return false;
+    const existing=pendingProgressRefresh;
+    if(existing&&(existing.scope!==scope||existing.owner!==owner))return false;
+    // 15s quiet-window and at most 30s since the FIRST confirmed ACK:
+    // a continuous stream of sets may not defer authorization freshness forever.
+    const firstScheduledAt=existing?.firstScheduledAt??Date.now();
+    const maxRemaining=Math.max(1,2*refreshWindow-(Date.now()-firstScheduledAt));
+    const delayMs=Math.min(refreshWindow,maxRemaining);
+    cancelProgressRefresh();
+    const job={owner,scope,commandType:command.type,operationId:command.operationId,
+      response,reason,firstScheduledAt,timer:null};
+    job.timer=setTimeout(()=>{
+      if(pendingProgressRefresh!==job)return;
+      pendingProgressRefresh=null;
+      // An account change or logout may never replay A's private read into B.
+      if(disposed||getRefreshOwner()!==owner)return;
+      void Promise.resolve().then(()=>rehydrate({reason:job.reason,response:job.response}))
+        .catch(error=>{
+          try{onPostAckRefreshError(error,{
+            commandType:job.commandType,operationId:job.operationId,
+          });}catch{}
+        });
+    },delayMs);
+    if(typeof job.timer?.unref==='function')job.timer.unref();
+    pendingProgressRefresh=job;
+    return true;
+  }
+
   let localQueueOrder=0;
   const nowMs=()=>{const value=Number(now());if(!Number.isFinite(value))throw new Error('M26_CLOCK_INVALID');return value;};
 
@@ -372,20 +450,24 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
         // event-loop turn, AFTER the caller can apply its authoritative ACK.
         // Other commands retain the existing awaited refresh contract.
         const deferredCompletionRefresh=typeof rehydrate==='function'&&isExecutionCompletionCommand(command);
+        const deferredProgressRefresh=eligibleProgressAck(command,response,kind,{
+          queuedOffline,localReceiptOk,lineageOk,onAck,
+        })&&scheduleProgressRefresh(command,response,kind);
+        if(!deferredProgressRefresh)cancelProgressRefresh();
         if(deferredCompletionRefresh){
           setTimeout(()=>{
             void Promise.resolve().then(()=>rehydrate({reason:kind,response})).catch(error=>{
               try{onPostAckRefreshError(error,{commandType:command.type,operationId:command.operationId});}catch{}
             });
           },0);
-        }else if(typeof rehydrate==='function'){
+        }else if(!deferredProgressRefresh&&typeof rehydrate==='function'){
           try { await rehydrate({reason:kind,response}); }
           catch { refreshOk=false; }
         }
         const ackResult={ ok:true, kind, command:sanitizeOperation({...(acknowledged||queued),status:'ack'}),
-          response,refreshOk:deferredCompletionRefresh?null:refreshOk,
-          refreshDeferred:deferredCompletionRefresh,lineageOk,localReceiptOk,
-          refreshPending:deferredCompletionRefresh||!refreshOk||!localReceiptOk };
+          response,refreshOk:deferredCompletionRefresh||deferredProgressRefresh?null:refreshOk,
+          refreshDeferred:deferredCompletionRefresh||deferredProgressRefresh,lineageOk,localReceiptOk,
+          refreshPending:deferredCompletionRefresh||deferredProgressRefresh||!refreshOk||!localReceiptOk };
         if(!localReceiptOk)confirmedRemoteOperations.set(command.operationId,{fingerprint:commandFingerprint(command),result:ackResult});
         else confirmedRemoteOperations.delete(command.operationId);
         return ackResult;
@@ -510,7 +592,8 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
     return flushInFlight;
   }
 
-  return Object.freeze({ preflight, execute, enqueue, pending, confirmedExecutionRevision, recoverExecutionCompletion, settleExecutionCompletion, retry, flushPending });
+  function dispose(){disposed=true;cancelProgressRefresh();}
+  return Object.freeze({ preflight, execute, enqueue, pending, confirmedExecutionRevision, recoverExecutionCompletion, settleExecutionCompletion, retry, flushPending, dispose });
 }
 
 export function createMemoryOperationRepository() {

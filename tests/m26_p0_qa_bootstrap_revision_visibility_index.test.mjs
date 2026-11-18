@@ -67,6 +67,8 @@ test('Sonar only exempts exact immutable SQL snapshots from duplication',()=>{
   const paths=line.slice('sonar.cpd.exclusions='.length).split(',');
   assert.equal(paths.length,new Set(paths).size);
   for(const file of ['supabase/qa-migrations/20261111033000_p0_qa_bootstrap_revision_visibility_index.sql','supabase/qa-rollbacks/20261111033000_p0_qa_bootstrap_revision_visibility_index.rollback.sql'])assert.equal(paths.filter(x=>x===file).length,1);
-  assert.ok(paths.every(x=>x.endsWith('.sql')&&!/[?*]/.test(x)));
+  // Keep all SQL snapshots plus the exactly pinned original PROD Edge source.
+  const historicEdge='scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts';
+  assert.ok(paths.every(x=>(x.endsWith('.sql')||x===historicEdge)&&!/[?*]/.test(x)));
   assert.ok(!config.includes('sonar.exclusions='));
 });

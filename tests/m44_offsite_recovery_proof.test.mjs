@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {verifyIndependentOffsiteRecovery,acquireDriveAccessToken} from '../scripts/ops/m44_offsite_recovery_proof.mjs';
 const backupSha='e0a89cff70794dbd77624fceb42932fca521bb11';
 const sourceSha='4dde3b098caccf24673e62c01fdfb097c5bd9db3';
-const bytes=Buffer.from('synthetic encrypted zip archive fixture — no production data'.repeat(50));
+const bytes=Buffer.alloc(1_200_000,0x61); // inert ciphertext bytes, no production data
 const digest=createHash('sha256').update(bytes).digest('hex');
 const nowMs=Date.parse('2026-10-16T04:00:00Z');
 const runId=38833678711;
@@ -16,15 +16,31 @@ const required=[
  'Remove all temporary plaintext and ciphertext from runner'
 ];
 function fixture(overrides={}){
- const run={id:runId,repository:{full_name:'iberfit/iberfit-m26-app',id:1306074388},
+ const run={id:runId,run_attempt:1,event:'push',
+  repository:{full_name:'iberfit/iberfit-m26-app',id:1306074388},
   name:'IBERFIT M44 Encrypted Offsite Disaster Recovery',
   path:'.github/workflows/m44-encrypted-disaster-recovery.yml',
   head_branch:'canary/rc74-4',head_sha:backupSha,status:'completed',conclusion:'success',
-  created_at:'2026-10-16T01:10:30Z'};
- const jobs={total_count:1,jobs:[{name:'m44-prod-db-storage-encrypted-backup-and-restore',
-  status:'completed',conclusion:'success',steps:required.map(name=>({name,conclusion:'success'}))}]};
- const artifacts={total_count:1,artifacts:[{name:'iberfit-prod-ciphertext-'+runId,
-  size_in_bytes:bytes.length,digest:'sha256:'+digest,workflow_run:{id:runId,head_sha:backupSha}}]};
+  created_at:'2026-10-16T01:00:00Z',updated_at:'2026-10-16T01:11:00Z'};
+ const makeJob=(name,id,steps=[])=>({
+  id,run_id:runId,run_attempt:1,workflow_name:run.name,
+  head_branch:run.head_branch,head_sha:backupSha,
+  name,status:'completed',conclusion:'success',
+  completed_at:'2026-10-16T01:10:50Z',steps
+ });
+ const jobs={total_count:3,jobs:[
+  makeJob('m44-encrypted-archive-and-storage-contract',101),
+  makeJob('m44-synthetic-postgresql17-restore-proof',102),
+  makeJob('m44-prod-db-storage-encrypted-backup-and-restore',103,[
+   'Fail closed if protected production backup credentials are unavailable',
+   ...required].map(name=>({name,status:'completed',conclusion:'success'})))
+ ]};
+ const artifacts={total_count:1,artifacts:[{
+  id:12083431361,name:'iberfit-prod-ciphertext-'+runId,
+  size_in_bytes:bytes.length,digest:'sha256:'+digest,expired:false,
+  created_at:'2026-10-16T01:10:45Z',expires_at:'2026-10-17T01:10:45Z',
+  workflow_run:{id:runId,head_branch:'canary/rc74-4',head_sha:backupSha}
+ }]};
  const root={id:'private-root-id',mimeType:'application/vnd.google-apps.folder',
   shared:false,trashed:false,permissions:[{type:'user',role:'owner',emailAddress:'iberfit.cl@gmail.com'}]};
  const folder={id:'private-folder-id',mimeType:'application/vnd.google-apps.folder',
@@ -63,7 +79,7 @@ test('reject unrelated source, failed run and missing restoration step',async()=
  await assert.rejects(verifyIndependentOffsiteRecovery(unrelated.args),/SOURCE_LINEAGE_INVALID/);
  const failed=fixture();failed.data.run.conclusion='failure';
  await assert.rejects(verifyIndependentOffsiteRecovery(failed.args),/RUN_IDENTITY_INVALID/);
- const missing=fixture();missing.data.jobs.jobs[0].steps.pop();
+ const missing=fixture();missing.data.jobs.jobs[2].steps.pop();
  await assert.rejects(verifyIndependentOffsiteRecovery(missing.args),/ISOLATED_RESTORE_UNVERIFIED/);
 });
 test('reject unshared false positives, wrong folder, second permission and owner mismatch',async()=>{
@@ -80,7 +96,7 @@ test('reject unshared false positives, wrong folder, second permission and owner
 test('reject altered original digest, oversize metadata and stale backups',async()=>{
  const tampered=fixture();tampered.data.artifacts.artifacts[0].digest='sha256:'+'a'.repeat(64);
  await assert.rejects(verifyIndependentOffsiteRecovery(tampered.args),/DRIVE_DIGEST_MISMATCH/);
- const old=fixture();old.data.run.created_at='2026-10-01T01:10:30Z';
+ const old=fixture();old.data.run.updated_at='2026-10-01T01:10:30Z';
  await assert.rejects(verifyIndependentOffsiteRecovery(old.args),/BACKUP_NOT_RECENT/);
  const wrong=fixture();wrong.data.artifacts.artifacts[0].size_in_bytes+=1;
  await assert.rejects(verifyIndependentOffsiteRecovery(wrong.args),/DRIVE_CUSTODY_INVALID/);
@@ -126,7 +142,7 @@ test('reject truncated GitHub pages, absent total counts and ambiguous artifact 
  ];
  for(const patch of cases){
   const f=fixture(patch);
-  await assert.rejects(verifyIndependentOffsiteRecovery(f.args),/JOBS_INCOMPLETE|ARTIFACT_LIST_INCOMPLETE|ARTIFACT_UNIQUE_PROVENANCE_REQUIRED/);
+  await assert.rejects(verifyIndependentOffsiteRecovery(f.args),/JOBS_INCOMPLETE|ISOLATED_RESTORE_UNVERIFIED|ARTIFACT_LIST_INCOMPLETE|ARTIFACT_UNIQUE_PROVENANCE_REQUIRED/);
  }
  const f=fixture();
  const duplicate=f.data.artifacts.artifacts[0];
@@ -155,4 +171,35 @@ test('reject Drive folder ancestry that is missing, cyclic or multiply parented'
   await assert.rejects(verifyIndependentOffsiteRecovery(f.args),
     /DRIVE_ANCESTRY_INVALID|DRIVE_ANCESTRY_CYCLE|DRIVE_FOLDER_CUSTODY_INVALID/);
  }
+});
+
+test('accepts fresh protected attempt 2 when original run was created days earlier',async()=>{
+ const f=fixture();
+ f.data.run.created_at='2026-10-13T01:00:00Z';
+ f.data.run.run_attempt=2;
+ f.data.run.updated_at='2026-10-16T03:31:00Z';
+ const production=f.data.jobs.jobs[2];
+ const older={...production,id:104,run_attempt:1,completed_at:'2026-10-13T01:10:50Z'};
+ production.run_attempt=2;
+ production.completed_at='2026-10-16T03:30:50Z';
+ f.data.jobs.jobs.push(older);f.data.jobs.total_count=4;
+ f.data.artifacts.artifacts[0].created_at='2026-10-16T03:30:45Z';
+ f.data.artifacts.artifacts[0].expires_at='2026-10-17T03:30:45Z';
+ const result=await verifyIndependentOffsiteRecovery({...f.args,maxAgeMs:2*3600000});
+ assert.equal(result.ready,true);
+ assert.equal(result.backupUtc,'2026-10-16T03:30:45.000Z');
+ assert.equal(result.platformRecoveryVerified,false);
+});
+test('rejects failed final attempt, stale ciphertext or wrong protected-job SHA',async()=>{
+ const failed=fixture();
+ failed.data.run.run_attempt=2;
+ failed.data.jobs.jobs[2].run_attempt=2;
+ failed.data.jobs.jobs[2].conclusion='failure';
+ await assert.rejects(verifyIndependentOffsiteRecovery(failed.args),/ISOLATED_RESTORE_UNVERIFIED/);
+ const stale=fixture();
+ stale.data.run.updated_at='2026-10-16T03:40:00Z';
+ stale.data.jobs.jobs[2].completed_at='2026-10-16T03:39:00Z';
+ await assert.rejects(verifyIndependentOffsiteRecovery({...stale.args,maxAgeMs:2*3600000}),/BACKUP_NOT_RECENT/);
+ const drift=fixture();drift.data.jobs.jobs[2].head_sha='f'.repeat(40);
+ await assert.rejects(verifyIndependentOffsiteRecovery(drift.args),/ISOLATED_RESTORE_UNVERIFIED/);
 });

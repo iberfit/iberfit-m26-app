@@ -1,6 +1,7 @@
 import {test,expect} from '@playwright/test';
-import {mkdir} from 'node:fs/promises';
+import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
+import {createQaSupabaseWireMeter,verifyQaFreeBrowserWireBudget} from './qa-supabase-wire-meter.mjs';
 import {m43QaRunMarkers} from '../../scripts/remote-gates/m43-qa-fixture-safety.mjs';
 import {
   CANARY_ORIGIN,QA_PROJECT_REF,SUPABASE_ORIGIN,installCurrentSourceQaNetworkPolicy,
@@ -41,6 +42,30 @@ const WRITES=new Set([
   'EJECUCION_GUARDAR_PROGRESO','EJECUCION_COMPLETAR',
 ]);
 
+const HYDRATION_REASON_PATTERN=/^(?:login|ack|session-entry-authoritative|role-switch|engagement-refresh|bootstrap|other)$/u;
+// QA passive stage hook: survives page reload through Playwright's exposed
+// callback; records only seven fixed reason labels and no user identifiers.
+// The application emits these stages exclusively for synthetic QA Client A.
+async function observeQaHydrationReasons(page){
+  const counts=Object.create(null);
+  await page.exposeFunction('__IBERFIT_M43_QA_REASON__',reason=>{
+    if(typeof reason!=='string'||!HYDRATION_REASON_PATTERN.test(reason))return;
+    counts[reason]=(counts[reason]||0)+1;
+  });
+  await page.addInitScript(()=>{
+    const original=globalThis.__IBERFIT_M26_QA_STAGE__;
+    globalThis.__IBERFIT_M26_QA_STAGE__=stage=>{
+      try{if(typeof original==='function')original(stage);}catch{}
+      const prefix='rc64-hydrate-reason-';
+      if(typeof stage==='string'&&stage.startsWith(prefix)){
+        // Never await a QA observer on a production hydration path.
+        void globalThis.__IBERFIT_M43_QA_REASON__?.(stage.slice(prefix.length));
+      }
+    };
+  });
+  return counts;
+}
+
 test('Client executes exact synthetic guided workout through real UI and confirms server history',async({page,context,browser},testInfo)=>{
   // One fixture now runs two COMPLETE, independent server-ACKed sports lifecycles.
   // Keep every individual interaction deadline unchanged; only the aggregate
@@ -58,6 +83,8 @@ test('Client executes exact synthetic guided workout through real UI and confirm
 
   let clientId=null,sessionId=null,executionId=null;
   const allowed=[],confirmedProgress=[],blocked=[],pageErrors=[],unexpectedHttp=[];
+  const mobileWire=createQaSupabaseWireMeter(page,{origin:SUPABASE_ORIGIN});
+  const mobileHydrationReasons=await observeQaHydrationReasons(page);
   // No business write is allowed until this Client has obtained its own ID
   // from the real server and selected the exact run-marked synthetic card.
   function allowExactSyntheticWrite(request){
@@ -340,6 +367,8 @@ test('Client executes exact synthetic guided workout through real UI and confirm
     onBlocked:label=>blocked.push(label),
   });
   const desktopPage=await runningDesktopContext.newPage();
+  const desktopWire=createQaSupabaseWireMeter(desktopPage,{origin:SUPABASE_ORIGIN});
+  const desktopHydrationReasons=await observeQaHydrationReasons(desktopPage);
   desktopPage.on('pageerror',error=>pageErrors.push(String(error?.message||error).slice(0,180)));
   desktopPage.on('response',async response=>{
     try{
@@ -480,6 +509,17 @@ test('Client executes exact synthetic guided workout through real UI and confirm
       historyAfterReload:1,duplicateWritesAfterReload:allowed.length-runningWritesBeforeReload,
       networkErrors:unexpectedHttp.length,blockedWrites:0},null,2)),
     contentType:'application/json',
+  });
+  const baseWireEvidence={schema:'iberfit.qa.supabase.browser-wire-report.v1',
+    synthetic:true,productionTouched:false,billableEgressVerified:false,
+    scope:'one synthetic strength+running browser journey, not a 24h invoice',
+    mobile:await mobileWire.stop(),desktop:await desktopWire.stop()};
+  const freeBudget=verifyQaFreeBrowserWireBudget(baseWireEvidence,{fixture:OWNER_FIXTURE});
+  const wireEvidence={...baseWireEvidence,qaFreeBudget:freeBudget,
+    hydrationReasons:{mobile:{...mobileHydrationReasons},desktop:{...desktopHydrationReasons}}};
+  await writeFile(join(dir,'supabase-wire-evidence.json'),JSON.stringify(wireEvidence,null,2)+'\n');
+  await testInfo.attach('m43-qa-supabase-wire-evidence',{
+    body:Buffer.from(JSON.stringify(wireEvidence,null,2)),contentType:'application/json',
   });
   await runningDesktopContext.close();
 });

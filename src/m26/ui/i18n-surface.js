@@ -5,6 +5,13 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // Client access: provider acceptance, pending and error must remain distinguishable.
+  ["El proveedor no confirmó la invitación.", "The provider did not confirm the invitation.", "Le fournisseur n’a pas confirmé l’invitation.", "O fornecedor não confirmou o convite."],
+  ["La invitación falló. Comprueba su estado antes de volver a enviarla.", "The invitation failed. Check its status before sending again.", "L’invitation a échoué. Vérifiez son statut avant de la renvoyer.", "O convite falhou. Confirme o estado antes de o reenviar."],
+  ["Este cliente ya tiene acceso IBERFIT activo.", "This client already has active IBERFIT access.", "Ce client dispose déjà d’un accès IBERFIT actif.", "Este cliente já tem acesso ativo à IBERFIT."],
+  ["El proveedor aceptó la invitación. La recepción debe confirmarla el cliente.", "The provider accepted the invitation. The client must confirm receipt.", "Le fournisseur a accepté l’invitation. Le client doit confirmer sa réception.", "O fornecedor aceitou o convite. O cliente deve confirmar a receção."],
+  ["Hay una invitación en curso. Comprueba su estado antes de volver a enviarla.", "An invitation is pending. Check its status before sending again.", "Une invitation est en cours. Vérifiez son statut avant de la renvoyer.", "Há um convite em curso. Verifique o estado antes de o reenviar."],
+  ["No se pudo confirmar el estado de la invitación.", "The invitation status could not be confirmed.", "Le statut de l’invitation n’a pas pu être confirmé.", "Não foi possível confirmar o estado do convite."],
   // UNIVERSAL 360: a dated workout remains non-actionable while its
   // authenticated private read is in flight. Four-locale exact translations.
   // U74: an in-flight dated-workout write cannot accept another touch.

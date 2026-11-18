@@ -34,3 +34,41 @@ test('catalog snapshot is read-only, includes same-name overwrite markers',()=>{
  assert.match(sql,/FROM storage\.objects;/);
  assert.doesNotMatch(sql,/\b(?:delete|update|insert|truncate|alter|drop)\s+/i);
 });
+
+test('REAL TRAINING 360 backend candidate requests exactly one encrypted PROD M44 proof only after Canary merge',()=>{
+ const yaml=readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
+ const section=yaml.slice(yaml.indexOf('\non:'),yaml.indexOf('\npermissions:'));
+ const pull=section.slice(section.indexOf('  pull_request:'),section.indexOf('  push:'));
+ const push=section.slice(section.indexOf('  push:'),section.indexOf('  workflow_dispatch:'));
+ const exact=[
+  'supabase/migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql',
+  'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql',
+ ];
+ for(const path of exact){
+   assert.ok(push.includes("      - '"+path+"'"),'POSTMERGE_M44_TRIGGER_MISSING:'+path);
+   assert.ok(!pull.includes(path),'M44_PROD_TRIGGER_MUST_NOT_RUN_FOR_DRAFT:'+path);
+   assert.equal(yaml.split("'"+path+"'").length-1,1,'M44_TRIGGER_MUST_BE_EXACT_ONCE:'+path);
+ }
+ assert.match(yaml,/if: github\.event_name != 'pull_request'/u);
+ assert.match(yaml,/name: iberfit-prod-ciphertext-\$\{\{ github\.run_id \}\}/u);
+ assert.match(yaml,/Reopen ciphertext and verify restored Storage bytes in isolated workspace/u);
+ assert.doesNotMatch(push,/^\s+- 'supabase\/migrations\/\*\*'/mu);
+});
+
+test('M44 real restore uses random one-time local credentials, localhost-only TCP and guaranteed cleanup',()=>{
+ const source=readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
+ const job=source.slice(source.indexOf('  production-backup:'));
+ assert.match(job,/PGPASSWORD=\$\(openssl rand -hex 32\)/u);
+ assert.match(job,/POSTGRES_PASSWORD=\$PGPASSWORD/u);
+ assert.match(job,/--publish 127\.0\.0\.1:5432:5432/u);
+ assert.match(job,/--env POSTGRES_PASSWORD/u);
+ assert.match(job,/trap 'docker stop iberfit-m44-local-restore/u);
+ assert.match(job,/--health-cmd 'pg_isready -U supabase_admin -d postgres'/u);
+ assert.doesNotMatch(job,/PGPASSWORD=isolated-restore-only/u);
+ assert.doesNotMatch(job,/POSTGRES_PASSWORD:\s*isolated-restore-only/u);
+ assert.equal((job.match(/-e PGPASSWORD\s*\\/gu)||[]).length,4);
+ const restore=job.indexOf('openssl rand -hex 32');
+ const decrypt=job.indexOf('m44_encrypted_backup_archive.mjs decrypt');
+ const success=job.indexOf('IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS');
+ assert.ok(restore>0&&restore<decrypt&&decrypt<success);
+});

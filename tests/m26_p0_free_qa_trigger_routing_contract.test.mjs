@@ -54,6 +54,7 @@ test('readonly remote QA only fires for its own runtime and modules, never unrel
     'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs',
     'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',
     'scripts/remote-gates/qa_m43_minimal_bootstrap_visibility.mjs',
+    'scripts/remote-gates/qa_m43_owner_projection.mjs',
     'scripts/remote-gates/run_qa_iri_report_emission_gate.mjs',
     'scripts/remote-gates/qa_client_identity_rpc.mjs',
     'scripts/remote-gates/m43-qa-fixture-safety.mjs',
@@ -87,6 +88,7 @@ test('QA real-write routing tracks writer helper and library dependencies for PR
     'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs',
     'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',
     'scripts/remote-gates/qa_m43_minimal_bootstrap_visibility.mjs',
+    'scripts/remote-gates/qa_m43_owner_projection.mjs',
     'scripts/remote-gates/run_qa_iri_report_emission_gate.mjs',
     'scripts/remote-gates/m43-writer-handoff.mjs',
     'scripts/remote-gates/qa_client_delete_acl_denial.mjs',
@@ -105,7 +107,9 @@ test('QA real-write routing tracks writer helper and library dependencies for PR
     assert.ok(covered(dep,qaPull),'QA_WRITE_FIXTURE_JSON_TRIGGER_MISSING:'+dep);
   for(const dep of [
     'scripts/remote-gates/qa_m43_minimal_bootstrap_visibility.mjs',
+    'scripts/remote-gates/qa_m43_owner_projection.mjs',
     'tests/m26_p0_free_qa_m43_minimal_visibility.test.mjs',
+    'tests/m26_p0_free_qa_m43_owner_projection.test.mjs',
     'src/m26/production-state.js','src/m26/exercises/catalog.js',
     'src/m26/profile/client-avatar.js',
     'scripts/remote-gates/m43-qa-fixture-safety.mjs',

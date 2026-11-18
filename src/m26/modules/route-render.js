@@ -1319,7 +1319,7 @@ function clientOnboardingForm() {
   return `<details class="m26-panel m26-onboarding" data-client-onboarding>
     <summary><span><small>Nuevo expediente</small><strong>Añadir una persona</strong></span><span class="m26-summary-action">Crear expediente</span></summary>
     <form data-workflow-form="client-onboarding" class="m26-onboarding-form" novalidate>
-      <section class="m26-form-section"><div class="m26-form-section-title"><span>1</span><div><h3>Identidad y contacto</h3><p>Datos necesarios para crear el expediente. El acceso a la app se gestiona por separado desde Administración.</p></div></div><div class="m26-field-grid">
+      <section class="m26-form-section"><div class="m26-form-section-title"><span>1</span><div><h3>Identidad y contacto</h3><p>Datos necesarios para crear el expediente. El acceso a IBERFIT se gestiona después del alta: el Coach responsable o Administración pueden invitar.</p></div></div><div class="m26-field-grid">
         <label>Nombre completo<input name="name" autocomplete="name" maxlength="160" required></label>
         <label>Correo electrónico<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
         <label>Teléfono<input name="phone" autocomplete="tel" maxlength="40" required></label>
@@ -1354,7 +1354,7 @@ function clientOnboardingForm() {
       <section class="m26-form-section"><div class="m26-form-section-title"><span>4</span><div><h3>Contacto de emergencia</h3><p>Opcional en el alta; recomendable antes de iniciar la evaluación física.</p></div></div><div class="m26-field-grid">
         <label>Nombre<input name="emergencyContactName" autocomplete="section-emergency name" maxlength="160"></label><label>Relación<input name="emergencyContactRelation" maxlength="120"></label><label>Teléfono<input name="emergencyContactPhone" type="tel" autocomplete="section-emergency tel" maxlength="40"></label>
       </div></section>
-      <div class="m26-sticky-actions"><p><strong>Alta protegida.</strong> Se crea el expediente, se verifica que quede visible y se abre el Diagnóstico IRI. El acceso del cliente se gestiona por separado desde Administración.</p><button type="submit" class="m26-primary-action" data-workflow-action="create-client-draft">Crear expediente y abrir diagnóstico IRI</button></div>${workflowStatus('client-onboarding')}
+      <div class="m26-sticky-actions"><p><strong>Alta protegida.</strong> Se crea el expediente, se verifica que quede visible y se abre el Diagnóstico IRI. El Coach responsable o Administración podrán enviar la invitación tras crear el expediente.</p><button type="submit" class="m26-primary-action" data-workflow-action="create-client-draft">Crear expediente y abrir diagnóstico IRI</button></div>${workflowStatus('client-onboarding')}
     </form>
   </details>`;
 }
@@ -3589,7 +3589,7 @@ ${summarySurface}
       <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Planificación</p><h2>Contexto de acompañamiento</h2></div></div><div class="m26-field-grid">${field('Estado', displayStatus)}${field('Ciclo activo', data.cycle?.name)}${field('Próxima cita confirmada', data.nextAppointment?.dateLabel)}${field('Seguimiento', vm.alertSignal?.label)}</div></div>
       <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Evaluación IRI</p><h2>${iri ? escapeHtml(iri.coverageLabel) : 'Pendiente'}</h2><p>${iri ? `${escapeHtml(iri.dateLabel)} · ${escapeHtml(iri.status)}` : 'No hay una evaluación IRI confirmada.'}</p><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir evaluación IRI</button></aside>
     </section>
-    <section class="m26-panel" data-m26-expediente-section="plan"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Ruta de trabajo</p><h2>Continuar con este cliente</h2></div></div><div class="m26-action-grid"><button type="button" data-m26-area="planificacion">Planificación</button><button type="button" data-m26-area="sesion">Sesiones</button><button type="button" data-m26-area="progreso">Progreso</button><button type="button" data-m26-area="actividad">Registros de bienestar y hábitos</button><button type="button" data-m26-area="informes">Informes</button><button type="button" data-m26-area="notas">Notas privadas</button><button type="button" data-m26-area="inteligencia">Inteligencia IBERFIT</button></div></section>
+    <section class="m26-panel" data-m26-expediente-section="plan"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Ruta de trabajo</p><h2>Continuar con este cliente</h2></div></div><div class="m26-action-grid"><button type="button" data-m26-area="planificacion">Planificación</button>${vm.role==='coach'?'<button type="button" class="m26-primary-action" data-workflow-action="coach-send-client-invite">Enviar acceso IBERFIT</button>':''}<button type="button" data-m26-area="sesion">Sesiones</button><button type="button" data-m26-area="progreso">Progreso</button><button type="button" data-m26-area="actividad">Registros de bienestar y hábitos</button><button type="button" data-m26-area="informes">Informes</button><button type="button" data-m26-area="notas">Notas privadas</button><button type="button" data-m26-area="inteligencia">Inteligencia IBERFIT</button></div></section>
       </div>
   </div>`;
 }

@@ -2,6 +2,7 @@
 // in private Google Drive. No secrets, file IDs, personal data or payloads in logs.
 // This is an alternative to Supabase-managed backup inventory, NOT a bypass.
 import {createHash} from 'node:crypto';
+import {evaluateM44OffsiteRecovery} from '../data-safety/check_m44_offsite_recovery_readiness.mjs';
 export const PROD_REF='pjhmrhejsoofmouedavw';
 export const REPO='iberfit/iberfit-m26-app';
 export const RECOVERY_WORKFLOW='.github/workflows/m44-encrypted-disaster-recovery.yml';
@@ -56,38 +57,45 @@ export async function verifyIndependentOffsiteRecovery({
  if(run.id!==Number(runId)||run.repository?.full_name!==REPO||
   run.repository?.id!==1306074388||run.name!=='IBERFIT M44 Encrypted Offsite Disaster Recovery'||
   run.path!==RECOVERY_WORKFLOW||run.head_branch!=='canary/rc74-4'||
-  !sha40(run.head_sha)||run.status!=='completed'||run.conclusion!=='success')
+  !sha40(run.head_sha)||!['push','workflow_dispatch'].includes(run.event)||
+  run.status!=='completed'||run.conclusion!=='success')
   fail('RUN_IDENTITY_INVALID');
- requireRecent(run.created_at,nowMs,maxAgeMs);
+ // A protected rerun keeps OLD run.created_at; fresh backup provenance is
+ // bound instead to run.updated_at, final-attempt job and newest artifact.
+ requireRecent(run.updated_at,nowMs,maxAgeMs);
  // An earlier verified backup is allowed only if it is an ancestor of the
  // EXACT source being promoted. A different repo/branch/source is forbidden.
  const compare=await readJson(api+'/compare/'+run.head_sha+'...'+sourceSha,githubToken,fetchImpl);
  if(!['ahead','identical'].includes(compare.status)||Number(compare.behind_by)!==0)
   fail('SOURCE_LINEAGE_INVALID');
- const jobs=await readJson(api+'/actions/runs/'+runId+'/jobs?per_page=100',githubToken,fetchImpl);
- if(!Array.isArray(jobs.jobs)||!Number.isSafeInteger(jobs.total_count)||
-  jobs.total_count!==jobs.jobs.length||jobs.total_count>100)fail('JOBS_INCOMPLETE');
- const job=jobs.jobs.find(x=>x.name==='m44-prod-db-storage-encrypted-backup-and-restore');
- const required=[
-  'Export complete PG17 DB and all Storage object bytes to ephemeral private workspace',
-  'Encrypt authenticated recovery archive before any upload',
-  'Reopen ciphertext and verify restored Storage bytes in isolated workspace',
-  'Publish verified encrypted archive for immediate private-drive transfer',
-  'Remove all temporary plaintext and ciphertext from runner'
- ];
- if(!job||job.status!=='completed'||job.conclusion!=='success'||
-   required.some(name=>!job.steps?.some(x=>x.name===name&&x.conclusion==='success')))
-  fail('ISOLATED_RESTORE_UNVERIFIED');
+ const jobs=await readJson(api+'/actions/runs/'+runId+'/jobs?per_page=100&filter=all',githubToken,fetchImpl);
  const data=await readJson(api+'/actions/runs/'+runId+'/artifacts?per_page=100',githubToken,fetchImpl);
  if(!Array.isArray(data.artifacts)||!Number.isSafeInteger(data.total_count)||
-  data.total_count!==data.artifacts.length||data.total_count>100)fail('ARTIFACT_LIST_INCOMPLETE');
- const matched=data.artifacts.filter(x=>x.name==='iberfit-prod-ciphertext-'+runId);
- if(matched.length!==1)fail('ARTIFACT_UNIQUE_PROVENANCE_REQUIRED');
- const artifact=matched[0];
- if(!artifact||artifact.workflow_run?.id!==Number(runId)||
-  artifact.workflow_run?.head_sha!==run.head_sha||
-  !sha256(artifact.digest?.replace(/^sha256:/,''))||
-  !number(artifact.size_in_bytes)||artifact.size_in_bytes>MAX_ARCHIVE_BYTES)
+   data.total_count!==data.artifacts.length||data.total_count>100)
+  fail('ARTIFACT_LIST_INCOMPLETE');
+ // An earlier attempt can retain an artifact with this name; the shared
+ // recovery verifier selects the newest one after checking exact job times.
+ // Two artifacts with the same latest timestamp make identity ambiguous.
+ const matching=data.artifacts.filter(x=>x?.name==='iberfit-prod-ciphertext-'+runId)
+  .sort((a,b)=>Date.parse(b.created_at||'')-Date.parse(a.created_at||''));
+ if(!matching.length||(matching.length>1 &&
+   matching[0].created_at===matching[1].created_at))
+  fail('ARTIFACT_UNIQUE_PROVENANCE_REQUIRED');
+ let recovery;
+ try{
+  recovery=evaluateM44OffsiteRecovery(run,jobs,data,{
+   nowMs,maxAgeHours:maxAgeMs/3600000});
+ }catch(error){
+  const reason=String(error?.message||'');
+  if(/TOO_OLD|ALREADY_EXPIRED|TIMESTAMP_IN_FUTURE|RUN_UPDATED_AT/.test(reason))
+   fail('BACKUP_NOT_RECENT');
+  if(/JOBS_|JOB_|REQUIRED_STEP|PROD_JOB/.test(reason))
+   fail('ISOLATED_RESTORE_UNVERIFIED');
+  if(/ARTIFACT/.test(reason))fail('ARTIFACT_PROVENANCE_INVALID');
+  fail('RECOVERY_EVIDENCE_INVALID');
+ }
+ const artifact=matching.find(x=>x.id===recovery.artifactId);
+ if(!artifact||artifact.size_in_bytes>MAX_ARCHIVE_BYTES)
   fail('ARTIFACT_PROVENANCE_INVALID');
  const expectedHash=artifact.digest.slice('sha256:'.length);
  const fields='id,name,mimeType,size,parents,shared,trashed,driveId,permissions(type,role,emailAddress)';
@@ -147,7 +155,7 @@ export async function verifyIndependentOffsiteRecovery({
   ready:true,project:PROD_REF,method:'offsite-drive-encrypted-restore',
   runId:Number(runId),backupSourceSha:run.head_sha,
   artifactSha256:expectedHash,artifactBytes:total,
-  backupUtc:run.created_at,restoreTestVerified:true,
+  backupUtc:recovery.latestBackupAt,restoreTestVerified:true,
   storageRestoreStepVerified:true,offsiteBytesVerified:true,privateOwnerVerified:true,
   // This DOES NOT certify PostgreSQL role/grant/hosted Auth restoration.
   platformRecoveryVerified:false

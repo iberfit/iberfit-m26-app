@@ -1,0 +1,12 @@
+{
+  "schema": "iberfit.m44.edge-release-candidate.v1",
+  "project_ref": "pjhmrhejsoofmouedavw",
+  "slug": "iberfit-admin-client-invite-v1",
+  "live_archive_path": "scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts",
+  "live_archive_git_blob_sha1": "a6ee9759dbc99267fff6cbc256d6dd906109fdea",
+  "candidate_source_path": "supabase/functions/iberfit-admin-client-invite-v1/index.ts",
+  "candidate_git_blob_sha1": "9124e4e5c46419f4cc339fed05f6be34ac67524b",
+  "parent_canary_sha": "6b6033e395c900c42f7a0ac6209838e895df4c83",
+  "external_live_attestation": false,
+  "production_release_approved": false
+}

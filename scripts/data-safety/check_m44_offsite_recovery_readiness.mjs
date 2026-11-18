@@ -56,7 +56,7 @@ export function evaluateM44OffsiteRecovery(
   {nowMs=Date.now(),maxAgeHours=DEFAULT_MAX_OFFSITE_AGE_HOURS}={},
 ){
   if(!Number.isFinite(nowMs)||nowMs<=0)throw new Error('M44_OFFSITE_NOW_INVALID');
-  if(!Number.isFinite(maxAgeHours)||maxAgeHours<=0||maxAgeHours>24)throw new Error('M44_OFFSITE_MAX_AGE_INVALID');
+  if(!Number.isFinite(maxAgeHours)||maxAgeHours<=0||maxAgeHours>48)throw new Error('M44_OFFSITE_MAX_AGE_INVALID');
   if(!run||typeof run!=='object'||Array.isArray(run))throw new Error('M44_OFFSITE_RUN_INVALID');
 
   const runId=positiveInt(run.id,'M44_OFFSITE_RUN_ID');

@@ -65,7 +65,15 @@ test('U74 requires exact source, explicit second attempt, least privilege and no
  const workflow=readFileSync('.github/workflows/u74-qa-dated-browser-e2e.yml','utf8');
  const browser=readFileSync('qa/rc64/u74-dated-ui-write.spec.mjs','utf8');
  const policy=readFileSync('qa/rc64/secure-current-source-auth.mjs','utf8');
- assert.match(workflow,/branches: \['feat\/iberfit-real-training-360-20261114'\]/u);
+ assert.match(workflow,/feat\/iberfit-real-training-360-20261114/u);
+ assert.match(workflow,/feat\/real-training-360-one-release-20261117/u);
+ assert.match(source,/feat\/real-training-360-one-release-20261117/u);
+ assert.match(workflow,/20261117_m1_u72_prod_guarded_materialized_v1\.sql/u);
+ assert.match(workflow,/src\/m26\/supabase-transport\.js/u);
+ assert.match(workflow,/src\/m26\/app\/application\.js/u);
+ assert.match(workflow,/src\/m26\/command-bus\.js/u);
+ assert.match(workflow,/qa\/rc64\/build-authenticated-surface\.mjs/u);
+ assert.match(workflow,/m26_p0_free_progress_ack_deferred_read_qa\.test\.mjs/u);
  assert.match(workflow,/github\.run_attempt == 1/u);
  assert.match(workflow,/github\.run_attempt == 2/u);
  assert.match(workflow,/environment: m26-canary-readonly/u);
@@ -86,4 +94,30 @@ test('U74 uses UTF-8 byte size, never character count, for synthetic progress wr
   payload:{executionId:command.payload.executionId,executionBaseRevision:1,
    results:{observation:'á'.repeat(262200)},skippedSets:{}}};
  assert.equal(isQaScopedDatedSyntheticWrite(request(unicode),scoped),false);
+});
+
+test('U74 actual Real Training branch retains signed two-attempt QA boundaries',()=>{
+ const wf=readFileSync('.github/workflows/u74-qa-dated-browser-e2e.yml','utf8');
+ const js=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ assert.match(wf,/branches:\s*\n\s+- 'feat\/iberfit-real-training-360-20261114'\s*\n\s+- 'feat\/real-training-360-one-release-20261117'/u);
+ for(const attempt of [1,2])assert.ok(wf.includes('github.run_attempt == '+attempt));
+ for(const action of ['preflight-browser','prepare-browser','verify-browser'])
+   assert.ok(wf.includes('qa_u60_real_dated_journey.mjs '+action));
+ assert.match(js,/BRANCH_HEAD_MOVED/u);
+ assert.match(js,/PREFLIGHT_MISSING_STALE_OR_CHANGED/u);
+ assert.match(js,/old\.sha===proof\.sha/u);
+ assert.match(js,/old\.runId===proof\.runId/u);
+ assert.match(js,/ENV_ISOLATION/u);
+ assert.doesNotMatch(wf,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|pjhmrhejsoofmouedavw/u);
+});
+
+test('U74 persisted preflight binds same synthetic source, revision, SHA, run and date',()=>{
+ const src=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ assert.match(src,/candidateId:plan\.chosen\.id,candidateRevision:plan\.chosen\.revision/u);
+ assert.match(src,/UUID\.test\(original\.candidateId\)/u);
+ assert.match(src,/old\.candidateId===proof\.candidateId/u);
+ assert.match(src,/old\.candidateRevision===proof\.candidateRevision/u);
+ assert.match(src,/selectCertifiedDatedCandidate\(candidates,old,today,future,certified\)/u);
+ assert.match(src,/CERTIFIED_SOURCE_REVISION_CHANGED/u);
+ assert.match(src,/CERTIFIED_SOURCE_DATES_OCCUPIED/u);
 });

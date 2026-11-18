@@ -33,8 +33,8 @@ test('shared Coach/Admin create payload creates an expediente without implicitly
 });
 
 test('shared onboarding UI states that client access is managed separately by Administration',()=>{
-  assert.match(routeRender,/El acceso a la app se gestiona por separado desde Administración\./u);
-  assert.match(routeRender,/El acceso del cliente se gestiona por separado desde Administración\./u);
+  assert.match(routeRender,/El acceso a IBERFIT se gestiona después del alta: el Coach responsable o Administración pueden invitar\./u);
+  assert.match(routeRender,/El Coach responsable o Administración podrán enviar la invitación tras crear el expediente\./u);
   assert.doesNotMatch(routeRender,/IBERFIT enviará la invitación al correo cuando corresponda\./u);
   assert.doesNotMatch(routeRender,/se prepara el acceso asociado al correo/u);
 });
