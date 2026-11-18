@@ -58,7 +58,7 @@ apply(){
 }
 # This is a NEW database in the already isolated local service; unlike the
 # initial M44 data-only proof, owners and ACL are not disabled.
-db createdb >"$out/createdb.log" 2>&1 || fail FRESH_DATABASE_CREATION_FAILED
+db createdb "$PGDATABASE" >"$out/createdb.log" 2>&1 || fail FRESH_DATABASE_CREATION_FAILED
 db pg_restore --exit-on-error -d "$PGDATABASE" /backup/database.pgcustom \
   >"$out/pg-restore-full-acl.log" 2>&1 || fail FULL_OWNER_ACL_RESTORE_FAILED
 check_sql BASELINE "SELECT (
