@@ -101,3 +101,21 @@ test('M44 workflow executes drill only inside isolated restore step',()=>{
  assert.ok(yaml.includes('M44_FULL_PLATFORM_RECOVERY_NOT_CERTIFIED'));
  assert.ok(!s.includes('platformRecoveryVerified:true'));
 });
+
+test('M44 real restore bash scripts parse correctly; no duplicate cutover tail',()=>{
+ for(const script of [
+  'scripts/ops/m44_real_global_roles_replay.sh',
+  'scripts/ops/m44_isolated_backend_cutover_drill.sh',
+ ]){
+  const run=spawnSync('bash',['-n',script],{
+   env:{PATH:process.env.PATH},encoding:'utf8',timeout:5000,
+  });
+  assert.equal(run.status,0,script+' must be valid bash syntax');
+  assert.equal(run.stdout,'');
+  assert.equal((fs.readFileSync(script,'utf8').match(
+   /echo M44_(?:REAL_GLOBAL_ROLES_RESTORED_IN_ISOLATED_PG17_ONLY|REAL_PROD_BACKEND_SQL_INSTALL_AND_ROLLBACK_ISOLATED_ONLY)/gu
+  )||[]).length,1,script+' must contain its terminal success marker exactly once');
+ }
+ assert.equal((s.match(/M44_LOCAL_ROLE_PLACEHOLDERS_NOLOGIN_ONLY/gu)||[]).length,1);
+ assert.equal((s.match(/db createdb "\$PGDATABASE"/gu)||[]).length,1);
+});
