@@ -134,6 +134,8 @@ on:
       - 'scripts/ops/m44_global_roles_archive_check.mjs'
       - 'scripts/ops/m44_real_global_roles_replay.sh'
       - 'scripts/ops/m44_isolated_backend_cutover_drill.sh'
+      - 'scripts/ops/m44_prepare_missing_local_roles.mjs'
+      - 'tests/m44_prepare_missing_local_roles.test.mjs'
       - 'tests/m44_isolated_backend_cutover_drill.test.mjs'
       - 'tests/m44_real_global_roles_replay.test.mjs'
       - 'tests/m44_role_globals_encrypted_backup.test.mjs'
@@ -160,6 +162,7 @@ on:
       - 'scripts/ops/m44_hosted_auth_config_archive.mjs'
       - 'scripts/ops/m44_real_global_roles_replay.sh'
       - 'scripts/ops/m44_isolated_backend_cutover_drill.sh'
+      - 'scripts/ops/m44_prepare_missing_local_roles.mjs'
       # One independently reviewed M1 U72 release source change triggers a
       # FRESH encrypted PROD DB+Storage backup and isolated PG17 restore.
       # Only protected Canary push; never PR, feature branch or QA writes.
@@ -236,6 +239,7 @@ jobs:
             tests/m44_role_globals_encrypted_backup.test.mjs \
             tests/m44_real_global_roles_replay.test.mjs \
             tests/m44_isolated_backend_cutover_drill.test.mjs \
+            tests/m44_prepare_missing_local_roles.test.mjs \
             tests/m44_pgcustom_acl_archive_contract.test.mjs \
             tests/m44_acl_toc_selector.test.mjs \
             tests/m44_auth_vault_cardinality_contract.test.mjs \
