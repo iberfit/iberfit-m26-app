@@ -81,7 +81,7 @@ BEGIN
        'public.iberfit_bootstrap_v26_rc29()'::regprocedure,
        'public.iberfit_bootstrap_v26()'::regprocedure)
       GROUP BY 1=1 HAVING count(*)=2 AND bool_and(p.prosecdef AND p.provolatile='s'
-      AND pg_get_userbyid(p.proowner)='postgres' AND p.proconfig @> ARRAY['search_path=']::text[]))
+      AND pg_get_userbyid(p.proowner)='postgres' AND p.proconfig @> ARRAY['search_path=""']::text[]))
   THEN RAISE EXCEPTION 'P0_QA_SCALAR_SECURITY_METADATA_INVALID' USING ERRCODE='42501'; END IF;
   v_next_rc := replace(replace(replace(v_rc,v_before_decl,v_after_decl),v_before_hook,v_after_hook),v_before_arm,v_after_arm);
   v_next_outer := replace(v_outer,v_before_guard,v_after_guard);
