@@ -54,3 +54,20 @@ test('REAL TRAINING 360 backend candidate requests exactly one encrypted PROD M4
  assert.match(yaml,/Reopen ciphertext and verify restored Storage bytes in isolated workspace/u);
  assert.doesNotMatch(push,/^\s+- 'supabase\/migrations\/\*\*'/mu);
 });
+
+test('M44 real restore uses random one-time local credentials, localhost-only TCP and guaranteed cleanup',()=>{
+ const source=readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
+ const job=source.slice(source.indexOf('  production-backup:'));
+ assert.match(job,/export PGPASSWORD="\$\(openssl rand -hex 32\)"/u);
+ assert.match(job,/--publish 127\.0\.0\.1:5432:5432/u);
+ assert.match(job,/--env POSTGRES_PASSWORD/u);
+ assert.match(job,/trap 'docker stop iberfit-m44-local-restore/u);
+ assert.match(job,/--health-cmd 'pg_isready -U supabase_admin -d postgres'/u);
+ assert.doesNotMatch(job,/PGPASSWORD=isolated-restore-only/u);
+ assert.doesNotMatch(job,/POSTGRES_PASSWORD:\s*isolated-restore-only/u);
+ assert.equal((job.match(/-e PGPASSWORD\s*\\/gu)||[]).length,4);
+ const restore=job.indexOf('openssl rand -hex 32');
+ const decrypt=job.indexOf('m44_encrypted_backup_archive.mjs decrypt');
+ const success=job.indexOf('IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS');
+ assert.ok(restore>0&&restore<decrypt&&decrypt<success);
+});

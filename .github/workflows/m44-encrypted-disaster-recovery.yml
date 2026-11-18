@@ -340,17 +340,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     environment: m26-canary-readonly
-    services:
-      postgres:
-        image: supabase/postgres:17.6.1.147
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: isolated-restore-only
-          POSTGRES_DB: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd=pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 8
+    # The isolated PG17 service starts inside the restore step with a fresh
+    # random credential, loopback-only port, and guaranteed cleanup.
     env:
       IBERFIT_PROD_DATABASE_URL: ${{ secrets.IBERFIT_PROD_DATABASE_URL }}
       IBERFIT_PROD_STORAGE_SERVICE_KEY: ${{ secrets.IBERFIT_PROD_STORAGE_SERVICE_KEY }}
@@ -462,6 +453,30 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
+          # Real PROD data is restored only into an isolated PG17 container.
+          # No static or predictable password; never print the random secret.
+          set +x
+          export PGPASSWORD="$(openssl rand -hex 32)"
+          test "${#PGPASSWORD}" -eq 64 || { echo 'M44_LOCAL_CREDENTIAL_GENERATION_FAILED'; exit 51; }
+          export POSTGRES_PASSWORD="$PGPASSWORD"
+          trap 'docker stop iberfit-m44-local-restore >/dev/null 2>&1 || true; unset PGPASSWORD POSTGRES_PASSWORD' EXIT
+          docker run --detach --rm --pull=always \
+            --name iberfit-m44-local-restore \
+            --publish 127.0.0.1:5432:5432 \
+            --env POSTGRES_USER=supabase_admin --env POSTGRES_DB=postgres \
+            --env POSTGRES_PASSWORD \
+            --health-cmd 'pg_isready -U supabase_admin -d postgres' \
+            --health-interval 5s --health-timeout 4s --health-retries 24 \
+            supabase/postgres:17.6.1.147 >/dev/null
+          isolated_healthy=false
+          for attempt in $(seq 1 75); do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' iberfit-m44-local-restore)" = healthy ]; then
+              isolated_healthy=true
+              break
+            fi
+            sleep 2
+          done
+          test "$isolated_healthy" = true || { echo 'M44_LOCAL_RESTORE_DB_UNHEALTHY'; exit 51; }
           mkdir -p "$WORK/isolated"
           node scripts/ops/m44_encrypted_backup_archive.mjs decrypt "$WORK/cipher/iberfit-prod-recovery.ibf" "$WORK/restore.tar"
           tar -C "$WORK/isolated" --no-same-owner --no-same-permissions -xf "$WORK/restore.tar"
@@ -484,10 +499,10 @@ jobs:
           rm -f "$WORK/isolated/acl-toc-private.list" "$WORK/isolated/acl-only-private.list"
           echo 'IBERFIT_PGCUSTOM_ACL_DEFAULTS_ARCHIVED_ENCRYPTED_ONLY'
           node scripts/ops/m44_storage_backup_bytes.mjs verify ignored "$WORK/isolated/storage"
-          docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
+          docker run --rm --network host -e PGPASSWORD \
             postgres:17-alpine createdb -h 127.0.0.1 -U supabase_admin iberfit_recovery_test
           # Never stream SQL, error details or actual client data to job logs.
-          if ! docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
+          if ! docker run --rm --network host -e PGPASSWORD \
             -v "$WORK/isolated:/work" postgres:17-alpine pg_restore --exit-on-error \
             --no-owner --no-acl -h 127.0.0.1 -U supabase_admin -d iberfit_recovery_test \
             /work/database.pgcustom > "$WORK/restore-private-log" 2>&1; then
@@ -496,7 +511,7 @@ jobs:
           fi
           # Restored metadata MUST refer to precisely the encrypted Storage
           # bytes. Query ONLY the isolated localhost database, never PROD.
-          docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
+          docker run --rm --network host -e PGPASSWORD \
             -v "$WORK/isolated:/work" \
             -v "$PWD/scripts/ops/m44_storage_metadata_snapshot.sql:/storage-query.sql:ro" \
             postgres:17-alpine sh -c \
@@ -513,7 +528,7 @@ jobs:
           node scripts/ops/m44_global_roles_archive_check.mjs "$WORK/isolated/global-roles.sql"
           # Count only, with the exact MVCC source used by pg_dump; no
           # Auth identities, tokens, password hashes or Vault values logged.
-          docker run --rm --network host -e PGPASSWORD=isolated-restore-only \
+          docker run --rm --network host -e PGPASSWORD \
             -v "$WORK/isolated:/work" \
             -v "$PWD/scripts/ops/m44_auth_vault_census.sql:/census.sql:ro" \
             postgres:17-alpine sh -c \
