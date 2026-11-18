@@ -779,9 +779,18 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(runtime.qaOnly===true&&runtime.canary===true
       &&runtimeConfig?.freeClientProgressAckDeferredQa===true
       &&String(session?.user?.email||'').trim().toLowerCase()==='qa.rc74.client-a@iberfit.cl'){
-      const category=['login','ack','session-entry-authoritative','role-switch',
-        'engagement-refresh','bootstrap'].includes(reason)?reason:'other';
-      qaStage('rc64-hydrate-reason-'+category);
+      // RC64 trace contract requires literal bounded tags, not arbitrary
+      // runtime strings. Map every allowed reason explicitly and fail closed.
+      switch(reason){
+        case 'login':qaStage('rc64-hydrate-reason-login');break;
+        case 'ack':qaStage('rc64-hydrate-reason-ack');break;
+        case 'session-entry-authoritative':
+          qaStage('rc64-hydrate-reason-session-entry-authoritative');break;
+        case 'role-switch':qaStage('rc64-hydrate-reason-role-switch');break;
+        case 'engagement-refresh':qaStage('rc64-hydrate-reason-engagement-refresh');break;
+        case 'bootstrap':qaStage('rc64-hydrate-reason-bootstrap');break;
+        default:qaStage('rc64-hydrate-reason-other');
+      }
     }
     const hydrationSession=await refreshSessionIfNeeded();
     if(!hydrationSession||signal?.aborted||hydrationLeaseFor(session)!==requestedOwner)

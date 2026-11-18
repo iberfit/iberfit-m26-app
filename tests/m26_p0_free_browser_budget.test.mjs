@@ -53,7 +53,11 @@ test('reason diagnostics are synthetic QA-only, fixed vocabulary and passive',()
  assert.match(app,/runtime\.qaOnly===true&&runtime\.canary===true/u);
  assert.match(app,/freeClientProgressAckDeferredQa===true/u);
  assert.match(app,/qa\.rc74\.client-a@iberfit\.cl/u);
- assert.match(app,/qaStage\('rc64-hydrate-reason-'\+category\)/u);
+ for(const reason of ['login','ack','session-entry-authoritative','role-switch',
+   'engagement-refresh','bootstrap','other']){
+   assert.ok(app.includes("qaStage('rc64-hydrate-reason-"+reason+"')"),reason);
+ }
+ assert.doesNotMatch(app,/qaStage\('rc64-hydrate-reason-'\+/u);
  assert.match(spec,/observeQaHydrationReasons\(page\)/u);
  assert.match(spec,/observeQaHydrationReasons\(desktopPage\)/u);
  assert.match(spec,/verifyQaFreeBrowserWireBudget\(baseWireEvidence,\{fixture:OWNER_FIXTURE\}\)/u);
