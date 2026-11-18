@@ -121,6 +121,8 @@ on:
       - 'scripts/ops/m44_encrypted_backup_archive.mjs'
       - 'scripts/ops/m44_vault_root_key_archive.mjs'
       - 'tests/m44_vault_root_key_archive.test.mjs'
+      - 'scripts/ops/m44_hosted_auth_config_archive.mjs'
+      - 'tests/m44_hosted_auth_config_archive.test.mjs'
       - 'scripts/ops/m44_storage_backup_bytes.mjs'
       - 'scripts/ops/m44_storage_metadata_snapshot.sql'
       - 'scripts/ops/m44_storage_metadata_parity.mjs'
@@ -147,6 +149,7 @@ on:
     paths:
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'scripts/ops/m44_vault_root_key_archive.mjs'
+      - 'scripts/ops/m44_hosted_auth_config_archive.mjs'
       # One independently reviewed M1 U72 release source change triggers a
       # FRESH encrypted PROD DB+Storage backup and isolated PG17 restore.
       # Only protected Canary push; never PR, feature branch or QA writes.
@@ -215,6 +218,7 @@ jobs:
         run: |
           node --test \
             tests/m44_vault_root_key_archive.test.mjs \
+            tests/m44_hosted_auth_config_archive.test.mjs \
             tests/m44_encrypted_backup_archive_contract.test.mjs \
             tests/m44_storage_backup_bytes_contract.test.mjs \
             tests/m44_storage_metadata_parity.test.mjs \
@@ -430,11 +434,14 @@ jobs:
           # travels ONLY inside authenticated AES-256-GCM backup ciphertext.
           # A failed read prevents issuing a deceptively "complete" archive.
           node scripts/ops/m44_vault_root_key_archive.mjs capture "$WORK/plain/vault-root-key.json"
+          # Hosted Auth config may include credentials. Persist ONLY privately,
+          # tar into M44 AES-GCM ciphertext, never print config/body/errors.
+          node scripts/ops/m44_hosted_auth_config_archive.mjs capture "$WORK/plain/hosted-auth-config.json"
           rm -f "$WORK/plain/pg-private-errors"
           tar -C "$WORK/plain" -cf "$WORK/plain.tar" \
             database.pgcustom global-roles.sql storage storage-inventory.json \
             storage-post-inventory.json platform-catalog-source.json \
-            auth-vault-source.json vault-root-key.json
+            auth-vault-source.json vault-root-key.json hosted-auth-config.json
           echo 'IBERFIT_PROD_DB_AND_STORAGE_PLAINTEXT_STAGED_PRIVATELY'
       - name: Encrypt authenticated recovery archive before any upload
         id: encrypt
@@ -460,6 +467,7 @@ jobs:
           tar -C "$WORK/isolated" --no-same-owner --no-same-permissions -xf "$WORK/restore.tar"
           rm -f "$WORK/restore.tar"
           node scripts/ops/m44_vault_root_key_archive.mjs verify "$WORK/isolated/vault-root-key.json"
+          node scripts/ops/m44_hosted_auth_config_archive.mjs verify "$WORK/isolated/hosted-auth-config.json"
           # Verify the encrypted PG17 custom archive retained BOTH object
           # GRANT/REVOKE and ALTER DEFAULT PRIVILEGES entries. The existing
           # first-stage --no-acl restore remains restricted on purpose.
