@@ -1,3 +1,7 @@
+# M44 2026-11-18T17:30Z: protected CANARY post-merge refresh of genuine encrypted
+# production DB+Storage snapshot and isolated PG17 restore for REAL TRAINING 360.
+# Trigger metadata only: NO new permissions, grants, edge deploys, secret reads
+# outside existing encrypted recovery, or PROD mutation. Not platform recovery certification.
 # REAL TRAINING 360 PR #1343 · protected Canary integration trigger:
 # request ONE fresh genuine encrypted PROD PostgreSQL+Storage M44 archive and
 # isolated PG17 restore on merge only; no workflow logic/credentials/grants
