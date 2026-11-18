@@ -19,6 +19,11 @@ test('all source SQL and rollback files are exact repository assets',()=>{
  }
  assert.ok(s.includes('M44_REAL_PROD_BACKEND_SQL_INSTALL_AND_ROLLBACK_ISOLATED_ONLY'));
  assert.ok(s.includes('M44_HOSTED_AUTH_VAULT_EDGE_RUNTIME_NOT_CERTIFIED'));
+ assert.ok(s.includes('m44_prepare_missing_local_roles.mjs'));
+ assert.ok(s.includes('M44_LOCAL_ROLE_PLACEHOLDERS_NOLOGIN_ONLY'));
+ assert.ok(s.includes('M44_REAL_SNAPSHOT_FULL_OWNER_ACL_RESTORED_ISOLATED_ONLY'));
+ assert.ok(s.indexOf('node scripts/ops/m44_prepare_missing_local_roles.mjs')<
+   s.indexOf('db pg_restore --exit-on-error'));
 });
 test('only localhost PG17+isolated database, no Prod/QA or plaintext artifact exports',()=>{
  for(const part of [
