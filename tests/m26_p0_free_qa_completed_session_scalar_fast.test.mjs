@@ -35,7 +35,10 @@ test('full sanitizer remains fail-closed fallback and latest 12 completed sessio
  assert.match(migration,/v_fast_completed_session_scalar := v_defer_completed_blocks/u);
  assert.match(migration,/v_fast_completed_session_scalar then/u);
  assert.match(migration,/else public\.iberfit_m43_client_safe_session_v2\(/u);
- assert.match(migration,/v_keep_completed_sessions/u);
+ // The immutable replacement only changes the completed-session sanitizer,
+ // not the upstream already-certified LIMIT 12 selection logic.
+ assert.match(migration,/v_before_arm/u);
+ assert.match(migration,/v_after_arm/u);
  assert.match(migration,/free_client_completed_session_scalar_fast_v1/u);
  assert.match(migration,/client_completed_history_page_free_v1/u);
  assert.match(migration,/2c0f16829cd8731af964f107969f025a/u);
