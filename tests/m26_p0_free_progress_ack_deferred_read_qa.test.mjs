@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createCommandBus,createMemoryOperationRepository} from '../src/m26/command-bus.js';
 
 const client='p0-qa-client',execution='p0-qa-execution';
-function setup({windowMs=25,valid=true}={}){
+function setup({windowMs=25,valid=true,mutateReceipt=null,duplicate=false}={}){
  const owner={id:'qa-only-owner'};
  let current=owner,revision=3;
  const refreshes=[],errors=[],sent=[];
@@ -19,9 +19,16 @@ function setup({windowMs=25,valid=true}={}){
    preflight:async()=>({kind:'ack'}),
    execute:async(_jwt,cmd)=>{
     sent.push(cmd);
+    const next=++revision;
+    const receipt={
+      operation_id:cmd.operationId,command_type:cmd.type,
+      entity_type:cmd.entityType,entity_id:cmd.entityId,client_id:cmd.clientId,
+      actor_user_id:'qa-synthetic-owner',base_revision:cmd.baseRevision,
+      remote_revision:next,
+    };
+    if(typeof mutateReceipt==='function')mutateReceipt(receipt);
     return {kind:'ack',operationId:valid?cmd.operationId:'other-operation',
-     commandType:cmd.type,entityId:cmd.entityId,clientId:cmd.clientId,
-     remoteRevision:++revision};
+      remoteRevision:next,duplicate,receipt};
    },
   },
  });
@@ -95,6 +102,8 @@ test('QA rollout is pinned to Client A and fails closed for every PROD runtime',
  assert.match(app,/qa\.rc74\.client-a@iberfit\.cl/u);
  assert.match(app,/commandBus\?\.dispose\?\.\(\)/u);
  assert.match(bus,/String\(response\?\.operationId\|\|''\)===String\(command\?\.operationId\|\|''\)/u);
+ assert.ok(bus.includes("String(receipt.client_id||'')===String(command?.clientId||'')"));
+ assert.ok(bus.includes("Number(receipt.base_revision)===command.baseRevision"));
  assert.match(bus,/Number\.isSafeInteger\(revision\)&&revision>command\.baseRevision/u);
  assert.match(bus,/getRefreshOwner\(\)!==owner/u);
 });
@@ -122,4 +131,38 @@ test('continuous progress cannot indefinitely postpone the QA authoritative serv
    'const delayMs=Math.min(refreshWindow,maxRemaining)',
    'pendingProgressRefresh.scope===executionLineage(command)',
  ])assert.ok(code.includes(invariant),invariant);
+});
+
+test('canonical PostgreSQL receipt is required: missing, forged, duplicated or wrong-scope ACKs revalidate immediately',async()=>{
+ const cases=[
+  {name:'no receipt',mutateReceipt:r=>{for(const k of Object.keys(r))delete r[k];}},
+  {name:'foreign client',mutateReceipt:r=>{r.client_id='foreign-client';}},
+  {name:'foreign execution',mutateReceipt:r=>{r.entity_id='foreign-execution';}},
+  {name:'other command',mutateReceipt:r=>{r.command_type='EJECUCION_COMPLETAR';}},
+  {name:'other entity type',mutateReceipt:r=>{r.entity_type='session';}},
+  {name:'wrong operation',mutateReceipt:r=>{r.operation_id='other-operation';}},
+  {name:'wrong base revision',mutateReceipt:r=>{r.base_revision=99;}},
+  {name:'wrong confirmed revision',mutateReceipt:r=>{r.remote_revision=99;}},
+  {name:'actor omitted',mutateReceipt:r=>{r.actor_user_id='';}},
+  {name:'missing base revision',mutateReceipt:r=>{r.base_revision=null;}},
+  {name:'missing confirmed revision',mutateReceipt:r=>{r.remote_revision=null;}},
+  {name:'duplicate receipt',duplicate:true},
+ ];
+ for(const c of cases){
+  const f=setup({windowMs:25,...c});
+  const result=await f.bus.execute(f.command(3),{onAck:()=>{}});
+  assert.equal(result.kind,'ack',c.name);
+  assert.equal(result.refreshDeferred,false,c.name);
+  assert.deepEqual(f.refreshes,['ack'],c.name);
+  f.bus.dispose();
+ }
+});
+test('real PostgreSQL receipt can defer only the exact live Client progress ACK',async()=>{
+ const p=setup();
+ const verified=await p.bus.execute(p.command(3),{onAck:()=>{}});
+ assert.equal(verified.refreshDeferred,true);
+ assert.deepEqual(p.refreshes,[]);
+ await delay(60);
+ assert.deepEqual(p.refreshes,['ack']);
+ p.bus.dispose();
 });

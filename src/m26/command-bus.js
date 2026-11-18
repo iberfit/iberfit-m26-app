@@ -173,21 +173,35 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, o
   function eligibleProgressAck(command,response,kind,{
     queuedOffline=false,localReceiptOk=true,lineageOk=true,onAck=null,
   }={}){
+    // The real command RPC returns identity and revision inside an
+    // immutable receipt (snake_case); top-level entityId/clientId are not
+    // part of the canonical ACK. Never infer ownership from request alone.
+    const receipt=response?.receipt;
     const revision=Number(response?.remoteRevision);
     return refreshWindow>0&&!disposed
       &&typeof rehydrate==='function'&&typeof onAck==='function'
       &&queuedOffline!==true&&localReceiptOk===true&&lineageOk===true
-      &&kind==='ack'
+      &&kind==='ack'&&response?.duplicate===false
+      &&getRole?.()==='client'
       &&command?.type==='EJECUCION_GUARDAR_PROGRESO'
       &&command?.entityType==='session_execution'
       // A later workout is a different reconciliation scope. Never drop
       // an earlier session's deferred read just to combine their traffic.
       &&(!pendingProgressRefresh||pendingProgressRefresh.scope===executionLineage(command))
       &&String(response?.operationId||'')===String(command?.operationId||'')
-      &&String(response?.entityId||'')===String(command?.entityId||'')
-      &&String(response?.clientId||'')===String(command?.clientId||'')
+      &&receipt!==null&&typeof receipt==='object'&&!Array.isArray(receipt)
+      &&String(receipt.operation_id||'')===String(command?.operationId||'')
+      &&String(receipt.command_type||'')===String(command?.type||'')
+      &&String(receipt.entity_type||'')===String(command?.entityType||'')
+      &&String(receipt.entity_id||'')===String(command?.entityId||'')
+      &&String(receipt.client_id||'')===String(command?.clientId||'')
+      &&String(receipt.actor_user_id||'').length>0
+      &&receipt.base_revision!==null&&receipt.base_revision!==undefined
+      &&receipt.remote_revision!==null&&receipt.remote_revision!==undefined
       &&Number.isSafeInteger(command?.baseRevision)
-      &&Number.isSafeInteger(revision)&&revision>command.baseRevision;
+      &&Number(receipt.base_revision)===command.baseRevision
+      &&Number.isSafeInteger(revision)&&revision>command.baseRevision
+      &&Number(receipt.remote_revision)===revision;
   }
   function scheduleProgressRefresh(command,response,reason){
     const owner=getRefreshOwner(),scope=executionLineage(command);
