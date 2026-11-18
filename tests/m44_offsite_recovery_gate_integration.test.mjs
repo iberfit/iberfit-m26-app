@@ -42,10 +42,11 @@ test('even valid real-run and Drive archive evidence cannot authorize incomplete
  const {createHash}=await import('node:crypto');
  const sourceSha='4dde3b098caccf24673e62c01fdfb097c5bd9db3';
  const backupSha='e0a89cff70794dbd77624fceb42932fca521bb11';
- const bytes=Buffer.from('encrypted-synthetic-archive-for-gate-negative-assertion');
+ const bytes=Buffer.alloc(1_200_000,0x62); // inert synthetic fixture
  const expected=createHash('sha256').update(bytes).digest('hex');
  const runId=38833678711;
- const steps=['Export complete PG17 DB and all Storage object bytes to ephemeral private workspace',
+ const steps=['Fail closed if protected production backup credentials are unavailable',
+ 'Export complete PG17 DB and all Storage object bytes to ephemeral private workspace',
  'Encrypt authenticated recovery archive before any upload',
  'Reopen ciphertext and verify restored Storage bytes in isolated workspace',
  'Publish verified encrypted archive for immediate private-drive transfer',
@@ -54,20 +55,36 @@ test('even valid real-run and Drive archive evidence cannot authorize incomplete
  const fetchImpl=async(url)=>{
   queries++;
   if(url.includes('/database/backups'))return {ok:true,json:async()=>({backups:[]})};
-  if(url.includes('/actions/runs/')&&url.includes('/jobs?'))return {ok:true,json:async()=>({total_count:1,jobs:[{
-   name:'m44-prod-db-storage-encrypted-backup-and-restore',status:'completed',conclusion:'success',
-   steps:steps.map(name=>({name,conclusion:'success'}))
-  }]})};
-  if(url.includes('/actions/runs/')&&url.includes('/artifacts?'))return {ok:true,json:async()=>({total_count:1,artifacts:[{
-   name:'iberfit-prod-ciphertext-'+runId,workflow_run:{id:runId,head_sha:backupSha},
-   size_in_bytes:bytes.length,digest:'sha256:'+expected
-  }]})};
+  if(url.includes('/actions/runs/')&&url.includes('/jobs?'))return {ok:true,json:async()=>({
+   total_count:3,jobs:[
+    'm44-encrypted-archive-and-storage-contract',
+    'm44-synthetic-postgresql17-restore-proof',
+    'm44-prod-db-storage-encrypted-backup-and-restore'
+   ].map((name,index)=>({
+    id:index+100,run_id:runId,run_attempt:1,
+    workflow_name:'IBERFIT M44 Encrypted Offsite Disaster Recovery',
+    head_branch:'canary/rc74-4',head_sha:backupSha,
+    name,status:'completed',conclusion:'success',
+    completed_at:'2026-10-16T03:06:00Z',
+    steps:index===2?steps.map(name=>({name,status:'completed',conclusion:'success'})):[]
+   }))
+  })};
+  if(url.includes('/actions/runs/')&&url.includes('/artifacts?'))return {ok:true,json:async()=>({
+   total_count:1,artifacts:[{
+    id:12083431361,name:'iberfit-prod-ciphertext-'+runId,
+    workflow_run:{id:runId,head_branch:'canary/rc74-4',head_sha:backupSha},
+    size_in_bytes:bytes.length,digest:'sha256:'+expected,expired:false,
+    created_at:'2026-10-16T03:06:01Z',expires_at:'2026-10-17T03:06:01Z'
+   }]
+  })};
   if(url.includes('/actions/runs/'))return {ok:true,json:async()=>({
-   id:runId,repository:{full_name:'iberfit/iberfit-m26-app',id:1306074388},
+   id:runId,run_attempt:1,event:'push',
+   repository:{full_name:'iberfit/iberfit-m26-app',id:1306074388},
    name:'IBERFIT M44 Encrypted Offsite Disaster Recovery',
    path:'.github/workflows/m44-encrypted-disaster-recovery.yml',
    head_branch:'canary/rc74-4',head_sha:backupSha,
-   status:'completed',conclusion:'success',created_at:new Date(now-3600000).toISOString()
+   status:'completed',conclusion:'success',
+   created_at:'2026-10-16T03:00:00Z',updated_at:'2026-10-16T03:07:00Z'
   })};
   if(url.includes('/compare/'))return {ok:true,json:async()=>({status:'ahead',behind_by:0})};
   if(url.includes('alt=media'))return {ok:true,body:new ReadableStream({start(c){c.enqueue(bytes);c.close();}})};
