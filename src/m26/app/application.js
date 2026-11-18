@@ -773,6 +773,16 @@ export async function createM26Application({root=document.querySelector('#app'),
     if(!requestedOwner||hydrationLeaseFor(session)!==requestedOwner)
       throw new Error('M26_HYDRATION_STALE_SESSION');
     qaStage('rc64-hydrate-start');
+    // Passive current-source QA diagnostics only. The fixed vocabulary has
+    // no user data, cannot authorize an RPC and emits no HTTP requests.
+    // PROD and every non-synthetic account retain identical runtime paths.
+    if(runtime.qaOnly===true&&runtime.canary===true
+      &&runtimeConfig?.freeClientProgressAckDeferredQa===true
+      &&String(session?.user?.email||'').trim().toLowerCase()==='qa.rc74.client-a@iberfit.cl'){
+      const category=['login','ack','session-entry-authoritative','role-switch',
+        'engagement-refresh','bootstrap'].includes(reason)?reason:'other';
+      qaStage('rc64-hydrate-reason-'+category);
+    }
     const hydrationSession=await refreshSessionIfNeeded();
     if(!hydrationSession||signal?.aborted||hydrationLeaseFor(session)!==requestedOwner)
       throw new Error('M26_HYDRATION_STALE_SESSION');

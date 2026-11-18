@@ -59,3 +59,40 @@ export function createQaSupabaseWireMeter(page,{origin=QA_ORIGIN}={}){
       ...totals,byCategory:categories};
   }});
 }
+
+
+// Budget pins the reduction observed on the same real, server-authenticated
+// M43 strength+running journey (18 -> 12 full reads). Deliberately DO NOT
+// cap bytes: the synthetic immutable history grows after each QA write.
+// This is NOT an estimator for Supabase billing or a PROD release gate.
+export const QA_FREE_BOOTSTRAP_BUDGET=Object.freeze({mobile:8,desktop:6,total:14});
+export function verifyQaFreeBrowserWireBudget(report,{fixture='A'}={}){
+  if(report?.schema!=='iberfit.qa.supabase.browser-wire-report.v1'
+    ||report.synthetic!==true||report.productionTouched!==false
+    ||report.billableEgressVerified!==false)
+    throw Error('M43_QA_FREE_WIRE_EVIDENCE_INVALID');
+  const counts={};
+  for(const device of ['mobile','desktop']){
+    const entry=report[device];
+    if(entry?.schema!=='iberfit.qa.supabase.browser-wire.v1'
+      ||entry.metric!=='playwright.responseBodySize'
+      ||entry.billableEgressVerified!==false||entry.extraSupabaseRequests!==0
+      ||entry.invalidMeasurements!==0
+      ||!Number.isSafeInteger(entry.requests)||entry.requests<1
+      ||!Number.isSafeInteger(entry.responseBodyBytes)||entry.responseBodyBytes<1)
+      throw Error('M43_QA_FREE_WIRE_DEVICE_INVALID:'+device);
+    const count=entry.byCategory?.bootstrap?.requests;
+    if(!Number.isSafeInteger(count)||count<1||count>entry.requests)
+      throw Error('M43_QA_FREE_BOOTSTRAP_COUNT_INVALID:'+device);
+    counts[device]=count;
+  }
+  counts.total=counts.mobile+counts.desktop;
+  if(!['A','B'].includes(fixture))throw Error('M43_QA_FREE_FIXTURE_INVALID');
+  if(fixture==='B')return {verified:false,reason:'qa-b-not-in-rollout',counts};
+  for(const device of ['mobile','desktop','total']){
+    if(counts[device]>QA_FREE_BOOTSTRAP_BUDGET[device])
+      throw Error('M43_QA_FREE_BOOTSTRAP_REGRESSION:'+device);
+  }
+  return {verified:true,counts,limits:QA_FREE_BOOTSTRAP_BUDGET,
+    metric:'QA-browser-request-count-not-billable-egress'};
+}
