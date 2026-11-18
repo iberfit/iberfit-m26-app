@@ -215,6 +215,8 @@ def validate_optional_platform_credentials(base):
         require(item.is_file() and not item.is_symlink() and
                 125 <= item.stat().st_size <= limit,
                 "PLATFORM_SECRET_FILE_INVALID")
+        require(os.name == "nt" or (item.stat().st_mode & 0o077) == 0,
+                "PLATFORM_SECRET_FILE_NOT_PRIVATE")
     root = protected_json(root_path)
     require(isinstance(root, dict) and
             set(root) == {"schema", "project_ref", "root_key"} and
