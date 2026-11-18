@@ -12,7 +12,7 @@ test('P0 execution projection is QA-only hash-pinned and reverses without permis
    'P0_QA_EXEC_POST_DDL_SECURITY_DRIFT','proacl','proowner','proconfig',
    'prosecdef','provolatile','search_path=""','edeb0f40727e033ff0f85721fd6f7b93','2dd44be13127df848e335c33febfd183','004eadbeb59ef8e45a74327ce3b66aba','e460264e965db3688709101bc30e10fa'])
    assert.ok(s.includes(v),v);
-  assert.doesNotMatch(s,/\\b(?:GRANT|REVOKE|TRUNCATE|DROP TABLE|DELETE FROM public\\.domain_entities_v26)\\b/iu);
+  assert.doesNotMatch(s,/\b(?:GRANT|REVOKE|TRUNCATE|DROP TABLE|DELETE FROM public\.domain_entities_v26)\b/iu);
   assert.doesNotMatch(s,/pjhmrhejsoofmouedavw|SUPABASE_SERVICE_ROLE_KEY/u);
  }
 });
@@ -25,8 +25,8 @@ test('completed executions retain full original fallback, visibility and scalar 
   'planSnapshot','sourceSnapshot','feedback','results'])assert.ok(migration.includes(v),v);
 });
 test('opt-in only after QA preflight and independent kill switch',()=>{
- assert.doesNotMatch(migration,/INSERT INTO public\\.iberfit_system_settings/u);
- assert.match(enable,/ON CONFLICT\\(key\\) DO UPDATE SET value=EXCLUDED\\.value/u);
+ assert.doesNotMatch(migration,/INSERT INTO public\.iberfit_system_settings/u);
+ assert.match(enable,/ON CONFLICT\(key\) DO UPDATE SET value=EXCLUDED\.value/u);
  assert.ok(enable.includes("IS DISTINCT FROM 'QA'"));
  assert.ok(disable.includes("value='false'::jsonb"));
  assert.doesNotMatch(disable,/CREATE OR REPLACE FUNCTION|GRANT|REVOKE/u);
