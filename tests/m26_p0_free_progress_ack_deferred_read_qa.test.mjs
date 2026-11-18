@@ -116,8 +116,10 @@ test('QA cannot coalesce different training executions even for the same client'
 });
 test('continuous progress cannot indefinitely postpone the QA authoritative server read',()=>{
  const code=readFileSync('src/m26/command-bus.js','utf8');
- assert.match(code,/firstScheduledAt=existing\\?\\.firstScheduledAt\\?\\?Date\\.now\\(\\)/u);
- assert.match(code,/2\\*refreshWindow-\\(Date\\.now\\(\\)-firstScheduledAt\\)/u);
- assert.match(code,/const delayMs=Math\\.min\\(refreshWindow,maxRemaining\\)/u);
- assert.match(code,/pendingProgressRefresh\\.scope===executionLineage\\(command\\)/u);
+ for(const invariant of [
+   'const firstScheduledAt=existing?.firstScheduledAt??Date.now()',
+   '2*refreshWindow-(Date.now()-firstScheduledAt)',
+   'const delayMs=Math.min(refreshWindow,maxRemaining)',
+   'pendingProgressRefresh.scope===executionLineage(command)',
+ ])assert.ok(code.includes(invariant),invariant);
 });
