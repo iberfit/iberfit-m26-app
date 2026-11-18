@@ -104,7 +104,7 @@ test('TAR must include both new secrets and legacy role/census/catalog requireme
  assert.match(source,/VAULT_ROOT_FILE = "vault-root-key\.json"/u);
  assert.match(source,/HOSTED_AUTH_FILE = "hosted-auth-config\.json"/u);
  assert.match(source,/newer == \{VAULT_ROOT_FILE, HOSTED_AUTH_FILE\}/u);
- assert.match(source,/ROLE_FILE in present and AUTH_CENSUS_FILE in present/u);
+ assert.match(source,/ROLE_FILE in present\s+and AUTH_CENSUS_FILE in present/u);
  assert.match(source,/validate_optional_platform_credentials\(base\)/u);
  assert.match(source,/PLATFORM_SECRET_FILE_NOT_PRIVATE/u);
  assert.doesNotMatch(source,/print\(.*root_key/u);
