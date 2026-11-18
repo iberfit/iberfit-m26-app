@@ -142,7 +142,7 @@ test('reject truncated GitHub pages, absent total counts and ambiguous artifact 
  ];
  for(const patch of cases){
   const f=fixture(patch);
-  await assert.rejects(verifyIndependentOffsiteRecovery(f.args),/JOBS_INCOMPLETE|ARTIFACT_LIST_INCOMPLETE|ARTIFACT_UNIQUE_PROVENANCE_REQUIRED/);
+  await assert.rejects(verifyIndependentOffsiteRecovery(f.args),/JOBS_INCOMPLETE|ISOLATED_RESTORE_UNVERIFIED|ARTIFACT_LIST_INCOMPLETE|ARTIFACT_UNIQUE_PROVENANCE_REQUIRED/);
  }
  const f=fixture();
  const duplicate=f.data.artifacts.artifacts[0];
@@ -187,7 +187,7 @@ test('accepts fresh protected attempt 2 when original run was created days earli
  f.data.artifacts.artifacts[0].expires_at='2026-10-17T03:30:45Z';
  const result=await verifyIndependentOffsiteRecovery({...f.args,maxAgeMs:2*3600000});
  assert.equal(result.ready,true);
- assert.equal(result.backupUtc,'2026-10-16T03:30:45Z');
+ assert.equal(result.backupUtc,'2026-10-16T03:30:45.000Z');
  assert.equal(result.platformRecoveryVerified,false);
 });
 test('rejects failed final attempt, stale ciphertext or wrong protected-job SHA',async()=>{
