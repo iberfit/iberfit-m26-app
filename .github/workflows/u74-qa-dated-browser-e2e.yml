@@ -1,3 +1,6 @@
+# M44_SECURITY_FINAL_EXACT_SHA_REATTESTATION: rerun signed U74 QA Client/Coach
+# after ephemeral database credential and encrypted Hosted Auth/Vault backup changes.
+# Preflight attempt 1 READ-ONLY; attempt 2 requires explicit same-run rerun.
 # REAL TRAINING 360 18-NOV-2026: exact-head U74 reattestation after QA-only
 # scalar recovery, runtime ACK/readback changes and Sonar allowlist repair.
 # This is a push trigger ONLY; preserve signed two-attempt QA synthetic gate.
