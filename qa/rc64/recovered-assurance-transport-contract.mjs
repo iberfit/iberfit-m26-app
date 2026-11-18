@@ -3,9 +3,9 @@
 export const ASSURANCE_FAILURE_LABEL='POST qa-supabase /rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
 const RECOVERABLE=new Set(['net::ERR_ABORTED','net::ERR_CONNECTION_RESET',
  'net::ERR_TIMED_OUT','net::ERR_NETWORK_CHANGED']);
-export function evaluateRecoveredAssuranceTransport({
- events=[],networkFailureCodes=[],externalFailures=[],serverAssuranceVerified=false,
-}={}){
+export function evaluateRecoveredAssuranceTransport(input={}){
+ const {events=[],networkFailureCodes=[],externalFailures=[],serverAssuranceVerified=false}=
+  input&&typeof input==='object'&&!Array.isArray(input)?input:{};
  const remainingFailures=Array.isArray(externalFailures)?[...externalFailures]:[];
  const result=(recovered,reason)=>Object.freeze({recovered,reason,remainingFailures});
  if(!Array.isArray(events)||!Array.isArray(networkFailureCodes)||!Array.isArray(externalFailures))
