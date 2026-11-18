@@ -4,7 +4,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const SCHEMA='iberfit.qa.m43.owner-projection.v1';
 const own=(x)=>x&&typeof x==='object'&&!Array.isArray(x);
 export function assertQaM43OwnerProjection(response,{entityType,entityId,clientId}={}){
-  if(!own(response)||Object.keys(response).sort().join(',')!==
+  if(!own(response)||Object.keys(response).sort((a,b)=>a.localeCompare(b)).join(',')!==
     'canonical,canonicalVisible,legacyVisible,schema'
     ||response.schema!==SCHEMA
     ||typeof response.canonicalVisible!=='boolean'
@@ -17,7 +17,7 @@ export function assertQaM43OwnerProjection(response,{entityType,entityId,clientI
   if(entityType==='planning'||!response.canonicalVisible){
     if(entry!==null)throw Error('M43_QA_OWNER_PROJECTION_INVALID');
   }else if(!own(entry)
-    ||Object.keys(entry).sort().join(',')!=='clientId,entityId,entityType,revision,status'
+    ||Object.keys(entry).sort((a,b)=>a.localeCompare(b)).join(',')!=='clientId,entityId,entityType,revision,status'
     ||entry.entityType!=='session'
     ||entry.entityId!==entityId
     ||entry.clientId!==clientId

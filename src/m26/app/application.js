@@ -1657,7 +1657,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});sessionTemplateRepository=createSessionTemplateRepository({ownerId});telemetryOutbox=createTelemetryDurableOutbox({ownerId});
     qaStage('rc64-setup-repositories-ready');
     telemetryRemoteSync=createTelemetryRemoteSync({transport,outbox:telemetryOutbox,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false,onDiagnostic:(code,error)=>reportDiagnostic(code,error)});
-    commandBus=createCommandBus({transport,repository:operationRepository,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},rehydrate:hydrate,onPostAckRefreshError:(error,scope)=>reportDiagnostic('session-completion-refresh-after-ack',error,scope),registry:runtimeRegistry.registry.length?runtimeRegistry.registry:M26_COMMAND_REGISTRY,getRole:()=>store.getState().identity?.role,
+    commandBus=createCommandBus({transport,repository:operationRepository,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},rehydrate:hydrate,onPostAckRefreshError:(error)=>reportDiagnostic('session-completion-refresh-after-ack',error),registry:runtimeRegistry.registry.length?runtimeRegistry.registry:M26_COMMAND_REGISTRY,getRole:()=>store.getState().identity?.role,
       // Explicit QA synthetic Client A rollout: no PROD or other actor has
       // deferred post-ACK reads. Confirmation and CAS remain immediate.
       progressAckRefreshWindowMs:runtime.qaOnly===true&&runtime.canary===true

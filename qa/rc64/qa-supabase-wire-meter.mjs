@@ -39,7 +39,9 @@ export function createQaSupabaseWireMeter(page,{origin=QA_ORIGIN}={}){
       byCategory[category].responseBodyBytes+=bytes;
     },()=>{failures+=1;});
     pending.add(task);
-    task.finally(()=>pending.delete(task));
+    // Observe cleanup on both paths: an async size failure must never become
+    // an unhandled rejection caused by an ignored finally() promise.
+    void task.then(()=>pending.delete(task),()=>pending.delete(task));
   };
   page.on('requestfinished',onRequestFinished);
   return Object.freeze({async stop(){
