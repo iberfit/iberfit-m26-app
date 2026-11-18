@@ -101,17 +101,31 @@ test('UNIVERSAL U91 SonarCloud duplication exemptions are exact immutable SQL ar
    'supabase/qa-migrations/20261111033000_p0_qa_bootstrap_revision_visibility_index.sql',
    'supabase/qa-rollbacks/20261111033000_p0_qa_bootstrap_revision_visibility_index.rollback.sql',
  ]);
- assert.equal(patterns.length,12);
+ // Seven additional immutable migration/rollback/source recovery artifacts
+ // are excluded ONLY from duplication analysis; never from Sonar scanning.
+ // This exact allowlist forbids expanding the exception to runtime code.
+ const newRecoveryExact=new Set([
+   'supabase/migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql',
+   'supabase/rollbacks/20261117235000_coach_scoped_hosted_invitation_v1.rollback.sql',
+   'supabase/qa-migrations/20261117224500_coach_invitation_finalize_cas_v2.sql',
+   'supabase/qa-rollbacks/20261117224500_coach_invitation_finalize_cas_v2_rollback.sql',
+   'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql',
+   'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql',
+   'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts',
+ ]);
+ assert.equal(patterns.length,19);
  assert.equal(new Set(patterns).size,patterns.length);
- const historic=patterns.filter(entry=>!p0Exact.has(entry));
+ for(const entry of newRecoveryExact)assert.ok(patterns.includes(entry),entry);
+ const historic=patterns.filter(entry=>!p0Exact.has(entry)&&!newRecoveryExact.has(entry));
  assert.equal(historic.length,8);
  for(const entry of historic){
    assert.match(entry,/^supabase\/(?:qa-migrations|qa-rollbacks|migrations|rollbacks)\/20261109\d{6}_u9[01]_[-._a-z0-9]+\.sql$/u);
  }
  for(const path of p0Exact)assert.ok(patterns.includes(path),path);
  for(const entry of patterns){
-   assert.ok(!entry.includes('*')&&!entry.includes('?'),entry);
-   assert.ok(!entry.includes('/src/'),entry);
+   assert.ok(!entry.includes('*')&&!entry.includes('?')&&!entry.includes('../'),entry);
+   assert.ok(!entry.includes('/src/')&&!entry.startsWith('src/'),entry);
+   assert.ok(entry.endsWith('.sql')||newRecoveryExact.has(entry),entry);
  }
  assert.ok(!p.includes('sonar.exclusions='));
 });
