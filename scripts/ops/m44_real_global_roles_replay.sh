@@ -38,9 +38,37 @@ done
 [[ "$ready" == true ]] || fail PG17_NOT_READY
 docker cp "$archive" "$name:/tmp/global-roles.sql" >"$work/copy.log" 2>&1 || fail COPY_FAILED
 docker exec -u root "$name" sh -c 'chown postgres:postgres /tmp/global-roles.sql && chmod 0400 /tmp/global-roles.sql' >"$work/mode.log" 2>&1 || fail PRIVATE_MODE_FAILED
-docker exec -e PGPASSWORD "$name" psql -X -q -v ON_ERROR_STOP=1 \
+if ! docker exec -e PGPASSWORD "$name" psql -X -q -v ON_ERROR_STOP=1 \
+  -v VERBOSITY=sqlstate \
   -h 127.0.0.1 -U m44_restore_admin -d postgres -f /tmp/global-roles.sql \
-  >"$work/replay.log" 2>&1 || fail REAL_ROLES_REPLAY_FAILED
+  >"$work/replay.log" 2>&1; then
+  # PostgreSQL's SQLSTATE-only verbosity prevents leaking role names, SQL,
+  # paths, or secrets. Output at most one validated five-character class.
+  state="$(grep -Eo 'ERROR:[[:space:]]+[0-9A-Z]{5}' "$work/replay.log" \
+      | tail -n 1 | grep -Eo '[0-9A-Z]{5}
+actual="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \
+  -h 127.0.0.1 -U m44_restore_admin -d postgres \
+  -c "SELECT count(*) FROM pg_roles WHERE rolname NOT LIKE 'pg_%' AND rolname <> 'm44_restore_admin';" \
+  2>"$work/readback.log")" || fail READBACK_FAILED
+[[ "$actual" == "$expected" ]] || fail ROLE_CARDINALITY_DRIFT
+ok="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \
+  -h 127.0.0.1 -U m44_restore_admin -d postgres \
+  -c "SELECT (EXISTS(SELECT 1 FROM pg_roles WHERE rolname='postgres') AND
+              EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon' AND NOT rolcanlogin) AND
+              EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated' AND NOT rolcanlogin) AND
+              EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role'))::int;" \
+  2>"$work/role-check.log")" || fail REQUIRED_ROLE_CHECK_FAILED
+[[ "$ok" == 1 ]] || fail REQUIRED_ROLES_MISSING
+echo M44_REAL_GLOBAL_ROLES_RESTORED_IN_ISOLATED_PG17_ONLY
+echo M44_HOSTED_AUTH_VAULT_EDGE_AND_EFFECTIVE_RLS_NOT_CERTIFIED
+ || true)"
+  if [[ "$state" =~ ^[A-Z0-9]{5}$ ]]; then
+    echo "M44_REAL_ROLES_REPLAY_SQLSTATE:$state" >&2
+  else
+    echo 'M44_REAL_ROLES_REPLAY_SQLSTATE:UNAVAILABLE' >&2
+  fi
+  fail REAL_ROLES_REPLAY_FAILED
+fi
 actual="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \
   -h 127.0.0.1 -U m44_restore_admin -d postgres \
   -c "SELECT count(*) FROM pg_roles WHERE rolname NOT LIKE 'pg_%' AND rolname <> 'm44_restore_admin';" \
