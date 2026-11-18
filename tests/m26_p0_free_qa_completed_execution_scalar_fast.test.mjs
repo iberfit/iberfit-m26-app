@@ -19,7 +19,7 @@ test('P0 execution projection is QA-only hash-pinned and reverses without permis
 test('completed executions retain full original fallback, visibility and scalar fields',()=>{
  for(const v of ['v_fast_completed_execution_scalar := v_defer_completed_execution_details',
   'v_fast_completed_execution_scalar then','else public.iberfit_m43_client_safe_execution_v1(',
-  'ELSE public.iberfit_m43_client_safe_execution_v1(e.body)',
+  'v_newrc:=replace(replace(replace(v_rc,v_d,v_e),v_h,v_i),v_a,v_b);',
   '29f09c54467ac50aaa91bce79ebe5680','34df411a2b9ce5b60635d6db84ecd240',
   'a254291ca0e199d176b10aefa8b2fd61','remoteConfirmedAt','currentSetIndex',
   'planSnapshot','sourceSnapshot','feedback','results'])assert.ok(migration.includes(v),v);
