@@ -132,6 +132,8 @@ on:
       - 'scripts/ops/m44_storage_metadata_parity.mjs'
       - 'scripts/ops/m44_platform_recovery_catalog.sql'
       - 'scripts/ops/m44_global_roles_archive_check.mjs'
+      - 'scripts/ops/m44_real_global_roles_replay.sh'
+      - 'tests/m44_real_global_roles_replay.test.mjs'
       - 'tests/m44_role_globals_encrypted_backup.test.mjs'
       - 'tests/m44_storage_metadata_parity.test.mjs'
       - 'tests/m44_storage_full_recovery_workflow.test.mjs'
@@ -154,6 +156,7 @@ on:
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'scripts/ops/m44_vault_root_key_archive.mjs'
       - 'scripts/ops/m44_hosted_auth_config_archive.mjs'
+      - 'scripts/ops/m44_real_global_roles_replay.sh'
       # One independently reviewed M1 U72 release source change triggers a
       # FRESH encrypted PROD DB+Storage backup and isolated PG17 restore.
       # Only protected Canary push; never PR, feature branch or QA writes.
@@ -228,6 +231,7 @@ jobs:
             tests/m44_storage_metadata_parity.test.mjs \
             tests/m44_storage_full_recovery_workflow.test.mjs \
             tests/m44_role_globals_encrypted_backup.test.mjs \
+            tests/m44_real_global_roles_replay.test.mjs \
             tests/m44_pgcustom_acl_archive_contract.test.mjs \
             tests/m44_acl_toc_selector.test.mjs \
             tests/m44_auth_vault_cardinality_contract.test.mjs \
@@ -553,6 +557,27 @@ jobs:
           echo 'IBERFIT_GLOBAL_ROLES_ARCHIVED_BUT_NOT_APPLIED'
           echo 'IBERFIT_SOURCE_CATALOG_ENCRYPTED_PLATFORM_RECOVERY_NOT_YET_VERIFIED'
           echo 'IBERFIT_PROD_LOCAL_DB_AND_STORAGE_RESTORE_SUCCESS'
+      # Role recovery is attempted only on the already-restored real archive
+      # inside a FRESH isolated PG17 with --network none. It never mutates
+      # PROD or QA, and can fail without invalidating the DB/Storage backup.
+      # No platformRecoveryVerified assertion is made from this proof.
+      - name: Rehearse genuine global roles on fresh networkless PG17
+        id: real-global-roles
+        if: ${{ steps.restore.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          IBERFIT_M44_ROLES_FILE: ${{ runner.temp }}/iberfit-recovery/isolated/global-roles.sql
+        run: bash scripts/ops/m44_real_global_roles_replay.sh
+      - name: Report separate role restoration status (not Hosted Auth certification)
+        if: ${{ steps.restore.outcome == 'success' }}
+        shell: bash
+        run: |
+          if [[ "${{ steps.real-global-roles.outcome }}" == "success" ]]; then
+            echo "M44_REAL_GLOBAL_ROLES_REPLAY_VERIFIED_ONLY"
+          else
+            echo "M44_REAL_GLOBAL_ROLES_REPLAY_NOT_CERTIFIED"
+          fi
+          echo "M44_FULL_PLATFORM_RECOVERY_NOT_CERTIFIED"
       - name: Publish verified encrypted archive for immediate private-drive transfer
         if: ${{ steps.restore.outcome == 'success' }}
         uses: actions/upload-artifact@v4
