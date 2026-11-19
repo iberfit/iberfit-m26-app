@@ -182,6 +182,15 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
   23502|23503|23505|42501|42703|42P01|42P10|42883|22023)
    printf 'M44_AUTH_RUNTIME_SQLSTATE_%s\n' "$state" >&2 ;;
  esac
+ # Only on SQLSTATE 42703, classify the missing Auth schema column from
+ # private clone-only logs using a fixed whitelist. Never emit raw SQL/logs.
+ if [[ "$state" == 42703 ]]; then
+  safe_column="$(node scripts/ops/m44_classify_gotrue_missing_column.mjs \
+   "$scratch/gotrue-failure-private.log" 2>/dev/null || true)"
+  if [[ "$safe_column" =~ ^M44_AUTH_RUNTIME_42703_COLUMN_[A-Z0-9_]{3,64}$ ]]; then
+   printf '%s\n' "$safe_column" >&2
+  fi
+ fi
  # Read back only an aggregate of synthetic records inside the CLONE. This
  # distinguishes a valid confirmation from a failure redirect in GoTrue.
  confirmation="$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d "$clone" \
