@@ -190,6 +190,17 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
   if [[ "$safe_column" =~ ^M44_AUTH_RUNTIME_42703_COLUMN_[A-Z0-9_]{3,64}$ ]]; then
    printf '%s\n' "$safe_column" >&2
   fi
+  # PostgreSQL's isolated container can retain the missing-column ERROR
+  # even if GoTrue logs only SQLSTATE. Query only logs since this probe,
+  # keep every original line PRIVATE and emit a fixed allowlisted category.
+  # This is a supplemental candidate, never Hosted Auth certification.
+  docker logs --since "$probe_started" iberfit-m44-local-restore \
+   > "$scratch/postgres-failure-private.log" 2>&1 || true
+  safe_pg="$(node scripts/ops/m44_classify_gotrue_missing_column.mjs \
+   "$scratch/postgres-failure-private.log" 2>/dev/null || true)"
+  if [[ "$safe_pg" =~ ^M44_AUTH_PG42703_CANDIDATE_[A-Z0-9_]{3,64}$ ]]; then
+   printf '%s\n' "$safe_pg" >&2
+  fi
  fi
  # Read back only an aggregate of synthetic records inside the CLONE. This
  # distinguishes a valid confirmation from a failure redirect in GoTrue.
