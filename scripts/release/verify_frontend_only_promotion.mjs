@@ -36,6 +36,12 @@ export const FROZEN_M1_RELEASE_PROCEDURE_BLOBS=Object.freeze({
   "supabase/release-procedures/20261113_m1_u72_prod_guarded_install.sql": "6373698bf94389ad8ac9cde610344a1eb92757f6",
   "supabase/release-procedures/20261113_m1_u72_prod_guarded_rollback.sql": "c2634579ade73aee72fd0029705e745ee4ff0711"
 });
+// This single Edge source is inert in a Pages-only build. Its independently
+// deployed version must be attested before activating dated training.
+export const FROZEN_PREACTIVATED_EDGE_BLOBS=Object.freeze({
+ 'supabase/functions/iberfit-admin-client-invite-v1/index.ts':
+ '9124e4e5c46419f4cc339fed05f6be34ac67524b',
+});
 const QA_BLOB_SHA=/^[0-9a-f]{40}$/u;
 
 // Validate *exact source commit* blob identities. Do not rely on the working
@@ -72,6 +78,20 @@ export function verifyFrozenM1ReleaseProcedures({sourceSha,changedPaths,blobAtSo
     paths:Object.freeze([...procedures])});
 }
 
+export function verifyFrozenPreactivatedEdge({sourceSha,changedPaths,blobAtSource}={}){
+ if(!SHA.test(sourceSha||'')||!Array.isArray(changedPaths))
+   throw Error('FRONTEND_ONLY_EDGE_INPUT_INVALID');
+ const files=changedPaths.filter(path=>Object.hasOwn(FROZEN_PREACTIVATED_EDGE_BLOBS,path));
+ if(files.length&&typeof blobAtSource!=='function')
+   throw Error('FRONTEND_ONLY_EDGE_BLOB_READER_REQUIRED');
+ for(const path of files){
+   const actual=String(blobAtSource(sourceSha,path)||'').trim();
+   if(actual!==FROZEN_PREACTIVATED_EDGE_BLOBS[path])
+     throw Error('FRONTEND_ONLY_EDGE_SOURCE_DRIFT:'+path);
+ }
+ return Object.freeze({verified:files.length,paths:Object.freeze(files)});
+}
+
 // A frontend-only release does not run SQL. New migration/rollback source files
 // remain unapplied and must never be mistaken for a completed DB migration.
 export function evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,changedPaths}={}){
@@ -89,6 +109,7 @@ export function evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,c
     }
     if(!Object.hasOwn(FROZEN_QA_INERT_BLOBS,path)&&
        !Object.hasOwn(FROZEN_M1_RELEASE_PROCEDURE_BLOBS,path)&&
+       !Object.hasOwn(FROZEN_PREACTIVATED_EDGE_BLOBS,path)&&
        (REJECTED_PATHS.has(path)||REJECTED_PREFIXES.some(prefix=>path.startsWith(prefix))||
         (path.startsWith('supabase/')&&
          !/^supabase\/(?:migrations|rollbacks)\//u.test(path)&&
@@ -156,6 +177,11 @@ async function main(){
     blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
       {encoding:'utf8',timeout:10000}).trim(),
   });
+  const edgeSource=verifyFrozenPreactivatedEdge({
+    sourceSha,changedPaths,
+    blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
+      {encoding:'utf8',timeout:10000}).trim(),
+  });
   const response=await fetch('https://'+process.env.APP_DOMAIN+'/m26/version.json',{
     method:'GET',cache:'no-store',redirect:'follow',
     headers:{'cache-control':'no-cache','pragma':'no-cache'},
@@ -168,7 +194,8 @@ async function main(){
   verifyFrontendOnlyLiveIdentity(version,{expectedPreviousLiveSha,prodRef});
   writeFileSync('FRONTEND_ONLY_SCOPE_EVIDENCE.json',
     JSON.stringify({...proof,frozenQaInertArtifactsVerified:qaArtifacts.verified,
-      stagedM1SqlProceduresVerified:m1Procedures.verified,liveIdentityVerified:true},null,2)+'\n',{encoding:'utf8',flag:'w',mode:0o600});
+      stagedM1SqlProceduresVerified:m1Procedures.verified,
+      preactivatedEdgeSourceVerified:edgeSource.verified,liveIdentityVerified:true},null,2)+'\n',{encoding:'utf8',flag:'w',mode:0o600});
   console.log('FRONTEND_ONLY_PROD_SCOPE_CERTIFIED source='+sourceSha+
     ' previous='+expectedPreviousLiveSha+' changed='+proof.changedFileCount+
     ' unappliedMigrations='+proof.unappliedMigrationFileCount+
