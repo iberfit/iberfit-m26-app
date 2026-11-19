@@ -110,6 +110,22 @@ test('500 signup errors expose fixed codes, never private GoTrue logs',()=>{
  assert.doesNotMatch(probe,/console\.log\(hint\)|console\.error\(hint\)/);
 });
 
+test('isolated GoTrue SMTP requires verified STARTTLS and ephemeral trust root',()=>{
+ assert.match(script,/openssl req -x509 -newkey rsa:2048/);
+ assert.match(script,/subjectAltName=DNS:iberfit-m44-smtp-isolated/);
+ assert.match(script,/MP_SMTP_REQUIRE_STARTTLS=true/);
+ assert.match(script,/MP_SMTP_TLS_CERT=\/certs\/smtp-cert.pem/);
+ assert.match(script,/MP_SMTP_TLS_KEY=\/certs\/smtp-private.key/);
+ assert.match(script,/SSL_CERT_FILE=\/certs\/smtp-ca.pem/);
+ assert.match(script,/MP_DISABLE_VERSION_CHECK=true/);
+ assert.doesNotMatch(script,/MP_SMTP_AUTH_ALLOW_INSECURE/);
+ assert.match(probe,/250-STARTTLS/);
+ assert.match(probe,/EHLO m44-recovery\.local/);
+ assert.ok(script.includes('"$scratch/m44-smtp-private.key"'));
+ assert.ok(script.includes('"$scratch/m44-smtp-cert.pem"'));
+ assert.doesNotMatch(script,/--publish[= ]/);
+});
+
 test('SMTP readiness is checked internally without sending any message',()=>{
  assert.match(probe,/import \{connect\} from 'node:net'/);
  assert.match(probe,/async function waitSmtpReady\(\)/);
