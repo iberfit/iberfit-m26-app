@@ -19,6 +19,20 @@ test('only explicit frontend-only manifests are accepted',()=>{
  assert.equal(result.hostedAuthMutationsAuthorized,false);
  assert.equal(result.backendRecoveryCertified,false);
 });
+test('active Pages-only lane requires separate backend proof and never grants mutations',()=>{
+ const valid={...fixture(),datedTrainingMode:'active',
+  backendActivationProof:'verified-dated-sql-edge'};
+ const result=enforcePagesOnlyBoundary(valid);
+ assert.equal(result.datedMode,'active');
+ assert.equal(result.backendMutationsAuthorized,false);
+ for(const patch of [
+  {backendActivationProof:'self-attested'},
+  {backendActivationProof:undefined},
+  {datedTrainingMode:'recovery'},
+ ])assert.throws(()=>enforcePagesOnlyBoundary({...valid,...patch}));
+ assert.throws(()=>enforcePagesOnlyBoundary({...fixture(),
+  backendActivationProof:'verified-dated-sql-edge'}));
+});
 test('full, missing and false release modes fail closed',()=>{
  for(const flag of [undefined,false,null,0,'true']){
   const x=fixture();if(flag===undefined)delete x.frontendOnly;else x.frontendOnly=flag;
@@ -76,17 +90,22 @@ test('Pages frontend-only mode remains closed even if the bundle tries to expose
       /PROD_SURFACE_DATED_RELEASE_NOT_CLOSED/u);
   }
   assert.throws(()=>enforceDatedTrainingReleaseMode(closed,'active'),
-    /PROD_SURFACE_DATED_MODE_NOT_AUTHORIZED/u);
+    /PROD_SURFACE_DATED_RELEASE_NOT_ACTIVE/u);
+  assert.equal(enforceDatedTrainingReleaseMode({
+    datedTrainingProductionReleased:true,datedTrainingProductionStartsEnabled:true
+  },'active'),true);
   assert.throws(()=>enforceDatedTrainingReleaseMode(closed,'recovery'),
     /PROD_SURFACE_DATED_MODE_NOT_AUTHORIZED/u);
   // General-purpose existing surface verification stays backwards compatible.
   assert.equal(enforceDatedTrainingReleaseMode(closed,undefined),true);
 });
-test('the protected workflow pins U60 closed at build and checks preview and LIVE',()=>{
+test('the protected workflow defaults U60 closed and attests SQL/Edge before active release',()=>{
   const w=readFileSync(new URL('../.github/workflows/production-promote.yml',import.meta.url),'utf8');
   const ver=readFileSync(new URL('../scripts/verify_production_surface.mjs',import.meta.url),'utf8');
-  assert.match(w,/^  M26_U60_PROD_MODE: 'closed'$/mu);
-  assert.match(w,/^  M26_VERIFY_DATED_TRAINING_MODE: 'closed'$/mu);
+  assert.match(w,/M26_U60_PROD_MODE=\$\{mode\}/u);
+  assert.match(w,/M26_VERIFY_DATED_TRAINING_MODE=\$\{mode\}/u);
+  assert.match(w,/backendActivationProof!=='verified-dated-sql-edge'/u);
+  assert.equal(w.split('node scripts/release/verify_backend_preactivated.mjs').length-1,2);
   assert.match(w,/grep -Fq '"datedTrainingProductionReleased": false' "\$R"/u);
   assert.match(w,/grep -Fq '"datedTrainingProductionStartsEnabled": false' "\$R"/u);
   assert.match(ver,/expectedDatedTrainingMode:process\.env\.M26_VERIFY_DATED_TRAINING_MODE/u);
