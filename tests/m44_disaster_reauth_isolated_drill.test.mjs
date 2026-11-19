@@ -10,7 +10,7 @@ function denial(overrides={}){
   GITHUB_REPOSITORY:'iberfit/iberfit-m26-app',
   M44_DISASTER_REAUTH_DRILL_ENABLED:'true',
   PGHOST:'127.0.0.1',PGPORT:'5432',PGUSER:'supabase_admin',
-  PGDATABASE:'iberfit_recovery_test',PGPASSWORD:'synthetic-only',
+  PGDATABASE:'iberfit_recovery_test',PGPASSWORD:'x',
   RUNNER_TEMP:'/tmp/isolated-m44-unit-nonexistent',...overrides
  };
  return spawnSync('bash',[path,'/tmp/isolated-m44-unit-nonexistent/iberfit-recovery/isolated'],{
