@@ -42,7 +42,7 @@ BEGIN
   END IF;
   RETURN v_reply;
 END;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION private.iberfit_u60_occurrence_detail_v1(p_client_id uuid, p_occurrence_id uuid)
  RETURNS jsonb
@@ -202,7 +202,7 @@ BEGIN
       'revision',v_occ.revision,'executionId',v_occ.execution_id),
     'prescriptionSnapshot',v_snapshot,'executionBody',v_execution_body);
 END;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION private.iberfit_u60_dated_mirror_receipt_guard_v1()
  RETURNS trigger
@@ -238,7 +238,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$function$
+$function$;
 
 DROP FUNCTION private.iberfit_u72_occurrence_pause_resume_v1(jsonb);
 DO $m1_u72_rollback_readback$

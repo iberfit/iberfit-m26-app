@@ -183,3 +183,26 @@ test('isolated release SQL failure exposes only diagnostic class and numeric sou
  const x=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
  assert.equal(x.status,0,x.stderr);
 });
+
+test('real protected U72 rollback terminates every restored function and preserves fail-closed guards',()=>{
+ const rollback=fs.readFileSync('supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql','utf8');
+ const install=fs.readFileSync('supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql','utf8');
+ for(const [label,source,count] of [['rollback',rollback,3],['install',install,4]]){
+  const opens=source.match(/^\s*AS \$function\$\s*$/gmu)||[];
+  const closes=source.match(/^\$function\$;\s*$/gmu)||[];
+  assert.equal(opens.length,count,label+' must retain every original function definition');
+  assert.equal(closes.length,count,label+' must terminate every SQL function statement');
+  assert.doesNotMatch(source,/^\$function\$\s*$/gmu,label+' cannot leave an open SQL function');
+ }
+ assert.ok(rollback.trim().startsWith('-- U72 protected rollback: preserve user data.'));
+ assert.ok(rollback.includes('M1_U72_PROD_ROLLBACK_UNSAFE_OR_DRIFT'));
+ assert.ok(rollback.includes('M1_U72_ROLLBACK_READBACK_DRIFT'));
+ assert.ok(rollback.indexOf('REVOKE ALL ON FUNCTION')<
+  rollback.indexOf('CREATE OR REPLACE FUNCTION'));
+ assert.ok(rollback.indexOf('DROP FUNCTION private.iberfit_u72_occurrence_pause_resume_v1(jsonb);')>
+  rollback.lastIndexOf('$function$;'));
+ for(const md5 of ['5914acf371015a6bbeeaf95f99e056e3',
+  '35862b8e4977fcf0c3d611937fe83126','f97d7df4fdd510b63ac1249352273927'])
+  assert.ok(rollback.includes(md5),'rollback must assert original function hash');
+ assert.match(rollback,/\nCOMMIT;\s*$/u);
+});
