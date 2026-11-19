@@ -26,7 +26,9 @@ umask 077
 scratch="$1/disaster-reauth-private"
 mkdir -m 700 -p "$scratch"
 clone=iberfit_m44_disaster_reauth_test
-pg(){ docker run --rm --network host \
+# Preserve stdin for the transaction sent to psql via heredoc below.
+# Without -i Docker closes stdin; psql exits 0 having executed NO SQL.
+pg(){ docker run --rm -i --network host \
   -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER \
   postgres:17-alpine "$@"; }
 cleanup(){
