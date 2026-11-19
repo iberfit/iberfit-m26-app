@@ -99,6 +99,17 @@ test('probe failure output remains bounded and redacted',()=>{
  assert.doesNotMatch(script,/cat "\$scratch\/http-private.log"|tee .*http-private.log/);
 });
 
+test('500 signup errors expose fixed codes, never private GoTrue logs',()=>{
+ assert.match(probe,/reply\?\.msg/);
+ for(const code of ['DB_WRITE','SMTP_DELIVERY','JWT_SIGNING','DB_PERMISSION'])
+  assert.ok(probe.includes("category='"+code+"'"));
+ assert.match(script,/docker logs "\$auth" > "\$scratch\/gotrue-failure-private\.log" 2>&1 \|\| true/);
+ assert.match(script,/M44_AUTH_RUNTIME_PRIVATE_CAUSE_/);
+ assert.match(script,/log_reason=UNCLASSIFIED/);
+ assert.doesNotMatch(script,/cat "\$scratch\/gotrue-failure-private\.log"|tee .*gotrue-failure-private/);
+ assert.doesNotMatch(probe,/console\.log\(hint\)|console\.error\(hint\)/);
+});
+
 test('isolated signup uses DNS-valid synthetic recipient with no external delivery',()=>{
  assert.match(probe,/m44-recovery-/);
  assert.doesNotMatch(probe,/@example\.invalid/);
