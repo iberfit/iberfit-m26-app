@@ -143,7 +143,7 @@ test('isolated executor restores source-verified nine memberships without enabli
  const createIndex=s.indexOf('db createdb "$PGDATABASE"');
  assert.ok(nodeIndex>0&&createIndex>nodeIndex);
  assert.ok(s.includes('M44_ISOLATED_POSTGRES_EXECUTOR_PARITY_NOLOGIN_VERIFIED_ONLY'));
- assert.ok(s.includes('AND NOT rolcanlogin AND NOT rolsuper AND rolcreatedb'));
+ assert.ok(s.includes('NOT rolcanlogin AND NOT rolsuper AND rolcreatedb'));
  assert.ok(s.includes("'pg_read_all_data'::regrole"));
  assert.ok(s.includes("admin_option=(roleid<>'supabase_privileged_role'::regrole)"));
  assert.ok(s.includes('LOCAL_OWNER_ROLE_ATTRIBUTES_DRIFT'));
