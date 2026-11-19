@@ -39,7 +39,7 @@ test('operational recovery is always an internal Docker network and disposable c
  assert.match(script,/current_database\(\)<>'iberfit_m44_hosted_auth_runtime_test'/);
  assert.match(script,/docker network connect --alias m44db/);
  assert.match(script,/axllent\/mailpit:v1\.27\.2/);
- assert.match(script,/supabase\/gotrue:v2\.197\.0/);
+ assert.match(script,/supabase\/gotrue:v2\.198\.0/);
  assert.match(script,/GOTRUE_JWT_KEYS/);
  assert.match(script,/DELETE FROM auth\.refresh_tokens;/);
  assert.match(script,/DELETE FROM auth\.sessions;/);
@@ -161,6 +161,8 @@ test('login failure is classified by bounded status and GoTrue codes, no raw dat
   assert.ok(probe.includes(code),code);
  assert.match(probe,/CONFIRMATION_REJECTED_BY_AUTH/);
  assert.match(script,/M44_AUTH_RUNTIME_SQLSTATE_/);
+ assert.match(script,/m44_classify_gotrue_missing_column\.mjs/);
+ assert.match(script,/M44_AUTH_RUNTIME_42703_COLUMN_/);
  assert.match(script,/23502\|23503\|23505\|42501\|42703\|42P01\|42P10\|42883\|22023/);
  assert.match(script,/M44_AUTH_RUNTIME_SYNTHETIC_EMAIL_CONFIRMED_ONLY/);
  assert.match(script,/SYNTHETIC_EMAIL_CONFIRMATION_NOT_PERSISTED/);
