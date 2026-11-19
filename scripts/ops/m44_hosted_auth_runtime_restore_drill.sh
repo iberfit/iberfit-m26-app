@@ -195,6 +195,14 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
  esac
  fail HOSTED_AUTH_SMTP_ROUNDTRIP_FAILED
 fi
+# Even if the browser probe reports success, confirmation must exist in actual
+# restored Auth tables of this disposable database. No private values leave CI.
+confirmed="$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d "$clone" \
+ -c "SELECT (
+   count(*)=1 AND count(email_confirmed_at)=1
+  )::int FROM auth.users WHERE email LIKE 'm44-recovery-%@gmail.com';" \
+  2>"$scratch/synthetic-confirm-private.log" || true)"
+[[ "$confirmed" == 1 ]] || fail SYNTHETIC_EMAIL_CONFIRMATION_NOT_PERSISTED
 # The original independent restore remains intact throughout the rehearsal.
 [[ "$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d iberfit_recovery_test \
  -c "SELECT ((SELECT count(*) FROM auth.sessions)>0 AND (SELECT count(*) FROM auth.users)>0)::int" \

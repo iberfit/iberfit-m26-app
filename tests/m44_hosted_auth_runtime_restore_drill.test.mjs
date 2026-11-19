@@ -163,6 +163,8 @@ test('login failure is classified by bounded status and GoTrue codes, no raw dat
  assert.match(script,/M44_AUTH_RUNTIME_SQLSTATE_/);
  assert.match(script,/23502\|23503\|23505\|42501\|42703\|42P01\|42P10\|42883\|22023/);
  assert.match(script,/M44_AUTH_RUNTIME_SYNTHETIC_EMAIL_CONFIRMED_ONLY/);
+ assert.match(script,/SYNTHETIC_EMAIL_CONFIRMATION_NOT_PERSISTED/);
+ assert.match(script,/count\(email_confirmed_at\)=1/);
  assert.match(script,/auth\.users WHERE email LIKE 'm44-recovery-%@gmail\.com'/);
  assert.match(script,/--since "\$probe_started"/);
  assert.doesNotMatch(probe,/console\.(?:log|error)\((?:result|hint|response)/);
