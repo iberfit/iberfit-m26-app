@@ -1,6 +1,7 @@
 // M44 isolated GoTrue diagnostics: never emit raw logs, SQL or identities.
 // This file runs only on a local restored clone and accepts a local log file.
 import {readFileSync, lstatSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -39,10 +40,17 @@ export function classifyPostgresColumnCandidate(log) {
     const line=lines[i];
     const error=/\bERROR:\s*(.{0,512})/iu.exec(line);
     if (!error) continue;
-    const match=PG_ERROR_COLUMN.exec(error[1]) || PG_RECORD_FIELD.exec(error[1]);
+    const columnMatch=PG_ERROR_COLUMN.exec(error[1]);
+    const match=columnMatch || PG_RECORD_FIELD.exec(error[1]);
     if (!match) continue;
     const column=(match[1]||match[2]||'').toLowerCase();
-    return KNOWN_COLUMNS.has(column) ? column.toUpperCase() : 'UNLISTED';
+    if (KNOWN_COLUMNS.has(column)) return column.toUpperCase();
+    // An unknown identifier may contain project-specific schema context.
+    // Never print it. Emit only a deterministic 64-bit digest of the
+    // SQL identifier plus the error form; no user values or statements.
+    const digest=createHash('sha256').update(column,'utf8')
+      .digest('hex').slice(0,16).toUpperCase();
+    return 'UNLISTED_'+(columnMatch?'COLUMN':'RECORD')+'_H'+digest;
   }
   return 'UNKNOWN';
 }

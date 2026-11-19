@@ -194,6 +194,7 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
   # even if GoTrue logs only SQLSTATE. Query only logs since this probe,
   # keep every original line PRIVATE and emit a fixed allowlisted category.
   # This is a supplemental candidate, never Hosted Auth certification.
+  # Unknown columns emit a bounded SHA-256 fingerprint, never the raw name.
   docker logs --since "$probe_started" iberfit-m44-local-restore \
    > "$scratch/postgres-failure-private.log" 2>&1 || true
   safe_pg="$(node scripts/ops/m44_classify_gotrue_missing_column.mjs \

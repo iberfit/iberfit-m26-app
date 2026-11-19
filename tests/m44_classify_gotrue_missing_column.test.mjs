@@ -4,6 +4,7 @@ import {mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {classifyMissingColumn, classifyPostgresColumnCandidate} from '../scripts/ops/m44_classify_gotrue_missing_column.mjs';
 
 test('42703 diagnostics classify only known schema names', () => {
@@ -43,7 +44,11 @@ test('PostgreSQL-only local error classification never includes private SQL or u
   assert.equal(classifyPostgresColumnCandidate(prefix+'ERROR: column auth.oauth_client_id does not exist'), 'OAUTH_CLIENT_ID');
   assert.equal(classifyPostgresColumnCandidate(prefix+'ERROR: column refresh_token_counter of relation "auth.sessions" does not exist'), 'REFRESH_TOKEN_COUNTER');
   assert.equal(classifyPostgresColumnCandidate(prefix+'ERROR: record "new" has no field "email_confirmed_at"'), 'EMAIL_CONFIRMED_AT');
-  assert.equal(classifyPostgresColumnCandidate(prefix+'ERROR: column "sensitive_client_field" does not exist'), 'UNLISTED');
+  const digest=value=>createHash('sha256').update(value).digest('hex').slice(0,16).toUpperCase();
+  assert.equal(classifyPostgresColumnCandidate(prefix+'ERROR: column "sensitive_client_field" does not exist'),
+    'UNLISTED_COLUMN_H'+digest('sensitive_client_field'));
+  assert.equal(classifyPostgresColumnCandidate(prefix+'ERROR: record "new" has no field "private_secret_field"'),
+    'UNLISTED_RECORD_H'+digest('private_secret_field'));
   assert.equal(classifyPostgresColumnCandidate(prefix+'STATEMENT: SELECT missing_col FROM auth.users'), 'UNKNOWN');
   assert.equal(classifyPostgresColumnCandidate(prefix+'INFO: column "oauth_client_id" does not exist'), 'UNKNOWN');
   assert.equal(classifyPostgresColumnCandidate('x'.repeat(4_000_001)), 'UNAVAILABLE');
@@ -60,5 +65,10 @@ test('PostgreSQL private error CLI outputs fixed allowlisted result only', () =>
     assert.equal(r.status,0,r.stderr);
     assert.equal(r.stdout.trim(),'M44_AUTH_PG42703_CANDIDATE_OAUTH_CLIENT_ID');
     assert.doesNotMatch(r.stdout+r.stderr,/private_person|example.invalid|STATEMENT/);
+    writeFileSync(privateLog,'ERROR: column "sensitive_client_field" does not exist\nSTATEMENT: SELECT private_person@example.invalid');
+    const redacted=spawnSync(process.execPath,['scripts/ops/m44_classify_gotrue_missing_column.mjs',privateLog],{encoding:'utf8'});
+    assert.equal(redacted.status,0,redacted.stderr);
+    assert.match(redacted.stdout,/^M44_AUTH_PG42703_CANDIDATE_UNLISTED_COLUMN_H[A-F0-9]{16}\n$/u);
+    assert.doesNotMatch(redacted.stdout+redacted.stderr,/sensitive_client_field|private_person|example.invalid/);
   } finally { rmSync(root,{recursive:true,force:true}); }
 });
