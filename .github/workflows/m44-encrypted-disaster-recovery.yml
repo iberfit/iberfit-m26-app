@@ -129,6 +129,7 @@ on:
       - 'tests/m44_vault_root_key_archive.test.mjs'
       - 'scripts/ops/m44_hosted_auth_config_archive.mjs'
       - 'scripts/ops/m44_hosted_auth_runtime_restore_drill.sh'
+      - 'scripts/ops/m44_smtp_tls_preflight.sh'
       - 'scripts/ops/m44_isolated_auth_roundtrip.mjs'
       - 'tests/m44_hosted_auth_runtime_restore_drill.test.mjs'
       - 'scripts/ops/m44_disaster_reauth_isolated_drill.sh'
@@ -172,6 +173,7 @@ on:
       - 'scripts/ops/m44_vault_root_key_archive.mjs'
       - 'scripts/ops/m44_hosted_auth_config_archive.mjs'
       - 'scripts/ops/m44_hosted_auth_runtime_restore_drill.sh'
+      - 'scripts/ops/m44_smtp_tls_preflight.sh'
       - 'scripts/ops/m44_isolated_auth_roundtrip.mjs'
       - 'scripts/ops/m44_disaster_reauth_isolated_drill.sh'
       - 'scripts/ops/m44_disaster_jwt_reissue_drill.mjs'
@@ -243,6 +245,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify SMTP STARTTLS with zero Supabase traffic
+        shell: bash
+        run: bash scripts/ops/m44_smtp_tls_preflight.sh
       - name: Verify encryption integrity and storage contracts
         run: |
           node --test \

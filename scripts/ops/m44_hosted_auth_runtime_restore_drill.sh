@@ -94,7 +94,8 @@ chmod 600 "$scratch/m44-smtp-private.key"
 chmod 644 "$scratch/m44-smtp-cert.pem"
 # Use a local SMTP sink, never send any message to a real address.
 docker run -d --name "$mail" --network "$net" --cap-drop ALL \
- --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+ --user "$(id -u):$(id -g)" \
+ --tmpfs /tmp:rw,noexec,nosuid,mode=1777,size=32m \
  -v "$scratch/m44-smtp-private.key:/certs/smtp-private.key:ro" \
  -v "$scratch/m44-smtp-cert.pem:/certs/smtp-cert.pem:ro" \
  -e MP_DATABASE=/tmp/m44-mailpit.db -e MP_DISABLE_VERSION_CHECK=true \

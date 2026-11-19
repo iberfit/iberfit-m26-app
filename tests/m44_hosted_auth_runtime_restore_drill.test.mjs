@@ -140,6 +140,19 @@ test('SMTP readiness is checked internally without sending any message',()=>{
  assert.doesNotMatch(script,/cat "\$scratch\/gotrue-failure-private\.log"|tee .*gotrue-failure-private/);
 });
 
+test('premerge synthetic SMTP verifies STARTTLS and auth without Supabase',()=>{
+ const source=readFileSync('scripts/ops/m44_smtp_tls_preflight.sh','utf8');
+ assert.match(source,/docker network create --internal/);
+ assert.match(source,/MP_SMTP_REQUIRE_STARTTLS=true/);
+ assert.match(source,/python:3\.12-alpine python -/);
+ assert.match(source,/smtp\.starttls\(context=context\)/);
+ assert.match(source,/smtp\.login\('only-local','synthetic-local-only'\)/);
+ assert.match(source,/M44_SYNTHETIC_SMTP_STARTTLS_AUTH_VERIFIED_ONLY/);
+ assert.doesNotMatch(source,/SUPABASE_ACCESS_TOKEN|IBERFIT_PROD_DATABASE_URL|pg_dump/);
+ assert.match(script,/--user "\$\(id -u\):\$\(id -g\)"/);
+ const syntax=spawnSync('bash',['-n','scripts/ops/m44_smtp_tls_preflight.sh'],{encoding:'utf8',timeout:3000});
+ assert.equal(syntax.status,0,syntax.stderr);
+});
 test('isolated signup uses DNS-valid synthetic recipient with no external delivery',()=>{
  assert.match(probe,/m44-recovery-/);
  assert.doesNotMatch(probe,/@example\.invalid/);
