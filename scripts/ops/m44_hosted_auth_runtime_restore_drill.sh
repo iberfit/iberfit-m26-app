@@ -30,7 +30,9 @@ clone=iberfit_m44_hosted_auth_runtime_test
 net=iberfit-m44-hosted-recovery-internal
 mail=iberfit-m44-smtp-isolated
 auth=iberfit-m44-gotrue-isolated
-pg(){ docker run --rm --network host -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:17-alpine "$@"; }
+# The guarded SQL transaction is sent to psql on stdin. Docker must keep
+# stdin open; without -i psql can exit 0 without executing any DELETE.
+pg(){ docker run --rm -i --network host -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:17-alpine "$@"; }
 cleanup(){
  set +e
  docker rm -f "$auth" "$mail" >"$scratch/containers-cleanup-private.log" 2>&1
