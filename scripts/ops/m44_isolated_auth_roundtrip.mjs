@@ -51,6 +51,36 @@ async function request(url,options={},timeout=8000){
  catch{refuse('LOCAL_REQUEST_FAILED');}
 }
 async function json(r){try{return await r.json();}catch{refuse('JSON_INVALID');}}
+// Error details never leave the isolated runner. Only enum categories from
+// known server response fields can be sent to Actions; bodies stay private.
+async function authFailure(response,phase){
+ const allowedStatus=new Set([400,401,403,404,409,422,429,500,502,503]);
+ const status=allowedStatus.has(response.status)?response.status:'OTHER';
+ let category='OTHER';
+ try{
+  const result=await response.json();
+  const raw=String(result?.code||result?.error_code||'').toLowerCase();
+  const codes=new Map([
+   ['email_not_confirmed','EMAIL_NOT_CONFIRMED'],
+   ['invalid_credentials','INVALID_CREDENTIALS'],
+   ['user_not_found','USER_NOT_FOUND'],
+   ['unexpected_failure','UNEXPECTED_FAILURE'],
+   ['validation_failed','VALIDATION_FAILED'],
+   ['over_request_rate_limit','RATE_LIMIT'],
+   ['user_banned','USER_BANNED'],
+  ]);
+  if(codes.has(raw))category=codes.get(raw);
+  else {
+   const hint=[result?.msg,result?.error_description,result?.message,result?.error]
+    .filter(v=>typeof v==='string'&&v.length<=1024).join(' ').toLowerCase();
+   if(/email not confirmed|email_not_confirmed/.test(hint))category='EMAIL_NOT_CONFIRMED';
+   else if(/invalid login credentials|invalid credentials/.test(hint))category='INVALID_CREDENTIALS';
+   else if(/database error|sqlstate|db error|error granting user/.test(hint))category='DATABASE_ERROR';
+   else if(/jwt.*(invalid|sign)|invalid.*jwt/.test(hint))category='JWT_ERROR';
+  }
+ }catch{}
+ refuse(phase+'_'+status+'_'+category);
+}
 async function waitHealth(){
  for(let n=0;n<45;n++){
   try{
@@ -95,7 +125,22 @@ async function confirmFromSmtp(){
     if(!full.ok)continue;
     const mail=await json(full);
     const url=safeUrl((mail.Text||'')+' '+(mail.HTML||''));
-    if(url){const verified=await request(url.href);if(verified.status!==302 && verified.status!==303 && verified.status!==200)refuse('CONFIRMATION_DENIED');return true;}
+    if(url){
+      const verified=await request(url.href);
+      if(verified.status!==302 && verified.status!==303 && verified.status!==200)
+       refuse('CONFIRMATION_DENIED');
+      if(verified.status===302||verified.status===303){
+       const location=verified.headers.get('location');
+       let next;
+       try{next=new URL(location,A);}catch{refuse('CONFIRMATION_REDIRECT_INVALID');}
+       if(next.origin!==new URL(A).origin)refuse('CONFIRMATION_EXTERNAL_REDIRECT');
+       const fragment=new URLSearchParams(next.hash.replace(/^#/,''));
+       if(fragment.has('error')||fragment.has('error_code')||
+          next.searchParams.has('error')||next.searchParams.has('error_code'))
+        refuse('CONFIRMATION_REJECTED_BY_AUTH');
+      }
+      return true;
+     }
    }
   }
   await sleep(750);
@@ -156,12 +201,12 @@ async function run(){
  }
  await confirmFromSmtp();
  const signin=await request(A+'/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
- if(!signin.ok)refuse('NEW_SESSION_LOGIN_FAILED');
+ if(!signin.ok)await authFailure(signin,'NEW_SESSION_LOGIN');
  const tokens=await json(signin);
  if(typeof tokens.access_token!=='string'||typeof tokens.refresh_token!=='string')refuse('NEW_SESSION_TOKENS_MISSING');
  await verifySignature(tokens.access_token);
  const refreshed=await request(A+'/token?grant_type=refresh_token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh_token:tokens.refresh_token})});
- if(!refreshed.ok)refuse('NEW_SESSION_REFRESH_FAILED');
+ if(!refreshed.ok)await authFailure(refreshed,'NEW_SESSION_REFRESH');
  const next=await json(refreshed);
  if(typeof next.access_token!=='string'||typeof next.refresh_token!=='string')refuse('NEW_SESSION_REFRESH_INVALID');
  await verifySignature(next.access_token);
