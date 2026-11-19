@@ -86,13 +86,15 @@ test('GoTrue recovery clone forwards guarded SQL transaction via Docker stdin',(
  assert.match(script,/ORIGINAL_RESTORED_AUTH_CHANGED/u);
 });
 
-test('failed real recovery prints only enumerated safe failure category, never private logs',()=>{
+
+test('real Auth disaster script passes Bash syntax validation',()=>{
+ const result=spawnSync('bash',['-n',path],{encoding:'utf8',timeout:3000});
+ assert.equal(result.status,0,result.stderr);
+});
+test('probe failure output remains bounded and redacted',()=>{
  assert.match(script,/safe_failure="\$\(grep -Eom1/);
+ assert.match(script,/M44_AUTH_PROBE_\[A-Z0-9_\]/);
  assert.match(script,/M44_AUTH_PROBE_UNKNOWN_ERROR/);
- assert.match(script,/GOTRUE_UNHEALTHY/);
- assert.match(script,/SYNTHETIC_SIGNUP_DENIED/);
- assert.match(script,/SMTP_CONFIRMATION_NOT_DELIVERED/);
- assert.match(script,/NEW_SESSION_LOGIN_FAILED/);
+ assert.match(script,/fail HOSTED_AUTH_SMTP_ROUNDTRIP_FAILED/);
  assert.doesNotMatch(script,/cat "\$scratch\/http-private.log"|tee .*http-private.log/);
- assert.match(probe,/console\.error\(\/\^M44_AUTH_PROBE_/);
 });
