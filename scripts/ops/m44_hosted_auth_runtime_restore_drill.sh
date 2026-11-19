@@ -130,6 +130,21 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
  -v "$PWD/scripts/ops/m44_isolated_auth_roundtrip.mjs:/work/probe.mjs:ro" \
  node:22-alpine node /work/probe.mjs \
  >"$scratch/http-private.log" 2>&1; then
+ # The probe catches ALL errors and prints a single fixed error code. Never
+ # emit stderr, SMTP content, HTTP bodies, tokens or private GoTrue logs.
+ safe_failure="$(grep -Eom1 '^M44_AUTH_PROBE_(CONFIRMATION_DENIED|GOTRUE_UNHEALTHY|ISSUED_JWT_SIGNATURE_INVALID|JSON_INVALID|JWT_FORMAT_INVALID|JWT_HEADER_INVALID|LOCAL_JWKS_INVALID|LOCAL_JWKS_UNAVAILABLE|LOCAL_REQUEST_FAILED|NEW_SESSION_LOGIN_FAILED|NEW_SESSION_LOGOUT_FAILED|NEW_SESSION_REFRESH_FAILED|NEW_SESSION_REFRESH_INVALID|NEW_SESSION_TOKENS_MISSING|REVOKED_REFRESH_ACCEPTED|SMTP_CONFIRMATION_NOT_DELIVERED|SYNTHETIC_SIGNUP_DENIED|UNKNOWN_ERROR)
+# The original independent restore remains intact throughout the rehearsal.
+[[ "$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d iberfit_recovery_test \
+ -c "SELECT ((SELECT count(*) FROM auth.sessions)>0 AND (SELECT count(*) FROM auth.users)>0)::int" \
+ 2>"$scratch/source-check-private.log")" == 1 ]] ||
+ fail ORIGINAL_RESTORED_AUTH_CHANGED
+cleanup
+trap - EXIT
+printf '%s\n' 'M44_ISOLATED_GOTRUE_ES256_SMTP_AUTH_ROUNDTRIP_VERIFIED_ONLY'
+printf '%s\n' 'M44_HOSTED_PLATFORM_AND_EDGE_RUNTIME_NOT_CERTIFIED'
+ "$scratch/http-private.log" || true)"
+ if [[ -z "$safe_failure" ]]; then safe_failure=M44_AUTH_PROBE_UNKNOWN_ERROR; fi
+ printf '%s\n' "$safe_failure" >&2
  fail HOSTED_AUTH_SMTP_ROUNDTRIP_FAILED
 fi
 # The original independent restore remains intact throughout the rehearsal.

@@ -85,3 +85,14 @@ test('GoTrue recovery clone forwards guarded SQL transaction via Docker stdin',(
  assert.match(script,/OLD_SESSIONS_REMAIN/u);
  assert.match(script,/ORIGINAL_RESTORED_AUTH_CHANGED/u);
 });
+
+test('failed real recovery prints only enumerated safe failure category, never private logs',()=>{
+ assert.match(script,/safe_failure="\$\(grep -Eom1/);
+ assert.match(script,/M44_AUTH_PROBE_UNKNOWN_ERROR/);
+ assert.match(script,/GOTRUE_UNHEALTHY/);
+ assert.match(script,/SYNTHETIC_SIGNUP_DENIED/);
+ assert.match(script,/SMTP_CONFIRMATION_NOT_DELIVERED/);
+ assert.match(script,/NEW_SESSION_LOGIN_FAILED/);
+ assert.doesNotMatch(script,/cat "\$scratch\/http-private.log"|tee .*http-private.log/);
+ assert.match(probe,/console\.error\(\/\^M44_AUTH_PROBE_/);
+});
