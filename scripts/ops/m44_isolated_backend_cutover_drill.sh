@@ -96,6 +96,30 @@ if ! db psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=sqlstate \
   fail LOCAL_ROLE_PLACEHOLDERS_FAILED
 fi
 echo 'M44_LOCAL_ROLE_PLACEHOLDERS_NOLOGIN_ONLY'
+# Recover the genuine production executor's BYPASSRLS/CREATEROLE and
+# memberships, but NEVER LOGIN or passwords in the isolated PG17 cluster.
+# The archived pg_dumpall source must match the audited nine-role baseline.
+node scripts/ops/m44_reconcile_postgres_executor.mjs \
+  "$work/global-roles.sql" "$out/postgres-owner-restore.sql" \
+  >"$out/postgres-owner-plan-private.log" 2>&1 || fail LOCAL_OWNER_ROLE_PLAN_DENIED
+db psql -X -q -v ON_ERROR_STOP=1 -d postgres \
+  -f /backup/backend-drill-private/postgres-owner-restore.sql \
+  >"$out/postgres-owner-restore-private.log" 2>&1 || fail LOCAL_OWNER_ROLE_REPLAY_DENIED
+owner_ok="$(db psql -X -A -t -v ON_ERROR_STOP=1 -d postgres \
+  -c "SELECT (EXISTS(SELECT 1 FROM pg_roles WHERE rolname='postgres' AND
+    NOT rolcanlogin AND NOT rolsuper AND rolcreatedb AND rolcreaterole
+    AND rolreplication AND rolbypassrls) AND
+    (SELECT count(*) FROM pg_auth_members WHERE member='postgres'::regrole
+      AND roleid IN ('anon'::regrole,'authenticated'::regrole,
+        'authenticator'::regrole,'pg_create_subscription'::regrole,
+        'pg_monitor'::regrole,'pg_read_all_data'::regrole,
+        'pg_signal_backend'::regrole,'service_role'::regrole,
+        'supabase_privileged_role'::regrole)
+      AND admin_option=(roleid<>'supabase_privileged_role'::regrole)
+      AND inherit_option AND set_option)=9)::int;" \
+  2>"$out/postgres-owner-verify-private.log")" || fail LOCAL_OWNER_ROLE_READBACK_FAILED
+[[ "$owner_ok" == 1 ]] || fail LOCAL_OWNER_ROLE_ATTRIBUTES_DRIFT
+echo 'M44_ISOLATED_POSTGRES_EXECUTOR_PARITY_NOLOGIN_VERIFIED_ONLY'
 
 # This is a NEW database in the already isolated local service; unlike the
 # initial M44 data-only proof, owners and ACL are not disabled.
