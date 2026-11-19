@@ -1,3 +1,10 @@
+## REAL TRAINING 360 · modelo DR autorizado y ensayo aislado · 19/11/2026
+- LIVE Pages publicado y certificado: SHA `d8f1765326c27670be30dfe4b7d3aa4bc336fc93`, [release #44541120964](https://github.com/iberfit/iberfit-m26-app/actions/runs/44541120964) SUCCESS. Entrenamiento fechado sigue cerrado (U60 EXECUTE denegado; U72 ausente).
+- Aprobado: **conservar la clave ES256 actual en PROD**. Solo tras un desastre, reconstruir en infraestructura de recuperación con **nueva clave de firma** y exigir nueva autenticación; NO presuponer que cambiar JWT invalida refresh tokens.
+- El nuevo ensayo M44 clona exclusivamente `iberfit_recovery_test` en localhost PG17, invalida **refresh_tokens y sessions** en esa copia, conserva users/identities/MFA y comprueba que el snapshot original queda intacto. Un ensayo criptográfico adicional usa claves ES256 100% sintéticas. Nunca rota JWT LIVE, elimina sesiones reales ni certifica Hosted Auth/SMTP/Edge. El resultado distingue claramente el ensayo del certificado integral, que sigue NO-GO.
+- En PROD se verificaron 6 sesiones y 19 refresh tokens el 19/11 mediante SQL de conteos (sin seleccionar valores privados); `vault.secrets=0`. No se efectuaron escrituras contra PROD.
+- Falta: ejecutar el ensayo de aislamiento con M44 cifrado reciente, reconstruir Auth alojado y verificar inicio real, contraseña/MFA/OTP/SMTP/Edge en entorno de recuperación, comprobar RPO/RTO y reversión coordinada; solo entonces U72/U60 y E2E LIVE por tres roles.
+
 ## Supabase Free P0 · QA completed-session scalar equivalence, 18/11/2026
 - Live read-only QA Client A: de 726 sesiones completas, las 714 más antiguas ya tienen `blocks: []` bajo la política previa de historial paginado. Comparación de sanitizador completo `iberfit_m43_client_safe_session_v2(jsonb_set(...blocks=[]))` y escalar pinneado+`blocks: []` sobre **714 registros: 0 diferencias JSON, 554.324 bytes idénticos**.
 - `EXPLAIN ANALYZE BUFFERS TIMING OFF` (una ejecución individual de cada alternativa, no benchmark de arranque): **143,311 ms vs 62,531 ms**; estimación de 56,4% ahorro *solo* en esa suboperación, NO en todo bootstrap ni Usage Free.
