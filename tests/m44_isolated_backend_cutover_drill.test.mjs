@@ -137,3 +137,20 @@ test('all SQL mutations in isolated backend drill execute with source postgres o
  const parsed=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
  assert.equal(parsed.status,0,parsed.stderr);
 });
+
+test('isolated executor restores source-verified nine memberships without enabling login',()=>{
+ const nodeIndex=s.indexOf('node scripts/ops/m44_reconcile_postgres_executor.mjs');
+ const createIndex=s.indexOf('db createdb "$PGDATABASE"');
+ assert.ok(nodeIndex>0&&createIndex>nodeIndex);
+ assert.ok(s.includes('M44_ISOLATED_POSTGRES_EXECUTOR_PARITY_NOLOGIN_VERIFIED_ONLY'));
+ assert.ok(s.includes('AND NOT rolcanlogin AND NOT rolsuper AND rolcreatedb'));
+ assert.ok(s.includes("'pg_read_all_data'::regrole"));
+ assert.ok(s.includes("admin_option=(roleid<>'supabase_privileged_role'::regrole)"));
+ assert.ok(s.includes('LOCAL_OWNER_ROLE_ATTRIBUTES_DRIFT'));
+ assert.ok(s.includes('M44_LOCAL_SQL_APPLY_SQLSTATE:'));
+ assert.equal((s.match(/m44_reconcile_postgres_executor\.mjs/gu)||[]).length,1);
+ const yaml=fs.readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
+ assert.ok(yaml.includes('tests/m44_reconcile_postgres_executor.test.mjs'));
+ const valid=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
+ assert.equal(valid.status,0,valid.stderr);
+});
