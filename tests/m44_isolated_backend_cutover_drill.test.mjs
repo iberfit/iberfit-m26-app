@@ -206,3 +206,15 @@ test('real protected U72 rollback terminates every restored function and preserv
   assert.ok(rollback.includes(md5),'rollback must assert original function hash');
  assert.match(rollback,/\nCOMMIT;\s*$/u);
 });
+
+test('protected M44 backup reruns when U72 rollback source changes, not just install',()=>{
+ const yaml=fs.readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
+ const pr=yaml.match(/\n  pull_request:[\s\S]*?\n  push:/u)?.[0]||'';
+ const push=yaml.match(/\n  push:[\s\S]*?\n  workflow_dispatch:/u)?.[0]||'';
+ const path='supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql';
+ assert.ok(pr.includes(path),'PR contract must check changed rollback');
+ assert.ok(push.includes(path),'protected Canary rollback correction must produce fresh authentic snapshot');
+ assert.equal((yaml.match(/20261117_m1_u72_prod_guarded_materialized_v1[.]rollback[.]sql/gu)||[]).length,2);
+ assert.match(push,/branches:\s*\['canary\/rc74-4'\]/u);
+ assert.ok(yaml.includes("if: github.event_name == 'push'"));
+});
