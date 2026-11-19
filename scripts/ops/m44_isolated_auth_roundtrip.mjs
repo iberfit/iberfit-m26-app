@@ -96,6 +96,20 @@ async function run(){
     'signup_disabled','validation_failed','weak_password',
     'email_address_not_authorized','unexpected_failure','over_email_send_rate_limit']);
    if(known.has(code))category=code.toUpperCase();
+   else {
+    // GoTrue v2 may use msg/error instead of a structured Auth code.
+    // Classify fixed causes only; never emit arbitrary text from the body.
+    const hint=[reply?.msg,reply?.error,reply?.message,reply?.error_description]
+     .filter(v=>typeof v==='string'&&v.length<=1024).join(' ').toLowerCase();
+    if(/database error|database.*(?:saving|creating)|sqlstate|constraint violation/.test(hint))
+     category='DB_WRITE';
+    else if(/(?:smtp|mailer|email).*(?:send|deliver|refused|failed)|(?:send|deliver).*email/.test(hint))
+     category='SMTP_DELIVERY';
+    else if(/(?:jwt|signing key).*(?:invalid|failed)|invalid.*(?:jwt|signing key)/.test(hint))
+     category='JWT_SIGNING';
+    else if(/(?:permission denied|insufficient privilege|not authorized)/.test(hint))
+     category='DB_PERMISSION';
+   }
   }catch{}
   const status=[400,401,403,404,409,422,429,500,502,503].includes(signup.status)?signup.status:'OTHER';
   refuse('SYNTHETIC_SIGNUP_'+status+'_'+category);
