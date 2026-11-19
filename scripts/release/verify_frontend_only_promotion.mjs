@@ -92,6 +92,33 @@ export function verifyFrozenPreactivatedEdge({sourceSha,changedPaths,blobAtSourc
  return Object.freeze({verified:files.length,paths:Object.freeze(files)});
 }
 
+// Exact-reviewed QA rollouts and dormant PROD rollback/install source cannot be
+// executed by this Pages workflow. A source-only exception never authorizes SQL.
+export const FROZEN_INERT_CUTOVER_SQL_BLOBS=Object.freeze({
+  "supabase/qa-rollouts/20261116024000_p0_free_qa_completed_execution_detail_demand_v1.disable.sql": "c2b4f67b59d7b2d80346b8680cfc800a55d1abff",
+  "supabase/qa-rollouts/20261116024000_p0_free_qa_completed_execution_detail_demand_v1.enable.sql": "84adeadf42b304ceac4ac2b10cd8b78302d69f43",
+  "supabase/qa-rollouts/20261118015500_p0_free_completed_session_scalar_fast_v1.disable.sql": "241b5e42852fc6b2727b30de76f970c6a89d6c78",
+  "supabase/qa-rollouts/20261118015500_p0_free_completed_session_scalar_fast_v1.enable.sql": "4d60e713b9a3f632c32d15b86370cb6f7baa050d",
+  "supabase/qa-rollouts/20261118032000_p0_free_completed_execution_scalar_fast_v1.disable.sql": "bc31a8a33aea69b6731b4acc41a56a3917eb317d",
+  "supabase/qa-rollouts/20261118032000_p0_free_completed_execution_scalar_fast_v1.enable.sql": "5dbaa3b77df96319cf287a7b19b13d1ca3acdc5d",
+  "supabase/qa-rollouts/p0_free_qa_history_page64_v1.sql": "cc9b4a0e77b39b7e299b286730a4bf3af4581f1b",
+  "supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql": "75f1b5c7c21d303dd9fda523a4b8911d9df080c8",
+  "supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql": "1b96811cae4b7cfc1daa069e1ece14f264e9768c"
+});
+export function verifyFrozenInertCutoverSql({sourceSha,changedPaths,blobAtSource}={}){
+ if(!SHA.test(sourceSha||'')||!Array.isArray(changedPaths))
+   throw Error('FRONTEND_ONLY_INERT_SQL_INPUT_INVALID');
+ const files=changedPaths.filter(p=>Object.hasOwn(FROZEN_INERT_CUTOVER_SQL_BLOBS,p));
+ if(files.length&&typeof blobAtSource!=='function')
+   throw Error('FRONTEND_ONLY_INERT_SQL_BLOB_READER_REQUIRED');
+ for(const path of files){
+   const actual=String(blobAtSource(sourceSha,path)||'').trim();
+   if(actual!==FROZEN_INERT_CUTOVER_SQL_BLOBS[path])
+     throw Error('FRONTEND_ONLY_INERT_SQL_SOURCE_DRIFT:'+path);
+ }
+ return Object.freeze({verified:files.length,paths:Object.freeze(files)});
+}
+
 // A frontend-only release does not run SQL. New migration/rollback source files
 // remain unapplied and must never be mistaken for a completed DB migration.
 export function evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,changedPaths}={}){
@@ -110,6 +137,7 @@ export function evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,c
     if(!Object.hasOwn(FROZEN_QA_INERT_BLOBS,path)&&
        !Object.hasOwn(FROZEN_M1_RELEASE_PROCEDURE_BLOBS,path)&&
        !Object.hasOwn(FROZEN_PREACTIVATED_EDGE_BLOBS,path)&&
+       !Object.hasOwn(FROZEN_INERT_CUTOVER_SQL_BLOBS,path)&&
        (REJECTED_PATHS.has(path)||REJECTED_PREFIXES.some(prefix=>path.startsWith(prefix))||
         (path.startsWith('supabase/')&&
          !/^supabase\/(?:migrations|rollbacks)\//u.test(path)&&
@@ -177,6 +205,11 @@ async function main(){
     blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
       {encoding:'utf8',timeout:10000}).trim(),
   });
+  const inertSql=verifyFrozenInertCutoverSql({
+    sourceSha,changedPaths,
+    blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
+      {encoding:'utf8',timeout:10000}).trim(),
+  });
   const edgeSource=verifyFrozenPreactivatedEdge({
     sourceSha,changedPaths,
     blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
@@ -195,7 +228,8 @@ async function main(){
   writeFileSync('FRONTEND_ONLY_SCOPE_EVIDENCE.json',
     JSON.stringify({...proof,frozenQaInertArtifactsVerified:qaArtifacts.verified,
       stagedM1SqlProceduresVerified:m1Procedures.verified,
-      preactivatedEdgeSourceVerified:edgeSource.verified,liveIdentityVerified:true},null,2)+'\n',{encoding:'utf8',flag:'w',mode:0o600});
+      preactivatedEdgeSourceVerified:edgeSource.verified,
+      inertCutoverSqlFilesVerified:inertSql.verified,liveIdentityVerified:true},null,2)+'\n',{encoding:'utf8',flag:'w',mode:0o600});
   console.log('FRONTEND_ONLY_PROD_SCOPE_CERTIFIED source='+sourceSha+
     ' previous='+expectedPreviousLiveSha+' changed='+proof.changedFileCount+
     ' unappliedMigrations='+proof.unappliedMigrationFileCount+
