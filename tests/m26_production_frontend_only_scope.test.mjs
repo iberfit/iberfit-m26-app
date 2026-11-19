@@ -5,6 +5,7 @@ import {
   evaluateFrontendOnlyChanges,
   verifyFrontendOnlyLiveIdentity,verifyFrozenQaArtifacts,FROZEN_QA_INERT_BLOBS,
   verifyFrozenM1ReleaseProcedures,FROZEN_M1_RELEASE_PROCEDURE_BLOBS,
+  verifyFrozenPreactivatedEdge,FROZEN_PREACTIVATED_EDGE_BLOBS,
 } from '../scripts/release/verify_frontend_only_promotion.mjs';
 
 const BASE='069ba68298dd57181a62cc88ce6c31112ac92176';
@@ -88,6 +89,21 @@ test('U120 exact QA source exception requires eight frozen Git blobs, never broa
  assert.match(source,/frozenQaInertArtifactsVerified:qaArtifacts\.verified/u);
 });
 
+test('the previously deployed Edge source is allowed only as a frozen inert blob',()=>{
+ const entries=Object.entries(FROZEN_PREACTIVATED_EDGE_BLOBS);
+ assert.equal(entries.length,1);
+ assert.equal(entries[0][0],'supabase/functions/iberfit-admin-client-invite-v1/index.ts');
+ assert.equal(entries[0][1],'9124e4e5c46419f4cc339fed05f6be34ac67524b');
+ const proof=evaluateFrontendOnlyChanges({sourceSha:TARGET,expectedPreviousLiveSha:BASE,
+   changedPaths:[...accepted,entries[0][0]]});
+ assert.equal(proof.backendServicesDeployed,false);
+ assert.deepEqual(verifyFrozenPreactivatedEdge({sourceSha:TARGET,
+   changedPaths:[entries[0][0]],blobAtSource:()=>entries[0][1]}).paths,[entries[0][0]]);
+ assert.throws(()=>verifyFrozenPreactivatedEdge({sourceSha:TARGET,
+   changedPaths:[entries[0][0]],blobAtSource:()=>BASE}),/FRONTEND_ONLY_EDGE_SOURCE_DRIFT/u);
+ assert.throws(()=>verifyFrozenPreactivatedEdge({sourceSha:TARGET,
+   changedPaths:[entries[0][0]]}),/FRONTEND_ONLY_EDGE_BLOB_READER_REQUIRED/u);
+});
 test('fail closed on invalid SHA, empty diff or path traversal',()=>{
   for(const arg of [
     {sourceSha:'invalid',expectedPreviousLiveSha:BASE,changedPaths:accepted},
