@@ -135,6 +135,20 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
  safe_failure="$(grep -Eom1 '^M44_AUTH_PROBE_[A-Z0-9_]{3,70}$' "$scratch/http-private.log" || true)"
  if [[ -z "$safe_failure" ]]; then safe_failure=M44_AUTH_PROBE_UNKNOWN_ERROR; fi
  printf '%s\n' "$safe_failure" >&2
+ # GoTrue's private log stays on this isolated runner. Only a closed-set
+ # diagnostic category crosses CI; never print raw lines or their values.
+ docker logs "$auth" > "$scratch/gotrue-failure-private.log" 2>&1 || true
+ log_reason=UNCLASSIFIED
+ if grep -Eiq 'permission denied|insufficient privilege|SQLSTATE.?42501' "$scratch/gotrue-failure-private.log"; then
+  log_reason=DB_PERMISSION
+ elif grep -Eiq 'database error|SQLSTATE.?[0-9A-Z]{5}|pq:|duplicate key|violates.*constraint|relation .* does not exist' "$scratch/gotrue-failure-private.log"; then
+  log_reason=DB_ERROR
+ elif grep -Eiq 'smtp.*(fail|error|refused)|mailer.*(fail|error)|send.*email.*(fail|error)|send.*mail.*(fail|error)' "$scratch/gotrue-failure-private.log"; then
+  log_reason=SMTP_ERROR
+ elif grep -Eiq 'jwt.*(invalid|fail)|signing key.*(invalid|fail)' "$scratch/gotrue-failure-private.log"; then
+  log_reason=JWT_ERROR
+ fi
+ printf 'M44_AUTH_RUNTIME_PRIVATE_CAUSE_%s\n' "$log_reason" >&2
  fail HOSTED_AUTH_SMTP_ROUNDTRIP_FAILED
 fi
 # The original independent restore remains intact throughout the rehearsal.
