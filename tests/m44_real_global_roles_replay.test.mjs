@@ -8,7 +8,7 @@ test('replays only real encrypted archive globals in clean networkless PG17',()=
  for(const fragment of ['GITHUB_ACTIONS','RUNNER_OS','GITHUB_RUN_ID',
    'global-roles.sql','m44_global_roles_archive_check.mjs',
    '--network none','no-new-privileges','docker port',
-   'ON_ERROR_STOP=1','m44_restore_admin','ROLE_CARDINALITY_DRIFT'])
+   'ON_ERROR_STOP=1','POSTGRES_USER=supabase_admin','ROLE_CARDINALITY_DRIFT'])
   assert.ok(script.includes(fragment),fragment);
  assert.ok(!script.includes('supabase db push'));
  assert.ok(!script.includes('pg_restore -h db.'));
@@ -43,4 +43,26 @@ test('private replay diagnosis exposes only SQLSTATE and a fixed command categor
  assert.match(script,/CREATE_ROLE\|ALTER_ROLE\|GRANT_ROLE\|REVOKE_ROLE\|OTHER/);
  assert.ok(script.includes('global-roles[.]sql:[0-9]{1,6}:'));
  assert.equal((script.match(/echo M44_REAL_GLOBAL_ROLES_RESTORED_IN_ISOLATED_PG17_ONLY/g)||[]).length,1);
+});
+
+test('bootstrap matches source GRANTED BY and verifies archived membership grantor parity',()=>{
+ for(const guard of ['BOOTSTRAP_SOURCE_DRIFT','GRANTOR_SOURCE_DRIFT',
+   'MEMBERSHIP_SOURCE_DRIFT','BOOTSTRAP_FILTER_DRIFT','GRANTOR_PARITY_DRIFT',
+   'POSTGRES_USER=supabase_admin','global-roles-replay.sql',
+   'docker cp "$replay"',"grantor='supabase_admin'::regrole"])
+  assert.ok(script.includes(guard),guard);
+ assert.ok(!script.includes('m44_restore_admin'));
+ assert.ok(!script.includes('GRANTED BY CURRENT_USER'));
+ const expression=script.match(/sed -E '([^']+)' "\$archive" >"\$replay"/u)?.[1];
+ assert.ok(expression);
+ const sample=[
+  'CREATE ROLE supabase_admin;',
+  'ALTER ROLE supabase_admin WITH SUPERUSER;',
+  'CREATE ROLE "postgres";',
+  'GRANT postgres TO anon GRANTED BY supabase_admin;',
+  ''
+ ].join('\n');
+ const x=spawnSync('sed',['-E',expression],{input:sample,encoding:'utf8'});
+ assert.equal(x.status,0,x.stderr);
+ assert.equal(x.stdout,sample.replace('CREATE ROLE supabase_admin;\n',''));
 });
