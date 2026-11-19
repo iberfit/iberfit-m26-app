@@ -16,7 +16,10 @@ GRANT anon TO authenticated;
 test('reconcile only missing validated roles with NOLOGIN, never source SQL',()=>{
  const r=prepareMissingLocalRoles(dump(),'supabase_admin\nauthenticated\nanon\n');
  assert.equal(r.expected,roles.length);assert.equal(r.missing,roles.length-3);
- assert.match(r.sql,/CREATE ROLE "postgres" NOLOGIN;/);
+ assert.match(r.sql,/CREATE ROLE "postgres" NOLOGIN/);
+ assert.match(r.sql,/IF NOT EXISTS \(SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='postgres'\)/);
+ assert.equal((r.sql.match(/DO \$m44_local_role\$/gu)||[]).length,r.missing);
+ assert.ok(r.sql.indexOf('IF NOT EXISTS')<r.sql.indexOf('CREATE ROLE "postgres" NOLOGIN'));
  assert.doesNotMatch(r.sql,/ALTER ROLE |GRANT /);
  assert.equal(r.platformRecoveryVerified,false);
 });
