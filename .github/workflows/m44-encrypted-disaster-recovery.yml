@@ -128,6 +128,10 @@ on:
       - 'scripts/ops/m44_vault_root_key_archive.mjs'
       - 'tests/m44_vault_root_key_archive.test.mjs'
       - 'scripts/ops/m44_hosted_auth_config_archive.mjs'
+      - 'scripts/ops/m44_disaster_reauth_isolated_drill.sh'
+      - 'scripts/ops/m44_disaster_jwt_reissue_drill.mjs'
+      - 'tests/m44_disaster_reauth_isolated_drill.test.mjs'
+      - 'tests/m44_disaster_jwt_reissue_drill.test.mjs'
       - 'tests/m44_hosted_auth_config_archive.test.mjs'
       - 'scripts/ops/m44_storage_backup_bytes.mjs'
       - 'scripts/ops/m44_storage_metadata_snapshot.sql'
@@ -164,6 +168,8 @@ on:
       - '.github/workflows/m44-encrypted-disaster-recovery.yml'
       - 'scripts/ops/m44_vault_root_key_archive.mjs'
       - 'scripts/ops/m44_hosted_auth_config_archive.mjs'
+      - 'scripts/ops/m44_disaster_reauth_isolated_drill.sh'
+      - 'scripts/ops/m44_disaster_jwt_reissue_drill.mjs'
       - 'scripts/ops/m44_real_global_roles_replay.sh'
       - 'scripts/ops/m44_isolated_backend_cutover_drill.sh'
       - 'scripts/ops/m44_prepare_missing_local_roles.mjs'
@@ -590,6 +596,21 @@ jobs:
           else
             echo 'M44_ISOLATED_BACKEND_SQL_ROLLBACK_NOT_CERTIFIED'
           fi
+          # Model approved 19-Nov: NO current JWT rotation; only disaster reauth.
+          # Both experiments run solely on the restored localhost PG17 copy.
+          # A failed supplemental drill never invalidates a genuine encrypted backup.
+          if env -u SUPABASE_ACCESS_TOKEN -u IBERFIT_PROD_DATABASE_URL \
+              -u SUPABASE_SERVICE_ROLE_KEY -u IBERFIT_PROD_STORAGE_SERVICE_KEY \
+              -u SUPABASE_DB_URL -u DATABASE_URL \
+              M44_DISASTER_REAUTH_DRILL_ENABLED=true \
+              PGHOST=127.0.0.1 PGPORT=5432 PGUSER=supabase_admin \
+              PGDATABASE=iberfit_recovery_test \
+              bash scripts/ops/m44_disaster_reauth_isolated_drill.sh "$WORK/isolated"; then
+            echo 'M44_ISOLATED_DISASTER_REAUTH_DB_PURGE_REHEARSAL_VERIFIED_ONLY'
+          else
+            echo 'M44_ISOLATED_DISASTER_REAUTH_DB_PURGE_NOT_CERTIFIED'
+          fi
+          node scripts/ops/m44_disaster_jwt_reissue_drill.mjs
           echo 'M44_HOSTED_AUTH_VAULT_EDGE_RUNTIME_NOT_CERTIFIED'
       # Role recovery is attempted only on the already-restored real archive
       # inside a FRESH isolated PG17 with --network none. It never mutates
