@@ -7,6 +7,7 @@ import {
   verifyFrozenM1ReleaseProcedures,FROZEN_M1_RELEASE_PROCEDURE_BLOBS,
   verifyFrozenPreactivatedEdge,FROZEN_PREACTIVATED_EDGE_BLOBS,
   verifyFrozenInertCutoverSql,FROZEN_INERT_CUTOVER_SQL_BLOBS,
+  certifyFrontendReleaseModeContext,
 } from '../scripts/release/verify_frontend_only_promotion.mjs';
 
 const BASE='069ba68298dd57181a62cc88ce6c31112ac92176';
@@ -120,6 +121,26 @@ test('only nine immutable dormant SQL and QA rollout blobs are inert in Pages sc
   blobAtSource:()=>BASE}),/FRONTEND_ONLY_INERT_SQL_SOURCE_DRIFT/u);
  assert.throws(()=>verifyFrozenInertCutoverSql({sourceSha:TARGET,changedPaths:paths}),
   /FRONTEND_ONLY_INERT_SQL_BLOB_READER_REQUIRED/u);
+});
+test('Pages-only runtime verifies closed or active mode is fully consistent with signed SHA',()=>{
+ const closed={sourceSha:TARGET,mode:'closed',verificationMode:'closed',activationFlag:'false'};
+ const result=certifyFrontendReleaseModeContext(closed);
+ assert.equal(result.backendMutationsAuthorized,false);
+ assert.equal(result.mode,'closed');
+ const active={sourceSha:TARGET,mode:'active',verificationMode:'active',activationFlag:'true',
+   certifiedSourceSha:TARGET,operatorApproval:'approved'};
+ assert.equal(certifyFrontendReleaseModeContext(active).mode,'active');
+ for(const mutation of [
+  {sourceSha:'bad'},{mode:'recovery'},{verificationMode:'active'},
+  {activationFlag:'true'},{certifiedSourceSha:TARGET},{operatorApproval:'approved'}
+ ])assert.throws(()=>certifyFrontendReleaseModeContext({...closed,...mutation}),
+   /FRONTEND_ONLY_MODE_/u);
+ for(const mutation of [
+  {sourceSha:'bad'},{mode:'closed'},{verificationMode:'closed'},
+  {activationFlag:'false'},{certifiedSourceSha:BASE},
+  {operatorApproval:undefined}
+ ])assert.throws(()=>certifyFrontendReleaseModeContext({...active,...mutation}),
+   /FRONTEND_ONLY_MODE_/u);
 });
 test('fail closed on invalid SHA, empty diff or path traversal',()=>{
   for(const arg of [
