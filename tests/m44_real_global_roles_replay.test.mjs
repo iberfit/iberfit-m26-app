@@ -79,3 +79,19 @@ test('PG17 role cardinality excludes only literal pg_ internal prefix',()=>{
  assert.ok(!intended.includes('pg_database_owner'));
  assert.equal(intended.length,5);
 });
+
+test('all archived GRANT statements count including implicit Supabase grantor',()=>{
+ const grammar="^GRANT .+ TO .+;[[:space:]]*$";
+ assert.ok(script.includes(grammar));
+ assert.ok(script.includes('explicit_members'));
+ assert.ok(script.includes('explicit_members<=expected_members'));
+ assert.ok(script.includes('GRANTOR_READBACK_INVALID'));
+ assert.ok(script.includes('M44_REAL_GLOBAL_ROLES_GRANT_PARITY_COUNT:source='));
+ const input=['GRANT anon TO postgres GRANTED BY supabase_admin;',
+  'GRANT service_role TO postgres;',
+  'ALTER ROLE postgres WITH NOLOGIN;',
+  ''].join('\n');
+ const x=spawnSync('grep',['-Ec',grammar],{input,encoding:'utf8'});
+ assert.equal(x.status,0,x.stderr);
+ assert.equal(x.stdout.trim(),'2');
+});
