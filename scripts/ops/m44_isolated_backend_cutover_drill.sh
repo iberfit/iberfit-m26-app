@@ -68,6 +68,25 @@ apply(){
    else
      echo "M44_LOCAL_SQL_APPLY_SQLSTATE:$code:UNAVAILABLE" >&2
    fi
+   # Diagnostic is strictly numeric/source-category; never print SQL,
+   # restored role names, object names or private error messages.
+   local source_line failure_class
+   source_line="$(grep -Eo 'psql:/(release|migrations|rollbacks)/[A-Za-z0-9_.-]+:[0-9]{1,4}:' \
+     "$out/apply-$code.log" | tail -n 1 | grep -Eo '[0-9]{1,4}' | tail -n 1 || true)"
+   if [[ "$source_line" =~ ^[0-9]{1,4}$ ]]; then
+     echo "M44_LOCAL_SQL_FAILURE_SOURCE_LINE:$code:$source_line" >&2
+   fi
+   failure_class='OTHER'
+   if grep -Eqi 'permission denied to set role' "$out/apply-$code.log"; then
+     failure_class='ROLE_SWITCH'
+   elif grep -Eqi 'permission denied for schema' "$out/apply-$code.log"; then
+     failure_class='SCHEMA_CREATE_ACL'
+   elif grep -Eqi 'must be owner|permission denied for function' "$out/apply-$code.log"; then
+     failure_class='FUNCTION_OWNERSHIP'
+   elif grep -Eqi 'permission denied for relation' "$out/apply-$code.log"; then
+     failure_class='TABLE_ACL'
+   fi
+   echo "M44_LOCAL_SQL_FAILURE_CLASS:$code:$failure_class" >&2
    fail "SQL_APPLY_$code"
  fi
 }
@@ -124,6 +143,22 @@ echo 'M44_ISOLATED_POSTGRES_EXECUTOR_PARITY_NOLOGIN_VERIFIED_ONLY'
 # This is a NEW database in the already isolated local service; unlike the
 # initial M44 data-only proof, owners and ACL are not disabled.
 db createdb "$PGDATABASE" >"$out/createdb.log" 2>&1 || fail FRESH_DATABASE_CREATION_FAILED
+# PROD uses database owner postgres and schema public owned by the dynamic
+# pg_database_owner role. The throwaway DB was created by supabase_admin:
+# without correcting that LOCAL-only owner, SET ROLE postgres lacks CREATE
+# on public despite all restored pg_auth_members memberships being correct.
+# Never change ownership or privileges in QA/PROD; only this exact local DB.
+db psql -X -q -v ON_ERROR_STOP=1 -d postgres \
+  -c 'ALTER DATABASE "iberfit_recovery_acl_test" OWNER TO "postgres";' \
+  >"$out/local-database-owner-private.log" 2>&1 || fail LOCAL_DB_OWNER_PARITY_DENIED
+database_owner_ok="$(db psql -X -A -t -v ON_ERROR_STOP=1 -d "$PGDATABASE" \
+  -c "SELECT (
+    current_database()='iberfit_recovery_acl_test'
+    AND (SELECT pg_get_userbyid(datdba)='postgres' FROM pg_database
+      WHERE datname=current_database())
+  )::int;" 2>"$out/local-database-owner-check-private.log")" ||
+  fail LOCAL_DB_OWNER_READBACK_FAILED
+[[ "$database_owner_ok" == 1 ]] || fail LOCAL_DB_OWNER_DRIFT
 if ! db pg_restore --exit-on-error -d "$PGDATABASE" /backup/database.pgcustom \
   >"$out/pg-restore-full-acl.log" 2>&1; then
   # Categorize privately; never log object identifiers, names or SQL.
@@ -139,6 +174,20 @@ if ! db pg_restore --exit-on-error -d "$PGDATABASE" /backup/database.pgcustom \
   fail FULL_OWNER_ACL_RESTORE_FAILED
 fi
 echo 'M44_REAL_SNAPSHOT_FULL_OWNER_ACL_RESTORED_ISOLATED_ONLY'
+# Verify the same effective schema CREATE rights as the actual PROD
+# database owner AFTER pg_restore, using the real SQL executor context.
+executor_acl="$(db psql -X -q -A -t -v ON_ERROR_STOP=1 -d "$PGDATABASE" \
+  -c 'SET ROLE postgres' \
+  -c "SELECT (
+    current_user='postgres'
+    AND has_schema_privilege(current_user,'public','CREATE')
+    AND has_schema_privilege(current_user,'private','CREATE')
+    AND (SELECT nspowner='pg_database_owner'::regrole FROM pg_namespace
+      WHERE nspname='public')
+  )::int;" 2>"$out/executor-acl-private.log")" ||
+  fail LOCAL_EFFECTIVE_OWNER_ACL_READBACK_FAILED
+[[ "$executor_acl" == 1 ]] || fail LOCAL_EFFECTIVE_OWNER_ACL_DRIFT
+echo 'M44_ISOLATED_DATABASE_OWNER_AND_EXECUTOR_CREATE_PARITY_VERIFIED_ONLY'
 check_sql BASELINE "SELECT (
  (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment')='PRODUCTION'
  AND md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='5914acf371015a6bbeeaf95f99e056e3'
