@@ -154,3 +154,32 @@ test('isolated executor restores source-verified nine memberships without enabli
  const valid=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
  assert.equal(valid.status,0,valid.stderr);
 });
+
+test('isolated database owner matches REAL PROD pg_database_owner before U72 SQL',()=>{
+ const ownerStatement=s.indexOf('ALTER DATABASE "iberfit_recovery_acl_test" OWNER TO "postgres";');
+ const localCreate=s.indexOf('db createdb "$PGDATABASE"');
+ const fullRestore=s.indexOf('db pg_restore --exit-on-error');
+ const aclProbe=s.indexOf("has_schema_privilege(current_user,'public','CREATE')");
+ const install=s.indexOf('apply U72_INSTALL /release/');
+ assert.ok(localCreate>=0&&ownerStatement>localCreate);
+ assert.ok(fullRestore>ownerStatement&&aclProbe>fullRestore&&install>aclProbe);
+ assert.ok(s.includes("current_database()='iberfit_recovery_acl_test'"));
+ assert.ok(s.includes("nspowner='pg_database_owner'::regrole"));
+ assert.ok(s.includes("current_user='postgres'"));
+ assert.ok(s.includes("has_schema_privilege(current_user,'private','CREATE')"));
+ assert.ok(s.includes('LOCAL_DB_OWNER_PARITY_DENIED'));
+ assert.ok(s.includes('LOCAL_EFFECTIVE_OWNER_ACL_DRIFT'));
+ assert.equal((s.match(/ALTER DATABASE "iberfit_recovery_acl_test" OWNER TO "postgres";/gu)||[]).length,1);
+ assert.ok(!s.includes('ALTER DATABASE "postgres" OWNER TO'));
+ assert.ok(!s.includes('ALTER DATABASE "template1" OWNER TO'));
+});
+test('isolated release SQL failure exposes only diagnostic class and numeric source line',()=>{
+ assert.ok(s.includes('M44_LOCAL_SQL_FAILURE_SOURCE_LINE:'));
+ assert.ok(s.includes('M44_LOCAL_SQL_FAILURE_CLASS:'));
+ for(const category of ['ROLE_SWITCH','SCHEMA_CREATE_ACL','FUNCTION_OWNERSHIP','TABLE_ACL'])
+  assert.ok(s.includes(category));
+ assert.ok(!s.includes('cat "$out/apply-$code.log"'));
+ assert.ok(!s.includes('tail -n 20 "$out/apply-$code.log"'));
+ const x=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
+ assert.equal(x.status,0,x.stderr);
+});
