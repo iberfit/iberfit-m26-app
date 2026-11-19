@@ -119,3 +119,21 @@ test('M44 real restore bash scripts parse correctly; no duplicate cutover tail',
  assert.equal((s.match(/M44_LOCAL_ROLE_PLACEHOLDERS_NOLOGIN_ONLY/gu)||[]).length,1);
  assert.equal((s.match(/db createdb "\$PGDATABASE"/gu)||[]).length,1);
 });
+
+test('all SQL mutations in isolated backend drill execute with source postgres ownership',()=>{
+ assert.ok(s.includes("-c 'SET ROLE postgres' -f"));
+ assert.ok(s.includes('VERBOSITY=verbose'));
+ assert.ok(s.includes('M44_LOCAL_SQL_APPLY_SQLSTATE:'));
+ assert.ok(s.includes('M44_LOCAL_SQL_POLICY_DENIAL:'));
+ assert.equal((s.match(/apply U72_INSTALL /gu)||[]).length,1);
+ assert.equal((s.match(/apply U72_ROLLBACK /gu)||[]).length,1);
+ assert.equal((s.match(/apply COACH_ROLLBACK /gu)||[]).length,1);
+ const i=s.indexOf("apply(){");
+ const j=s.indexOf("check_sql BASELINE");
+ assert.ok(i>=0&&j>i);
+ const procedure=s.slice(i,j);
+ assert.equal((procedure.match(/-f "\$pathname"/gu)||[]).length,1);
+ assert.ok(!procedure.includes('postgresql://'));
+ const parsed=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
+ assert.equal(parsed.status,0,parsed.stderr);
+});
