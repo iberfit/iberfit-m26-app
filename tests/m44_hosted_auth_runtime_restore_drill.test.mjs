@@ -103,7 +103,7 @@ test('500 signup errors expose fixed codes, never private GoTrue logs',()=>{
  assert.match(probe,/reply\?\.msg/);
  for(const code of ['DB_WRITE','SMTP_DELIVERY','JWT_SIGNING','DB_PERMISSION'])
   assert.ok(probe.includes("category='"+code+"'"));
- assert.match(script,/docker logs "\$auth" > "\$scratch\/gotrue-failure-private\.log" 2>&1 \|\| true/);
+ assert.match(script,/docker logs --since "\$probe_started" "\$auth" > "\$scratch\/gotrue-failure-private\.log" 2>&1 \|\| true/);
  assert.match(script,/M44_AUTH_RUNTIME_PRIVATE_CAUSE_/);
  assert.match(script,/log_reason=UNCLASSIFIED/);
  assert.doesNotMatch(script,/cat "\$scratch\/gotrue-failure-private\.log"|tee .*gotrue-failure-private/);
@@ -153,6 +153,22 @@ test('premerge synthetic SMTP verifies STARTTLS and auth without Supabase',()=>{
  const syntax=spawnSync('bash',['-n','scripts/ops/m44_smtp_tls_preflight.sh'],{encoding:'utf8',timeout:3000});
  assert.equal(syntax.status,0,syntax.stderr);
 });
+test('login failure is classified by bounded status and GoTrue codes, no raw data',()=>{
+ assert.match(probe,/async function authFailure\(response,phase\)/);
+ assert.match(probe,/NEW_SESSION_LOGIN/);
+ assert.match(probe,/NEW_SESSION_REFRESH/);
+ for(const code of ['EMAIL_NOT_CONFIRMED','INVALID_CREDENTIALS','DATABASE_ERROR','UNEXPECTED_FAILURE'])
+  assert.ok(probe.includes(code),code);
+ assert.match(probe,/CONFIRMATION_REJECTED_BY_AUTH/);
+ assert.match(script,/M44_AUTH_RUNTIME_SQLSTATE_/);
+ assert.match(script,/23502\|23503\|23505\|42501\|42703\|42P01\|42P10\|42883\|22023/);
+ assert.match(script,/M44_AUTH_RUNTIME_SYNTHETIC_EMAIL_CONFIRMED_ONLY/);
+ assert.match(script,/auth\.users WHERE email LIKE 'm44-recovery-%@gmail\.com'/);
+ assert.match(script,/--since "\$probe_started"/);
+ assert.doesNotMatch(probe,/console\.(?:log|error)\((?:result|hint|response)/);
+ assert.doesNotMatch(script,/cat "\$scratch\/gotrue-failure-private\.log"|tee .*gotrue-failure-private/);
+});
+
 test('isolated signup uses DNS-valid synthetic recipient with no external delivery',()=>{
  assert.match(probe,/m44-recovery-/);
  assert.doesNotMatch(probe,/@example\.invalid/);

@@ -145,6 +145,7 @@ docker run -d --name "$auth" --network "$net" --cap-drop ALL \
 unset GOTRUE_JWT_KEYS GOTRUE_JWT_SECRET GOTRUE_DB_DATABASE_URL GOTRUE_SMTP_PASS
 # All HTTP calls remain on this Docker --internal network, run only on a
 # synthetic .invalid identity, and do not print tokens, emails or response JSON.
+probe_started="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
  -v "$PWD/scripts/ops/m44_isolated_auth_roundtrip.mjs:/work/probe.mjs:ro" \
  node:22-alpine node /work/probe.mjs \
@@ -156,7 +157,7 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
  printf '%s\n' "$safe_failure" >&2
  # GoTrue's private log stays on this isolated runner. Only a closed-set
  # diagnostic category crosses CI; never print raw lines or their values.
- docker logs "$auth" > "$scratch/gotrue-failure-private.log" 2>&1 || true
+ docker logs --since "$probe_started" "$auth" > "$scratch/gotrue-failure-private.log" 2>&1 || true
  log_reason=UNCLASSIFIED
  if grep -Eiq 'permission denied|insufficient privilege|SQLSTATE.?42501' "$scratch/gotrue-failure-private.log"; then
   log_reason=DB_PERMISSION
@@ -174,6 +175,24 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
   log_reason=JWT_ERROR
  fi
  printf 'M44_AUTH_RUNTIME_PRIVATE_CAUSE_%s\n' "$log_reason" >&2
+ # Reveal only a whitelisted SQLSTATE class; never SQL error text.
+ state="$(grep -Eom1 'SQLSTATE[^[:alnum:]]*[A-Z0-9]{5}' "$scratch/gotrue-failure-private.log" |
+  grep -Eo '[A-Z0-9]{5}$' || true)"
+ case "$state" in
+  23502|23503|23505|42501|42703|42P01|42P10|42883|22023)
+   printf 'M44_AUTH_RUNTIME_SQLSTATE_%s\n' "$state" >&2 ;;
+ esac
+ # Read back only an aggregate of synthetic records inside the CLONE. This
+ # distinguishes a valid confirmation from a failure redirect in GoTrue.
+ confirmation="$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d "$clone" \
+  -c "SELECT count(*)::text||':'||count(email_confirmed_at)::text
+      FROM auth.users WHERE email LIKE 'm44-recovery-%@gmail.com';" \
+  2>"$scratch/synthetic-email-private.log" || true)"
+ case "$confirmation" in
+  1:1) echo M44_AUTH_RUNTIME_SYNTHETIC_EMAIL_CONFIRMED_ONLY >&2 ;;
+  1:0) echo M44_AUTH_RUNTIME_SYNTHETIC_EMAIL_UNCONFIRMED_ONLY >&2 ;;
+  *) echo M44_AUTH_RUNTIME_SYNTHETIC_EMAIL_STATE_UNKNOWN >&2 ;;
+ esac
  fail HOSTED_AUTH_SMTP_ROUNDTRIP_FAILED
 fi
 # The original independent restore remains intact throughout the rehearsal.
