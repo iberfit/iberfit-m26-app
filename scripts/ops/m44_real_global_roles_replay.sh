@@ -25,8 +25,13 @@ trap cleanup EXIT
 # Preserve the genuine grantors/options; omit ONLY the bootstrap CREATE ROLE.
 bootstrap_count="$(grep -Ec '^CREATE ROLE "?supabase_admin"?;[[:space:]]*$' "$archive" || true)"
 [[ "$bootstrap_count" == 1 ]] || fail BOOTSTRAP_SOURCE_DRIFT
-expected_members="$(grep -Ec '^GRANT .+ TO .+ GRANTED BY "?supabase_admin"?;[[:space:]]*$' "$archive" || true)"
-[[ "$expected_members" =~ ^[0-9]+$ ]] && (( expected_members>=1 )) || fail MEMBERSHIP_SOURCE_DRIFT
+# pg_dumpall may omit GRANTED BY when the grantor is the session user.
+# Every GRANT creates one role membership, including implicit-grantor GRANTs.
+expected_members="$(grep -Ec '^GRANT .+ TO .+;[[:space:]]*$' "$archive" || true)"
+explicit_members="$(grep -Ec '^GRANT .+ TO .+ GRANTED BY "?supabase_admin"?;[[:space:]]*$' "$archive" || true)"
+[[ "$expected_members" =~ ^[0-9]+$ && "$explicit_members" =~ ^[0-9]+$ ]] &&
+  (( expected_members>=1 && explicit_members<=expected_members && expected_members<=120 )) ||
+  fail MEMBERSHIP_SOURCE_DRIFT
 if grep -E '^GRANT .+ GRANTED BY ' "$archive" |
    grep -Ev ' GRANTED BY "?supabase_admin"?;[[:space:]]*$' >/dev/null; then
   fail GRANTOR_SOURCE_DRIFT
@@ -99,7 +104,11 @@ grantor_total="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STO
   -h 127.0.0.1 -U supabase_admin -d postgres \
   -c "SELECT count(*) FROM pg_auth_members WHERE grantor='supabase_admin'::regrole;" \
   2>"$work/grantor-check.log")" || fail GRANTOR_READBACK_FAILED
-[[ "$grantor_total" == "$expected_members" ]] || fail GRANTOR_PARITY_DRIFT
+[[ "$grantor_total" =~ ^[0-9]+$ ]] && (( grantor_total<=120 )) || fail GRANTOR_READBACK_INVALID
+if [[ "$grantor_total" != "$expected_members" ]]; then
+  echo "M44_REAL_GLOBAL_ROLES_GRANT_PARITY_COUNT:source=$expected_members:restored=$grantor_total" >&2
+  fail GRANTOR_PARITY_DRIFT
+fi
 ok="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \
   -h 127.0.0.1 -U supabase_admin -d postgres \
   -c "SELECT (EXISTS(SELECT 1 FROM pg_roles WHERE rolname='postgres') AND
