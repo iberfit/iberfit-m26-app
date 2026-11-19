@@ -1,15 +1,15 @@
 {
   "schema": "iberfit.m44.prod.edge-recovery-source.v1",
   "source_project_ref": "pjhmrhejsoofmouedavw",
-  "capture_date_utc": "2026-11-15",
+  "capture_date_utc": "2026-11-19",
   "sources": [
     {
       "slug": "iberfit-admin-client-invite-v1",
       "verify_jwt": false,
-      "live_bundle_sha256": "4d2dff2482f791787993455c52daea17e81d6b69093ca362e3c2c07b52ee4399",
-      "source_path": "scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts",
-      "source_git_blob_sha1": "a6ee9759dbc99267fff6cbc256d6dd906109fdea",
-      "source_state": "canonical_live_snapshot_pending_release"
+      "live_bundle_sha256": "c847ac0732966de086e82a4b4a5570719a18a9159b75a141305b3e136efc0e5d",
+      "source_path": "supabase/functions/iberfit-admin-client-invite-v1/index.ts",
+      "source_git_blob_sha1": "9124e4e5c46419f4cc339fed05f6be34ac67524b",
+      "source_state": "canonical"
     },
     {
       "slug": "iberfit-admin-media-review-v1",

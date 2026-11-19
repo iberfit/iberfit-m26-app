@@ -17,7 +17,13 @@ export function enforcePagesOnlyBoundary(m){
   if(!SHA.test(m.expectedPreviousLiveSha||'')||
      m.expectedPreviousLiveSha===m.sourceSha)
     throw Error('IBERFIT_PROD_PREVIOUS_LIVE_SHA_INVALID');
-  return Object.freeze({scope:'PAGES_FRONTEND_ONLY',
+  const mode=m.datedTrainingMode??'closed';
+  if(!['closed','active'].includes(mode))throw Error('IBERFIT_PROD_DATED_MODE_INVALID');
+  if(mode==='active'&&m.backendActivationProof!=='verified-dated-sql-edge')
+    throw Error('IBERFIT_PROD_BACKEND_PREACTIVATION_REQUIRED');
+  if(mode==='closed'&&m.backendActivationProof!==undefined)
+    throw Error('IBERFIT_PROD_BACKEND_PROOF_UNEXPECTED');
+  return Object.freeze({scope:'PAGES_FRONTEND_ONLY',datedMode:mode,
     backendMutationsAuthorized:false,hostedAuthMutationsAuthorized:false,
     backendRecoveryCertified:false});
 }

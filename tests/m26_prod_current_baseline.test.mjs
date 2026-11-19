@@ -11,6 +11,10 @@ const valid=()=>({
  migration_latest:EXACT_LEDGER_LATEST,migration_ledger_sha256:EXACT_LEDGER_SHA256,
  existing_webauthn:true,existing_rc74:true,staged_u60:true,
  existing_m44:true,existing_connected360:true,u72_not_installed:true,
+ coach_guard_installed:true,coach_prepare_acl:true,coach_finalize_acl:true,
+ coach_prepare_md5:'c6ce72f2333fbc369b66792b735dc8ef',
+ coach_bind_md5:'c8bbd63ace0634a4b1ad5f444fdd0d98',
+ coach_finalize_md5:'168dc6bd262169a58a6d9ff12558078d',
  u60_auth_execute:false,u60_anon_execute:false,u60_detail_auth_execute:false,
  u72_source_gateway_md5:'5914acf371015a6bbeeaf95f99e056e3',
  u72_source_detail_md5:'35862b8e4977fcf0c3d611937fe83126',
@@ -21,7 +25,7 @@ const valid=()=>({
 test('catalog-only query has no business rows, RLS bypass, privilege mutation or app RPC call',()=>{
  assert.equal(PROD_REF,'pjhmrhejsoofmouedavw');
  assert.equal(REQUIRED_VERSIONS.length,14);
- assert.equal(EXACT_LEDGER_TOTAL,225);
+ assert.equal(EXACT_LEDGER_TOTAL,226);
  assert.match(EXACT_LEDGER_SHA256,/^[a-f0-9]{64}$/u);
  assert.match(QUERY,/^SELECT\n/u);
  assert.match(QUERY,/FROM supabase_migrations\.schema_migrations/u);
@@ -59,12 +63,14 @@ test('rejected migration drift, source fingerprint, widening ACL or RLS disabled
   {migration_latest:'20261107144121'},{migration_ledger_sha256:'f'.repeat(64)},
   {existing_webauthn:false},{existing_rc74:false},{staged_u60:false},
   {existing_m44:false},{existing_connected360:false},{u72_not_installed:false},
+  {coach_guard_installed:false},{coach_prepare_acl:false},{coach_finalize_acl:false},
+  {coach_prepare_md5:'bad'},{coach_bind_md5:'bad'},{coach_finalize_md5:'bad'},
   {u60_auth_execute:true},{u60_anon_execute:true},{u60_detail_auth_execute:true},
   {u72_source_gateway_md5:'bad'},{u72_source_detail_md5:'bad'},
   {u72_source_receipt_md5:'bad'},{u60_fences:1},
   {registry_rls:false},{locks_rls:false},{entities_rls:false},
   {occurrences_rls:false},{environment_rpc_acl:false},
-  {migration_total:'225'},
+  {migration_total:'226'},
  ];
  for(const change of bad)assert.throws(
   ()=>certifyCurrentProductionBaseline([{...valid(),...change}],{sourceSha:SHA}),

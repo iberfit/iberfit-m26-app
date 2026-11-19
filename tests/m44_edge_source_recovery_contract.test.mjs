@@ -80,17 +80,18 @@ test('Manifest rejects traversal, incorrect provenance and accidental restoratio
  assert.throws(()=>loadInventory(path.join(repo,'package.json')),/MANIFEST_INVALID/);
 });
 
-test('Invitation Edge preserves the deployed PROD recovery snapshot independently from the candidate',()=>{
- const historical=inventory.sources.find(s=>s.slug==='iberfit-admin-client-invite-v1');
- assert.equal(historical.source_state,'canonical_live_snapshot_pending_release');
- assert.equal(historical.source_path,'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts');
- const archived=fs.readFileSync(path.join(repo,historical.source_path),'utf8');
- const candidate=fs.readFileSync(path.join(repo,'supabase/functions/iberfit-admin-client-invite-v1/index.ts'),'utf8');
- assert.notEqual(archived,candidate);
+test('Invitation Edge v10 is current canonical, with prior PROD v9 retained for rollback',()=>{
+ const deployed=inventory.sources.find(s=>s.slug==='iberfit-admin-client-invite-v1');
+ assert.equal(deployed.source_state,'canonical');
+ assert.equal(deployed.source_path,'supabase/functions/iberfit-admin-client-invite-v1/index.ts');
+ assert.equal(deployed.source_git_blob_sha1,'9124e4e5c46419f4cc339fed05f6be34ac67524b');
+ assert.equal(deployed.live_bundle_sha256,'c847ac0732966de086e82a4b4a5570719a18a9159b75a141305b3e136efc0e5d');
+ const archived=fs.readFileSync(path.join(repo,'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts'),'utf8');
+ const current=fs.readFileSync(path.join(repo,deployed.source_path),'utf8');
+ assert.notEqual(archived,current);
  assert.match(archived,/admin-client-invite-v26\.5/u);
- assert.match(candidate,/admin-client-invite-v26\.6/u);
+ assert.match(current,/admin-client-invite-v26\.6/u);
 });
-
 test('M44 active LIVE invitation retains immutable recoverable bytes; candidate is separately SHA-bound',()=>{
  const manifest=JSON.parse(fs.readFileSync(
   'scripts/ops/m44_edge_candidate_iberfit_admin_invite_v1.json','utf8'));
@@ -105,9 +106,9 @@ test('M44 active LIVE invitation retains immutable recoverable bytes; candidate 
  assert.equal(manifest.external_live_attestation,false);
  assert.equal(manifest.production_release_approved,false);
  const historical=inventory.sources.find(s=>s.slug===manifest.slug);
- assert.equal(historical.source_state,'canonical_live_snapshot_pending_release');
- assert.equal(historical.source_path,manifest.live_archive_path);
- assert.equal(historical.source_git_blob_sha1,manifest.live_archive_git_blob_sha1);
+ assert.equal(historical.source_state,'canonical');
+ assert.equal(historical.source_path,manifest.candidate_source_path);
+ assert.equal(historical.source_git_blob_sha1,manifest.candidate_git_blob_sha1);
  assert.equal(manifest.live_archive_path,
   'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts');
  assert.equal(manifest.candidate_source_path,
@@ -119,7 +120,7 @@ test('M44 active LIVE invitation retains immutable recoverable bytes; candidate 
  assert.equal(hash(candidate),manifest.candidate_git_blob_sha1);
  assert.equal(hash(live),'a6ee9759dbc99267fff6cbc256d6dd906109fdea');
  assert.equal(hash(candidate),'9124e4e5c46419f4cc339fed05f6be34ac67524b');
- assert.notEqual(hash(live),hash(candidate),'CANDIDATE_MUST_NOT_IMPERSONATE_LIVE');
+ assert.notEqual(hash(live),hash(candidate),'HISTORICAL_ROLLBACK_MUST_NOT_IMPERSONATE_CURRENT_LIVE');
  assert.deepEqual(extractReferencedNames(candidate.toString('utf8')),
   extractReferencedNames(live.toString('utf8')),
   'CANDIDATE_SECRET_ENV_REFERENCE_EXPANSION');
