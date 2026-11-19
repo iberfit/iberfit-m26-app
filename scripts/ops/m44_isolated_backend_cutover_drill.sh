@@ -67,9 +67,19 @@ db psql -X -A -t -v ON_ERROR_STOP=1 -d postgres \
 node scripts/ops/m44_prepare_missing_local_roles.mjs \
   "$work/global-roles.sql" "$out/existing-roles.txt" "$out/missing-role-ddl.sql" \
   >"$out/role-plan-private.log" 2>&1 || fail ROLE_PLAN_REJECTED
-db psql -X -q -v ON_ERROR_STOP=1 -d postgres \
-  -f /backup/backend-drill-private/missing-role-ddl.sql \
-  >"$out/role-create-private.log" 2>&1 || fail LOCAL_ROLE_PLACEHOLDERS_FAILED
+if ! db psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=sqlstate \
+  -d postgres -f /backup/backend-drill-private/missing-role-ddl.sql \
+  >"$out/role-create-private.log" 2>&1; then
+  # SQLSTATE-only diagnostics; no SQL statements, role names or private paths.
+  state="$(grep -Eo 'ERROR:[[:space:]]+[0-9A-Z]{5}' "$out/role-create-private.log" \
+    | tail -n 1 | grep -Eo '[0-9A-Z]{5}$' || true)"
+  if [[ "$state" =~ ^[0-9A-Z]{5}$ ]]; then
+    echo "M44_LOCAL_ROLE_PLACEHOLDERS_SQLSTATE:$state" >&2
+  else
+    echo 'M44_LOCAL_ROLE_PLACEHOLDERS_SQLSTATE:UNAVAILABLE' >&2
+  fi
+  fail LOCAL_ROLE_PLACEHOLDERS_FAILED
+fi
 echo 'M44_LOCAL_ROLE_PLACEHOLDERS_NOLOGIN_ONLY'
 
 # This is a NEW database in the already isolated local service; unlike the
