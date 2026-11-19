@@ -32,7 +32,10 @@ function safeUrl(s){
   const max=Math.min(s.length,start+2048);
   let end=start;
   while(end<max&&!delimiters.has(s[end]))end++;
-  const candidate=s.slice(start,end).replaceAll('&amp;','&').replace(/[).,]+$/u,'');
+  let candidate=s.slice(start,end).replaceAll('&amp;','&');
+  let finish=candidate.length;
+  while(finish>0&&'),.'.includes(candidate[finish-1]))finish--;
+  candidate=candidate.slice(0,finish);
   try{
    const url=new URL(candidate);
    if(url.origin===A&&url.pathname==='/verify'&&url.searchParams.has('token'))return url;
