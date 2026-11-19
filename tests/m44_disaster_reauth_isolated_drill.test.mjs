@@ -69,3 +69,11 @@ test('readback failures disclose only a safe category, never sensitive row conte
  ])assert.ok(source.includes('fail '+category),category);
  assert.doesNotMatch(source,/echo .*\$users|echo .*\$refresh|echo .*\$sessions/u);
 });
+
+test('Docker forwards heredoc SQL to local psql, preventing false-success reauthentication',()=>{
+ const helper=source.match(/pg\(\)\{ docker run ([^\n]*)/u)?.[1]||'';
+ assert.match(helper,/--interactive(?:\s|$)/u);
+ assert.match(source,/pg psql -X -q -v ON_ERROR_STOP=1 -d "\$clone"[\s\S]*<<'SQL'/u);
+ assert.match(source,/DELETE FROM auth\.refresh_tokens;[\s\S]*DELETE FROM auth\.sessions;/u);
+ assert.match(source,/\[\[ "\$sessions_after" == 0 \]\] \|\| fail SESSIONS_NOT_INVALIDATED/u);
+});

@@ -26,7 +26,10 @@ umask 077
 scratch="$1/disaster-reauth-private"
 mkdir -m 700 -p "$scratch"
 clone=iberfit_m44_disaster_reauth_test
-pg(){ docker run --rm --network host \
+# Forward stdin to PostgreSQL for multi-statement transaction scripts.
+# Without --interactive, a heredoc reaches no container process and psql may
+# exit successfully despite executing zero DELETEs. Readback is mandatory.
+pg(){ docker run --interactive --rm --network host \
   -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER \
   postgres:17-alpine "$@"; }
 cleanup(){
