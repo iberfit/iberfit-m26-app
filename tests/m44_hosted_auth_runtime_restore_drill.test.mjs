@@ -19,7 +19,7 @@ test('Hosted recovery proof always fails outside isolated restored PG17 context'
  {GITHUB_REPOSITORY:'other/repo'},
  {M44_AUTH_RUNTIME_DRILL_ENABLED:'false'},
  {PGHOST:'db.pjhmrhejsoofmouedavw.supabase.co'},
- {PGDATABASE:'postgres'}, {PGPASSWORD:'secret'},
+ {PGDATABASE:'postgres'}, {PGPASSWORD:'x'},
  {SUPABASE_ACCESS_TOKEN:'never-expose'},
  {IBERFIT_PROD_DATABASE_URL:'postgres://prod.invalid/db'},
  {SUPABASE_SERVICE_ROLE_KEY:'never-expose'},
