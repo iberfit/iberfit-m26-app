@@ -16,6 +16,8 @@ const fail=code=>{throw Error(PREFIX+code);};
 
 export function generateLocalExecutorRoleSql(globals){
  validateRoleGlobals(globals);
+ if(/\b(?:DROP\s+(?:TABLE|SCHEMA|DATABASE)|TRUNCATE|COPY\s+|CREATE\s+FUNCTION)\b/iu.test(globals))
+  fail('NON_ROLE_SQL_FORBIDDEN');
  const alter=[...globals.matchAll(/^ALTER ROLE "?postgres"? WITH ([^\r\n;]+);/gmu)];
  if(alter.length!==1)fail('OWNER_ROLE_OPTIONS_MISSING');
  const tokens=new Set(alter[0][1].trim().split(/\s+/u));
