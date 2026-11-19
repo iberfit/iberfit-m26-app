@@ -254,6 +254,7 @@ jobs:
             tests/m44_vault_root_key_archive.test.mjs \
             tests/m44_hosted_auth_config_archive.test.mjs \
             tests/m44_hosted_auth_runtime_restore_drill.test.mjs \
+            tests/m44_classify_gotrue_missing_column.test.mjs \
             tests/m44_encrypted_backup_archive_contract.test.mjs \
             tests/m44_storage_backup_bytes_contract.test.mjs \
             tests/m44_storage_metadata_parity.test.mjs \
