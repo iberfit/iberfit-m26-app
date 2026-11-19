@@ -51,6 +51,26 @@ if ! docker exec -e PGPASSWORD "$name" psql -X -q -v ON_ERROR_STOP=1 \
   else
     echo 'M44_REAL_ROLES_REPLAY_SQLSTATE:UNAVAILABLE' >&2
   fi
+  # Parse private error location but expose only an enumerated SQL category.
+  reference="$(grep -Eo 'global-roles[.]sql:[0-9]{1,6}:' "$work/replay.log" | tail -n 1 || true)"
+  line="${reference#global-roles.sql:}"
+  line="${line%:}"
+  if [[ "$line" =~ ^[0-9]{1,6}$ ]]; then
+    kind="$(awk -v stop="$line" '
+      NR > stop {exit}
+      /^[[:space:]]*CREATE ROLE / {k="CREATE_ROLE"}
+      /^[[:space:]]*ALTER ROLE / {k="ALTER_ROLE"}
+      /^[[:space:]]*GRANT / {k="GRANT_ROLE"}
+      /^[[:space:]]*REVOKE / {k="REVOKE_ROLE"}
+      END {print k==""?"OTHER":k}
+    ' "$archive")"
+    case "$kind" in
+      CREATE_ROLE|ALTER_ROLE|GRANT_ROLE|REVOKE_ROLE|OTHER)
+        echo "M44_REAL_ROLES_REPLAY_KIND:$kind" >&2 ;;
+    esac
+  else
+    echo 'M44_REAL_ROLES_REPLAY_KIND:UNKNOWN' >&2
+  fi
   fail REAL_ROLES_REPLAY_FAILED
 fi
 actual="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \
