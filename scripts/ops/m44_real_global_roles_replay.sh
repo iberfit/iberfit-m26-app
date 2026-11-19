@@ -92,7 +92,7 @@ if ! docker exec -e PGPASSWORD "$name" psql -X -q -v ON_ERROR_STOP=1 \
 fi
 actual="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \
   -h 127.0.0.1 -U supabase_admin -d postgres \
-  -c "SELECT count(*) FROM pg_roles WHERE rolname NOT LIKE 'pg_%';" \
+  -c "SELECT count(*) FROM pg_roles WHERE LEFT(rolname,3) <> 'pg_';" \
   2>"$work/readback.log")" || fail READBACK_FAILED
 [[ "$actual" == "$expected" ]] || fail ROLE_CARDINALITY_DRIFT
 grantor_total="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \
