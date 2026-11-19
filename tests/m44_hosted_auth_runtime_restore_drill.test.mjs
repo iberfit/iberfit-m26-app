@@ -56,7 +56,7 @@ test('synthetic recovery probe checks hosted auth SMTP ES256 and token rotation'
   assert.ok(probe.includes(endpoint),endpoint);
  assert.match(probe,/header\.alg!=='ES256'/);
  assert.match(probe,/verify\('sha256'/);
- assert.match(probe,/@example\.invalid/);
+ assert.match(probe,/@gmail\.com/);
  assert.match(probe,/REVOKED_REFRESH_ACCEPTED/);
  assert.doesNotMatch(probe,/SUPABASE_ACCESS_TOKEN|https:\/\/app\.iberfit\.cl|service_role/);
 });
@@ -97,4 +97,16 @@ test('probe failure output remains bounded and redacted',()=>{
  assert.match(script,/M44_AUTH_PROBE_UNKNOWN_ERROR/);
  assert.match(script,/fail HOSTED_AUTH_SMTP_ROUNDTRIP_FAILED/);
  assert.doesNotMatch(script,/cat "\$scratch\/http-private.log"|tee .*http-private.log/);
+});
+
+test('isolated signup uses DNS-valid synthetic recipient with no external delivery',()=>{
+ assert.match(probe,/m44-recovery-/);
+ assert.doesNotMatch(probe,/@example\.invalid/);
+ assert.match(script,/GOTRUE_SMTP_ADMIN_EMAIL=m44-recovery-sink@gmail\.com/);
+ assert.match(script,/docker network create --internal/);
+ assert.match(script,/axllent\/mailpit:v1\.27\.2/);
+ assert.match(probe,/email_address_invalid/);
+ assert.match(probe,/SYNTHETIC_SIGNUP_/);
+ assert.match(probe,/known\.has\(code\)/);
+ assert.doesNotMatch(probe,/console\.log\(reply\)|console\.error\(reply\)/);
 });
