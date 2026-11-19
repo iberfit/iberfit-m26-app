@@ -25,7 +25,7 @@ async function waitHealth(){
 function safeUrl(s){
  if(typeof s!=='string'||s.length>200000)return null;
  const prefix=A+'/verify?';
- const delimiters=new Set([' ', '\\n', '\\r', '\\t', '"', "'", '<', '>']);
+ const delimiters=new Set([' ', '\n', '\r', '\t', '"', "'", '<', '>']);
  for(let from=0,found=0;found<30;found++){
   const start=s.indexOf(prefix,from);
   if(start<0)return null;
