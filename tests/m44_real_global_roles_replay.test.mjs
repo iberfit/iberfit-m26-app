@@ -66,3 +66,16 @@ test('bootstrap matches source GRANTED BY and verifies archived membership grant
  assert.equal(x.status,0,x.stderr);
  assert.equal(x.stdout,sample.replace('CREATE ROLE supabase_admin;\n',''));
 });
+
+test('PG17 role cardinality excludes only literal pg_ internal prefix',()=>{
+ // LIKE 'pg_%' treats underscore as a wildcard and silently skips legitimate
+ // roles such as pgbouncer. The source archive includes these custom roles.
+ assert.ok(script.includes("LEFT(rolname,3) <> 'pg_'"));
+ assert.ok(!script.includes("rolname NOT LIKE 'pg_%'"));
+ const realNames=['supabase_admin','postgres','anon','pgbouncer',
+   'pg_database_owner','pg_read_all_data','service_role'];
+ const intended=realNames.filter(name=>name.slice(0,3)!=='pg_');
+ assert.ok(intended.includes('pgbouncer'));
+ assert.ok(!intended.includes('pg_database_owner'));
+ assert.equal(intended.length,5);
+});
