@@ -1,11 +1,40 @@
 // Real GoTrue + Mailpit exercise inside an internal-only Docker network.
 // Contains only synthetic data. Tokens, SMTP message bodies and identities never log.
 import {randomBytes,createPublicKey,verify} from 'node:crypto';
+import {connect} from 'node:net';
 // Explicit narrow Sonar exception: HTTP here only crosses a Docker --internal
 // network with NO published ports, using synthetic credentials/identities.
 const A='http://m44-auth:9999'; // NOSONAR: isolated internal-only recovery test; no public transport.
 const M='http://iberfit-m44-smtp-isolated:8025'; // NOSONAR: same isolated network, no published port.
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// SMTP must be reachable within the Docker --internal network before signup.
+// This sends no email and never opens an external network connection.
+const SMTP_HOST='iberfit-m44-smtp-isolated';
+async function smtpGreeting(){
+ return new Promise(resolve=>{
+  const socket=connect({host:SMTP_HOST,port:1025});
+  let done=false;
+  const finish=ok=>{if(done)return;done=true;socket.destroy();resolve(ok)};
+  socket.setTimeout(1500,()=>finish(false));
+  socket.once('error',()=>finish(false));
+  socket.once('data',chunk=>{
+   const banner=chunk.toString('utf8');
+   finish(banner.length<=512&&/^220[ -]/.test(banner));
+  });
+ });
+}
+async function waitSmtpReady(){
+ for(let i=0;i<20;i++){
+  try{
+   const result=await fetch(M+'/api/v1/messages',
+    {signal:AbortSignal.timeout(1500),redirect:'error'});
+   if(result.ok&&await smtpGreeting())return;
+  }catch{}
+  await sleep(500);
+ }
+ refuse('LOCAL_SMTP_NOT_READY');
+}
+
 const refuse=code=>{throw Error('M44_AUTH_PROBE_'+code)};
 async function request(url,options={},timeout=8000){
  try{return await fetch(url,{...options,signal:AbortSignal.timeout(timeout),redirect:'manual'});}
@@ -81,6 +110,7 @@ async function verifySignature(access){
 }
 async function run(){
  await waitHealth();
+ await waitSmtpReady();
  const email='m44-recovery-'+randomBytes(9).toString('hex')+'@gmail.com';
  const password='M44#'+randomBytes(20).toString('base64url');
  const body={email,password};
