@@ -173,6 +173,26 @@ export function verifyFrontendOnlyLiveIdentity(version,{expectedPreviousLiveSha,
   return true;
 }
 
+// A release manifest is not enough: the build mode, verification mode and
+// backend preactivation evidence must all describe the SAME exact source SHA.
+// This guards against stale GITHUB_ENV or a closed/active mode mismatch.
+export function certifyFrontendReleaseModeContext({
+ sourceSha,mode,verificationMode,activationFlag,certifiedSourceSha,operatorApproval
+}={}){
+ if(!SHA.test(sourceSha||''))throw Error('FRONTEND_ONLY_MODE_SOURCE_SHA_INVALID');
+ if(!['closed','active'].includes(mode))throw Error('FRONTEND_ONLY_MODE_UNSUPPORTED');
+ if(verificationMode!==mode)throw Error('FRONTEND_ONLY_MODE_VERIFIER_DRIFT');
+ if(activationFlag!==(mode==='active'?'true':'false'))
+   throw Error('FRONTEND_ONLY_MODE_ACTIVATION_DRIFT');
+ if(mode==='active'){
+   if(certifiedSourceSha!==sourceSha||operatorApproval!=='approved')
+     throw Error('FRONTEND_ONLY_MODE_BACKEND_CERTIFICATION_REQUIRED');
+ }else if(certifiedSourceSha!==undefined||operatorApproval!==undefined){
+   throw Error('FRONTEND_ONLY_MODE_CLOSED_PROOF_UNEXPECTED');
+ }
+ return Object.freeze({mode,sourceSha,backendMutationsAuthorized:false});
+}
+
 async function main(){
   if(process.env.FRONTEND_ONLY_RELEASE!=='true')throw Error('FRONTEND_ONLY_MODE_NOT_AUTHORIZED');
   if(process.env.APP_DOMAIN!=='app.iberfit.cl')throw Error('FRONTEND_ONLY_DOMAIN_MISMATCH');
@@ -183,6 +203,13 @@ async function main(){
   if(!SHA.test(sourceSha||'')||!SHA.test(expectedPreviousLiveSha||'')){
     throw Error('FRONTEND_ONLY_SHA_INVALID');
   }
+  certifyFrontendReleaseModeContext({
+    sourceSha,mode:process.env.M26_U60_PROD_MODE,
+    verificationMode:process.env.M26_VERIFY_DATED_TRAINING_MODE,
+    activationFlag:process.env.U60_RELEASE_ACTIVE,
+    certifiedSourceSha:process.env.M26_U60_CERTIFIED_SOURCE_SHA,
+    operatorApproval:process.env.M26_U60_OPERATOR_APPROVAL,
+  });
   try{
     execFileSync(SYSTEM_GIT,['merge-base','--is-ancestor',expectedPreviousLiveSha,sourceSha],
       {stdio:'pipe',timeout:10000});
