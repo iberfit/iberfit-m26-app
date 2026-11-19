@@ -65,3 +65,13 @@ test('no real Hosted Auth restoration is inferred from the synthetic fixture',()
  assert.match(script,/M44_ISOLATED_GOTRUE_ES256_SMTP_AUTH_ROUNDTRIP_VERIFIED_ONLY/);
  assert.match(probe,/M44_ISOLATED_GOTRUE_NEW_ES256_SIGNUP_SMTP_REFRESH_LOGOUT_PASS/);
 });
+
+test('SMTP uses fresh random material; HTTP exemptions stay internal-only; parser bounded',()=>{
+ assert.match(script,/GOTRUE_SMTP_PASS="\$\(openssl rand -hex 32\)"/);
+ assert.match(script,/-e GOTRUE_SMTP_PASS \\/);
+ assert.doesNotMatch(script,/GOTRUE_SMTP_PASS=only-local/);
+ assert.equal((probe.match(/NOSONAR: isolated internal-only recovery test|NOSONAR: same isolated network/g)||[]).length,2);
+ assert.match(probe,/s\.length>200000/);
+ assert.match(probe,/start\+2048/);
+ assert.doesNotMatch(probe,/\.matchAll\(/);
+});
