@@ -140,7 +140,7 @@ docker run -d --name "$auth" --network "$net" --cap-drop ALL \
  -e GOTRUE_SMTP_ADMIN_EMAIL=m44-recovery-sink@gmail.com \
  -e GOTRUE_SMTP_SENDER_NAME=IBERFIT-DR-LOCAL \
  --network-alias m44-auth \
- supabase/gotrue:v2.197.0 > /dev/null 2>"$scratch/auth-start-private.log" ||
+ supabase/gotrue:v2.198.0 > /dev/null 2>"$scratch/auth-start-private.log" ||
  fail GOTRUE_START_FAILED
 unset GOTRUE_JWT_KEYS GOTRUE_JWT_SECRET GOTRUE_DB_DATABASE_URL GOTRUE_SMTP_PASS
 # All HTTP calls remain on this Docker --internal network, run only on a
