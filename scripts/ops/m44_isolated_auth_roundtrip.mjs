@@ -1,7 +1,10 @@
 // Real GoTrue + Mailpit exercise inside an internal-only Docker network.
 // Contains only synthetic data. Tokens, SMTP message bodies and identities never log.
 import {randomBytes,createPublicKey,verify} from 'node:crypto';
-const A='http://m44-auth:9999', M='http://iberfit-m44-smtp-isolated:8025';
+// Explicit narrow Sonar exception: HTTP here only crosses a Docker --internal
+// network with NO published ports, using synthetic credentials/identities.
+const A='http://m44-auth:9999'; // NOSONAR: isolated internal-only recovery test; no public transport.
+const M='http://iberfit-m44-smtp-isolated:8025'; // NOSONAR: same isolated network, no published port.
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const refuse=code=>{throw Error('M44_AUTH_PROBE_'+code)};
 async function request(url,options={},timeout=8000){
@@ -20,13 +23,25 @@ async function waitHealth(){
  refuse('GOTRUE_UNHEALTHY');
 }
 function safeUrl(s){
- if(typeof s!=='string')return null;
- const x=s.replaceAll('&amp;','&');
- for(const match of x.matchAll(/https?:\/\/m44-auth:9999\/verify\?[^\s"'<>]+/g)){
-  try{const url=new URL(match[0].replace(/[).,]+$/g,''));if(url.origin===A && url.pathname==='/verify'&&url.searchParams.has('token'))return url;}catch{}
+ if(typeof s!=='string'||s.length>200000)return null;
+ const prefix=A+'/verify?';
+ const delimiters=new Set([' ', '\\n', '\\r', '\\t', '"', "'", '<', '>']);
+ for(let from=0,found=0;found<30;found++){
+  const start=s.indexOf(prefix,from);
+  if(start<0)return null;
+  const max=Math.min(s.length,start+2048);
+  let end=start;
+  while(end<max&&!delimiters.has(s[end]))end++;
+  const candidate=s.slice(start,end).replaceAll('&amp;','&').replace(/[).,]+$/u,'');
+  try{
+   const url=new URL(candidate);
+   if(url.origin===A&&url.pathname==='/verify'&&url.searchParams.has('token'))return url;
+  }catch{}
+  from=start+prefix.length;
  }
  return null;
 }
+
 async function confirmFromSmtp(){
  for(let n=0;n<20;n++){
   const resp=await request(M+'/api/v1/messages');
