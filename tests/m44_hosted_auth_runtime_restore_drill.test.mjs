@@ -163,6 +163,12 @@ test('login failure is classified by bounded status and GoTrue codes, no raw dat
  assert.match(script,/M44_AUTH_RUNTIME_SQLSTATE_/);
  assert.match(script,/m44_classify_gotrue_missing_column\.mjs/);
  assert.match(script,/M44_AUTH_RUNTIME_42703_COLUMN_/);
+ assert.match(script,/docker logs --since "\$probe_started" iberfit-m44-local-restore/);
+ assert.match(script,/postgres-failure-private\.log/);
+ assert.match(script,/M44_AUTH_PG42703_CANDIDATE_/);
+ // The PostgreSQL log only runs in the SQLSTATE=42703 failure branch.
+ assert.ok(script.indexOf('if [[ "$state" == 42703 ]]') < script.indexOf('postgres-failure-private.log'));
+ assert.doesNotMatch(script,/cat "\$scratch\/postgres-failure-private\.log"|tee .*postgres-failure-private/);
  assert.match(script,/23502\|23503\|23505\|42501\|42703\|42P01\|42P10\|42883\|22023/);
  assert.match(script,/M44_AUTH_RUNTIME_SYNTHETIC_EMAIL_CONFIRMED_ONLY/);
  assert.match(script,/SYNTHETIC_EMAIL_CONFIRMATION_NOT_PERSISTED/);
