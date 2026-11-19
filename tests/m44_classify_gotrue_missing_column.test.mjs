@@ -65,10 +65,10 @@ test('PostgreSQL private error CLI outputs fixed allowlisted result only', () =>
     assert.equal(r.status,0,r.stderr);
     assert.equal(r.stdout.trim(),'M44_AUTH_PG42703_CANDIDATE_OAUTH_CLIENT_ID');
     assert.doesNotMatch(r.stdout+r.stderr,/private_person|example.invalid|STATEMENT/);
-    writeFileSync(privateLog,'ERROR: column "sensitive_client_field" does not exist\\nSTATEMENT: SELECT private_person@example.invalid');
+    writeFileSync(privateLog,'ERROR: column "sensitive_client_field" does not exist\nSTATEMENT: SELECT private_person@example.invalid');
     const redacted=spawnSync(process.execPath,['scripts/ops/m44_classify_gotrue_missing_column.mjs',privateLog],{encoding:'utf8'});
     assert.equal(redacted.status,0,redacted.stderr);
-    assert.match(redacted.stdout,/^M44_AUTH_PG42703_CANDIDATE_UNLISTED_COLUMN_H[A-F0-9]{16}\\n$/u);
+    assert.match(redacted.stdout,/^M44_AUTH_PG42703_CANDIDATE_UNLISTED_COLUMN_H[A-F0-9]{16}\n$/u);
     assert.doesNotMatch(redacted.stdout+redacted.stderr,/sensitive_client_field|private_person|example.invalid/);
   } finally { rmSync(root,{recursive:true,force:true}); }
 });
