@@ -98,6 +98,9 @@ writeFileSync(process.argv[1],JSON.stringify([{...key,kid:randomUUID(),
 GOTRUE_JWT_KEYS="$(cat "$scratch/jwt-private.json")"
 GOTRUE_JWT_SECRET="$(openssl rand -hex 32)"
 export GOTRUE_JWT_KEYS GOTRUE_JWT_SECRET
+# Unique synthetic local-SMTP credential per rehearsal, never fixed in source.
+GOTRUE_SMTP_PASS="$(openssl rand -hex 32)"
+export GOTRUE_SMTP_PASS
 GOTRUE_DB_DATABASE_URL="postgres://supabase_admin:${PGPASSWORD}@m44db:5432/${clone}?sslmode=disable"
 export GOTRUE_DB_DATABASE_URL
 docker run -d --name "$auth" --network "$net" --cap-drop ALL \
@@ -112,13 +115,13 @@ docker run -d --name "$auth" --network "$net" --cap-drop ALL \
  -e GOTRUE_MAILER_AUTOCONFIRM=false \
  -e GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED=true \
  -e GOTRUE_SMTP_HOST="$mail" -e GOTRUE_SMTP_PORT=1025 \
- -e GOTRUE_SMTP_USER=only-local -e GOTRUE_SMTP_PASS=only-local \
+ -e GOTRUE_SMTP_USER=only-local -e GOTRUE_SMTP_PASS \
  -e GOTRUE_SMTP_ADMIN_EMAIL=m44@example.invalid \
  -e GOTRUE_SMTP_SENDER_NAME=IBERFIT-DR-LOCAL \
  --network-alias m44-auth \
  supabase/gotrue:v2.197.0 > /dev/null 2>"$scratch/auth-start-private.log" ||
  fail GOTRUE_START_FAILED
-unset GOTRUE_JWT_KEYS GOTRUE_JWT_SECRET GOTRUE_DB_DATABASE_URL
+unset GOTRUE_JWT_KEYS GOTRUE_JWT_SECRET GOTRUE_DB_DATABASE_URL GOTRUE_SMTP_PASS
 # All HTTP calls remain on this Docker --internal network, run only on a
 # synthetic .invalid identity, and do not print tokens, emails or response JSON.
 if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
