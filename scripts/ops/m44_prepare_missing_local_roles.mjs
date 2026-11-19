@@ -28,8 +28,16 @@ export function prepareMissingLocalRoles(source,existingNames){
   fail('SOURCE_NAMES_INVALID');
  const found=new Set(lines);
  const missing=declared.filter(n=>!found.has(n)).sort();
+ // The initial role inventory and the actual local PostgreSQL catalog may
+ // differ if the managed image initializes additional roles. Check each role
+ // again atomically *inside* the local server before CREATE ROLE. Never
+ // overwrite or modify a pre-existing role or replay cloud role privileges.
  const sql=['-- Isolated PG17 restore prerequisites only. NOLOGIN placeholders.',
-  'BEGIN;',...missing.map(n=>`CREATE ROLE "${n}" NOLOGIN;`),'COMMIT;',''].join('\n');
+  'BEGIN;',...missing.map(n=>
+   `DO $m44_local_role$ BEGIN IF NOT EXISTS (`+
+   `SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='${n}') THEN `+
+   `EXECUTE 'CREATE ROLE "${n}" NOLOGIN'; END IF; END $m44_local_role$;`
+  ),'COMMIT;',''].join('\n');
  return Object.freeze({sql,expected:declared.length,missing:missing.length,
   placeholderRolesOnly:true,roleAttributesRestored:false,roleMembershipsRestored:false,
   platformRecoveryVerified:false});
