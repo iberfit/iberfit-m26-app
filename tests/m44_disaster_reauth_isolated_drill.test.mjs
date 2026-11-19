@@ -60,3 +60,12 @@ test('disaster restore path fails before connecting for incorrect source identit
  assert.notEqual(r.status,0);
  assert.match(r.stderr,/M44_DISASTER_REAUTH_DRILL_RESTORE_PATH_INVALID/u);
 });
+
+test('readback failures disclose only a safe category, never sensitive row contents',()=>{
+ for(const category of [
+  'USERS_COUNT_CHANGED','IDENTITIES_COUNT_CHANGED','MFA_FACTORS_COUNT_CHANGED',
+  'WEBAUTHN_CREDENTIALS_COUNT_CHANGED','SESSIONS_NOT_INVALIDATED',
+  'REFRESH_TOKENS_NOT_INVALIDATED'
+ ])assert.ok(source.includes('fail '+category),category);
+ assert.doesNotMatch(source,/echo .*\$users|echo .*\$refresh|echo .*\$sessions/u);
+});
