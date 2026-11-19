@@ -40,7 +40,8 @@ cleanup(){
  docker network rm "$net" > /dev/null 2>&1
  pg dropdb --if-exists --force -h 127.0.0.1 -p 5432 -U supabase_admin "$clone" \
    >"$scratch/db-cleanup-private.log" 2>&1
- rm -f "$scratch/jwt-private.json" "$scratch/startup-private.log"
+ rm -f "$scratch/jwt-private.json" "$scratch/startup-private.log" \
+  "$scratch/m44-smtp-private.key" "$scratch/m44-smtp-cert.pem"
 }
 # No network / database mutation may happen until original backup is present and
 # clone name is proven unused. This script only accepts an already restored DB.
@@ -79,11 +80,26 @@ docker network create --internal "$net" > /dev/null 2>"$scratch/network-private.
 docker network connect --alias m44db "$net" iberfit-m44-local-restore \
   > /dev/null 2>"$scratch/network-connect-private.log" ||
   fail LOCAL_DATABASE_LINK_FAILED
+# Generate one-day ephemeral TLS identity with SAN exactly matching the isolated
+# Docker SMTP name. Its public self-signed cert is GoTrue's ONLY local trust
+# anchor (SSL_CERT_FILE); no public CA, external SMTP or live key involved.
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 1 \
+ -subj '/CN=iberfit-m44-smtp-isolated' \
+ -addext 'subjectAltName=DNS:iberfit-m44-smtp-isolated' \
+ -addext 'extendedKeyUsage=serverAuth' \
+ -keyout "$scratch/m44-smtp-private.key" \
+ -out "$scratch/m44-smtp-cert.pem" \
+ >"$scratch/smtp-tls-private.log" 2>&1 || fail LOCAL_SMTP_TLS_GENERATION_FAILED
+chmod 600 "$scratch/m44-smtp-private.key"
+chmod 644 "$scratch/m44-smtp-cert.pem"
 # Use a local SMTP sink, never send any message to a real address.
 docker run -d --name "$mail" --network "$net" --cap-drop ALL \
  --tmpfs /tmp:rw,noexec,nosuid,size=32m \
- -e MP_DATABASE=/tmp/m44-mailpit.db -e MP_SMTP_AUTH_ACCEPT_ANY=true \
- -e MP_SMTP_AUTH_ALLOW_INSECURE=true \
+ -v "$scratch/m44-smtp-private.key:/certs/smtp-private.key:ro" \
+ -v "$scratch/m44-smtp-cert.pem:/certs/smtp-cert.pem:ro" \
+ -e MP_DATABASE=/tmp/m44-mailpit.db -e MP_DISABLE_VERSION_CHECK=true \
+ -e MP_SMTP_AUTH_ACCEPT_ANY=true -e MP_SMTP_REQUIRE_STARTTLS=true \
+ -e MP_SMTP_TLS_CERT=/certs/smtp-cert.pem -e MP_SMTP_TLS_KEY=/certs/smtp-private.key \
  axllent/mailpit:v1.27.2 > /dev/null 2>"$scratch/smtp-start-private.log" ||
  fail LOCAL_SMTP_START_FAILED
 # Fresh private signing material is generated entirely in this runner. NEVER
@@ -107,6 +123,8 @@ GOTRUE_DB_DATABASE_URL="postgres://supabase_admin:${PGPASSWORD}@m44db:5432/${clo
 export GOTRUE_DB_DATABASE_URL
 docker run -d --name "$auth" --network "$net" --cap-drop ALL \
  --tmpfs /tmp:rw,nosuid,size=32m \
+ -v "$scratch/m44-smtp-cert.pem:/certs/smtp-ca.pem:ro" \
+ -e SSL_CERT_FILE=/certs/smtp-ca.pem \
  -e GOTRUE_JWT_KEYS -e GOTRUE_JWT_SECRET -e GOTRUE_DB_DATABASE_URL \
  -e GOTRUE_API_HOST=0.0.0.0 -e GOTRUE_API_PORT=9999 \
  -e GOTRUE_DB_DRIVER=postgres -e GOTRUE_SITE_URL=http://m44-auth:9999 \
@@ -147,7 +165,7 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
   log_reason=SMTP_AUTH
  elif grep -Eiq 'dial tcp.*(refused|timeout)|connect: connection refused|connect: network is unreachable|no such host' "$scratch/gotrue-failure-private.log"; then
   log_reason=SMTP_CONNECT
- elif grep -Eiq 'starttls|tls handshake|x509:|certificate.*(invalid|verify)' "$scratch/gotrue-failure-private.log"; then
+ elif grep -Eiq 'starttls|tls handshake|x509:|certificate.*(invalid|verify)|unencrypted connection' "$scratch/gotrue-failure-private.log"; then
   log_reason=SMTP_TLS
  elif grep -Eiq 'smtp.*(fail|error|refused)|gomail:|mailer.*(fail|error)|send.*email.*(fail|error)|send.*mail.*(fail|error)' "$scratch/gotrue-failure-private.log"; then
   log_reason=SMTP_SEND

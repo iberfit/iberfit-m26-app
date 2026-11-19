@@ -13,13 +13,23 @@ const SMTP_HOST='iberfit-m44-smtp-isolated';
 async function smtpGreeting(){
  return new Promise(resolve=>{
   const socket=connect({host:SMTP_HOST,port:1025});
-  let done=false;
+  let done=false,phase='banner',response='';
   const finish=ok=>{if(done)return;done=true;socket.destroy();resolve(ok)};
-  socket.setTimeout(1500,()=>finish(false));
+  socket.setTimeout(2500,()=>finish(false));
   socket.once('error',()=>finish(false));
-  socket.once('data',chunk=>{
-   const banner=chunk.toString('utf8');
-   finish(banner.length<=512&&/^220[ -]/.test(banner));
+  socket.once('close',()=>finish(false));
+  socket.on('data',chunk=>{
+   response+=chunk.toString('utf8');
+   if(response.length>2048)return finish(false);
+   if(phase==='banner'){
+    if(!response.includes('\r\n'))return;
+    if(!/^220[ -]/.test(response))return finish(false);
+    phase='ehlo';response='';
+    socket.write('EHLO m44-recovery.local\r\n');
+   }else if(/(?:^|\r\n)250 [^\r\n]*\r\n/.test(response)){
+    // Mailpit must offer STARTTLS, not merely accept an unencrypted socket.
+    finish(/(?:^|\r\n)250-STARTTLS\r\n/.test(response));
+   }
   });
  });
 }
