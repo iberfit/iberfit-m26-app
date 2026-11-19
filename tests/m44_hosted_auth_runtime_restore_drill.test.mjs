@@ -75,3 +75,11 @@ test('SMTP uses fresh random material; HTTP exemptions stay internal-only; parse
  assert.match(probe,/start\+2048/);
  assert.doesNotMatch(probe,/\.matchAll\(/);
 });
+
+test('guarded clone reauthentication receives SQL through interactive Docker stdin',()=>{
+ assert.match(script,/pg\(\)\{ docker run --rm -i --network host/u);
+ assert.match(script,/<<'SQL' \|\| fail CLONE_AUTH_INVALIDATION_FAILED/u);
+ assert.match(script,/DELETE FROM auth\.refresh_tokens;/u);
+ assert.match(script,/DELETE FROM auth\.sessions;/u);
+ assert.match(script,/fail OLD_SESSIONS_REMAIN/u);
+});
