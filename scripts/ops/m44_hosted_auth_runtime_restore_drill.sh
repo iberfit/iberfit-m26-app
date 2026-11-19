@@ -143,8 +143,14 @@ if ! docker run --rm --network "$net" --cap-drop ALL --read-only \
   log_reason=DB_PERMISSION
  elif grep -Eiq 'database error|SQLSTATE.?[0-9A-Z]{5}|pq:|duplicate key|violates.*constraint|relation .* does not exist' "$scratch/gotrue-failure-private.log"; then
   log_reason=DB_ERROR
- elif grep -Eiq 'smtp.*(fail|error|refused)|mailer.*(fail|error)|send.*email.*(fail|error)|send.*mail.*(fail|error)' "$scratch/gotrue-failure-private.log"; then
-  log_reason=SMTP_ERROR
+ elif grep -Eiq 'smtp.*(535|authenticat)|535[ -].*authenticat|authentication credentials invalid|invalid.*smtp.*credential' "$scratch/gotrue-failure-private.log"; then
+  log_reason=SMTP_AUTH
+ elif grep -Eiq 'dial tcp.*(refused|timeout)|connect: connection refused|connect: network is unreachable|no such host' "$scratch/gotrue-failure-private.log"; then
+  log_reason=SMTP_CONNECT
+ elif grep -Eiq 'starttls|tls handshake|x509:|certificate.*(invalid|verify)' "$scratch/gotrue-failure-private.log"; then
+  log_reason=SMTP_TLS
+ elif grep -Eiq 'smtp.*(fail|error|refused)|gomail:|mailer.*(fail|error)|send.*email.*(fail|error)|send.*mail.*(fail|error)' "$scratch/gotrue-failure-private.log"; then
+  log_reason=SMTP_SEND
  elif grep -Eiq 'jwt.*(invalid|fail)|signing key.*(invalid|fail)' "$scratch/gotrue-failure-private.log"; then
   log_reason=JWT_ERROR
  fi
