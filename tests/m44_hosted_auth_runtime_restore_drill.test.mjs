@@ -39,7 +39,7 @@ test('operational recovery is always an internal Docker network and disposable c
  assert.match(script,/current_database\(\)<>'iberfit_m44_hosted_auth_runtime_test'/);
  assert.match(script,/docker network connect --alias m44db/);
  assert.match(script,/axllent\/mailpit:v1\.27\.2/);
- assert.match(script,/supabase\/gotrue:v2\.197\.0/);
+ assert.match(script,/supabase\/gotrue:v2\.198\.0/);
  assert.match(script,/GOTRUE_JWT_KEYS/);
  assert.match(script,/DELETE FROM auth\.refresh_tokens;/);
  assert.match(script,/DELETE FROM auth\.sessions;/);
