@@ -110,6 +110,20 @@ test('500 signup errors expose fixed codes, never private GoTrue logs',()=>{
  assert.doesNotMatch(probe,/console\.log\(hint\)|console\.error\(hint\)/);
 });
 
+test('SMTP readiness is checked internally without sending any message',()=>{
+ assert.match(probe,/import \{connect\} from 'node:net'/);
+ assert.match(probe,/async function waitSmtpReady\(\)/);
+ assert.match(probe,/await waitSmtpReady\(\)/);
+ assert.match(probe,/port:1025/);
+ assert.ok(probe.includes('/^220[ -]/'));
+ assert.match(probe,/LOCAL_SMTP_NOT_READY/);
+ assert.match(probe,/redirect:'error'/);
+ assert.doesNotMatch(probe,/https:\/\/iberfit-m44-smtp/);
+ for(const category of ['SMTP_AUTH','SMTP_CONNECT','SMTP_TLS','SMTP_SEND'])
+  assert.ok(script.includes('log_reason='+category));
+ assert.doesNotMatch(script,/cat "\$scratch\/gotrue-failure-private\.log"|tee .*gotrue-failure-private/);
+});
+
 test('isolated signup uses DNS-valid synthetic recipient with no external delivery',()=>{
  assert.match(probe,/m44-recovery-/);
  assert.doesNotMatch(probe,/@example\.invalid/);
