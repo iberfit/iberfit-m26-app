@@ -103,17 +103,24 @@ function parseRuntime(source){
 }
 
 
-/** Optional protected-release contract: a Pages-only lane must stay closed.
- * Calling without a mode preserves older general-purpose validation clients.
- * Explicit mode 'active' or 'recovery' cannot silently bypass this guard.
+/** Validate the published runtime against the separately attested backend.
+ * A Pages-only release cannot itself grant SQL, deploy Edge, or change Auth.
  */
 export function enforceDatedTrainingReleaseMode(runtime, expectedMode){
   if(expectedMode===undefined||expectedMode===null||expectedMode==='')return true;
-  if(expectedMode!=='closed')fail('PROD_SURFACE_DATED_MODE_NOT_AUTHORIZED');
-  if(runtime?.datedTrainingProductionReleased!==false||
-     runtime?.datedTrainingProductionStartsEnabled!==false)
-    fail('PROD_SURFACE_DATED_RELEASE_NOT_CLOSED');
-  return true;
+  if(expectedMode==='closed'){
+    if(runtime?.datedTrainingProductionReleased!==false||
+       runtime?.datedTrainingProductionStartsEnabled!==false)
+      fail('PROD_SURFACE_DATED_RELEASE_NOT_CLOSED');
+    return true;
+  }
+  if(expectedMode==='active'){
+    if(runtime?.datedTrainingProductionReleased!==true||
+       runtime?.datedTrainingProductionStartsEnabled!==true)
+      fail('PROD_SURFACE_DATED_RELEASE_NOT_ACTIVE');
+    return true;
+  }
+  fail('PROD_SURFACE_DATED_MODE_NOT_AUTHORIZED');
 }
 
 export function validateProductionSurface({
