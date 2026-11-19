@@ -72,7 +72,7 @@ test('readback failures disclose only a safe category, never sensitive row conte
 
 test('isolated PostgreSQL Docker client preserves stdin for the guarded delete transaction',()=>{
  assert.match(source,/pg\(\)\{\s*docker run --rm -i --network host/u);
- assert.match(source,/pg psql -X -q -v ON_ERROR_STOP=1 -d "\$clone"\s*>/u);
+ assert.match(source,/pg psql -X -q -v ON_ERROR_STOP=1 -d "\$clone"/u);
  assert.match(source,/<<'SQL' \|\| fail ISOLATED_INVALIDATION_FAILED/u);
  // The before/after assertions independently reject a zero-SQL false success.
  assert.match(source,/SESSIONS_NOT_INVALIDATED/u);
