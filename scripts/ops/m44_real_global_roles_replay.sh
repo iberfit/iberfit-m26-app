@@ -97,7 +97,10 @@ actual="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \
 [[ "$actual" == "$expected" ]] || fail ROLE_CARDINALITY_DRIFT
 grantor_total="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \
   -h 127.0.0.1 -U supabase_admin -d postgres \
-  -c "SELECT count(*) FROM pg_auth_members WHERE grantor='supabase_admin'::regrole;" \
+  -c "SELECT count(*) FROM pg_auth_members a
+       JOIN pg_roles member_role ON member_role.oid=a.member
+       WHERE a.grantor='supabase_admin'::regrole
+         AND LEFT(member_role.rolname,3)<>'pg_';" \
   2>"$work/grantor-check.log")" || fail GRANTOR_READBACK_FAILED
 [[ "$grantor_total" == "$expected_members" ]] || fail GRANTOR_PARITY_DRIFT
 ok="$(docker exec -e PGPASSWORD "$name" psql -X -A -t -v ON_ERROR_STOP=1 \

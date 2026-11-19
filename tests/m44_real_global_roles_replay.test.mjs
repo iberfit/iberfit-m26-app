@@ -79,3 +79,27 @@ test('PG17 role cardinality excludes only literal pg_ internal prefix',()=>{
  assert.ok(!intended.includes('pg_database_owner'));
  assert.equal(intended.length,5);
 });
+
+test('grantor comparison excludes only built-in-to-built-in grants from pristine PG17',()=>{
+ // PG17 bootstraps pg_monitor memberships in the new cluster; those do not
+ // appear in the archived pg_dumpall user-role membership statements.
+ assert.ok(script.includes('JOIN pg_roles member_role ON member_role.oid=a.member'));
+ assert.ok(script.includes("LEFT(member_role.rolname,3)<>'pg_'"));
+ assert.ok(!script.includes("FROM pg_auth_members WHERE grantor='supabase_admin'::regrole;"));
+ const imported=[
+  {member:'postgres',grantor:'supabase_admin'},
+  {member:'anon',grantor:'supabase_admin'},
+  {member:'pgbouncer',grantor:'supabase_admin'},
+ ];
+ const defaults=[
+  {member:'pg_read_all_settings',grantor:'supabase_admin'},
+  {member:'pg_read_all_stats',grantor:'supabase_admin'},
+  {member:'pg_stat_scan_tables',grantor:'supabase_admin'},
+ ];
+ const included=[...imported,...defaults].filter(x=>x.grantor==='supabase_admin'&&x.member.slice(0,3)!=='pg_');
+ assert.equal(included.length,imported.length);
+ assert.ok(included.some(x=>x.member==='pgbouncer'));
+ assert.ok(included.every(x=>!x.member.startsWith('pg_')));
+ const x=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
+ assert.equal(x.status,0,x.stderr);
+});
