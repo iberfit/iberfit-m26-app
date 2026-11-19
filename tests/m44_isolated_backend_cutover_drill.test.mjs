@@ -70,24 +70,31 @@ test('malformed or external runner targets fail before any database operations',
   assert.equal(r.stdout,'');
  }
 });
-test('installer sequence is guarded, reversible and checks data counts',()=>{
+test('installer sequence and both Coach recovery directions are guarded and preserve counts',()=>{
  const ordered=[
   'check_sql BASELINE ','apply U72_INSTALL ','check_sql U72_INSTALLED ',
   'apply U60_ENABLE ','check_sql U60_OPEN ','apply U60_DISABLE ',
-  'check_sql U60_CLOSED ','apply U72_ROLLBACK ',
-  'check_sql U72_RESTORED ','apply COACH_INSTALL ',
-  'check_sql COACH_INSTALLED ','apply COACH_ROLLBACK ','check_sql COACH_RESTORED ',
+  'check_sql U60_CLOSED ','apply U72_ROLLBACK ','check_sql U72_RESTORED ',
  ];
- // Only executable stage lines count. Comments and file inventory occur earlier.
  const loc=ordered.map(k=>s.indexOf('\n'+k));
  assert.ok(loc.every(n=>n>=0));
  assert.ok(loc.every((n,i)=>i===0||n>loc[i-1]));
- assert.ok(s.includes('CUSTOMER_OR_AUTH_TABLE_COUNT_DRIFT'));
- assert.ok(s.includes("SELECT count(*) FROM auth.users"));
- assert.ok(s.includes("SELECT count(*) FROM public.training_session_occurrences_v1"));
- assert.ok(s.includes("SELECT count(*) FROM vault.secrets"));
- assert.ok(s.includes("NOT has_function_privilege('anon'"));
- assert.ok(s.includes("to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NULL"));
+ const active=s.indexOf('if [[ "$coach_guard_installed" == 1 ]]; then');
+ const undo=s.indexOf('apply COACH_ROLLBACK ',active);
+ const redo=s.indexOf('apply COACH_REINSTALL ',undo);
+ const legacy=s.indexOf('apply COACH_INSTALL ',redo);
+ const legacyUndo=s.indexOf('apply COACH_ROLLBACK ',legacy);
+ assert.ok(active>loc.at(-1)&&undo>active&&redo>undo&&legacy>redo&&legacyUndo>legacy);
+ for(const marker of [
+  'COACH_PREINSTALLED_SOURCE','COACH_ROLLED_BACK','COACH_REINSTALLED',
+  'COACH_PREINSTALL_SOURCE','COACH_INSTALLED','COACH_RESTORED',
+  'COACH_SOURCE_CHANGED','CUSTOMER_OR_AUTH_TABLE_COUNT_DRIFT',
+  'SELECT count(*) FROM auth.users',
+  'SELECT count(*) FROM public.training_session_occurrences_v1',
+  'SELECT count(*) FROM vault.secrets',
+  "NOT has_function_privilege('anon'",
+  "to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NULL"
+ ])assert.ok(s.includes(marker),marker);
 });
 test('M44 workflow executes drill only inside isolated restore step',()=>{
  const yaml=fs.readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
@@ -127,7 +134,9 @@ test('all SQL mutations in isolated backend drill execute with source postgres o
  assert.ok(s.includes('M44_LOCAL_SQL_POLICY_DENIAL:'));
  assert.equal((s.match(/apply U72_INSTALL /gu)||[]).length,1);
  assert.equal((s.match(/apply U72_ROLLBACK /gu)||[]).length,1);
- assert.equal((s.match(/apply COACH_ROLLBACK /gu)||[]).length,1);
+ assert.equal((s.match(/apply COACH_ROLLBACK /gu)||[]).length,2);
+  assert.equal((s.match(/apply COACH_INSTALL /gu)||[]).length,1);
+  assert.equal((s.match(/apply COACH_REINSTALL /gu)||[]).length,1);
  const i=s.indexOf("apply(){");
  const j=s.indexOf("check_sql BASELINE");
  assert.ok(i>=0&&j>i);
