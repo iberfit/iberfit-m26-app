@@ -72,6 +72,43 @@ SQL
 [[ "$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d "$clone" \
  -c 'SELECT ((SELECT count(*) FROM auth.sessions)=0 AND (SELECT count(*) FROM auth.refresh_tokens)=0)::int' \
  2>"$scratch/auth-check-private.log")" == 1 ]] || fail OLD_SESSIONS_REMAIN
+# Managed Hosted Auth uses supabase_auth_admin (search_path=auth), whereas
+# the isolated clone connects as supabase_admin, whose platform role defaults
+# to public before auth. IBERFIT also owns public.sessions (no 'aal'), while
+# auth.sessions has 'aal'. Unqualified GoTrue session queries otherwise hit
+# the training table and fail SQLSTATE 42703 during email confirmation.
+# Override ONLY the disposable clone database for this role, never its global
+# settings and NEVER the original restored DB, QA or live production.
+pg psql -X -q -v ON_ERROR_STOP=1 -d postgres \
+ >"$scratch/clone-search-path-private.log" 2>&1 <<'SQL' ||
+ fail CLONE_AUTH_SCHEMA_ROUTING_FAILED
+BEGIN;
+DO $guard$
+BEGIN
+ IF NOT EXISTS (
+  SELECT 1 FROM pg_database
+  WHERE datname='iberfit_m44_hosted_auth_runtime_test'
+ ) THEN
+  RAISE EXCEPTION 'M44_AUTH_SCHEMA_CLONE_MISSING';
+ END IF;
+END $guard$;
+ALTER ROLE supabase_admin IN DATABASE iberfit_m44_hosted_auth_runtime_test
+ SET search_path TO auth;
+COMMIT;
+SQL
+# A NEW session as the GoTrue DB role must resolve the unqualified sessions
+# identifier to auth.sessions, never IBERFIT public.sessions.
+[[ "$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d "$clone" \
+ -c "SELECT (
+   current_schema()='auth'
+   AND to_regclass('sessions')='auth.sessions'::regclass
+   AND EXISTS (
+     SELECT 1 FROM information_schema.columns
+     WHERE table_schema='auth' AND table_name='sessions' AND column_name='aal'
+   )
+  )::int" 2>"$scratch/clone-routing-check-private.log")" == 1 ]] ||
+ fail CLONE_AUTH_SCHEMA_ROUTING_NOT_EFFECTIVE
+echo 'M44_ISOLATED_GOTRUE_AUTH_SCHEMA_ROUTING_VERIFIED_ONLY'
 # No Internet route for GoTrue, SMTP or the client probe. No host port exposed.
 docker network create --internal "$net" > /dev/null 2>"$scratch/network-private.log" ||
   fail INTERNAL_NETWORK_CREATION_FAILED
@@ -128,7 +165,7 @@ docker run -d --name "$auth" --network "$net" --cap-drop ALL \
  -e SSL_CERT_FILE=/certs/smtp-ca.pem \
  -e GOTRUE_JWT_KEYS -e GOTRUE_JWT_SECRET -e GOTRUE_DB_DATABASE_URL \
  -e GOTRUE_API_HOST=0.0.0.0 -e GOTRUE_API_PORT=9999 \
- -e GOTRUE_DB_DRIVER=postgres -e GOTRUE_SITE_URL=http://m44-auth:9999 \
+ -e GOTRUE_DB_DRIVER=postgres -e DB_NAMESPACE=auth -e GOTRUE_SITE_URL=http://m44-auth:9999 \
  -e API_EXTERNAL_URL=http://m44-auth:9999 \
  -e GOTRUE_JWT_ISSUER=http://m44-auth:9999 \
  -e GOTRUE_JWT_AUD=authenticated -e GOTRUE_JWT_EXP=3600 \
