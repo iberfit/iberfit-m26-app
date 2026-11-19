@@ -1,0 +1,12 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "d8f1765326c27670be30dfe4b7d3aa4bc336fc93",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "frontendOnly": true,
+  "datedTrainingMode": "closed",
+  "expectedPreviousLiveSha": "b71648f08a1a278906f09b30b828a95cf315f68e",
+  "notes": "Promocion protegida exact-SHA de frontend IBERFIT; U60/U72 cerrados hasta certificacion operativa Hosted Auth Vault Edge y E2E real; rollback automatico Pages"
+}
