@@ -134,6 +134,7 @@ on:
       - 'scripts/ops/m44_global_roles_archive_check.mjs'
       - 'scripts/ops/m44_real_global_roles_replay.sh'
       - 'scripts/ops/m44_isolated_backend_cutover_drill.sh'
+      - 'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql'
       - 'scripts/ops/m44_prepare_missing_local_roles.mjs'
       - 'scripts/ops/m44_reconcile_postgres_executor.mjs'
       - 'tests/m44_reconcile_postgres_executor.test.mjs'
@@ -175,6 +176,7 @@ on:
       # Both paths changed together trigger one run, not one run per file.
       - 'supabase/migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql'
       - 'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql'
+      - 'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql'
       # One release workflow change on protected Canary requests a fresh
       # encrypted PROD recovery point. Never execute real backup from PRs.
       - '.github/workflows/production-promote.yml'
