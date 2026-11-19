@@ -24,9 +24,7 @@ env:
   PROD_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_R5hU49RTDLAFFx46j4b4Hg_l8o0Pg2k'
   QA_SUPABASE_REF: 'gjztkdwfmunnzhtvxrsu'
   WRANGLER_VERSION: '4.120.0'
-  # Frontend-only Pages deployment must never expose U60 before U72 + grants.
-  M26_U60_PROD_MODE: 'closed'
-  M26_VERIFY_DATED_TRAINING_MODE: 'closed'
+  # The marker defaults to U60 closed; active requires independent live backend proof.
 
 jobs:
   promote-production:
@@ -70,6 +68,15 @@ jobs:
           const changed=cp.execFileSync('git',['diff','--name-only',manifest.sourceSha,'HEAD'],{encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
           if(changed.length!==1 || changed[0]!=='.iberfit/production-release.json') fail(`RELEASE_DIFF_NOT_MARKER_ONLY:${changed.join(',')}`);
           if(manifest.frontendOnly!==undefined&&manifest.frontendOnly!==true)fail('RELEASE_FRONTEND_ONLY_INVALID');
+          const mode=manifest.datedTrainingMode??'closed';
+          if(!['closed','active'].includes(mode))fail('RELEASE_DATED_MODE_INVALID');
+          if(mode==='active'&&(manifest.frontendOnly!==true||
+            manifest.backendActivationProof!=='verified-dated-sql-edge'))
+            fail('RELEASE_BACKEND_PREACTIVATION_REQUIRED');
+          if(mode==='closed'&&manifest.backendActivationProof!==undefined)
+            fail('RELEASE_BACKEND_PROOF_UNEXPECTED');
+          fs.appendFileSync(process.env.GITHUB_ENV,`M26_U60_PROD_MODE=${mode}\nM26_VERIFY_DATED_TRAINING_MODE=${mode}\nU60_RELEASE_ACTIVE=${mode==='active'}\n`);
+          if(mode==='active')fs.appendFileSync(process.env.GITHUB_ENV,`M26_U60_CERTIFIED_SOURCE_SHA=${manifest.sourceSha}\nM26_U60_OPERATOR_APPROVAL=approved\n`);
           if(manifest.frontendOnly===true){
             if(!/^[0-9a-f]{40}$/.test(manifest.expectedPreviousLiveSha||''))fail('RELEASE_FRONTEND_PREVIOUS_SHA_INVALID');
             if(manifest.expectedPreviousLiveSha===manifest.sourceSha)fail('RELEASE_FRONTEND_NO_SHA_CHANGE');
@@ -102,6 +109,11 @@ jobs:
       - name: Certify frontend-only scope against exact live PROD (fail closed)
         if: ${{ env.FRONTEND_ONLY_RELEASE == 'true' }}
         run: node scripts/release/verify_frontend_only_promotion.mjs
+      - name: Certify independently active SQL U72 U60 Coach and Edge (read-only)
+        if: ${{ env.U60_RELEASE_ACTIVE == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/release/verify_backend_preactivated.mjs
       # Backup inventory must be confirmed BEFORE any M44 schema or Edge promotion.
       # This guard is read-only. A completed backup inventory entry still
       # requires independent restore verification prior to the first PROD DDL.
@@ -332,8 +344,13 @@ jobs:
           grep -Fq "\"projectRef\": \"$PROD_SUPABASE_REF\"" "$V"
           grep -Fq '"enabled": true' "$R"
           grep -Fq '"qaOnly": false' "$R"
-          grep -Fq '"datedTrainingProductionReleased": false' "$R"
-          grep -Fq '"datedTrainingProductionStartsEnabled": false' "$R"
+          if [ "$M26_U60_PROD_MODE" = 'active' ]; then
+            grep -Fq '"datedTrainingProductionReleased": true' "$R"
+            grep -Fq '"datedTrainingProductionStartsEnabled": true' "$R"
+          else
+            grep -Fq '"datedTrainingProductionReleased": false' "$R"
+            grep -Fq '"datedTrainingProductionStartsEnabled": false' "$R"
+          fi
           grep -Fq "$PROD_SUPABASE_REF" "$R"
           grep -Fq "$PROD_SUPABASE_URL" "$R"
           grep -Fq 'sb_publishable_' "$R"
@@ -524,6 +541,11 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/ops/verify_connected360_v47_prod_schema.mjs
 
+      - name: Recheck independently active SQL Edge and RLS before Pages cutover
+        if: ${{ env.U60_RELEASE_ACTIVE == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/release/verify_backend_preactivated.mjs
       - name: Recheck frontend-only live PROD identity immediately before cutover
         if: ${{ env.FRONTEND_ONLY_RELEASE == 'true' }}
         run: node scripts/release/verify_frontend_only_promotion.mjs
