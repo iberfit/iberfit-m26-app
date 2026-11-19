@@ -81,11 +81,25 @@ async function verifySignature(access){
 }
 async function run(){
  await waitHealth();
- const email='m44-recovery-'+randomBytes(9).toString('hex')+'@example.invalid';
+ const email='m44-recovery-'+randomBytes(9).toString('hex')+'@gmail.com';
  const password='M44#'+randomBytes(20).toString('base64url');
  const body={email,password};
  const signup=await request(A+'/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
- if(!signup.ok)refuse('SYNTHETIC_SIGNUP_DENIED');
+ if(!signup.ok){
+  // Fixed status/code categories only; no response body, addresses, headers
+  // or tokens enter CI. The SMTP sink and network are isolated.
+  let category='OTHER';
+  try {
+   const reply=await signup.json();
+   const code=String(reply?.code||'');
+   const known=new Set(['email_address_invalid','email_provider_disabled',
+    'signup_disabled','validation_failed','weak_password',
+    'email_address_not_authorized','unexpected_failure','over_email_send_rate_limit']);
+   if(known.has(code))category=code.toUpperCase();
+  }catch{}
+  const status=[400,401,403,404,409,422,429,500,502,503].includes(signup.status)?signup.status:'OTHER';
+  refuse('SYNTHETIC_SIGNUP_'+status+'_'+category);
+ }
  await confirmFromSmtp();
  const signin=await request(A+'/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  if(!signin.ok)refuse('NEW_SESSION_LOGIN_FAILED');

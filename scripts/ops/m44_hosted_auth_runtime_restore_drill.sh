@@ -118,7 +118,7 @@ docker run -d --name "$auth" --network "$net" --cap-drop ALL \
  -e GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED=true \
  -e GOTRUE_SMTP_HOST="$mail" -e GOTRUE_SMTP_PORT=1025 \
  -e GOTRUE_SMTP_USER=only-local -e GOTRUE_SMTP_PASS \
- -e GOTRUE_SMTP_ADMIN_EMAIL=m44@example.invalid \
+ -e GOTRUE_SMTP_ADMIN_EMAIL=m44-recovery-sink@gmail.com \
  -e GOTRUE_SMTP_SENDER_NAME=IBERFIT-DR-LOCAL \
  --network-alias m44-auth \
  supabase/gotrue:v2.197.0 > /dev/null 2>"$scratch/auth-start-private.log" ||
