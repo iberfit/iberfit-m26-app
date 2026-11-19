@@ -24,17 +24,43 @@ export function classifyMissingColumn(log) {
   return KNOWN_COLUMNS.has(column) ? column.toUpperCase() : 'UNLISTED';
 }
 
+
+// PostgreSQL writes its 42703 detail to its own *private* container log even
+// when GoTrue reduces the error to SQLSTATE. The caller checks the GoTrue
+// SQLSTATE before consulting this diagnostic. No raw lines cross CI.
+const PG_ERROR_COLUMN = /\bcolumn\s+(?:(?:"[a-z][a-z0-9_]{0,62}"|[a-z][a-z0-9_]{0,62})\.)?(?:"([a-z][a-z0-9_]{0,62})"|([a-z][a-z0-9_]{0,62}))(?:\s+of\s+relation\s+"?[a-z][a-z0-9_.]{0,127}"?)?\s+does\s+not\s+exist\b/iu;
+const PG_RECORD_FIELD = /\brecord\s+"?(?:new|old)"?\s+has\s+no\s+field\s+"?([a-z][a-z0-9_]{0,62})"?\b/iu;
+export function classifyPostgresColumnCandidate(log) {
+  if (typeof log !== 'string' || log.length > 4_000_000) return 'UNAVAILABLE';
+  // Never classify arbitrary SQL, parameters, non-error log records or
+  // statements containing user data. Only the ERROR summary line is parsed.
+  const lines = log.split(/\r?\n/u);
+  for (let i=lines.length-1; i>=Math.max(0,lines.length-500); i--) {
+    const line=lines[i];
+    const error=/\bERROR:\s*(.{0,512})/iu.exec(line);
+    if (!error) continue;
+    const match=PG_ERROR_COLUMN.exec(error[1]) || PG_RECORD_FIELD.exec(error[1]);
+    if (!match) continue;
+    const column=(match[1]||match[2]||'').toLowerCase();
+    return KNOWN_COLUMNS.has(column) ? column.toUpperCase() : 'UNLISTED';
+  }
+  return 'UNKNOWN';
+}
+
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   let result = 'UNAVAILABLE';
   const name = process.argv[2] || '';
   try {
-    if (name.endsWith('/m44-hosted-auth-private/gotrue-failure-private.log')) {
+    const isAuthLog=name.endsWith('/m44-hosted-auth-private/gotrue-failure-private.log');
+    const isDbLog=name.endsWith('/m44-hosted-auth-private/postgres-failure-private.log');
+    if (isAuthLog || isDbLog) {
       const meta = lstatSync(name);
       if (meta.isFile() && !meta.isSymbolicLink() && meta.size <= 4_000_000) {
-        result = classifyMissingColumn(readFileSync(name, 'utf8'));
+        const data=readFileSync(name, 'utf8');
+        result = isDbLog ? classifyPostgresColumnCandidate(data) : classifyMissingColumn(data);
       }
     }
   } catch { /* private diagnostic must be best-effort */ }
-  console.log('M44_AUTH_RUNTIME_42703_COLUMN_' + result);
+  console.log((name.endsWith('/m44-hosted-auth-private/postgres-failure-private.log') ? 'M44_AUTH_PG42703_CANDIDATE_' : 'M44_AUTH_RUNTIME_42703_COLUMN_') + result);
 }
