@@ -34,3 +34,13 @@ test('live recovery proof is narrow: no claims about Hosted Auth, JWT, Vault or 
  assert.ok(script.includes('M44_HOSTED_AUTH_VAULT_EDGE_AND_EFFECTIVE_RLS_NOT_CERTIFIED'));
  assert.doesNotMatch(script,/platformRecoveryVerified:\s*true/u);
 });
+
+test('private replay diagnosis exposes only SQLSTATE and a fixed command category',()=>{
+ const x=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
+ assert.equal(x.status,0,x.stderr);
+ assert.ok(script.includes('M44_REAL_ROLES_REPLAY_SQLSTATE:'));
+ assert.ok(script.includes('M44_REAL_ROLES_REPLAY_KIND:'));
+ assert.match(script,/CREATE_ROLE\|ALTER_ROLE\|GRANT_ROLE\|REVOKE_ROLE\|OTHER/);
+ assert.ok(script.includes('global-roles[.]sql:[0-9]{1,6}:'));
+ assert.equal((script.match(/echo M44_REAL_GLOBAL_ROLES_RESTORED_IN_ISOLATED_PG17_ONLY/g)||[]).length,1);
+});
