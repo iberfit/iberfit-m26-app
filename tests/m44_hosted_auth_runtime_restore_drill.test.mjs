@@ -68,7 +68,7 @@ test('no real Hosted Auth restoration is inferred from the synthetic fixture',()
 
 test('SMTP uses fresh random material; HTTP exemptions stay internal-only; parser bounded',()=>{
  assert.match(script,/GOTRUE_SMTP_PASS="\$\(openssl rand -hex 32\)"/);
- assert.match(script,/-e GOTRUE_SMTP_PASS \\/);
+ assert.ok(script.includes('-e GOTRUE_SMTP_PASS'));
  assert.doesNotMatch(script,/GOTRUE_SMTP_PASS=only-local/);
  assert.equal((probe.match(/NOSONAR: isolated internal-only recovery test|NOSONAR: same isolated network/g)||[]).length,2);
  assert.match(probe,/s\.length>200000/);
