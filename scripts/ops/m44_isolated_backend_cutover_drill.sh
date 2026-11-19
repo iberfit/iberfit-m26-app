@@ -230,14 +230,52 @@ check_sql U72_RESTORED "SELECT (
  AND md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='5914acf371015a6bbeeaf95f99e056e3'
  AND NOT has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
 )::int;"
-# Test Coach installation and rollback as a separate exact transaction.
+# Rehearse both possible real PROD states without touching PROD/QA:
+# before rollout: install -> rollback; after rollout: rollback -> reinstall.
+# Restoring the CURRENT upgraded backup must not mistake a healthy Coach
+# upgrade for source drift. Both paths preserve all user/Auth table counts.
 before_coach="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c \
  "SELECT md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure));" \
  2>"$out/coach-source.log")" || fail COACH_BASELINE_UNAVAILABLE
-apply COACH_INSTALL /migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql
-check_sql COACH_INSTALLED "SELECT (to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NOT NULL)::int;"
-apply COACH_ROLLBACK /rollbacks/20261117235000_coach_scoped_hosted_invitation_v1.rollback.sql
-check_sql COACH_RESTORED "SELECT (to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NULL)::int;"
+coach_guard_installed="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c \
+ "SELECT (to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NOT NULL)::int;" \
+ 2>"$out/coach-install-state.log")" || fail COACH_INSTALL_STATE_UNAVAILABLE
+[[ "$coach_guard_installed" == 0 || "$coach_guard_installed" == 1 ]] ||
+ fail COACH_INSTALL_STATE_INVALID
+if [[ "$coach_guard_installed" == 1 ]]; then
+ check_sql COACH_PREINSTALLED_SOURCE "SELECT (
+  md5(pg_get_functiondef('public.iberfit_admin_client_invitation_prepare_v26(uuid,text)'::regprocedure))='c6ce72f2333fbc369b66792b735dc8ef'
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_bind_v26(uuid,uuid)'::regprocedure))='c8bbd63ace0634a4b1ad5f444fdd0d98'
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='168dc6bd262169a58a6d9ff12558078d'
+  AND NOT has_function_privilege('anon','public.iberfit_admin_client_invitation_prepare_v26(uuid,text)','EXECUTE')
+ )::int;"
+ apply COACH_ROLLBACK /rollbacks/20261117235000_coach_scoped_hosted_invitation_v1.rollback.sql
+ check_sql COACH_ROLLED_BACK "SELECT (
+  to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NULL
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='66743cf255b81523a4733b63d1c98fc0'
+ )::int;"
+ apply COACH_REINSTALL /migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql
+ check_sql COACH_REINSTALLED "SELECT (
+  to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NOT NULL
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='168dc6bd262169a58a6d9ff12558078d'
+ )::int;"
+ echo M44_ISOLATED_COACH_FORWARD_RECOVERY_VERIFIED_ONLY
+else
+ check_sql COACH_PREINSTALL_SOURCE "SELECT (
+  md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='66743cf255b81523a4733b63d1c98fc0'
+ )::int;"
+ apply COACH_INSTALL /migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql
+ check_sql COACH_INSTALLED "SELECT (
+  to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NOT NULL
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='168dc6bd262169a58a6d9ff12558078d'
+ )::int;"
+ apply COACH_ROLLBACK /rollbacks/20261117235000_coach_scoped_hosted_invitation_v1.rollback.sql
+ check_sql COACH_RESTORED "SELECT (
+  to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NULL
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='66743cf255b81523a4733b63d1c98fc0'
+ )::int;"
+ echo M44_ISOLATED_COACH_ROLLBACK_REHEARSAL_VERIFIED_ONLY
+fi
 after_coach="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c \
  "SELECT md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure));" \
  2>"$out/coach-after.log")" || fail COACH_READBACK_UNAVAILABLE
