@@ -79,9 +79,13 @@ SQL
 after="$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d "$clone" -c "$counts_sql" \
   2>"$scratch/after-private.log")" || fail COUNTS_AFTER_FAILED
 IFS=',' read -r users_after identities_after factors_after webauthn_after sessions_after refresh_after <<< "$after"
-[[ "$users_after" == "$users" && "$identities_after" == "$identities" &&
-   "$factors_after" == "$factors" && "$webauthn_after" == "$webauthn" &&
-   "$sessions_after" == 0 && "$refresh_after" == 0 ]] || fail AUTH_IDENTITY_OR_SESSION_PARITY_FAILED
+# Diagnose category only: never print source counts or private identifiers.
+[[ "$users_after" == "$users" ]] || fail USERS_COUNT_CHANGED
+[[ "$identities_after" == "$identities" ]] || fail IDENTITIES_COUNT_CHANGED
+[[ "$factors_after" == "$factors" ]] || fail MFA_FACTORS_COUNT_CHANGED
+[[ "$webauthn_after" == "$webauthn" ]] || fail WEBAUTHN_CREDENTIALS_COUNT_CHANGED
+[[ "$sessions_after" == 0 ]] || fail SESSIONS_NOT_INVALIDATED
+[[ "$refresh_after" == 0 ]] || fail REFRESH_TOKENS_NOT_INVALIDATED
 # Verify the unmodified recovery source still retains every original session.
 source_counts="$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d iberfit_recovery_test -c "$counts_sql" \
   2>"$scratch/source-private.log")" || fail ORIGINAL_RESTORE_COUNTS_FAILED
