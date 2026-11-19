@@ -115,7 +115,7 @@ test('SMTP readiness is checked internally without sending any message',()=>{
  assert.match(probe,/async function waitSmtpReady\(\)/);
  assert.match(probe,/await waitSmtpReady\(\)/);
  assert.match(probe,/port:1025/);
- assert.match(probe,/^220\[ -\]/);
+ assert.ok(probe.includes('/^220[ -]/'));
  assert.match(probe,/LOCAL_SMTP_NOT_READY/);
  assert.match(probe,/redirect:'error'/);
  assert.doesNotMatch(probe,/https:\/\/iberfit-m44-smtp/);
