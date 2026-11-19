@@ -52,9 +52,24 @@ check_sql(){
  [[ "$observed" == 1 ]] || fail "SQL_ASSERTION_$code"
 }
 apply(){
- local code="$1" pathname="$2"
- db psql -X -q -v ON_ERROR_STOP=1 -f "$pathname" \
-   >"$out/apply-$code.log" 2>&1 || fail "SQL_APPLY_$code"
+ local code="$1" pathname="$2" policy sqlstate
+ # Execute migration SQL as the restored owner, never as supabase_admin.
+ # This psql client targets only the localhost isolated recovery database.
+ if ! db psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose \
+    -c 'SET ROLE postgres' -f "$pathname" \
+    >"$out/apply-$code.log" 2>&1; then
+   policy="$(grep -Eo 'M1_U72_[A-Z0-9_]+|U60_[A-Z0-9_]+|M26_COACH_INVITE_[A-Z0-9_]+' "$out/apply-$code.log" | head -n 1 || true)"
+   if [[ "$policy" =~ ^(M1_U72_|U60_|M26_COACH_INVITE_)[A-Z0-9_]{3,80} ]]; then
+     echo "M44_LOCAL_SQL_POLICY_DENIAL:$code:$policy" >&2
+   fi
+   sqlstate="$(grep -Eo 'ERROR:[[:space:]]+[0-9A-Z]{5}' "$out/apply-$code.log" | tail -n 1 | awk '{print $2}' || true)"
+   if [[ "$sqlstate" =~ ^[0-9A-Z]{5} ]]; then
+     echo "M44_LOCAL_SQL_APPLY_SQLSTATE:$code:$sqlstate" >&2
+   else
+     echo "M44_LOCAL_SQL_APPLY_SQLSTATE:$code:UNAVAILABLE" >&2
+   fi
+   fail "SQL_APPLY_$code"
+ fi
 }
 # On the REAL Supabase PG17 snapshot, some owner/ACL roles may be absent
 # from a fresh local Supabase image. Reconcile NAMES ONLY, using inert
