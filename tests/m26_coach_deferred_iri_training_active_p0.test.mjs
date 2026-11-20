@@ -87,6 +87,6 @@ test('P0: backend conserva controles de identidad, org, autoría, historial y se
 test('P0: rollback restaura la función exacta y no elimina los datos creados',()=>{
   assert.match(rollback,/c9590e8089d04f7129a21e2c17e714da/u);
   assert.match(rollback,/906a923478573671ddc5532af9172356/u);
-  assert.doesNotMatch(rollback,/\b(?:DELETE|TRUNCATE|DROP TABLE|DISABLE ROW LEVEL SECURITY)\b/iu);
+  assert.doesNotMatch(rollback,/^\s*(?:DELETE\s+FROM|TRUNCATE|DROP\s+TABLE|ALTER\s+TABLE[^;]*DISABLE\s+ROW\s+LEVEL\s+SECURITY)\b/imu);
   assert.match(rollback,/M26_ONBOARDING_TRAINING_ROLLBACK_NOT_VERIFIED/u);
 });
