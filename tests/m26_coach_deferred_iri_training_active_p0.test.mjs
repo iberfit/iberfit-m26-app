@@ -90,3 +90,15 @@ test('P0: rollback restaura la función exacta y no elimina los datos creados',(
   assert.doesNotMatch(rollback,/^\s*(?:DELETE\s+FROM|TRUNCATE|DROP\s+TABLE|ALTER\s+TABLE[^;]*DISABLE\s+ROW\s+LEVEL\s+SECURITY)\b/imu);
   assert.match(rollback,/M26_ONBOARDING_TRAINING_ROLLBACK_NOT_VERIFIED/u);
 });
+
+test('P0: missing fields open a collapsed onboarding form and focus the actual control',()=>{
+  assert.match(workflow,/const details=control\.closest\?\.\('details'\)/u);
+  assert.match(workflow,/if\(details&&!details\.open\)details\.open=true/u);
+  assert.match(workflow,/focusInvalidControl\(controls\[0\]\)/u);
+});
+
+test('P0: explicit active training service is read from both canonical and nested bootstrap shapes',()=>{
+  assert.match(workflow,/created\.trainingServiceStatus\|\|created\.training_service_status/u);
+  assert.match(workflow,/created\.body\?\.trainingServiceStatus/u);
+  assert.match(workflow,/M26_CLIENT_CREATE_TRAINING_SERVICE_NOT_ACTIVE/u);
+});
