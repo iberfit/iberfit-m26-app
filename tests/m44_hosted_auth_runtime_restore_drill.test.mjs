@@ -84,13 +84,16 @@ test('GoTrue recovery clone forwards guarded SQL transaction via Docker stdin',(
  assert.match(script,/DELETE FROM auth\.sessions;/u);
  assert.match(script,/OLD_SESSIONS_REMAIN/u);
  assert.match(script,/ORIGINAL_RESTORED_AUTH_CHANGED/u);
- assert.match(script,/ALTER ROLE supabase_admin IN DATABASE iberfit_m44_hosted_auth_runtime_test/);
- assert.match(script,/SET search_path TO auth;/);
+ assert.match(script,/PGOPTIONS='-csearch_path=auth' pg psql/);
+ assert.match(script,/docker run --rm -i --network host.* -e PGOPTIONS postgres:17-alpine/);
  assert.match(script,/to_regclass\('sessions'\)='auth.sessions'::regclass/);
+ assert.match(script,/current_schema\(\)='auth'/);
+ assert.match(script,/current_setting\('search_path'\)='auth'/);
  assert.match(script,/M44_ISOLATED_GOTRUE_AUTH_SCHEMA_ROUTING_VERIFIED_ONLY/);
  assert.match(script,/CLONE_AUTH_SCHEMA_ROUTING_NOT_EFFECTIVE/);
+ assert.match(script,/options=-csearch_path%3Dauth/);
  assert.match(script,/-e GOTRUE_DB_DRIVER=postgres -e DB_NAMESPACE=auth/);
- assert.doesNotMatch(script,/ALTER ROLE supabase_admin SET search_path/);
+ assert.doesNotMatch(script,/ALTER ROLE supabase_admin (?:IN DATABASE|SET search_path)/);
 });
 
 
