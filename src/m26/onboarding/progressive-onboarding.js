@@ -54,6 +54,7 @@ const ROLE_TRACKS=Object.freeze({
 
 const FLEXIBLE_ONBOARDING_SELECTOR='[data-workflow-form="client-onboarding"]';
 const IRI_ONLY_REQUIRED_FIELDS=Object.freeze(['sexForNorms','weeklyFrequency','sessionDurationMinutes','primaryObjective']);
+const ONBOARDING_PENDING_LABELS=Object.freeze({name:'nombre completo',email:'correo electrónico',phone:'teléfono',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',modality:'modalidad',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',primaryObjective:'objetivo principal',trainingAddress:'dirección habitual de entrenamiento'});
 const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_ATTRIBUTE='data-m26-guided-tour-compact-style';
 const compactStyleRegistry=new WeakMap();
 const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT=`
@@ -309,6 +310,7 @@ export function syncFlexibleOnboardingForm(form){
     else if(!deferred&&phase.value==='Inicio operativo')phase.value='Evaluación inicial';
   }
   const progress=guidedRequiredProgress(form);
+  const pendingLabels=[...new Set(progress.pending.map(field=>ONBOARDING_PENDING_LABELS[String(field?.name||'')]||String(field?.name||'dato pendiente')))];
   if(form.dataset)form.dataset.onboardingPendingRequired=String(progress.pendingCount);
   const submit=form.querySelector?.('[data-onboarding-submit]');
   if(submit){
@@ -318,7 +320,7 @@ export function syncFlexibleOnboardingForm(form){
   }
   const copy=form.querySelector?.('[data-onboarding-next-copy]');
   if(copy)copy.innerHTML=progress.pendingCount
-    ?`<strong>Borrador protegido.</strong> Faltan ${progress.pendingCount} ${progress.pendingCount===1?'dato obligatorio':'datos obligatorios'}. Si intentas continuar, IBERFIT te llevará al primero pendiente.`
+    ?`<strong>Borrador protegido.</strong> Faltan ${progress.pendingCount} ${progress.pendingCount===1?'dato obligatorio':'datos obligatorios'}: ${escapeHtml(pendingLabels.join(', '))}. Al continuar, IBERFIT te llevará al primer campo pendiente.`
     :deferred
       ?'<strong>Inicio operativo.</strong> El IRI queda disponible para realizarlo más adelante sin bloquear planificación, agenda ni sesiones.'
       :'<strong>Evaluación IRI.</strong> Tras crear el expediente se abrirá la primera sesión de evaluación.';
