@@ -8,7 +8,7 @@ const source=fs.readFileSync(
 );
 // The form accepts a role parameter; keep validating its actual markup
 // instead of requiring an obsolete zero-argument function signature.
-const start=source.search(/function clientOnboardingForm\\([^)]*\\)\\s*\\{/u);
+const start=source.indexOf('function clientOnboardingForm(');
 const end=source.indexOf('\nexport function renderClientsRoute',start);
 assert.ok(start>=0&&end>start);
 const onboarding=source.slice(start,end);
