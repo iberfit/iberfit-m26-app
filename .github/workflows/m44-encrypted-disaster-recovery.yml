@@ -1,3 +1,6 @@
+# P0 Coach onboarding 20-NOV-2026: protected Canary postmerge renewal of the
+# existing encrypted full PROD DB+Storage backup and isolated PG17 restore.
+# This is a trigger-only comment: no permission, secret, code, job or retention change.
 # Protected final 19-NOV-2026: refresh encrypted PROD DB+Storage and isolated PG17 proof
 # for the exact Canary Pages-only cutover; no database writes, secret changes, grants or permissions.
 # M44 2026-11-18T17:30Z: protected CANARY post-merge refresh of genuine encrypted
