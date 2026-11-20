@@ -271,7 +271,7 @@ export function onboardingChoiceMarkup(){
     <div class="m26-form-section-title"><span>→</span><div><h3>¿Cómo quieres empezar?</h3><p>El Diagnóstico IRI es el punto de partida recomendado de IBERFIT: registra cómo empieza la persona y orienta las primeras decisiones. Si hoy no corresponde realizarlo, puedes posponerlo sin perder el expediente.</p></div></div>
     <div class="m26-field-grid">
       <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="iri" checked> <span><strong>Realizar Diagnóstico IRI</strong><small> Crea el expediente y abre inmediatamente la evaluación inicial IBERFIT.</small></span></label>
-      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="deferred"> <span><strong>Posponer el IRI</strong><small> Crea el expediente con los datos esenciales y continúa con el trabajo operativo. El diagnóstico inicial seguirá disponible para realizarlo después.</small></span></label>
+      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="deferred"> <span><strong>Posponer el IRI</strong><small> Crea el expediente, activa el entrenamiento y abre directamente Planificación. El diagnóstico inicial seguirá disponible para realizarlo después.</small></span></label>
     </div>
   </section>`;
 }
@@ -316,7 +316,7 @@ export function syncFlexibleOnboardingForm(form){
   if(submit){
     submit.textContent=progress.pendingCount
       ?`Completar ${progress.pendingCount} ${progress.pendingCount===1?'dato obligatorio':'datos obligatorios'}`
-      :deferred?'Crear expediente y empezar a trabajar':'Crear expediente y abrir evaluación IRI';
+      :deferred?'Crear expediente y abrir planificación':'Crear expediente y abrir evaluación IRI';
   }
   const copy=form.querySelector?.('[data-onboarding-next-copy]');
   if(copy)copy.innerHTML=progress.pendingCount
