@@ -44,7 +44,9 @@ test('tras crear cliente el controlador usa una única decisión de navegación 
   const end=workflow.indexOf('async function completeIri()',start);
   assert.ok(start>=0&&end>start);
   const block=workflow.slice(start,end);
-  assert.match(block,/const nextArea=initialAssessmentPostCreateArea\(payload\.initialAssessmentMode\);/u);
+  assert.match(block,/const onboardingDestination=initialAssessmentPostCreateArea\(payload\.initialAssessmentMode\);/u);
+  assert.match(block,/const nextArea=payload\.trainingServiceIntent==='active'\?'planificacion':onboardingDestination;/u);
+  assert.match(block,/CLIENT_CREATE_TRAINING_SERVICE_NOT_ACTIVE/u);
   assert.match(block,/store\.selectClient\?\.\(created\.id\);store\.navigate\?\.\(nextArea\);onRender\(\)/u);
   assert.doesNotMatch(block,/store\.navigate\?\.\('iri'\)/u);
   assert.doesNotMatch(progressive,/pendingClientStartArea|onWorkflowToast/u);
