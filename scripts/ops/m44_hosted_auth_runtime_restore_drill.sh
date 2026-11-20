@@ -32,7 +32,7 @@ mail=iberfit-m44-smtp-isolated
 auth=iberfit-m44-gotrue-isolated
 # The guarded SQL transaction is sent to psql on stdin. Docker must keep
 # stdin open; without -i psql can exit 0 without executing any DELETE.
-pg(){ docker run --rm -i --network host -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD postgres:17-alpine "$@"; }
+pg(){ docker run --rm -i --network host -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD -e PGOPTIONS postgres:17-alpine "$@"; }
 cleanup(){
  set +e
  docker rm -f "$auth" "$mail" >"$scratch/containers-cleanup-private.log" 2>&1
@@ -72,42 +72,29 @@ SQL
 [[ "$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d "$clone" \
  -c 'SELECT ((SELECT count(*) FROM auth.sessions)=0 AND (SELECT count(*) FROM auth.refresh_tokens)=0)::int' \
  2>"$scratch/auth-check-private.log")" == 1 ]] || fail OLD_SESSIONS_REMAIN
-# Managed Hosted Auth uses supabase_auth_admin (search_path=auth), whereas
-# the isolated clone connects as supabase_admin, whose platform role defaults
-# to public before auth. IBERFIT also owns public.sessions (no 'aal'), while
-# auth.sessions has 'aal'. Unqualified GoTrue session queries otherwise hit
-# the training table and fail SQLSTATE 42703 during email confirmation.
-# Override ONLY the disposable clone database for this role, never its global
-# settings and NEVER the original restored DB, QA or live production.
-pg psql -X -q -v ON_ERROR_STOP=1 -d postgres \
- >"$scratch/clone-search-path-private.log" 2>&1 <<'SQL' ||
- fail CLONE_AUTH_SCHEMA_ROUTING_FAILED
-BEGIN;
-DO $guard$
-BEGIN
- IF NOT EXISTS (
-  SELECT 1 FROM pg_database
-  WHERE datname='iberfit_m44_hosted_auth_runtime_test'
- ) THEN
-  RAISE EXCEPTION 'M44_AUTH_SCHEMA_CLONE_MISSING';
- END IF;
-END $guard$;
-ALTER ROLE supabase_admin IN DATABASE iberfit_m44_hosted_auth_runtime_test
- SET search_path TO auth;
-COMMIT;
-SQL
-# A NEW session as the GoTrue DB role must resolve the unqualified sessions
-# identifier to auth.sessions, never IBERFIT public.sessions.
-[[ "$(pg psql -X -A -t -v ON_ERROR_STOP=1 -d "$clone" \
- -c "SELECT (
-   current_schema()='auth'
+# GoTrue uses unqualified model table names (including "sessions").
+# IBERFIT also has public.sessions, with no "aal"; auth.sessions has "aal".
+# The local restore uses supabase_admin for ownership. Rather than altering
+# that role globally or even per-DB, reproduce the Hosted Auth search_path
+# on the *connection itself* (libpq startup parameter). This must never
+# affect the original restored snapshot or any Supabase live connection.
+# PGOPTIONS is passed into this one disposable psql invocation ONLY.
+routing="$(PGOPTIONS='-csearch_path=auth' pg psql -X -A -t -v ON_ERROR_STOP=1 \
+ -d "$clone" -c "SELECT (
+   current_database()='iberfit_m44_hosted_auth_runtime_test'
+   AND current_schema()='auth'
+   AND current_setting('search_path')='auth'
    AND to_regclass('sessions')='auth.sessions'::regclass
    AND EXISTS (
      SELECT 1 FROM information_schema.columns
      WHERE table_schema='auth' AND table_name='sessions' AND column_name='aal'
    )
-  )::int" 2>"$scratch/clone-routing-check-private.log")" == 1 ]] ||
- fail CLONE_AUTH_SCHEMA_ROUTING_NOT_EFFECTIVE
+   AND NOT EXISTS (
+     SELECT 1 FROM information_schema.columns
+     WHERE table_schema='public' AND table_name='sessions' AND column_name='aal'
+   )
+  )::int" 2>"$scratch/clone-routing-check-private.log" || true)"
+[[ "$routing" == 1 ]] || fail CLONE_AUTH_SCHEMA_ROUTING_NOT_EFFECTIVE
 echo 'M44_ISOLATED_GOTRUE_AUTH_SCHEMA_ROUTING_VERIFIED_ONLY'
 # No Internet route for GoTrue, SMTP or the client probe. No host port exposed.
 docker network create --internal "$net" > /dev/null 2>"$scratch/network-private.log" ||
@@ -157,7 +144,7 @@ export GOTRUE_JWT_KEYS GOTRUE_JWT_SECRET
 # Unique synthetic local-SMTP credential per rehearsal, never fixed in source.
 GOTRUE_SMTP_PASS="$(openssl rand -hex 32)"
 export GOTRUE_SMTP_PASS
-GOTRUE_DB_DATABASE_URL="postgres://supabase_admin:${PGPASSWORD}@m44db:5432/${clone}?sslmode=disable"
+GOTRUE_DB_DATABASE_URL="postgres://supabase_admin:${PGPASSWORD}@m44db:5432/${clone}?sslmode=disable&options=-csearch_path%3Dauth"
 export GOTRUE_DB_DATABASE_URL
 docker run -d --name "$auth" --network "$net" --cap-drop ALL \
  --tmpfs /tmp:rw,nosuid,size=32m \
