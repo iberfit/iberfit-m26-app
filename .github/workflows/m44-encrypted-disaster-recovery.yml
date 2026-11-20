@@ -1,3 +1,10 @@
+# REAL TRAINING 360 · 20-NOV-2026: on the single protected Canary merge of
+# the PROD migration-ledger 227 reconciliation, refresh exactly one genuine
+# encrypted PROD DB+Storage M44 backup + isolated PG17 restore, including the
+# deferred-IRI onboarding migration. This is trigger-only; no changes to jobs,
+# costs policy, secrets, permissions, credentials, SQL, RLS or Auth. A successful
+# backup is NOT certification of full Hosted Auth/Vault/Edge recovery or
+# permission to activate U60/U72.
 # P0 Coach onboarding 20-NOV-2026: protected Canary postmerge renewal of the
 # existing encrypted full PROD DB+Storage backup and isolated PG17 restore.
 # This is a trigger-only comment: no permission, secret, code, job or retention change.
