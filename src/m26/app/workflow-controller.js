@@ -1356,14 +1356,16 @@ export function createWorkflowController({
     const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(!form)throw new Error('M26_CLIENT_FORM_REQUIRED');
     syncOnboardingFormState(form);
     const raw=validateClientOnboardingForm(form);
-    const payload=legacyClientDraftPayload(raw);
+    const requestedPayload=legacyClientDraftPayload(raw);
+    // Admin can defer IRI but cannot silently impersonate a Coach to start training.
+    const payload=context().role==='coach'?requestedPayload:{...requestedPayload,trainingServiceIntent:'none'};
     await saveOnboardingDraft(form);status(root,'client-onboarding','Verificando backend y creando expediente protegido…','pending');const outcome=await createClientDraft(payload);const result=outcome?.result||outcome;const state=store.getState();const resultId=clientRecordId(result);const created=outcome?.client||(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
     if(!created?.id)throw new Error('M26_CLIENT_CREATE_NOT_PERSISTED');
     if(payload.trainingServiceIntent==='active'&&String(created.trainingServiceStatus||created.training_service_status||created.trainingService?.status||created.body?.trainingServiceStatus||created.body?.training_service_status||created.body?.trainingService?.status||'').toLowerCase()!=='active')
       throw new Error('M26_CLIENT_CREATE_TRAINING_SERVICE_NOT_ACTIVE');
     const onboardingDestination=initialAssessmentPostCreateArea(payload.initialAssessmentMode);
     const nextArea=payload.trainingServiceIntent==='active'?'planificacion':onboardingDestination;
-    await draftRepository?.remove?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);store.selectClient?.(created.id);store.navigate?.(nextArea);onRender();emit(root,'m26:toast',{message:nextArea==='iri'?`Expediente de ${clientName(created)} creado. Continúa con el Diagnóstico IRI inicial.`:`Expediente de ${clientName(created)} creado. Ya puedes preparar su planificación; el Diagnóstico IRI queda pendiente para más adelante.`});
+    await draftRepository?.remove?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);store.selectClient?.(created.id);store.navigate?.(nextArea);onRender();emit(root,'m26:toast',{message:nextArea==='iri'?`Expediente de ${clientName(created)} creado. Continúa con el Diagnóstico IRI inicial.`:(nextArea==='planificacion'?`Expediente de ${clientName(created)} creado. Ya puedes preparar su planificación; el Diagnóstico IRI queda pendiente para más adelante.`:`Expediente de ${clientName(created)} creado. IRI pendiente; asigna un Coach y activa el servicio antes de planificar.`)});
     return result;
   }
   async function completeIri(){
