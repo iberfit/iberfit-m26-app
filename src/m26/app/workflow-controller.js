@@ -221,6 +221,7 @@ function friendlyError(error){
   if(/V12_COACH_ROLE_REQUIRED/.test(code))return 'La cuenta actual no tiene rol Coach o Administrador para crear expedientes.';
   if(/CLIENT_CREATE_INVALID_RESPONSE/.test(code))return 'El servidor no confirmó un identificador válido. El formulario se conserva y no se mostrará el expediente como creado.';
   if(/CLIENT_CREATE_NOT_PERSISTED/.test(code))return 'El servidor no hizo visible el expediente después de verificar la creación. El borrador queda guardado; no pulses crear otra vez hasta revisar la evidencia técnica.';
+  if(/CLIENT_CREATE_TRAINING_SERVICE_NOT_ACTIVE/.test(code))return 'El expediente existe, pero el servicio de entrenamiento no quedó activo. No lo crees otra vez: actualiza Clientes y solicita la activación protegida del servicio antes de planificar.';
   if(/CLIENT_ONBOARDING_INVALID/.test(code))return 'Completa los datos obligatorios del expediente antes de crearlo.';
   if(/IRI_REMOTE_ENTITY_REQUIRED/.test(code))return 'El expediente todavía no dispone de una entidad IRI remota confirmable.';
   if(/IRI_RANGE_INVALID/.test(code))return 'Hay un valor fuera del rango permitido. Revisa el campo resaltado antes de continuar.';
@@ -1349,6 +1350,8 @@ export function createWorkflowController({
     const payload=legacyClientDraftPayload(raw);
     await saveOnboardingDraft(form);status(root,'client-onboarding','Verificando backend y creando expediente protegido…','pending');const outcome=await createClientDraft(payload);const result=outcome?.result||outcome;const state=store.getState();const resultId=clientRecordId(result);const created=outcome?.client||(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
     if(!created?.id)throw new Error('M26_CLIENT_CREATE_NOT_PERSISTED');
+    if(payload.trainingServiceIntent==='active'&&String(created.trainingServiceStatus||created.training_service_status||'').toLowerCase()!=='active')
+      throw new Error('M26_CLIENT_CREATE_TRAINING_SERVICE_NOT_ACTIVE');
     const onboardingDestination=initialAssessmentPostCreateArea(payload.initialAssessmentMode);
     const nextArea=payload.trainingServiceIntent==='active'?'planificacion':onboardingDestination;
     await draftRepository?.remove?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);store.selectClient?.(created.id);store.navigate?.(nextArea);onRender();emit(root,'m26:toast',{message:nextArea==='iri'?`Expediente de ${clientName(created)} creado. Continúa con el Diagnóstico IRI inicial.`:`Expediente de ${clientName(created)} creado. Ya puedes preparar su planificación; el Diagnóstico IRI queda pendiente para más adelante.`});
