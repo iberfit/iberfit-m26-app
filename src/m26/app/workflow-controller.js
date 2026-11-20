@@ -71,7 +71,16 @@ function values(form){return Object.fromEntries(new FormData(form).entries());}
 // side-effect free, including when this runs inside the invalid handler.
 function invalidFormControls(form){return [...(form?.elements||[])].filter((control)=>control?.willValidate!==false&&control?.validity?.valid===false);}
 function clearControlValidation(control){if(!control)return;control.removeAttribute?.('aria-invalid');control.closest?.('label')?.classList?.remove?.('is-invalid');}
-function focusInvalidControl(control){if(!control)return;control.setAttribute?.('aria-invalid','true');control.closest?.('label')?.classList?.add?.('is-invalid');control.scrollIntoView?.({block:'center',behavior:'smooth'});control.focus?.({preventScroll:true});}
+function focusInvalidControl(control){
+  if(!control)return;
+  // A collapsed client form is not keyboard-focusable until its disclosure is open.
+  const details=control.closest?.('details');
+  if(details&&!details.open)details.open=true;
+  control.setAttribute?.('aria-invalid','true');
+  control.closest?.('label')?.classList?.add?.('is-invalid');
+  control.scrollIntoView?.({block:'center',behavior:'auto'});
+  control.focus?.({preventScroll:true});
+}
 // Validate the complete client-onboarding contract before hitting Supabase.
 // Native constraints alone cannot express all domain rules (e.g. name length),
 // and the IRI-deferred path intentionally has fewer mandatory fields.
@@ -1350,7 +1359,7 @@ export function createWorkflowController({
     const payload=legacyClientDraftPayload(raw);
     await saveOnboardingDraft(form);status(root,'client-onboarding','Verificando backend y creando expediente protegido…','pending');const outcome=await createClientDraft(payload);const result=outcome?.result||outcome;const state=store.getState();const resultId=clientRecordId(result);const created=outcome?.client||(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
     if(!created?.id)throw new Error('M26_CLIENT_CREATE_NOT_PERSISTED');
-    if(payload.trainingServiceIntent==='active'&&String(created.trainingServiceStatus||created.training_service_status||'').toLowerCase()!=='active')
+    if(payload.trainingServiceIntent==='active'&&String(created.trainingServiceStatus||created.training_service_status||created.trainingService?.status||created.body?.trainingServiceStatus||created.body?.training_service_status||created.body?.trainingService?.status||'').toLowerCase()!=='active')
       throw new Error('M26_CLIENT_CREATE_TRAINING_SERVICE_NOT_ACTIVE');
     const onboardingDestination=initialAssessmentPostCreateArea(payload.initialAssessmentMode);
     const nextArea=payload.trainingServiceIntent==='active'?'planificacion':onboardingDestination;
