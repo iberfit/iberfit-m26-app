@@ -27,14 +27,23 @@ const request=async(path,options={})=>{
   const payload=await response.json().catch(()=>null);
   return {status:response.status,payload};
 };
+const QA_TRANSIENT_AUTH_STATUSES=new Set([502,503,504,520,521,522,523,524]);
 const auth=async(email,password)=>{
-  const r=await request('/auth/v1/token?grant_type=password',{
-    method:'POST',headers,body:JSON.stringify({email,password}),
-  });
-  if(r.status!==200||!r.payload?.access_token||!r.payload?.user?.id){
-    throw new Error('P0_CLIENT_DELETE_QA_LOGIN_FAILED');
+  for(let attempt=0;attempt<2;attempt++){
+    const r=await request('/auth/v1/token?grant_type=password',{
+      method:'POST',headers,body:JSON.stringify({email,password}),
+    });
+    if(r.status===200&&r.payload?.access_token&&r.payload?.user?.id)
+      return r.payload.access_token;
+    if(attempt===0&&QA_TRANSIENT_AUTH_STATUSES.has(r.status)){
+      // Exactly one bounded retry for gateway errors. Never retry bad credentials,
+      // revoked accounts or 429, and never log identifiers or bearer tokens.
+      await new Promise(resolve=>setTimeout(resolve,800));
+      continue;
+    }
+    throw new Error('P0_CLIENT_DELETE_QA_LOGIN_FAILED_HTTP_'+r.status);
   }
-  return r.payload.access_token;
+  throw new Error('P0_CLIENT_DELETE_QA_LOGIN_UNCONFIRMED');
 };
 const attempt=async(roleName,token)=>{
   const r=await request('/rest/v1/clients?id=eq.'+NONEXISTENT_ID,{

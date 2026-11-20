@@ -6,7 +6,9 @@ const source=fs.readFileSync(
   new URL('../src/m26/modules/route-render.js',import.meta.url),
   'utf8'
 );
-const start=source.indexOf('function clientOnboardingForm()');
+// The form accepts a role parameter; keep validating its actual markup
+// instead of requiring an obsolete zero-argument function signature.
+const start=source.indexOf('function clientOnboardingForm(');
 const end=source.indexOf('\nexport function renderClientsRoute',start);
 assert.ok(start>=0&&end>start);
 const onboarding=source.slice(start,end);

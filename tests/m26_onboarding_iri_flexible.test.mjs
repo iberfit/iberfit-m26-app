@@ -187,3 +187,38 @@ test('onboarding guía por los datos obligatorios reales y oculta toda la logís
   assert.equal(submit.textContent,'Crear expediente y abrir evaluación IRI');
   assert.match(copy.innerHTML,/Evaluación IRI/);
 });
+
+
+test('P0: el alta diferida cumple el contrato V12 sin inventar objetivos ni cargas',()=>{
+  const payload=legacyClientDraftPayload({...minimal,initialAssessmentMode:'deferred'});
+  assert.equal(payload.objective,'Objetivo pendiente de definir');
+  assert.equal(payload.frequency,'Frecuencia pendiente de acordar');
+  assert.equal(payload.profile.primaryObjective,'');
+  assert.equal(payload.profile.weeklyFrequency,null);
+  assert.equal(payload.profile.sessionDurationMinutes,null);
+  assert.deepEqual(payload.profile.onboardingPendingFields,[
+    'sexForNorms','weeklyFrequency','sessionDurationMinutes','primaryObjective',
+  ]);
+  assert.equal(payload.initialAssessmentMode,'deferred');
+  assert.equal(payload.accessEnabled,false);
+  assert.equal(payload.inviteClient,false);
+});
+
+test('P0: datos aportados se conservan y no se sustituyen por marcadores',()=>{
+  const supplied=legacyClientDraftPayload({
+    ...minimal,initialAssessmentMode:'deferred',
+    weeklyFrequency:'3',sessionDurationMinutes:'45',
+    primaryObjective:'Ganar fuerza y movilidad',sexForNorms:'female',
+  });
+  assert.equal(supplied.objective,'Ganar fuerza y movilidad');
+  assert.equal(supplied.frequency,'3 sesiones por semana');
+  assert.deepEqual(supplied.profile.onboardingPendingFields,[]);
+});
+
+test('P0: el IRI habitual continúa rechazando el alta sin evaluación básica',()=>{
+  const check=validateClientOnboardingDraft(minimal);
+  assert.equal(check.ok,false);
+  assert.ok(check.errors.includes('primaryObjective'));
+  assert.ok(check.errors.includes('weeklyFrequency'));
+  assert.ok(check.errors.includes('sessionDurationMinutes'));
+});

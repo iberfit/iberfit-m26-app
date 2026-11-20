@@ -54,6 +54,7 @@ const ROLE_TRACKS=Object.freeze({
 
 const FLEXIBLE_ONBOARDING_SELECTOR='[data-workflow-form="client-onboarding"]';
 const IRI_ONLY_REQUIRED_FIELDS=Object.freeze(['sexForNorms','weeklyFrequency','sessionDurationMinutes','primaryObjective']);
+const ONBOARDING_PENDING_LABELS=Object.freeze({name:'nombre completo',email:'correo electrónico',phone:'teléfono',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',modality:'modalidad',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',primaryObjective:'objetivo principal',trainingAddress:'dirección habitual de entrenamiento'});
 const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_ATTRIBUTE='data-m26-guided-tour-compact-style';
 const compactStyleRegistry=new WeakMap();
 const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT=`
@@ -265,12 +266,12 @@ export function onboardingPostCreateArea(form){
   return initialAssessmentPostCreateArea(onboardingAssessmentMode(form));
 }
 
-export function onboardingChoiceMarkup(){
+export function onboardingChoiceMarkup({canStartTraining=true}={}){
   return `<section class="m26-form-section m26-panel-soft" data-onboarding-assessment-choice>
     <div class="m26-form-section-title"><span>→</span><div><h3>¿Cómo quieres empezar?</h3><p>El Diagnóstico IRI es el punto de partida recomendado de IBERFIT: registra cómo empieza la persona y orienta las primeras decisiones. Si hoy no corresponde realizarlo, puedes posponerlo sin perder el expediente.</p></div></div>
     <div class="m26-field-grid">
       <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="iri" checked> <span><strong>Realizar Diagnóstico IRI</strong><small> Crea el expediente y abre inmediatamente la evaluación inicial IBERFIT.</small></span></label>
-      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="deferred"> <span><strong>Posponer el IRI</strong><small> Crea el expediente con los datos esenciales y continúa con el trabajo operativo. El diagnóstico inicial seguirá disponible para realizarlo después.</small></span></label>
+      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="deferred"> <span><strong>Posponer el IRI</strong><small> ${canStartTraining?'Crea el expediente, activa el entrenamiento y abre directamente Planificación. El diagnóstico inicial seguirá disponible para realizarlo después.':'Crea el expediente sin completar ahora el IRI; el entrenamiento requiere asignar un Coach.'}</small></span></label>
     </div>
   </section>`;
 }
@@ -278,7 +279,7 @@ export function onboardingChoiceMarkup(){
 export function ensureFlexibleOnboardingUi(form){
   if(!form)return false;
   if(!form.querySelector?.('[data-onboarding-assessment-choice]')){
-    form.insertAdjacentHTML?.('afterbegin',onboardingChoiceMarkup());
+    form.insertAdjacentHTML?.('afterbegin',onboardingChoiceMarkup({canStartTraining:form.dataset?.onboardingCanStartTraining!=='false'}));
   }
   const action=form.querySelector?.('[data-workflow-action="create-client-draft"]');
   if(action)action.setAttribute?.('data-onboarding-submit','');
@@ -291,6 +292,7 @@ export function syncFlexibleOnboardingForm(form){
   if(!form)return 'iri';
   const mode=onboardingAssessmentMode(form);
   const deferred=mode==='deferred';
+  const canStartTraining=form.dataset?.onboardingCanStartTraining!=='false';
   for(const name of IRI_ONLY_REQUIRED_FIELDS)setRequired(named(form,name),!deferred);
   const modality=String(named(form,'modality')?.value||'').trim().toLowerCase();
   const locationApplies=['presencial','hibrido'].includes(modality);
@@ -309,18 +311,19 @@ export function syncFlexibleOnboardingForm(form){
     else if(!deferred&&phase.value==='Inicio operativo')phase.value='Evaluación inicial';
   }
   const progress=guidedRequiredProgress(form);
+  const pendingLabels=[...new Set(progress.pending.map(field=>ONBOARDING_PENDING_LABELS[String(field?.name||'')]||String(field?.name||'dato pendiente')))];
   if(form.dataset)form.dataset.onboardingPendingRequired=String(progress.pendingCount);
   const submit=form.querySelector?.('[data-onboarding-submit]');
   if(submit){
     submit.textContent=progress.pendingCount
       ?`Completar ${progress.pendingCount} ${progress.pendingCount===1?'dato obligatorio':'datos obligatorios'}`
-      :deferred?'Crear expediente y empezar a trabajar':'Crear expediente y abrir evaluación IRI';
+      :deferred?(canStartTraining?'Crear expediente y abrir planificación':'Crear expediente sin IRI'):'Crear expediente y abrir evaluación IRI';
   }
   const copy=form.querySelector?.('[data-onboarding-next-copy]');
   if(copy)copy.innerHTML=progress.pendingCount
-    ?`<strong>Borrador protegido.</strong> Faltan ${progress.pendingCount} ${progress.pendingCount===1?'dato obligatorio':'datos obligatorios'}. Si intentas continuar, IBERFIT te llevará al primero pendiente.`
+    ?`<strong>Borrador protegido.</strong> Faltan ${progress.pendingCount} ${progress.pendingCount===1?'dato obligatorio':'datos obligatorios'}: ${escapeHtml(pendingLabels.join(', '))}. Al continuar, IBERFIT te llevará al primer campo pendiente.`
     :deferred
-      ?'<strong>Inicio operativo.</strong> El IRI queda disponible para realizarlo más adelante sin bloquear planificación, agenda ni sesiones.'
+      ?(canStartTraining?'<strong>Inicio operativo.</strong> El IRI queda disponible para realizarlo más adelante sin bloquear planificación, agenda ni sesiones.':'<strong>Alta administrativa.</strong> El IRI queda pendiente. Asigna un Coach y activa el servicio de entrenamiento para planificar.')
       :'<strong>Evaluación IRI.</strong> Tras crear el expediente se abrirá la primera sesión de evaluación.';
   return mode;
 }

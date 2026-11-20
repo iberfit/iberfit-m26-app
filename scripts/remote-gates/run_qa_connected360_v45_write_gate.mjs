@@ -63,14 +63,24 @@ function errorIsForbidden(res){
       ||res?.status===401||res?.status===403
       ||/M26_CONNECTED360_V45_/u.test(String(res?.body?.message||'')));
 }
+const TRANSIENT_QA_AUTH_GATEWAY=new Set([502,503,504,520,521,522,523,524]);
 async function login(email,password){
-  const res=await request('/auth/v1/token?grant_type=password',{
-    payload:{email,password},
-  });
-  if(res.status!==200||typeof res.body?.access_token!=='string'
-    ||typeof res.body?.user?.id!=='string')
-    throw new Error('V45_QA_AUTHENTICATION_REQUIRED');
-  return {token:res.body.access_token,userId:res.body.user.id};
+  for(let attempt=0;attempt<2;attempt++){
+    const res=await request('/auth/v1/token?grant_type=password',{
+      payload:{email,password},
+    });
+    if(res.status===200&&typeof res.body?.access_token==='string'
+      &&typeof res.body?.user?.id==='string')
+      return {token:res.body.access_token,userId:res.body.user.id};
+    if(attempt===0&&TRANSIENT_QA_AUTH_GATEWAY.has(res.status)){
+      // Only one retry, only a transient gateway failure; never retry bad
+      // credentials, 429 or revoked users. No secrets or PII in diagnostics.
+      await new Promise(resolve=>setTimeout(resolve,800));
+      continue;
+    }
+    throw new Error('V45_QA_AUTHENTICATION_FAILED_HTTP_'+res.status);
+  }
+  throw new Error('V45_QA_AUTHENTICATION_UNCONFIRMED');
 }
 async function currentClient(session){
   // The full bootstrap may require privileged assurance; a synthetic client
