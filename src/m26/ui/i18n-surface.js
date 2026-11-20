@@ -5,6 +5,11 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // Administrative intake does not implicitly grant Coach training.
+  ['Crear expediente sin IRI','Create record without IRI','Créer le dossier sans IRI','Criar processo sem IRI'],
+  ['Crea el expediente sin completar ahora el IRI; el entrenamiento requiere asignar un Coach.','Create the record without completing IRI now; training requires assigning a Coach.','Créez le dossier sans terminer le diagnostic IRI maintenant ; l’entraînement nécessite l’affectation d’un Coach.','Crie o processo sem realizar agora o IRI; o treino requer a atribuição de um Coach.'],
+  ['Alta administrativa.','Administrative enrollment.','Inscription administrative.','Registo administrativo.'],
+  ['El IRI queda pendiente. Asigna un Coach y activa el servicio de entrenamiento para planificar.','The IRI remains pending. Assign a Coach and activate training before planning.','L’IRI reste en attente. Affectez un Coach et activez l’entraînement avant de planifier.','O IRI permanece pendente. Atribua um Coach e ative o treino antes de planear.'],
   // P0 Coach client onboarding: explicit missing fields, genuine deferred-IRI planning,
   // and legacy-only pending markers, localized across all supported UI languages.
   ['dirección habitual de entrenamiento','usual training address','adresse habituelle d’entraînement','morada habitual de treino'],

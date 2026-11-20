@@ -63,7 +63,7 @@ test('P0: identidad insuficiente nunca atraviesa el transporte',()=>{
 test('P0: nueva alta diferida abre planificación, nunca exige completar IRI',()=>{
   assert.match(workflow,/payload\.trainingServiceIntent==='active'\?'planificacion':onboardingDestination/u);
   assert.match(workflow,/store\.selectClient\?\.\(created\.id\);store\.navigate\?\.\(nextArea\)/u);
-  assert.match(progressive,/deferred\?'Crear expediente y abrir planificación'/u);
+  assert.match(progressive,/canStartTraining\?'Crear expediente y abrir planificación':'Crear expediente sin IRI'/u);
   assert.match(progressive,/Posponer el IRI/u);
   assert.match(progressive,/El diagnóstico inicial seguirá disponible para realizarlo después/u);
 });
@@ -101,4 +101,13 @@ test('P0: explicit active training service is read from both canonical and neste
   assert.match(workflow,/created\.trainingServiceStatus\|\|created\.training_service_status/u);
   assert.match(workflow,/created\.body\?\.trainingServiceStatus/u);
   assert.match(workflow,/M26_CLIENT_CREATE_TRAINING_SERVICE_NOT_ACTIVE/u);
+});
+
+const routeRender=read('src/m26/modules/route-render.js');
+test('P0 Admin-only intake cannot activate Coach training or mislabel IRI',()=>{
+  assert.match(routeRender,/clientOnboardingForm\(vm\.role\)/u);
+  assert.match(routeRender,/data-onboarding-can-start-training=/u);
+  assert.match(workflow,/context\(\)\.role==='coach'\?requestedPayload:\{\.\.\.requestedPayload,trainingServiceIntent:'none'\}/u);
+  assert.match(progressive,/Crear expediente sin IRI/u);
+  assert.match(progressive,/Alta administrativa/u);
 });
