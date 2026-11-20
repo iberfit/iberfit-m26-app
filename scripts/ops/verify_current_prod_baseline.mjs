@@ -1,13 +1,14 @@
 // IBERFIT REAL TRAINING 360 · catalog-only PROD evidence, never a rollout grant.
+// Exact ledger fingerprint refreshed against PROD on 2026-11-20 after the deferred-IRI Coach onboarding migration.
 // The Supabase Management read-only role cannot see RLS-protected business rows
 // or EXECUTE the private environment RPC. DO NOT broaden database permissions
 // to make this job green. This observes pg_catalog and migration metadata only.
 import {mkdir,writeFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 export const PROD_REF='pjhmrhejsoofmouedavw';
-export const EXACT_LEDGER_SHA256='1f7c9a41176413eb8c040fc39d1e2d4c5d65efaaca9010036e379f13ef2201b0';
-export const EXACT_LEDGER_TOTAL=226;
-export const EXACT_LEDGER_LATEST='20261119041637';
+export const EXACT_LEDGER_SHA256='6b3ac9930f59ef4e5fb197dd0b7cbe1a81aea68294fd071c8947676bb00915de';
+export const EXACT_LEDGER_TOTAL=227;
+export const EXACT_LEDGER_LATEST='20261120220043';
 export const REQUIRED_VERSIONS=Object.freeze([
  '20260831163404','20260831164756','20260831164829','20260831170443',
  '20260901012307','20261017003320','20261025182000','20261025194000',

@@ -25,7 +25,9 @@ const valid=()=>({
 test('catalog-only query has no business rows, RLS bypass, privilege mutation or app RPC call',()=>{
  assert.equal(PROD_REF,'pjhmrhejsoofmouedavw');
  assert.equal(REQUIRED_VERSIONS.length,14);
- assert.equal(EXACT_LEDGER_TOTAL,226);
+ assert.equal(EXACT_LEDGER_TOTAL,227);
+ assert.equal(EXACT_LEDGER_LATEST,'20261120220043');
+ assert.equal(EXACT_LEDGER_SHA256,'6b3ac9930f59ef4e5fb197dd0b7cbe1a81aea68294fd071c8947676bb00915de');
  assert.match(EXACT_LEDGER_SHA256,/^[a-f0-9]{64}$/u);
  assert.match(QUERY,/^SELECT\n/u);
  assert.match(QUERY,/FROM supabase_migrations\.schema_migrations/u);
@@ -71,6 +73,9 @@ test('rejected migration drift, source fingerprint, widening ACL or RLS disabled
   {registry_rls:false},{locks_rls:false},{entities_rls:false},
   {occurrences_rls:false},{environment_rpc_acl:false},
   {migration_total:'226'},
+  {migration_total:226},
+  {migration_latest:'20261119041637'},
+  {migration_ledger_sha256:'1f7c9a41176413eb8c040fc39d1e2d4c5d65efaaca9010036e379f13ef2201b0'},
  ];
  for(const change of bad)assert.throws(
   ()=>certifyCurrentProductionBaseline([{...valid(),...change}],{sourceSha:SHA}),
