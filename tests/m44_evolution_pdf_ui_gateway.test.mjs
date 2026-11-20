@@ -57,7 +57,10 @@ test('M44 Client and Coach versions have isolated action gateway with no direct 
 
 test('M44 issued report lifecycle presents actionable Spanish recovery messages before generic permissions errors',async()=>{
  const s=await read('src/m26/app/workflow-controller.js');
- const beginning=s.slice(s.indexOf('function friendlyError('),s.indexOf('function friendlyError(')+5700);
+ const start=s.indexOf('function friendlyError(');
+ const end=s.indexOf('\n}\n',start);
+ assert.ok(start>=0&&end>start);
+ const beginning=s.slice(start,end+2);
  for(const code of ['M44_PDF_ISSUANCE_NOT_AVAILABLE','M44_PDF_WITHDRAWN_REVISION_CANNOT_BE_REISSUED',
  'M44_PDF_REQUEST_TIMEOUT','M44_PDF_BRAND_FONT_FETCH_FAILED','M44_PDF_OFFLINE_UNAVAILABLE',
  'M44_PDF_POPUP_BLOCKED','M44_PDF_WITHDRAW_REASON_REQUIRED'])assert.ok(beginning.includes(code),code);
