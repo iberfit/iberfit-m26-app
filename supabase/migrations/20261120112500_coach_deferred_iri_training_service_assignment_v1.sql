@@ -2,11 +2,13 @@
 -- No existing client is modified. Existing assignments/events are never reset.
 -- Only an explicitly requested training-service activation on a *new* client
 -- can create training + Coach scope. Admin-only/IRI-only workflows stay separate.
--- Read-only source preflight. No anonymous DO blocks or backfill writes:
+-- Read-only source preflight. Accept only certified old/new body hashes
+-- so QA may safely replay a migration already staged under a separate ledger entry.
+-- No anonymous DO blocks or backfill writes:
 -- the migration runner aborts if the dynamic CASE cannot be cast to integer.
 SELECT (CASE WHEN
   md5(pg_get_functiondef(to_regprocedure('public.iberfit_create_client_draft_v12(jsonb)')))
-    = '906a923478573671ddc5532af9172356'
+    IN ('906a923478573671ddc5532af9172356','c9590e8089d04f7129a21e2c17e714da')
   AND md5(pg_get_functiondef(to_regprocedure('public.iberfit_create_client_draft_v12_pre_v65e(jsonb)')))
     = '833239e847db56f90de23c6b407e1384'
   AND (SELECT pg_get_userbyid(proowner) FROM pg_proc
