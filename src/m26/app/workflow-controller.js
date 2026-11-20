@@ -26,7 +26,7 @@ import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
 import {resolveExerciseMedia} from '../library/exercise-media.js';
 import {
   CLIENT_ONBOARDING_DRAFT_SCOPE,CLIENT_ONBOARDING_LOCAL_ID,
-  legacyClientDraftPayload,createdClientResultId,clientDraftEmail,
+  legacyClientDraftPayload,createdClientResultId,clientDraftEmail,validateClientOnboardingDraft,
 } from '../workflows/client-onboarding.js';
 import {
   IRI_FIRST_SESSION_STEPS,
@@ -60,7 +60,7 @@ const IRI_ERROR_FIELD_TARGET=Object.freeze({
   bodyCompositionMeasurement:'weightKg',ankleTrials:'ankleLeft1',posteriorTrials:'posteriorLeft1',hipRotationResult:'hipRotationResult',squatDepth:'squatDepth',lowerBodyStrength:'squat60Repetitions',chairStand30s:'chairStand30s',pushTest:'pushVariant',trxRow:'trxRowRepetitions',frontPlank:'frontPlankSeconds',cardioProtocol:'cardioProtocol',cardioValid:'cardioValid',cardioRepetitions:'oneMinuteSitToStandRepetitions',cardioHeartRate:'stepFinalHr',cardioHeartRatePair:'stepFinalHr',cardioStepHeight:'stepHeightCm',cardioCadence:'cadenceBpm',cardioYmcaStandard:'cardioProtocol',cardioTreadmillLoad:'treadmillSpeedKmh',cardioTreadmillContext:'cardioRecoveryMode',cardioDuration:'cardioDurationSeconds',diagnosisStrengths:'diagnosisStrengths',diagnosisPriorities:'diagnosisPriorities',coachInterpretation:'coachInterpretation',initialPlan:'initialPlan',reviewAccepted:'reviewAccepted',bodyCompositionSkipReason:'bodyCompositionSkipReason',mobilitySkipReason:'mobilitySkipReason',strengthSkipReason:'strengthSkipReason',cardioSkipReason:'cardioSkipReason',
 });
 const ONBOARDING_FIELD_LABELS=Object.freeze({
-  name:'nombre completo',email:'correo electrónico',phone:'teléfono',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',modality:'modalidad',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',primaryObjective:'objetivo principal',
+  name:'nombre completo',email:'correo electrónico',phone:'teléfono',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',modality:'modalidad',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',primaryObjective:'objetivo principal',trainingAddress:'dirección habitual de entrenamiento',
 });
 const GUIDED_FORM_FIELD_LABELS=Object.freeze({
   name:'nombre del ciclo',startDate:'fecha de inicio',endDate:'fecha de fin',modality:'modalidad',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración',goal:'objetivo',clientId:'cliente',startAt:'inicio',endAt:'fin',experience:'experiencia',durationMinutes:'duración',
@@ -72,6 +72,28 @@ function values(form){return Object.fromEntries(new FormData(form).entries());}
 function invalidFormControls(form){return [...(form?.elements||[])].filter((control)=>control?.willValidate!==false&&control?.validity?.valid===false);}
 function clearControlValidation(control){if(!control)return;control.removeAttribute?.('aria-invalid');control.closest?.('label')?.classList?.remove?.('is-invalid');}
 function focusInvalidControl(control){if(!control)return;control.setAttribute?.('aria-invalid','true');control.closest?.('label')?.classList?.add?.('is-invalid');control.scrollIntoView?.({block:'center',behavior:'smooth'});control.focus?.({preventScroll:true});}
+// Validate the complete client-onboarding contract before hitting Supabase.
+// Native constraints alone cannot express all domain rules (e.g. name length),
+// and the IRI-deferred path intentionally has fewer mandatory fields.
+function validateClientOnboardingForm(form){
+  const raw=values(form);
+  const domain=validateClientOnboardingDraft(raw);
+  const names=new Set([
+    ...invalidFormControls(form).map(control=>String(control.name||'').trim()),
+    ...domain.errors,
+  ].filter(Boolean));
+  if(!names.size)return raw;
+  const controls=[...(form?.elements||[])].filter(control=>names.has(String(control?.name||'').trim()));
+  for(const control of controls){
+    control.setAttribute?.('aria-invalid','true');
+    control.closest?.('label')?.classList?.add?.('is-invalid');
+  }
+  focusInvalidControl(controls[0]);
+  const readable=[...names].map(name=>ONBOARDING_FIELD_LABELS[name]||name);
+  const error=new Error('M26_CLIENT_ONBOARDING_INVALID:'+Array.from(names).join(','));
+  error.userMessage='Revisa estos campos antes de crear el expediente: '+readable.join(', ')+'.';
+  throw error;
+}
 function ensureValidForm(form,{code='M26_FORM_INVALID',labels={},summary='Revisa los campos obligatorios'}={}){
   const invalid=invalidFormControls(form);if(!invalid.length)return form;
   for(const control of invalid){control.setAttribute?.('aria-invalid','true');control.closest?.('label')?.classList?.add?.('is-invalid');}
@@ -167,7 +189,13 @@ function friendlyError(error){
   if(/M42_SESSION_ENTRY_HANDLER_MISSING/.test(code))return 'El reproductor no está preparado. Actualiza IBERFIT y vuelve a intentarlo; no se ha iniciado ningún entrenamiento.';
   if(/M42_SESSION_WORKSPACE_UNAVAILABLE/.test(code))return 'No se pudo abrir la sesión. Comprueba su disponibilidad y vuelve a intentarlo.';
   if(/M26_SESSION_ACTIVE_WITHDRAW_FORBIDDEN/.test(code))return 'No puedes retirar este entrenamiento mientras esté en curso. Primero finaliza o cancela la ejecución; su historial se conserva.';
-  if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
+  if(/V12_COACH_ROLE_REQUIRED|Solo Administración o Coach puede crear clientes/i.test(code))return 'Tu cuenta no dispone del permiso de Coach o Administrador para crear expedientes. Comprueba el rol de la sesión y vuelve a entrar antes de reintentar.';
+  if(/IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED/.test(code))return 'Necesitas completar la verificación segura de tu sesión como Coach o Admin antes de crear el expediente. Conservamos los datos introducidos.';
+  if(/M26_CLIENT_NOT_VISIBLE/.test(code))return 'El expediente seleccionado no está visible en tu cartera. Actualiza Clientes y comprueba la asignación; no repitas el alta si ya se creó.';
+  if(/M26_WORKFLOW_ROLE_FORBIDDEN/.test(code))return 'Esta sesión no está autorizada para crear o modificar expedientes. Entra con tu rol Coach o Admin.';
+  if(/V12_CLIENT_CREATE_ENVIRONMENT_BLOCKED/.test(code))return 'El backend ha bloqueado el alta en este entorno. No se ha confirmado ningún expediente y el borrador sigue disponible.';
+  if(/Ingresa el objetivo principal|Ingresa la frecuencia prevista/i.test(code))return 'El servidor exige un objetivo y frecuencia iniciales. Revisa los datos del expediente antes de reintentar; el borrador sigue disponible.';
+  if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'La operación requiere autorización o un expediente visible. Comprueba tu rol y el cliente seleccionado.';
   // A safe training removal is not a database DELETE. Fail closed with a
   // human, recoverable reason; never hide the blocker behind a raw RPC code.
   if(/M26_SESSION_WITHDRAW_(EXECUTION|OCCURRENCE|APPOINTMENT)_OPEN|M26_SESSION_ACTIVE_WITHDRAW_FORBIDDEN|U60_RETIRE_ACTIVE_OCCURRENCE_EXISTS/.test(code))
@@ -1147,8 +1175,19 @@ export function createWorkflowController({
   }
   function queueOnboardingSave(form){clearTimeout(onboardingSaveTimer);onboardingSaveTimer=setTimeout(()=>{void saveOnboardingDraft(form).catch(()=>{});},350);}
   function syncOnboardingFormState(form){
-    if(!form)return;const modality=form.elements?.namedItem?.('modality');const address=form.elements?.namedItem?.('trainingAddress');if(!address)return;
-    const required=['presencial','hibrido'].includes(String(modality?.value||''));address.required=required;if(required)address.setAttribute?.('required','');else address.removeAttribute?.('required');
+    if(!form)return;
+    const mode=String(form.elements?.namedItem?.('initialAssessmentMode')?.value||'iri');
+    const deferred=mode==='deferred';
+    for(const name of ['sexForNorms','weeklyFrequency','sessionDurationMinutes','primaryObjective']){
+      const control=form.elements?.namedItem?.(name);if(!control)continue;
+      control.required=!deferred;
+      if(deferred)control.removeAttribute?.('required');else control.setAttribute?.('required','');
+    }
+    const modality=form.elements?.namedItem?.('modality');
+    const address=form.elements?.namedItem?.('trainingAddress');if(!address)return;
+    const required=!deferred&&['presencial','hibrido'].includes(String(modality?.value||''));
+    address.required=required;
+    if(required)address.setAttribute?.('required','');else address.removeAttribute?.('required');
   }
   async function initializeOnboardingForm(form){
     if(!form||initializedOnboardingForms.has(form))return;initializedOnboardingForms.add(form);
@@ -1304,7 +1343,10 @@ export function createWorkflowController({
 
   async function createClient(){
     requireCoach();if(typeof createClientDraft!=='function')throw new Error('M26_CLIENT_CREATE_UNAVAILABLE');if(!isOnline())throw new Error('M26_OFFLINE_CLIENT_CREATE_NOT_ALLOWED');
-    const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(!form)throw new Error('M26_CLIENT_FORM_REQUIRED');ensureValidForm(form,{code:'M26_CLIENT_ONBOARDING_INVALID',labels:ONBOARDING_FIELD_LABELS,summary:'Completa los datos obligatorios del expediente'});const raw=values(form);const payload=legacyClientDraftPayload(raw);
+    const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(!form)throw new Error('M26_CLIENT_FORM_REQUIRED');
+    syncOnboardingFormState(form);
+    const raw=validateClientOnboardingForm(form);
+    const payload=legacyClientDraftPayload(raw);
     await saveOnboardingDraft(form);status(root,'client-onboarding','Verificando backend y creando expediente protegido…','pending');const outcome=await createClientDraft(payload);const result=outcome?.result||outcome;const state=store.getState();const resultId=clientRecordId(result);const created=outcome?.client||(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
     if(!created?.id)throw new Error('M26_CLIENT_CREATE_NOT_PERSISTED');
     const nextArea=initialAssessmentPostCreateArea(payload.initialAssessmentMode);
