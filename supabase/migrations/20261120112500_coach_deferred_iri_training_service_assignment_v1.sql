@@ -2,23 +2,22 @@
 -- No existing client is modified. Existing assignments/events are never reset.
 -- Only an explicitly requested training-service activation on a *new* client
 -- can create training + Coach scope. Admin-only/IRI-only workflows stay separate.
-DO $preflight$
-BEGIN
-  IF md5(pg_get_functiondef(to_regprocedure('public.iberfit_create_client_draft_v12(jsonb)')))
-      IS DISTINCT FROM '906a923478573671ddc5532af9172356'
-    OR md5(pg_get_functiondef(to_regprocedure('public.iberfit_create_client_draft_v12_pre_v65e(jsonb)')))
-      IS DISTINCT FROM '833239e847db56f90de23c6b407e1384'
-    OR (SELECT pg_get_userbyid(proowner) FROM pg_proc
-        WHERE oid=to_regprocedure('public.iberfit_create_client_draft_v12(jsonb)'))
-      IS DISTINCT FROM 'postgres'
-    OR (SELECT prosecdef FROM pg_proc
-        WHERE oid=to_regprocedure('public.iberfit_create_client_draft_v12(jsonb)'))
-      IS DISTINCT FROM true
-    OR NOT EXISTS (SELECT 1 FROM pg_class
-        WHERE oid=to_regclass('public.iberfit_training_service_events_v1') AND relrowsecurity)
-  THEN RAISE EXCEPTION 'M26_COACH_DEFERRED_IRI_CREATE_SOURCE_DRIFT'; END IF;
-END
-$preflight$;
+-- Read-only source preflight. No anonymous DO blocks or backfill writes:
+-- the migration runner aborts if the dynamic CASE cannot be cast to integer.
+SELECT (CASE WHEN
+  md5(pg_get_functiondef(to_regprocedure('public.iberfit_create_client_draft_v12(jsonb)')))
+    = '906a923478573671ddc5532af9172356'
+  AND md5(pg_get_functiondef(to_regprocedure('public.iberfit_create_client_draft_v12_pre_v65e(jsonb)')))
+    = '833239e847db56f90de23c6b407e1384'
+  AND (SELECT pg_get_userbyid(proowner) FROM pg_proc
+    WHERE oid=to_regprocedure('public.iberfit_create_client_draft_v12(jsonb)'))='postgres'
+  AND (SELECT prosecdef FROM pg_proc
+    WHERE oid=to_regprocedure('public.iberfit_create_client_draft_v12(jsonb)'))=true
+  AND EXISTS (SELECT 1 FROM pg_class
+    WHERE oid=to_regclass('public.iberfit_training_service_events_v1')
+      AND relrowsecurity AND relforcerowsecurity)
+THEN '1' ELSE 'M26_COACH_DEFERRED_IRI_CREATE_SOURCE_DRIFT' END)::integer AS source_guard;
+
 
 CREATE OR REPLACE FUNCTION public.iberfit_create_client_draft_v12(p_payload jsonb)
 RETURNS jsonb
@@ -132,14 +131,14 @@ END
 $function$;
 
 -- No grants broadened. Preserve existing authenticated access and deny anon.
-DO $postflight$
-BEGIN
-  IF NOT has_function_privilege('authenticated',
+-- Read-only postflight. CREATE OR REPLACE retains the existing function ACL;
+-- any accidental grant to anonymous aborts the complete migration transaction.
+SELECT (CASE WHEN
+  has_function_privilege('authenticated',
        'public.iberfit_create_client_draft_v12(jsonb)','EXECUTE')
-    OR has_function_privilege('anon',
+  AND NOT has_function_privilege('anon',
        'public.iberfit_create_client_draft_v12(jsonb)','EXECUTE')
-    OR (SELECT pg_get_userbyid(proowner) FROM pg_proc
-        WHERE oid='public.iberfit_create_client_draft_v12(jsonb)'::regprocedure)<>'postgres'
-  THEN RAISE EXCEPTION 'M26_ONBOARDING_TRAINING_GATEWAY_ACL_DRIFT'; END IF;
-END
-$postflight$;
+  AND (SELECT pg_get_userbyid(proowner) FROM pg_proc
+       WHERE oid=to_regprocedure('public.iberfit_create_client_draft_v12(jsonb)'))='postgres'
+THEN '1' ELSE 'M26_ONBOARDING_TRAINING_GATEWAY_ACL_DRIFT' END)::integer AS acl_guard;
+
