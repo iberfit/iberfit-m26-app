@@ -1349,8 +1349,9 @@ export function createWorkflowController({
     const payload=legacyClientDraftPayload(raw);
     await saveOnboardingDraft(form);status(root,'client-onboarding','Verificando backend y creando expediente protegido…','pending');const outcome=await createClientDraft(payload);const result=outcome?.result||outcome;const state=store.getState();const resultId=clientRecordId(result);const created=outcome?.client||(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
     if(!created?.id)throw new Error('M26_CLIENT_CREATE_NOT_PERSISTED');
-    const nextArea=initialAssessmentPostCreateArea(payload.initialAssessmentMode);
-    await draftRepository?.remove?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);store.selectClient?.(created.id);store.navigate?.(nextArea);onRender();emit(root,'m26:toast',{message:nextArea==='iri'?`Expediente de ${clientName(created)} creado. Continúa con el Diagnóstico IRI inicial.`:`Expediente de ${clientName(created)} creado. El Diagnóstico IRI queda disponible para realizarlo después.`});
+    const onboardingDestination=initialAssessmentPostCreateArea(payload.initialAssessmentMode);
+    const nextArea=payload.trainingServiceIntent==='active'?'planificacion':onboardingDestination;
+    await draftRepository?.remove?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);store.selectClient?.(created.id);store.navigate?.(nextArea);onRender();emit(root,'m26:toast',{message:nextArea==='iri'?`Expediente de ${clientName(created)} creado. Continúa con el Diagnóstico IRI inicial.`:`Expediente de ${clientName(created)} creado. Ya puedes preparar su planificación; el Diagnóstico IRI queda pendiente para más adelante.`});
     return result;
   }
   async function completeIri(){
