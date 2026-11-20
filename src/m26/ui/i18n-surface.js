@@ -5,6 +5,14 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  // P0 Coach client onboarding: explicit missing fields, genuine deferred-IRI planning,
+  // and legacy-only pending markers, localized across all supported UI languages.
+  ['dirección habitual de entrenamiento','usual training address','adresse habituelle d’entraînement','morada habitual de treino'],
+  ['Revisa estos campos antes de crear el expediente:','Review these fields before creating the client record:','Vérifiez ces champs avant de créer le dossier :','Reveja estes campos antes de criar o processo:'],
+  ['Frecuencia pendiente de acordar','Frequency to be agreed','Fréquence à convenir','Frequência por acordar'],
+  ['Objetivo pendiente de definir','Goal to be defined','Objectif à définir','Objetivo por definir'],
+  ['Crea el expediente, activa el entrenamiento y abre directamente Planificación. El diagnóstico inicial seguirá disponible para realizarlo después.','Create the client record, activate training and open Planning directly. The initial assessment remains available to complete later.','Créez le dossier, activez l’entraînement et ouvrez directement la planification. Le diagnostic initial restera disponible pour être réalisé plus tard.','Crie o processo, ative o treino e abra diretamente o planeamento. O diagnóstico inicial continuará disponível para realizar depois.'],
+  ['Crear expediente y abrir planificación','Create client record and open planning','Créer le dossier et ouvrir la planification','Criar processo e abrir planeamento'],
   // Client access: provider acceptance, pending and error must remain distinguishable.
   ["El proveedor no confirmó la invitación.", "The provider did not confirm the invitation.", "Le fournisseur n’a pas confirmé l’invitation.", "O fornecedor não confirmou o convite."],
   ["La invitación falló. Comprueba su estado antes de volver a enviarla.", "The invitation failed. Check its status before sending again.", "L’invitation a échoué. Vérifiez son statut avant de la renvoyer.", "O convite falhou. Confirme o estado antes de o reenviar."],
