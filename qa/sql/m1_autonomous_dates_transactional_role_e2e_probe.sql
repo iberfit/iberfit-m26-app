@@ -80,7 +80,7 @@ BEGIN
     'payload',jsonb_build_object(
      'targetClientId',v_client,'previewConfirmed',true,
      'dates',jsonb_build_array(jsonb_build_object('localDate',v_date::text),
-                              jsonb_build_object('localDate',(v_date+7)::text)))));
+                              jsonb_build_object('localDate',(v_date+7)::text,'localTime','12:00')))));
  IF v_ack->>'kind'<>'ack' OR v_ack->>'count'<>'2'
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_U32_NOT_ACK';END IF;
  v_occ:=(v_ack#>>'{occurrences,0,id}')::uuid;
@@ -147,5 +147,28 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v_calendar->'occurrences') j
       WHERE j->>'id'=v_occ::text AND j->>'status'='en_curso')
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_ACTIVE_DATE_NOT_VISIBLE';END IF;
+ -- Confirm the second, timed date without a fabricated appointment.
+ PERFORM set_config('request.jwt.claim.sub',v_coach::text,true);
+ PERFORM set_config('request.jwt.claims',
+   jsonb_build_object('sub',v_coach,'email','qa.rc74.coach@iberfit.cl','role','authenticated')::text,true);
+ v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+   'type','OCURRENCIA_CONFIRMAR','operationId',gen_random_uuid(),
+   'clientId',v_client,'entityId',v_second,'baseRevision',0));
+ IF v_ack->>'kind'<>'ack' OR v_ack->>'status'<>'confirmada'
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_SECOND_CONFIRM_NOT_ACK';END IF;
+ PERFORM set_config('request.jwt.claim.sub',v_user_a::text,true);
+ PERFORM set_config('request.jwt.claims',
+   jsonb_build_object('sub',v_user_a,'email','qa.rc74.client-a@iberfit.cl','role','authenticated')::text,true);
+ v_calendar:=private.iberfit_u33_occurrence_calendar_v1(v_client,v_date,v_date+7);
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v_calendar->'occurrences') j
+      WHERE j->>'id'=v_second::text AND j->>'status'='confirmada'
+        AND j->>'appointmentId' IS NULL AND j->>'localTime'='12:00')
+    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_SECOND_TIMED_DATE_MISSING';END IF;
+ v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+    'type','OCURRENCIA_INICIAR','operationId',gen_random_uuid(),
+    'clientId',v_client,'entityId',v_second,'baseRevision',1,
+    'payload',jsonb_build_object('executionId',gen_random_uuid())));
+ IF v_ack->>'kind'<>'rejected' OR v_ack->>'reason'<>'START_WINDOW_INVALID'
+    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_FUTURE_START_NOT_DENIED';END IF;
  RAISE NOTICE 'M1_AUTONOMOUS_QA_SQL_TRANSACTIONAL_ROLE_E2E_SUCCESS';
 END $m1_qa_date_only_probe$;
