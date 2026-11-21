@@ -31,7 +31,7 @@ test('every important corruption and security drift fails closed',()=>{
  for(const delta of [
   {counts:{execution_drift:1}},{counts:{orphan_dated:1}},
   {counts:{missing_execution_id:1}},{counts:{autonomous_published:53}},
-  {counts:{autonomous_completed:3}},{counts:{dated_history:60}},
+  {counts:{autonomous_completed:5}},{counts:{dated_history:60}},
   {counts:{active:-1}},{counts:{total:Infinity}},{rls:false},
   {u60Anonymous:true},{u72Installed:false},{environment:'OTHER'}]){
   const r={...QA.report,...delta,
