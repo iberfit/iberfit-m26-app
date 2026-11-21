@@ -21,7 +21,7 @@ const RULES=Object.freeze([
  [/schema .* does not exist|relation .* does not exist|type .* does not exist/iu,'MISSING_DEPENDENCY'],
  [/role .* does not exist/iu,'MISSING_ROLE_OR_TYPE'],
  [/extension .* is not available|could not open extension control file/iu,'EXTENSION_UNAVAILABLE'],
- [/could not connect|connection refused|connection unexpectedly closed|could not translate host name|timeout expired/iu,'CONNECTION_OR_POOLER'],
+ [/could not connect|connection refused|server closed the connection|connection unexpectedly closed|could not translate host name|timeout expired/iu,'CONNECTION_OR_POOLER'],
  [/pg_restore: error: could not execute query/iu,'POSTGRES_STATEMENT_REJECTED'],
  [/pg_restore: error: COPY failed/iu,'POSTGRES_COPY_FAILED'],
  [/signal:|killed|out of memory/iu,'RESOURCE_EXHAUSTED']
