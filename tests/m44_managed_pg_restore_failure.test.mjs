@@ -25,7 +25,7 @@ test('M44 restore errors produce bounded non-sensitive classifications only',()=
  }
 });
 test('M44 never prints unknown SQLSTATE or arbitrary SQL excerpts',()=>{
- const confidential='Client email someone@example.test\nINSERT INTO private.x VALUES (''sensitive'')\nSQLSTATE ZZZZZ';
+ const confidential="Client email someone@example.test\nINSERT INTO private.x VALUES ('sensitive')\nSQLSTATE ZZZZZ";
  const r=classifyM44RestoreFailure(confidential,{status:1});
  assert.equal(r.code,'M44_MANAGED_SQL_UNKNOWN');
  assert.equal(r.sqlstate,null);
