@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {
  composeM1AutonomousBackendCutover,loadM1AutonomousBundleSources,
  M1_AUTONOMOUS_FUNCTION_MD5,
