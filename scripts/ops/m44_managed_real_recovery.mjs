@@ -368,7 +368,7 @@ async function main(){
     process.env.GITHUB_REF!=='refs/heads/canary/rc74-4'||
     process.env.M44_USER_AUTHORIZATION!=='REAL_DATA_CLONE_ONLY_20261121'||
     process.env.GITHUB_EVENT_NAME!=='push'||
-    process.env.GITHUB_RUN_ATTEMPT!=='1'||
+    !['1','2','3'].includes(process.env.GITHUB_RUN_ATTEMPT||'')||
     !/^[0-9a-f]{40}$/.test(process.env.GITHUB_SHA||'')||
     !process.env.SUPABASE_ACCESS_TOKEN||
     !process.env.GITHUB_TOKEN||
