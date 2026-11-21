@@ -60,8 +60,9 @@ jobs:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
       M26_QA_ONLY: 'true'
-      # Signed no-cita mode is authorized ONLY on the single-PR branch.
-      M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT: ${{ github.ref == 'refs/heads/feat/m26-autonomous-dates-m44-one-prod-release-20261121' }}
+      # Signed no-cita mode is authorized on the original feature branch and
+      # protected Canary after merge; writes still require same-run signed attempt 2.
+      M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT: ${{ github.ref == 'refs/heads/feat/m26-autonomous-dates-m44-one-prod-release-20261121' || github.ref == 'refs/heads/canary/rc74-4' }}
       M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
       M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
       M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}

@@ -137,3 +137,17 @@ test('U74 one-PR authenticated no-cita browser workflow is strict branch and two
  assert.ok(ui.includes('proof.fixture.appointmentless'));
  assert.doesNotMatch(wf,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|IBERFIT_PROD_DATABASE_URL/u);
 });
+
+// The protected exact-SHA branch must test the autonomous product path,
+// not silently fall back to the legacy appointment-linked case.
+test('M1 Canary U74 explicitly enables appointmentless signed QA only',()=>{
+ const workflow=readFileSync('.github/workflows/u74-qa-dated-browser-e2e.yml','utf8');
+ const runner=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ assert.match(workflow,/M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT:.*refs\/heads\/canary\/rc74-4/u);
+ assert.match(workflow,/github\.run_attempt == 1/u);
+ assert.match(workflow,/github\.run_attempt == 2/u);
+ assert.match(runner,/authorizedAutonomousQaBranch\(e,branch\)/u);
+ assert.match(runner,/GITHUB_WORKFLOW==='IBERFIT U74 Real QA Dated Browser Write E2E'/u);
+ assert.match(runner,/GITHUB_EVENT_NAME==='push'/u);
+ assert.doesNotMatch(workflow,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|IBERFIT_PROD_DATABASE_URL/u);
+});
