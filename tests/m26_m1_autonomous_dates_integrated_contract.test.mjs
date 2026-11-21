@@ -159,3 +159,33 @@ test('Coach and Client autonomous controls are translated in all locales',()=>{
    assert.notEqual(iberfitSurfaceTranslate(label,{language}),label);
  }
 });
+
+
+test('M1 no-cita QA full lifecycle uses signed public U60, not privileged-only shortcut',()=>{
+ const probe=readFileSync('qa/sql/m1_autonomous_dates_transactional_role_e2e_probe.sql','utf8');
+ const required=[
+  'M1_AUTONOMOUS_PROBE_QA_ONLY',
+  'public.iberfit_occurrence_api_u60_v1',
+  'OCURRENCIAS_CREAR_LOTE',
+  'OCURRENCIA_CONFIRMAR',
+  'OCURRENCIA_INICIAR',
+  'OCURRENCIA_GUARDAR_PROGRESO',
+  'OCURRENCIA_PAUSAR',
+  'OCURRENCIA_REANUDAR',
+  'OCURRENCIA_COMPLETAR',
+  'M1_AUTONOMOUS_PROBE_PAUSE_REPLAY_NOT_IDEMPOTENT',
+  'M1_AUTONOMOUS_PROBE_PAUSED_WRITE_NOT_FENCED',
+  'M1_AUTONOMOUS_PROBE_CLIENT_B_CALENDAR_LEAK',
+  'M1_AUTONOMOUS_PROBE_CLIENT_B_DETAIL_LEAK',
+  'M1_AUTONOMOUS_PROBE_FUTURE_START_NOT_DENIED',
+  'M1_AUTONOMOUS_PROBE_FINISH_READBACK_DRIFT',
+ ];
+ for(const token of required)assert.ok(probe.includes(token),'missing no-cita lifecycle gate: '+token);
+ // Private functions have no authenticated grants, and the probe cannot
+ // silently skip SQL ROLLBACK, change PROD data or fake an appointment.
+ assert.doesNotMatch(probe,/INSERT INTO auth\.users|UPDATE auth\.users|GRANT EXECUTE/iu);
+ assert.doesNotMatch(probe,/PERFORM public\.iberfit_persist_entity_v26\(\s*'appointment'/u);
+ assert.match(probe,/public\.iberfit_environment\(\)/u);
+ const noGateway=(probe.match(/public\.iberfit_occurrence_api_u60_v1/gmu)||[]).length;
+ assert.ok(noGateway>=8,'every Client/Coach dated command must use the real gateway');
+});
