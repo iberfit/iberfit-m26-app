@@ -6,6 +6,7 @@ import {guardDatedBusyActions,
   createDatedOccurrenceQaUi,qaDatedCalendarRange,formatDatedElapsed,
   plannedDatedSetDraft,applyPlannedDatedSetDraft,
   suggestedConfirmedDatedAppointments,datedCoachPreviewMatchesForm,
+  appendCoachDatedDateLine,
   captureDatedUnsubmittedFields,restoreDatedUnsubmittedFields,
 } from '../src/m26/workflows/occurrence-qa-ui.js';
 import {M26_ACTION_REGISTRY} from '../src/m26/ui/interactive-audit.js';
@@ -116,6 +117,68 @@ test('UNIVERSAL Coach calendar is fetched ONLY after an explicit action; no priv
     assert.equal(h.calls[0].query.clientId,CLIENT);
     assert.match(h.ui.renderPanel(),/Sesión verificable/u);
     assert.match(h.ui.renderPanel(),/u60-confirm/u);
+  }finally{h.close();}
+});
+
+
+test('Coach composes one prescription on distinct dates without implicit server writes',()=>{
+  let dates=appendCoachDatedDateLine('', '2026-12-01','08:00');
+  dates=appendCoachDatedDateLine(dates,'2026-12-05','09:30');
+  assert.equal(dates,'2026-12-01 08:00\\n2026-12-05 09:30');
+  assert.throws(()=>appendCoachDatedDateLine(dates,'2026-12-01','14:00'),
+    /U60_UI_DATE_DUPLICATE/u,'same civil date cannot be scheduled twice');
+  assert.throws(()=>appendCoachDatedDateLine(dates,'2026-02-30','08:00'),
+    /U60_UI_DATE_TIME_INVALID/u);
+  assert.throws(()=>appendCoachDatedDateLine(dates,'2026-12-06','24:00'),
+    /U60_UI_DATE_FORMAT_INVALID/u);
+  const base=Array.from({length:52},(_,i)=>{
+    const value=new Date(Date.UTC(2026,11,1+i)).toISOString().slice(0,10);
+    return value+' 08:00';
+  }).join('\\n');
+  assert.throws(()=>appendCoachDatedDateLine(base,'2027-02-01','08:00'),
+    /U60_UI_DATE_LIMIT/u);
+});
+
+test('Coach visual multifecha editor appends distinct dates locally and preserves review boundary',async()=>{
+  const h=createHarness();
+  try{
+    h.state.collections.sessions=[{id:SESSION,clientId:CLIENT,title:'Fuerza',
+      status:'disponible',deliveryModality:'guiada_en_app',durationMinutes:60}];
+    let markup=h.ui.renderPanel();
+    for(const token of ['data-u60-add-date','name="u60AddDate"',
+      'name="u60AddTime"','name="u60Dates"','u60-preview','u60-publish'])
+      assert.ok(markup.includes(token),token+' missing in Coach workspace');
+    const dates={value:''},day={value:'2026-12-01'},time={value:'08:00'};
+    const hint={textContent:''},confirm={disabled:false,
+      setAttribute(name,value){this[name]=value;}};
+    const inputs={
+      '[name="u60Dates"]':dates,'[name="u60AddDate"]':day,
+      '[name="u60AddTime"]':time,
+      '[data-u60-appointment-hint]':hint,
+      '[data-iberdates-action="u60-publish"]':confirm,
+    };
+    const panel={querySelector:selector=>inputs[selector]||null};
+    const button={disabled:false,hasAttribute:key=>key==='data-u60-add-date',
+      closest:selector=>selector==='[data-u60-panel]'?panel:null};
+    const event={target:{closest:selector=>
+      selector==='[data-u60-add-date]'?button:null},
+      preventDefault(){},stopPropagation(){}};
+    await h.listeners.get('click')(event);
+    assert.equal(dates.value,'2026-12-01 08:00');
+    assert.equal(day.value,'');
+    assert.equal(confirm.disabled,true,'stale preview cannot be published');
+    day.value='2026-12-05';time.value='09:30';
+    await h.listeners.get('click')(event);
+    assert.equal(dates.value,'2026-12-01 08:00\\n2026-12-05 09:30');
+    assert.equal(h.calls.length,0,'date picker makes no Supabase calls');
+    day.value='2026-12-01';
+    await h.listeners.get('click')(event);
+    assert.equal(dates.value,'2026-12-01 08:00\\n2026-12-05 09:30');
+    assert.match(hint.textContent,/ya figura/u);
+    h.state.identity.role='client';
+    markup=h.ui.renderPanel();
+    assert.doesNotMatch(markup,/data-u60-add-date/u,
+      'Client cannot see Coach date scheduling');
   }finally{h.close();}
 });
 

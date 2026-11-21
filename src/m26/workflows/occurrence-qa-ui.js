@@ -156,6 +156,25 @@ function parseCoachDates(value){
     return {localDate:match[1],localTime:match[2]};
   });
 }
+// Coach-only local date picker: never schedules or writes until the signed
+// preview and the atomic U32 batch both confirm this exact list of dates.
+export function appendCoachDatedDateLine(current,date,time){
+  const day=String(date??'').trim(),clock=String(time??'').trim();
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/u.test(day)||
+    !/^(?:[01]\\d|2[0-3]):[0-5]\\d$/u.test(clock))fail('DATE_FORMAT_INVALID');
+  try{resolveSantiagoLocalInstant(day,clock);}
+  catch{fail('DATE_TIME_INVALID');}
+  const old=String(current??'').trim();
+  const previous=old?parseCoachDates(old):[];
+  if(previous.length>=52)fail('DATE_LIMIT');
+  // U30/U32 authorizes one independent occurrence per Client and civil day.
+  // Another hour on the same day must not masquerade as a second date.
+  if(previous.some(item=>item.localDate===day))fail('DATE_DUPLICATE');
+  const next=[...previous,{localDate:day,localTime:clock}]
+    .map(item=>item.localDate+' '+item.localTime).join('\\n');
+  if(next.length>1500)fail('DATE_LIMIT');
+  return next;
+}
 function formValue(target,name){
   return String(target?.closest?.('[data-u60-panel]')?.querySelector?.(
     '[name="'+name+'"]')?.value||'').trim();
@@ -180,6 +199,12 @@ function humanError(error){
     return 'Hay una operación o copia cifrada pendiente. Conserva este dispositivo y recupera antes de repetir la acción.';
   if(/PREVIEW_FORM_CHANGED/u.test(code))
     return 'Has cambiado la sesión o las fechas después de verificarlas. Repite la verificación antes de confirmar.';
+  if(/DATE_DUPLICATE/u.test(code))
+    return 'Esa fecha ya figura en la programación. Puedes elegir otro día o editar la lista.';
+  if(/DATE_LIMIT/u.test(code))
+    return 'Se permiten hasta 52 fechas distintas por programación.';
+  if(/DATE_TIME_INVALID/u.test(code))
+    return 'La fecha u hora no existe o es ambigua en Chile. Elige otro horario.';
   if(/APPOINTMENT|DATE|CYCLE|PREVIEW|FORMAT|WINDOW/u.test(code))
     return 'Revisa las fechas, el ciclo publicado y las citas confirmadas: deben coincidir exactamente antes de publicar.';
   return 'No se pudo confirmar el cambio. El progreso local cifrado se conserva; comprueba la conexión y reintenta.';
@@ -204,7 +229,7 @@ const DATED_DRAFT_FIELDS=Object.freeze([
   'u60Reps','u60Seconds','u60DistanceKm','u60DistanceM','u60Load',
   'u60Rpe','u60Rir','u60Pace','u60PaceSwim','u60Notes','u60SkipReason',
   'u60FinalRpe','u60FinalComment','u60Pain','u60PainNotes',
-  'u60Session','u60Dates',
+  'u60Session','u60Dates','u60AddDate','u60AddTime',
 ]);
 // A remote workout ACK is asynchronous. Re-rendering an enabled action while
 // busy makes a rapid second touch silently disappear. Disable every dated
@@ -476,8 +501,12 @@ export function createDatedOccurrenceQaUi({
       const publisher=coach&&canStartNew&&sessions
         ?'<details class="m26-panel"><summary>Programar varias fechas de una sesión publicada</summary>'+
          '<label>Sesión publicada<select name="u60Session">'+sessions+'</select></label>'+
-         '<label>Fechas y horas en Chile, una por línea (AAAA-MM-DD HH:mm)'+
-         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-11-09 08:00&#10;2026-11-12 08:00">'+escape(activePreview?.datesInput||'')+'</textarea></label>'+
+         '<div class="m26-field-grid" data-u60-coach-date-picker>'+
+         '<label>Elegir día<input type="date" name="u60AddDate" min="2020-01-01" max="2100-12-31"></label>'+
+         '<label>Hora en Chile<input type="time" name="u60AddTime" step="60"></label>'+
+         '<div class="m26-wide m26-inline-actions"><button type="button" data-u60-add-date>Añadir fecha a esta sesión</button></div></div>'+
+         '<label>Fechas seleccionadas (una por línea, hasta 52)'+
+         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-12-01 08:00&#10;2026-12-05 09:00">'+escape(activePreview?.datesInput||'')+'</textarea></label>'+
          '<div class="m26-inline-actions"><button type="button" data-u60-use-appointments>Usar citas confirmadas</button></div>'+
          '<p class="m26-field-help">Solo prepara las fechas a partir de citas existentes; no crea citas ni publica entrenamientos.</p>'+
          '<p class="m26-field-help" role="status" aria-live="polite" data-u60-appointment-hint></p>'+
@@ -823,6 +852,36 @@ export function createDatedOccurrenceQaUi({
     fail('UNKNOWN_ACTION');
   }
   async function onClick(event){
+    const addDateButton=event?.target?.closest?.('[data-u60-add-date]');
+    if(addDateButton?.hasAttribute?.('data-u60-add-date')&&
+      root.contains(addDateButton)&&!disposed&&!busy&&!addDateButton.disabled){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const scope=visibleOwner();
+      if(scope?.role!=='coach'||(productionReleased===true&&newStartsEnabled!==true))
+        return;
+      const panel=addDateButton.closest?.('[data-u60-panel]');
+      const datesField=panel?.querySelector?.('[name="u60Dates"]');
+      const dayField=panel?.querySelector?.('[name="u60AddDate"]');
+      const timeField=panel?.querySelector?.('[name="u60AddTime"]');
+      const hint=panel?.querySelector?.('[data-u60-appointment-hint]');
+      if(!datesField||!dayField||!timeField)return;
+      try{
+        const next=appendCoachDatedDateLine(datesField.value,dayField.value,timeField.value);
+        datesField.value=next;
+        dayField.value='';
+        // New dates invalidate the old reviewed preview, but no remote write
+        // is made here. Keep the editor intact and ask for fresh verification.
+        const confirm=panel?.querySelector?.('[data-iberdates-action="u60-publish"]');
+        if(confirm){
+          confirm.disabled=true;
+          confirm.setAttribute?.('aria-disabled','true');
+        }
+        if(hint)hint.textContent=next.split('\\n').length+
+          ' fecha(s) seleccionadas. Prepara sus citas en Agenda y verifica antes de publicar.';
+      }catch(error){if(hint)hint.textContent=humanError(error);}
+      return;
+    }
     const appointmentButton=event?.target?.closest?.('[data-u60-use-appointments]');
     if(appointmentButton?.hasAttribute?.('data-u60-use-appointments')&&
       root.contains(appointmentButton)&&!disposed&&!busy&&!appointmentButton.disabled){
