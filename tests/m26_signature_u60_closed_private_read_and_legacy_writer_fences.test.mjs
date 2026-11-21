@@ -57,13 +57,19 @@ test('U60 private read is a single scoped JWT POST and cannot use role filters',
   assert.equal(sent.length,1);
 });
 
-test('U60 client cannot receive an unlinked or unpublished dated prescription',async()=>{
+test('U60 Client accepts only a confirmed server-scoped unlinked date, never a Coach draft',async()=>{
+  let status='confirmada';
   const reader=createOccurrencePrivateReader({
     enabled:true,getAuthContext:auth,
     transport:{occurrencePrivateRead:async()=>({
-      ...privateResult,occurrence:{...privateResult.occurrence,appointmentId:null},
+      ...privateResult,occurrence:{...privateResult.occurrence,
+        appointmentId:null,status},
     })},
   });
+  assert.equal((await reader.read({clientId:CLIENT,occurrenceId:OCC}))
+    .occurrence.appointmentId,null,
+    'only SQL U60 may certify published prescription and linked owner');
+  status='planificada';
   await assert.rejects(reader.read({clientId:CLIENT,occurrenceId:OCC}),
     /U60_PRIVATE_CLIENT_UNPUBLISHED_FORBIDDEN/);
 });
