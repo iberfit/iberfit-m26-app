@@ -156,6 +156,72 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v_calendar->'occurrences') j
       WHERE j->>'id'=v_occ::text AND j->>'status'='en_curso')
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_ACTIVE_DATE_NOT_VISIBLE';END IF;
+ -- Durable progress is checked through the same role-scoped private read.
+ v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+   'type','OCURRENCIA_GUARDAR_PROGRESO','operationId',gen_random_uuid(),
+   'clientId',v_client,'entityId',v_occ,'baseRevision',2,
+   'payload',jsonb_build_object('executionId',v_execution_id,
+     'executionBaseRevision',1,'results',jsonb_build_object(
+       v_exercise_id||':1',jsonb_build_object('reps',10,'loadKg',20)),
+     'skippedSets','{}'::jsonb)));
+ IF v_ack->>'kind'<>'ack' OR (v_ack->>'executionRevision')::integer<>2
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PROGRESS_NOT_ACK';END IF;
+ v_pause_operation:=gen_random_uuid();
+ v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+   'type','OCURRENCIA_PAUSAR','operationId',v_pause_operation,
+   'clientId',v_client,'entityId',v_occ,'baseRevision',2,
+   'payload',jsonb_build_object('executionId',v_execution_id,
+     'executionBaseRevision',2)));
+ IF v_ack->>'kind'<>'ack' OR v_ack->>'executionStatus'<>'pausada'
+   OR (v_ack->>'executionRevision')::int<>3
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSE_NOT_ACK';END IF;
+ v_detail:=private.iberfit_u60_occurrence_detail_v1(v_client,v_occ);
+ IF v_detail#>>'{executionBody,status}' IS DISTINCT FROM 'pausada'
+    OR v_detail->'executionBody'->'results'->(v_exercise_id||':1')->>'reps' IS DISTINCT FROM '10'
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSE_NOT_DURABLE';END IF;
+ v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+   'type','OCURRENCIA_PAUSAR','operationId',v_pause_operation,
+   'clientId',v_client,'entityId',v_occ,'baseRevision',2,
+   'payload',jsonb_build_object('executionId',v_execution_id,
+     'executionBaseRevision',2)));
+ IF v_ack->>'kind'<>'ack' OR v_ack->>'duplicate'<>'true'
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSE_REPLAY_NOT_IDEMPOTENT';END IF;
+ v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+   'type','OCURRENCIA_GUARDAR_PROGRESO','operationId',gen_random_uuid(),
+   'clientId',v_client,'entityId',v_occ,'baseRevision',2,
+   'payload',jsonb_build_object('executionId',v_execution_id,
+     'executionBaseRevision',3,'results','{}'::jsonb,'skippedSets','{}'::jsonb)));
+ IF v_ack->>'kind'<>'rejected' OR v_ack->>'reason'<>'EXECUTION_PAUSED'
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSED_WRITE_NOT_FENCED';END IF;
+ v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+   'type','OCURRENCIA_REANUDAR','operationId',gen_random_uuid(),
+   'clientId',v_client,'entityId',v_occ,'baseRevision',2,
+   'payload',jsonb_build_object('executionId',v_execution_id,
+     'executionBaseRevision',3)));
+ IF v_ack->>'kind'<>'ack' OR v_ack->>'executionStatus'<>'en_curso'
+    OR (v_ack->>'executionRevision')::int<>4
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_RESUME_NOT_ACK';END IF;
+ v_detail:=private.iberfit_u60_occurrence_detail_v1(v_client,v_occ);
+ IF v_detail#>>'{executionBody,status}' IS DISTINCT FROM 'en_curso'
+    OR (v_detail#>>'{executionBody,revision}')::int<>4
+    OR v_detail->'executionBody'->'results'->(v_exercise_id||':1')->>'reps' IS DISTINCT FROM '10'
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_RESUME_NOT_DURABLE';END IF;
+ v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+   'type','OCURRENCIA_COMPLETAR','operationId',gen_random_uuid(),
+   'clientId',v_client,'entityId',v_occ,'baseRevision',2,
+   'payload',jsonb_build_object('executionId',v_execution_id,
+     'executionBaseRevision',4,
+     'results',jsonb_build_object(v_exercise_id||':1',
+       jsonb_build_object('reps',10,'loadKg',20)),
+     'skippedSets','{}'::jsonb,
+     'feedback',jsonb_build_object('sessionRpe',7,
+       'comment','M1 synthetic QA autonomous dated','pain',false))));
+ IF v_ack->>'kind'<>'ack' OR v_ack->>'status'<>'completada'
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_COMPLETION_NOT_ACK';END IF;
+ v_detail:=private.iberfit_u60_occurrence_detail_v1(v_client,v_occ);
+ IF v_detail#>>'{occurrence,status}' IS DISTINCT FROM 'completada'
+    OR v_detail#>>'{executionBody,status}' IS DISTINCT FROM 'completada'
+   THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_FINISH_READBACK_DRIFT';END IF;
  -- Confirm the second, timed date without a fabricated appointment.
  PERFORM set_config('request.jwt.claim.sub',v_coach::text,true);
  PERFORM set_config('request.jwt.claims',
