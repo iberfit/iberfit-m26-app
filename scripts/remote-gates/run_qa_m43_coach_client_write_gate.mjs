@@ -98,8 +98,12 @@ async function main(){
   const environment=await rpc('iberfit_environment',clientA);
   check(environment?.environment==='QA'&&environment.realDataAllowed===false
     &&environment.productionBlocked===true,'QA_ISOLATION');
-  let [a,b,coachRole]=await Promise.all([
-    bootstrap(clientA),bootstrap(clientB),rpc('iberfit_current_role_v26',coach)]);
+  // QA authenticated has an 8s per-statement deadline. On a large synthetic
+  // history two simultaneous full canonical bootstraps can starve each other
+  // into SQLSTATE 57014. Preserve both real snapshots, but serialize reads.
+  let a=await bootstrap(clientA);
+  let b=await bootstrap(clientB);
+  const coachRole=await rpc('iberfit_current_role_v26',coach);
   // Preserve the exact U47 lock exception and add a bounded, fully scoped
   // capacity fallback: the historical QA Client A must never be truncated or
   // granted new room by weakening the synthetic 150-session protection.
@@ -220,9 +224,10 @@ async function main(){
   // M37 enables reviewed guided sessions atomically during publication.
   // Do not send a redundant SESION_HABILITAR after a confirmed state change.
   // Legacy supervised or non-atomic flows still require explicit enablement.
-  const [clientReady,otherVisibility]=await Promise.all([
-    ownerProjection(clientA,'session',draft.id,idA),
-    foreignVisibility(clientB,'session',draft.id)]);
+  // Both read the genuine canonical bootstrap under independent Client JWTs.
+  // Serial calls prevent Free-tier CPU contention without omitting privacy.
+  const clientReady=await ownerProjection(clientA,'session',draft.id,idA);
+  const otherVisibility=await foreignVisibility(clientB,'session',draft.id);
   const canonical=clientReady.canonical;
   // M37 requires the publish ACK itself to include atomic enablement. A
   // second command here masked regressions that would strand real Clients on
@@ -261,8 +266,8 @@ async function main(){
     'CLIENT_FINISH_IDEMPOTENT_REPLAY');
   evidence.phase='real-client-execution';
 
-  const [finalA,finalForeign]=await Promise.all([
-    bootstrap(clientA),foreignVisibility(clientB,'session_execution',execution.id)]);
+  const finalA=await bootstrap(clientA);
+  const finalForeign=await foreignVisibility(clientB,'session_execution',execution.id);
   check(contains(finalA,execution.id,'session_execution')||baseContains(finalA,execution.id,'sessionExecutions'),
     'CLIENT_COMPLETED_HISTORY_VISIBLE');
   check(!finalForeign.canonicalVisible&&!finalForeign.legacyVisible,
@@ -299,9 +304,8 @@ async function main(){
   acceptSessionPreview(uiDraft,catalog);
   const uiPublished=await send(coach,buildPublishSessionCommand(uiDraft,catalog,0),
     'INTERACTIVE_SESSION_PUBLISH');
-  const [uiReady,uiForeign]=await Promise.all([
-    ownerProjection(clientA,'session',uiDraft.id,idA),
-    foreignVisibility(clientB,'session',uiDraft.id)]);
+  const uiReady=await ownerProjection(clientA,'session',uiDraft.id,idA);
+  const uiForeign=await foreignVisibility(clientB,'session',uiDraft.id);
   const uiCanonical=uiReady.canonical;
   check(uiReady.canonicalVisible||uiReady.legacyVisible,
     'INTERACTIVE_SESSION_VISIBLE_TO_OWNER');
@@ -329,9 +333,8 @@ async function main(){
   acceptSessionPreview(runningDraft,catalog);
   const runningPublished=await send(coach,buildPublishSessionCommand(runningDraft,catalog,0),
     'RUNNING_INTERACTIVE_SESSION_PUBLISH');
-  const [runningReady,runningForeign]=await Promise.all([
-    ownerProjection(clientA,'session',runningDraft.id,idA),
-    foreignVisibility(clientB,'session',runningDraft.id)]);
+  const runningReady=await ownerProjection(clientA,'session',runningDraft.id,idA);
+  const runningForeign=await foreignVisibility(clientB,'session',runningDraft.id);
   const runningCanonical=runningReady.canonical;
   check(runningReady.canonicalVisible||runningReady.legacyVisible,
     'RUNNING_SESSION_VISIBLE_TO_OWNER');
