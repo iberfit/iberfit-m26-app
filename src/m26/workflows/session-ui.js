@@ -247,13 +247,17 @@ function alternativeOptions(catalog,currentExercise={},selectedId=null){
   const otherEquipment=candidates.filter((item)=>!sameIds.has(item.id));
   const preferred=sameEquipment.slice(0,10);
   const secondary=otherEquipment.slice(0,18);
+  // Fallback only when no same-pattern options exist. Never select it automatically.
+  const otherPatterns=preferred.length===0&&secondary.length===0
+    ?catalog.search('').filter((item)=>item.id!==currentId&&item.id!==selectedId).slice(0,6)
+    :[];
   const visibleIds=new Set([...preferred,...secondary].map((item)=>item.id));
   const selected=selectedId&&!visibleIds.has(selectedId)?catalog.get(selectedId):null;
   const option=(item)=>`<option value="${e(item.id)}"${item.id===selectedId?' selected':''}>${e(alternativeLabel(item))}</option>`;
   const group=(label,items)=>items.length?`<optgroup label="${e(label)}">${items.map(option).join('')}</optgroup>`:'';
-  return `<option value=""${selectedId?'':' selected'}>Sin alternativa fijada</option>${selected?group('Alternativa actual',[selected]):''}${group('Mismo patrón y material',preferred)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',secondary)}`;
+  return `<option value=""${selectedId?'':' selected'}>Sin alternativa fijada</option>${selected?group('Alternativa actual',[selected]):''}${group('Mismo patrón y material',preferred)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',secondary)}${group('Otros patrones · revisar con Coach',otherPatterns)}`;
 }
-function liveAlternativeOptions(catalog,currentExercise={},plannedAlternativeId=null){
+function liveAlternativeOptions(catalog,currentExercise={},plannedAlternativeId=null,allowOtherPatterns=false){
   const currentId=String(currentExercise?.id||'').trim();
   const pattern=String(currentExercise?.pattern||'').trim();
   const equipment=String(currentExercise?.equipment||'').trim();
@@ -264,12 +268,17 @@ function liveAlternativeOptions(catalog,currentExercise={},plannedAlternativeId=
   const otherEquipment=candidates.filter((item)=>!sameIds.has(item.id));
   const preferred=sameEquipment.slice(0,6);
   const secondary=otherEquipment.slice(0,6);
+  // Only the Coach can consider a different movement pattern, and only as
+  // a last resort when the catalogue has no matching-pattern alternative.
+  const otherPatterns=allowOtherPatterns&&preferred.length===0&&secondary.length===0
+    ?catalog.search('').filter((item)=>item.id!==currentId&&item.id!==plannedId).slice(0,6)
+    :[];
   const visibleIds=new Set([...preferred,...secondary].map((item)=>item.id));
   const planned=plannedId&&plannedId!==currentId&&!visibleIds.has(plannedId)?catalog.get(plannedId):null;
   const option=(item)=>`<option value="${e(item.id)}"${item.id===plannedId?' selected':''}>${e(alternativeLabel(item))}</option>`;
   const group=(label,items)=>items.length?`<optgroup label="${e(label)}">${items.map(option).join('')}</optgroup>`:'';
-  const markup=`${planned?group('Alternativa planificada',[planned]):''}${group('Mismo patrón y material',preferred)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',secondary)}`;
-  return Object.freeze({markup,count:preferred.length+secondary.length+(planned?1:0)});
+  const markup=`${planned?group('Alternativa planificada',[planned]):''}${group('Mismo patrón y material',preferred)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',secondary)}${group('Otros patrones · revisar con Coach',otherPatterns)}`;
+  return Object.freeze({markup,count:preferred.length+secondary.length+otherPatterns.length+(planned?1:0)});
 }
 function blockField({blockId,exerciseId='',field,label,value,type='text',min='',max='',step='',maxLength='',placeholder=''}){const guidance=field==='targetRpe'?renderGuidanceTrigger('training-load',{label:'Ayuda sobre carga, RPE y RIR'}):'';return `<label><span class="m26-guidance-inline">${e(label)}${guidance}</span><input type="${e(type)}" value="${e(value)}" data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''}${min!==''?` min="${e(min)}"`:''}${max!==''?` max="${e(max)}"`:''}${step!==''?` step="${e(step)}"`:''}${maxLength!==''?` maxlength="${e(maxLength)}"`:''}${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;}
 function blockTextarea({blockId,exerciseId='',field,label,value='',maxLength=500,placeholder=''}){return `<label class="m26-wide"><span>${e(label)}</span><textarea data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''} maxlength="${e(maxLength)}"${placeholder?` placeholder="${e(placeholder)}"`:''}>${e(value)}</textarea></label>`;}
@@ -1795,7 +1804,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     ?`${totals.resolvedSets} de ${totals.totalSets} series resueltas · ${plural(totals.skippedSets,'omitida','omitidas')}`
     :`${totals.completedSets} de ${totals.totalSets} series`;
   const liveAddOptions=isCoach?liveAddExerciseOptions(catalog,ex):'';
-  const liveAlternatives=liveAlternativeOptions(catalog,ex,planned.alternativeId);
+  const liveAlternatives=liveAlternativeOptions(catalog,ex,planned.alternativeId,isCoach);
   const alternatives=liveAlternatives.markup;
   const substitutionUnavailable=liveAlternatives.count===0;
   const visual=renderExerciseMedia({
