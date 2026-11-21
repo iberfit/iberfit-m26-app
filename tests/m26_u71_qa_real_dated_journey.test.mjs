@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,selectCertifiedDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,boundedHostedAuth522Recovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,selectCertifiedDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,boundedHostedAuth522Recovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays,authorizedAutonomousQaBranch} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -380,4 +380,18 @@ test('U71 protected QA legacy workflow supplies explicit false autonomous mode t
  assert.match(source,/github\.run_attempt == 1/u);
  assert.match(source,/github\.run_attempt == 2/u);
  assert.doesNotMatch(source,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|pjhmrhejsoofmouedavw/u);
+});
+
+// M1: merged Canary must be able to certify appointmentless training on its
+// exact source SHA. Legacy U71 and non-push contexts stay explicitly excluded.
+test('M1 appointmentless U74 QA is signed on Canary, never on U71 or PR dispatch',()=>{
+ const verified={GITHUB_WORKFLOW:'IBERFIT U74 Real QA Dated Browser Write E2E',GITHUB_EVENT_NAME:'push'};
+ assert.equal(authorizedAutonomousQaBranch(verified,'canary/rc74-4'),true);
+ assert.equal(authorizedAutonomousQaBranch(verified,'feat/m26-autonomous-dates-m44-one-prod-release-20261121'),true);
+ assert.equal(authorizedAutonomousQaBranch(verified,'feat/iberfit-real-training-360-20261114'),false);
+ assert.equal(authorizedAutonomousQaBranch(verified,'release/prod-9536dfad2cbc'),false);
+ assert.equal(authorizedAutonomousQaBranch({...verified,GITHUB_WORKFLOW:'IBERFIT U71 Real QA Coach Client Coach Dated E2E'},'canary/rc74-4'),false);
+ assert.equal(authorizedAutonomousQaBranch({...verified,GITHUB_EVENT_NAME:'pull_request'},'canary/rc74-4'),false);
+ assert.equal(authorizedAutonomousQaBranch({...verified,GITHUB_EVENT_NAME:'workflow_dispatch'},'canary/rc74-4'),false);
+ assert.equal(authorizedAutonomousQaBranch({},'canary/rc74-4'),false);
 });
