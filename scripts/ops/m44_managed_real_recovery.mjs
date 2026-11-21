@@ -3,7 +3,7 @@
 // All recovered data is sealed from Data API and Auth BEFORE the first import.
 // This is not certification of Edge secrets, Vault or full hosted failover.
 import {createHash,randomBytes} from 'node:crypto';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,createWriteStream,rmSync,chmodSync} from 'node:fs';
+import {mkdtempSync,writeFileSync,readFileSync,createWriteStream,openSync,closeSync,rmSync,chmodSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -98,11 +98,11 @@ async function isolate(){
  const snap=await projects();
  if(snap.get(QA).status!=='ACTIVE_HEALTHY'||snap.get(TARGET).status!=='INACTIVE')
    fail('FREE_PROJECT_SWAP_PRECONDITION');
- if(snap.values().filter(x=>x.status==='ACTIVE_HEALTHY').length!==2)
+ if([...snap.values()].filter(x=>x.status==='ACTIVE_HEALTHY').length!==2)
    fail('FREE_ACTIVE_PROJECT_LIMIT');
- await sup(QA,'/pause',{method:'POST'});qaPaused=true;
+ qaPaused=true;await sup(QA,'/pause',{method:'POST'});
  await waitState(QA,'INACTIVE');
- await sup(TARGET,'/restore',{method:'POST'});activeClone=true;
+ activeClone=true;await sup(TARGET,'/restore',{method:'POST'});
  await waitState(TARGET,'ACTIVE_HEALTHY');
  const now=await projects();
  if(now.get(QA).status!=='INACTIVE'||now.get(TARGET).status!=='ACTIVE_HEALTHY')
@@ -120,7 +120,7 @@ async function seal(){
  if(!row||Number(row.users)!==0||Number(row.objects)!==0||Number(row.tables)!==0)
    fail('ISOLATED_PROJECT_NOT_EMPTY');
  await sup(TARGET,'/database/query',{method:'POST',body:{
-  query:"CREATE SCHEMA IF NOT EXISTS m44_recovery_closed; REVOKE ALL ON SCHEMA m44_recovery_closed FROM PUBLIC, anon, authenticated, service_role"
+  query:"CREATE SCHEMA IF NOT EXISTS m44_recovery_closed; CREATE SCHEMA IF NOT EXISTS private; REVOKE ALL ON SCHEMA m44_recovery_closed FROM PUBLIC, anon, authenticated, service_role"
  }});
  await sup(TARGET,'/postgrest',{method:'PATCH',body:{db_schema:'m44_recovery_closed'}});
  const rest=await sup(TARGET,'/postgrest');
@@ -199,13 +199,13 @@ async function downloadArchive(){
  const name=safe('unzip',['-Z1',archive],{code:'ZIP_INVENTORY_INVALID'}).stdout.trim();
  if(name!=='iberfit-prod-recovery.ibf')fail('ZIP_UNEXPECTED_CONTENT');
  const ciphertext=join(directory,'archive.ibf');
- const handle=createWriteStream(ciphertext,{mode:0o600,flags:'wx'});
- await new Promise((resolve,reject)=>{
+ const fd=openSync(ciphertext,'wx',0o600);
+ try{
   const proc=spawnSync('unzip',['-p',archive,name],{
-   stdio:['ignore',handle.fd||'pipe','pipe'],timeout:120000
+   stdio:['ignore',fd,'pipe'],timeout:120000,maxBuffer:1024*1024
   });
-  if(proc.error||proc.status!==0)reject(Error('unzip'));else resolve();
- }).catch(()=>{throw Error(PREFIX+'ZIP_EXTRACTION_FAILED')});
+  if(proc.error||proc.status!==0)fail('ZIP_EXTRACTION_FAILED');
+ }finally{closeSync(fd);}
  const tar=join(directory,'recovered.tar');
  safe('node',['scripts/ops/m44_encrypted_backup_archive.mjs','decrypt',ciphertext,tar],{
    code:'CIPHER_DECRYPT_FAILED',timeout:150000});
