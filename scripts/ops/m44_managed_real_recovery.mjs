@@ -46,7 +46,16 @@ async function request(url,{method='GET',body,token=process.env.SUPABASE_ACCESS_
   },body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(timeout)});
  }catch{fail('MANAGEMENT_UNREACHABLE');}
  if(!response.ok)fail('MANAGEMENT_HTTP_'+response.status);
- return response.json().catch(()=>{throw Error(PREFIX+'MANAGEMENT_JSON_INVALID')});
+ // Management POST pause/restore and some PATCH operations return HTTP 204
+ // with EMPTY bodies. Never mistake a successful state transition for a
+ // failed request; inspect the authoritative project GET state afterwards.
+ const content=await response.text().catch(()=>{throw Error(PREFIX+'MANAGEMENT_BODY_READ_FAILED')});
+ if(!content.trim()){
+  if(!['POST','PATCH'].includes(method))fail('MANAGEMENT_EMPTY_READONLY_RESPONSE');
+  return Object.freeze({accepted:true,empty:true});
+ }
+ try{return JSON.parse(content);}
+ catch{fail('MANAGEMENT_JSON_INVALID');}
 }
 const sup=(ref,path,options)=>request(mgmt+ref+path,options);
 const git=(path,options)=>request('https://api.github.com/repos/'+REPO+path,{
