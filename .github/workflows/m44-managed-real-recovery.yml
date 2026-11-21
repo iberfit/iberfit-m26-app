@@ -107,11 +107,20 @@ jobs:
               method,redirect:'error',headers:{Authorization:'Bearer '+token,Accept:'application/json'},
               signal:AbortSignal.timeout(20000)});
             if(!res.ok)throw Error('M44_SLOTS_MANAGEMENT_HTTP_'+res.status);
-            return res.json();
+            const body=await res.text();
+            if(!body.trim()){
+              if(method==='GET')throw Error('M44_SLOTS_EMPTY_GET');
+              return {accepted:true};
+            }
+            try{return JSON.parse(body);}
+            catch{
+              if(method==='GET')throw Error('M44_SLOTS_INVALID_GET_JSON');
+              return {accepted:true,opaque:true};
+            }
           }
           async function state(ref){return (await req(ref)).status;}
           async function until(ref,desired){
-            for(let i=0;i<45;i++){
+            for(let i=0;i<80;i++){
               if(await state(ref)===desired)return;
               await new Promise(r=>setTimeout(r,7000));
             }

@@ -46,7 +46,22 @@ async function request(url,{method='GET',body,token=process.env.SUPABASE_ACCESS_
   },body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(timeout)});
  }catch{fail('MANAGEMENT_UNREACHABLE');}
  if(!response.ok)fail('MANAGEMENT_HTTP_'+response.status);
- return response.json().catch(()=>{throw Error(PREFIX+'MANAGEMENT_JSON_INVALID')});
+ // Management POST pause/restore and some PATCH operations return HTTP 204
+ // with EMPTY bodies. Never mistake a successful state transition for a
+ // failed request; inspect the authoritative project GET state afterwards.
+ const content=await response.text().catch(()=>{throw Error(PREFIX+'MANAGEMENT_BODY_READ_FAILED')});
+ if(!content.trim()){
+  if(!['POST','PATCH'].includes(method))fail('MANAGEMENT_EMPTY_READONLY_RESPONSE');
+  return Object.freeze({accepted:true,empty:true});
+ }
+ try{return JSON.parse(content);}
+ catch{
+  // Some successful Management control-plane mutations answer with plain
+  // text instead of JSON. Only accept them when the next authoritative GET
+  // must verify the requested state; never accept this on a GET.
+  if(!['POST','PATCH'].includes(method))fail('MANAGEMENT_JSON_INVALID');
+  return Object.freeze({accepted:true,opaque:true});
+ }
 }
 const sup=(ref,path,options)=>request(mgmt+ref+path,options);
 const git=(path,options)=>request('https://api.github.com/repos/'+REPO+path,{
@@ -61,7 +76,7 @@ async function projects(){
  return map;
 }
 async function projectState(ref){return (await sup(ref,'')).status;}
-async function waitState(ref,desired,limit=240000){
+async function waitState(ref,desired,limit=600000){
  const until=Date.now()+limit;
  while(Date.now()<until){
   if(await projectState(ref)===desired)return;
@@ -377,14 +392,14 @@ async function cleanup(){
  try{
   if(activeClone){
    await sup(TARGET,'/pause',{method:'POST'});
-   await waitState(TARGET,'INACTIVE',300000);
+   await waitState(TARGET,'INACTIVE',600000);
    console.log('M44_MANAGED_SANDBOX_PAUSED');
   }
  }catch{console.error('M44_MANAGED_SANDBOX_PAUSE_FAILED');process.exitCode=1;}
  try{
   if(qaPaused){
    await sup(QA,'/restore',{method:'POST'});
-   await waitState(QA,'ACTIVE_HEALTHY',360000);
+   await waitState(QA,'ACTIVE_HEALTHY',600000);
    console.log('M44_MANAGED_QA_ACTIVE_RESTORED');
   }
  }catch{console.error('M44_MANAGED_QA_RESTORE_FAILED');process.exitCode=1;}
