@@ -16,6 +16,9 @@ DECLARE
  v_calendar jsonb;
  v_detail jsonb;
  v_start jsonb;
+ v_execution_id uuid;
+ v_exercise_id text;
+ v_pause_operation uuid;
  v_count integer;
 BEGIN
  IF public.iberfit_environment()->>'environment' IS DISTINCT FROM 'QA'
@@ -52,7 +55,9 @@ BEGIN
    AND e.body->>'visibleToClient'='true'
    AND e.body->>'clientVisibilityLevel'='full'
    AND jsonb_typeof(e.body->'blocks')='array'
-   AND jsonb_array_length(e.body->'blocks')>0
+   AND jsonb_array_length(e.body->'blocks')=1
+   AND coalesce(e.body->'blocks'->0->>'sets','')='1'
+   AND length(coalesce(e.body->'blocks'->0->>'exerciseId',''))>0
    AND (e.body->>'durationMinutes') ~ '^[0-9]{2,3}$'
    AND (e.body->>'durationMinutes')::integer BETWEEN 10 AND 240
    AND v_date BETWEEN (p.body->>'startDate')::date AND (p.body->>'endDate')::date-7
@@ -137,10 +142,14 @@ BEGIN
  PERFORM set_config('request.jwt.claim.sub',v_user_a::text,true);
  PERFORM set_config('request.jwt.claims',
    jsonb_build_object('sub',v_user_a,'email','qa.rc74.client-a@iberfit.cl','role','authenticated')::text,true);
+ v_execution_id:=gen_random_uuid();
+ v_exercise_id:=v_detail#>>'{prescriptionSnapshot,blocks,0,exerciseId}';
+ IF length(coalesce(v_exercise_id,''))=0 THEN
+   RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_EXERCISE_MISSING';END IF;
  v_start:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
    'type','OCURRENCIA_INICIAR','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_occ,'baseRevision',1,
-   'payload',jsonb_build_object('executionId',gen_random_uuid())));
+   'payload',jsonb_build_object('executionId',v_execution_id)));
  IF v_start->>'kind'<>'ack' OR v_start->>'status'<>'en_curso'
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_CLIENT_START_NOT_ACK';END IF;
  v_calendar:=private.iberfit_u33_occurrence_calendar_v1(v_client,v_date,v_date+7);
