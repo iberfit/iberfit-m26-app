@@ -70,6 +70,34 @@ test('malformed or external runner targets fail before any database operations',
   assert.equal(r.stdout,'');
  }
 });
+test('actual restored production ACL and RLS are exercised with restricted SQL roles before U72 install',()=>{
+ const source=s.indexOf('check_sql RESTORED_RLS_SOURCE ');
+ const anon=s.indexOf('role_rls_denial anon ');
+ const auth=s.indexOf('role_rls_denial authenticated ');
+ const install=s.indexOf('apply U72_INSTALL /release/');
+ assert.ok(source>0&&anon>source&&auth>anon&&install>auth);
+ for(const requirement of [
+  'BEGIN READ ONLY;', 'SET LOCAL ROLE $actor;',
+  '[[ "$actor" == anon || "$actor" == authenticated ]]',
+  "(SELECT count(*) FROM public.client_access_v26)>0",
+  "(SELECT count(*) FROM public.session_executions)>0",
+  "(SELECT count(*) FROM public.iberfit_system_settings)>0",
+  "(SELECT count(*) FROM public.client_access_v26)=0",
+  "(SELECT count(*) FROM public.session_executions)=0",
+  "(SELECT count(*) FROM public.iberfit_system_settings)=0",
+  'NOT EXISTS (SELECT 1 FROM pg_policy',
+  'RESTORED_RLS_ROLE_NOT_ALLOWLISTED',
+  'RESTORED_RLS_${actor^^}_DENIAL_CHANGED',
+  'M44_REAL_RESTORED_PROD_EFFECTIVE_RLS_UNAUTHENTICATED_DENIAL_VERIFIED_ONLY',
+ ])assert.ok(s.includes(requirement),requirement);
+ const roleBlock=s.slice(source,install);
+ assert.doesNotMatch(roleBlock,/SELECT\\s+\\*|UPDATE\\s+public|INSERT\\s+INTO|DELETE\\s+FROM/i);
+ assert.ok(roleBlock.includes('2>"$out/real-rls-$actor-private.log"'));
+ assert.ok(!roleBlock.includes('https://'));
+ const parsed=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
+ assert.equal(parsed.status,0,parsed.stderr);
+});
+
 test('installer sequence and both Coach recovery directions are guarded and preserve counts',()=>{
  const ordered=[
   'check_sql BASELINE ','apply U72_INSTALL ','check_sql U72_INSTALLED ',
