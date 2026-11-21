@@ -121,12 +121,48 @@ async function seal(){
  const row=Array.isArray(empty)?empty[0]:empty?.result?.[0];
  if(!row||Number(row.users)!==0||Number(row.objects)!==0||Number(row.tables)!==0)
    fail('ISOLATED_PROJECT_NOT_EMPTY');
+ const keys=await sup(TARGET,'/api-keys');
+ if(!Array.isArray(keys))fail('KEY_LIST_INVALID');
+ const key=keys.find(k=>(k.name==='anon'||k.type==='publishable')&&!k.disabled)?.api_key;
+ if(typeof key!=='string'||key.length<20)fail('SANDBOX_ANON_KEY_NOT_AVAILABLE');
+ // A real, harmless anon-readable view provides a POSITIVE control before
+ // sealing, so HTTP 404 from a missing application table cannot create a
+ // false assurance that public PII will be inaccessible after import.
+ const probeURL='https://'+TARGET+'.supabase.co/rest/v1/m44_recovery_exposure_probe?select=sentinel&limit=1';
+ await sup(TARGET,'/database/query',{method:'POST',body:{
+  query:"CREATE VIEW public.m44_recovery_exposure_probe WITH (security_invoker=true) AS SELECT 'M44_ISOLATION_SENTINEL_ONLY'::text AS sentinel; GRANT SELECT ON public.m44_recovery_exposure_probe TO anon; NOTIFY pgrst, 'reload schema'"
+ }});
+ let positiveControl=false;
+ for(let i=0;i<20;i++){
+  const response=await fetch(probeURL,{headers:{apikey:key,'Accept-Profile':'public'},
+   redirect:'error',signal:AbortSignal.timeout(12000)});
+  if(response.ok){
+   const data=await response.json().catch(()=>null);
+   if(Array.isArray(data)&&data.length===1&&data[0]?.sentinel==='M44_ISOLATION_SENTINEL_ONLY'){
+    positiveControl=true;break;
+   }
+   fail('PUBLIC_PROBE_UNEXPECTED_RESPONSE');
+  }
+  await sleep(1200);
+ }
+ if(!positiveControl)fail('PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN');
  await sup(TARGET,'/database/query',{method:'POST',body:{
   query:"CREATE SCHEMA IF NOT EXISTS m44_recovery_closed; CREATE SCHEMA IF NOT EXISTS private; REVOKE ALL ON SCHEMA m44_recovery_closed FROM PUBLIC, anon, authenticated, service_role"
  }});
  await sup(TARGET,'/postgrest',{method:'PATCH',body:{db_schema:'m44_recovery_closed'}});
  const rest=await sup(TARGET,'/postgrest');
  if(rest.db_schema!=='m44_recovery_closed')fail('DATA_API_NOT_SEALED');
+ let negativeControl=false;
+ for(let i=0;i<20;i++){
+  const response=await fetch(probeURL,{headers:{apikey:key,'Accept-Profile':'public'},
+   redirect:'error',signal:AbortSignal.timeout(12000)});
+  if(response.ok)fail('PUBLIC_DATA_API_NOT_DENIED');
+  if([400,401,403,404,406].includes(response.status)){
+   negativeControl=true;break;
+  }
+  await sleep(1200);
+ }
+ if(!negativeControl)fail('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED');
  await sup(TARGET,'/config/auth',{method:'PATCH',body:{
   disable_signup:true,external_email_enabled:false,external_phone_enabled:false,
   external_anonymous_users_enabled:false
@@ -140,14 +176,6 @@ async function seal(){
   "SELECT has_schema_privilege('anon','m44_recovery_closed','USAGE') AS anon, has_schema_privilege('authenticated','m44_recovery_closed','USAGE') AS auth"}});
  const got=Array.isArray(guard)?guard[0]:guard?.result?.[0];
  if(got?.anon!==false||got?.auth!==false)fail('ISOLATION_SCHEMA_GRANTS_UNSAFE');
- const keys=await sup(TARGET,'/api-keys');
- if(!Array.isArray(keys))fail('KEY_LIST_INVALID');
- const key=keys.find(k=>(k.name==='anon'||k.type==='publishable')&&!k.disabled)?.api_key;
- if(typeof key!=='string'||key.length<20)fail('SANDBOX_ANON_KEY_NOT_AVAILABLE');
- const probe=await fetch('https://'+TARGET+'.supabase.co/rest/v1/iberfit_system_settings?select=key&limit=1',{
-  headers:{apikey:key,'Accept-Profile':'public'},redirect:'error',signal:AbortSignal.timeout(12000)});
- if(probe.ok||![400,401,403,404,406].includes(probe.status))
-  fail('PUBLIC_DATA_API_NOT_DENIED');
  console.log('M44_MANAGED_AUTH_EMAIL_PHONE_SIGNUP_AND_PUBLIC_DATA_API_SEALED');
 }
 async function databaseConnection(){
