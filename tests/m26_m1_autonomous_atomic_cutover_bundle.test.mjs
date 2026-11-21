@@ -34,6 +34,7 @@ test('M1 rollback reverses public admission, overlay and U72 without losing exec
  const disable=rollback.indexOf('U60_ROLLBACK_ACTIVE_TRAINING_FORBIDDEN');
  const undo=rollback.indexOf('M1_AUTONOMOUS_ROLLBACK_FIRST_CLOSE_U60');
  const u72=rollback.indexOf('M1_U72_PROD_ROLLBACK_UNSAFE_OR_DRIFT');
+ assert.match(rollback,/M1_AUTONOMOUS_ROLLBACK_PUBLISHED_DATA/u);
  assert.ok(disable>0&&undo>disable&&u72>undo,
    'rollback refuses active training before restoring U31/U33/U60, then U72');
  for(const fn of ['iberfit_u31_occurrence_transition_v1',

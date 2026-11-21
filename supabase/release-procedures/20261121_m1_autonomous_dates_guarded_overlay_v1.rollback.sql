@@ -9,6 +9,16 @@ BEGIN
   IF public.iberfit_environment()->>'environment'='PRODUCTION'
     AND has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_ROLLBACK_FIRST_CLOSE_U60'; END IF;
+  -- Prevent an independent operator rollback from hiding durable, published
+  -- autonomous dates, results or history. The corresponding signed forward
+  -- repair must preserve such data rather than restore appointment-only reads.
+  -- NOWAIT blocks concurrent date confirmation/start during this guard.
+  LOCK TABLE public.training_session_occurrences_v1
+    IN SHARE ROW EXCLUSIVE MODE NOWAIT;
+  IF EXISTS (SELECT 1 FROM public.training_session_occurrences_v1
+    WHERE appointment_id IS NULL AND status <> 'planificada')
+    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_ROLLBACK_PUBLISHED_DATA'
+      USING errcode='42501'; END IF;
   IF position('IBERFIT_M1_AUTONOMOUS_DATES_V1' in pg_get_functiondef(to_regprocedure('private.iberfit_u31_occurrence_transition_v1(jsonb)'))) = 0
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_U31_ROLLBACK_DRIFT'; END IF;
   IF position('IBERFIT_M1_AUTONOMOUS_DATES_V1' in pg_get_functiondef(to_regprocedure('private.iberfit_u33_occurrence_calendar_v1(uuid,date,date,date,uuid,integer)'))) = 0

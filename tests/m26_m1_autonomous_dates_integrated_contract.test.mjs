@@ -148,6 +148,8 @@ test('M1 backend script strictly maintains U60 closed until protected release',(
  assert.match(sql,/o\.status IN \('confirmada','en_curso','completada','cancelada'\)/u);
  assert.match(sql,/v_occ\.prescription_snapshot->>'clientId'=v_client::text/u);
  assert.match(rollback,/M1_AUTONOMOUS_ROLLBACK_FIRST_CLOSE_U60/u);
+ assert.match(rollback,/M1_AUTONOMOUS_ROLLBACK_PUBLISHED_DATA/u);
+ assert.match(rollback,/SHARE ROW EXCLUSIVE MODE NOWAIT/u);
  assert.match(rollback,/M1_AUTONOMOUS_U31_ROLLBACK_DRIFT/u);
  assert.doesNotMatch(sql,/GRANT EXECUTE[^;]+TO authenticated/iu);
 });
