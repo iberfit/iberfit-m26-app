@@ -277,6 +277,72 @@ async function restoreData(conn){
   fail('POST_RESTORE_REAL_DATA_API_EXPOSURE');
  console.log('M44_MANAGED_REAL_APP_AUTH_SNAPSHOT_RESTORED:users_nonzero=1:settings_nonzero=1:occurrences='+Number(x.occurrences));
 }
+async function restorePrivateStorage(){
+ // Not a public-bucket promotion. Every restored object stays PRIVATE even
+ // when its source bucket was deliberately public in the original project.
+ const file=join(directory,'storage','manifest.json');
+ let manifest;
+ try{manifest=JSON.parse(readFileSync(file,'utf8'));}catch{fail('SOURCE_STORAGE_MANIFEST_UNAVAILABLE');}
+ if(manifest?.schema!=='iberfit.storage.backup.v1'||manifest.project!==PROD||
+    !Array.isArray(manifest.objects)||manifest.objects.length<1||
+    manifest.objects.length>5000)fail('SOURCE_STORAGE_MANIFEST_INVALID');
+ const keys=await sup(TARGET,'/api-keys');
+ if(!Array.isArray(keys))fail('RESTORE_STORAGE_KEYS_INVALID');
+ const serviceKey=keys.find(k=>k.name==='service_role'&&!k.disabled)?.api_key;
+ if(typeof serviceKey!=='string'||serviceKey.length<32)fail('RESTORE_STORAGE_SERVICE_KEY_UNAVAILABLE');
+ const storageURL='https://'+TARGET+'.supabase.co/storage/v1';
+ const headers={apikey:serviceKey,Authorization:'Bearer '+serviceKey};
+ const buckets=new Set(),seen=new Set();
+ for(let i=0;i<manifest.objects.length;i++){
+  const o=manifest.objects[i],relative='files/'+String(i).padStart(6,'0')+'.bin';
+  if(!o||typeof o.bucket!=='string'||!o.bucket||
+     typeof o.name!=='string'||!o.name||
+     o.name.split('/').some(x=>!x||x==='.'||x==='..')||
+     o.relative!==relative||!Number.isSafeInteger(o.bytes)||o.bytes<0||
+     o.bytes>256*1024*1024||typeof o.sha256!=='string'||!/^[a-f0-9]{64}$/.test(o.sha256))
+    fail('SOURCE_STORAGE_OBJECT_INVALID');
+  const unique=JSON.stringify([o.bucket,o.name]);
+  if(seen.has(unique))fail('SOURCE_STORAGE_OBJECT_DUPLICATE');
+  seen.add(unique);buckets.add(o.bucket);
+ }
+ for(const bucket of [...buckets].sort()){
+  const r=await fetch(storageURL+'/bucket',{
+   method:'POST',headers:{...headers,'Content-Type':'application/json'},
+   body:JSON.stringify({id:bucket,name:bucket,public:false}),
+   redirect:'error',signal:AbortSignal.timeout(30000)});
+  if(!r.ok)fail('CLONE_PRIVATE_BUCKET_CREATE_DENIED_'+r.status);
+ }
+ let uploaded=0,bytes=0;
+ for(let i=0;i<manifest.objects.length;i++){
+  const o=manifest.objects[i],buffer=readFileSync(join(directory,'storage',o.relative));
+  if(buffer.length!==o.bytes||createHash('sha256').update(buffer).digest('hex')!==o.sha256)
+   fail('SOURCE_STORAGE_BYTES_TAMPERED');
+  const resource=[o.bucket,...o.name.split('/')].map(encodeURIComponent).join('/');
+  const put=await fetch(storageURL+'/object/'+resource,{
+   method:'POST',headers:{...headers,'Content-Type':'application/octet-stream','x-upsert':'false'},
+   body:buffer,redirect:'error',signal:AbortSignal.timeout(120000)});
+  if(!put.ok)fail('CLONE_STORAGE_UPLOAD_FAILED_'+put.status);
+  const get=await fetch(storageURL+'/object/authenticated/'+resource,{
+   headers,redirect:'error',signal:AbortSignal.timeout(120000)});
+  if(!get.ok||!get.body)fail('CLONE_STORAGE_DOWNLOAD_FAILED_'+get.status);
+  const digest=createHash('sha256');let size=0;
+  for await(const part of get.body){
+   size+=part.byteLength;
+   if(size>o.bytes)fail('CLONE_STORAGE_OVERSIZED');
+   digest.update(part);
+  }
+  if(size!==o.bytes||digest.digest('hex')!==o.sha256)
+   fail('CLONE_STORAGE_HASH_MISMATCH');
+  bytes+=size;uploaded++;
+ }
+ const control=await sup(TARGET,'/database/query',{method:'POST',body:{query:
+  "SELECT (SELECT count(*) FROM storage.objects) AS objects, (SELECT count(*) FROM storage.buckets WHERE public=true) AS public_buckets"}});
+ const row=Array.isArray(control)?control[0]:control?.result?.[0];
+ if(!row||Number(row.objects)!==uploaded||Number(row.public_buckets)!==0)
+   fail('CLONE_PRIVATE_STORAGE_FINAL_READBACK_DRIFT');
+ console.log('M44_MANAGED_STORAGE_PRIVATE_RESTORED:objects='+uploaded+':bytes='+bytes+':public_buckets=0:sha256_verified=true');
+}
+
 async function cleanup(){
  // Pausing the sandbox seals its APIs and compute; any imported data remains
  // encrypted at rest and intentionally contained for later DR inspection.
@@ -318,6 +384,7 @@ async function main(){
   const conn=await databaseConnection();
   await downloadArchive();
   await restoreData(conn);
+  await restorePrivateStorage();
   if(!sealed||!clonedData)fail('RESTORE_NOT_ISOLATED');
   console.log('M44_MANAGED_REAL_SNAPSHOT_SQL_READBACK_SUCCESS:hosted_full_platform_NOT_certified');
  }finally{
