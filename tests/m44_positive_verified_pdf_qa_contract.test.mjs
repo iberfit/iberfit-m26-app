@@ -31,7 +31,9 @@ test('M44 positive write is run only after verified real Coach WebAuthn login in
  const login=spec.lastIndexOf('await loginWithWebAuthn(',positive);
  assert.ok(login>=0&&login<proof&&proof<positive);
  assert.match(spec,/assuranceVerified:evidence\.m44VerifiedBoundary\?\.assurance==='verified'/);
- assert.match(flow,/M26_QA_M44_POSITIVE_CERT: 'true'/);
+ // Positive PDF writes are allowed only from trusted Canary pushes, never manual dispatch.
+ assert.ok(flow.includes("M26_QA_M44_POSITIVE_CERT: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' }}"));
+ assert.doesNotMatch(flow,/M26_QA_M44_POSITIVE_CERT:\s*'true'/u);
  assert.match(flow,/if: github\.event_name != 'pull_request'/);
  assert.match(flow,/id-token: write/);
 });
