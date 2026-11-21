@@ -107,7 +107,7 @@ BEGIN
  PERFORM set_config('request.jwt.claim.sub',v_coach::text,true);
  PERFORM set_config('request.jwt.claims',
    jsonb_build_object('sub',v_coach,'email','qa.rc74.coach@iberfit.cl','role','authenticated')::text,true);
- v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_CONFIRMAR','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_occ,'baseRevision',0));
  IF v_ack->>'kind'<>'ack' OR v_ack->>'status'<>'confirmada'
@@ -146,7 +146,7 @@ BEGIN
  v_exercise_id:=v_detail#>>'{prescriptionSnapshot,blocks,0,exerciseId}';
  IF length(coalesce(v_exercise_id,''))=0 THEN
    RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_EXERCISE_MISSING';END IF;
- v_start:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_start:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_INICIAR','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_occ,'baseRevision',1,
    'payload',jsonb_build_object('executionId',v_execution_id)));
@@ -157,7 +157,7 @@ BEGIN
       WHERE j->>'id'=v_occ::text AND j->>'status'='en_curso')
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_ACTIVE_DATE_NOT_VISIBLE';END IF;
  -- Durable progress is checked through the same role-scoped private read.
- v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_GUARDAR_PROGRESO','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
    'payload',jsonb_build_object('executionId',v_execution_id,
@@ -167,7 +167,7 @@ BEGIN
  IF v_ack->>'kind'<>'ack' OR (v_ack->>'executionRevision')::integer<>2
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PROGRESS_NOT_ACK';END IF;
  v_pause_operation:=gen_random_uuid();
- v_ack:=private.iberfit_u72_occurrence_pause_resume_v1(jsonb_build_object(
+ v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_PAUSAR','operationId',v_pause_operation,
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
    'payload',jsonb_build_object('executionId',v_execution_id,
@@ -179,7 +179,7 @@ BEGIN
  IF v_detail#>>'{executionBody,status}' IS DISTINCT FROM 'pausada'
     OR v_detail->'executionBody'->'results'->(v_exercise_id||':1')->>'reps' IS DISTINCT FROM '10'
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSE_NOT_DURABLE';END IF;
- v_ack:=private.iberfit_u72_occurrence_pause_resume_v1(jsonb_build_object(
+ v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_PAUSAR','operationId',v_pause_operation,
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
    'payload',jsonb_build_object('executionId',v_execution_id,
@@ -193,7 +193,7 @@ BEGIN
      'executionBaseRevision',3,'results','{}'::jsonb,'skippedSets','{}'::jsonb)));
  IF v_ack->>'kind'<>'rejected' OR v_ack->>'reason'<>'EXECUTION_PAUSED'
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSED_WRITE_NOT_FENCED';END IF;
- v_ack:=private.iberfit_u72_occurrence_pause_resume_v1(jsonb_build_object(
+ v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_REANUDAR','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
    'payload',jsonb_build_object('executionId',v_execution_id,
@@ -206,7 +206,7 @@ BEGIN
     OR (v_detail#>>'{executionBody,revision}')::int<>4
     OR v_detail->'executionBody'->'results'->(v_exercise_id||':1')->>'reps' IS DISTINCT FROM '10'
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_RESUME_NOT_DURABLE';END IF;
- v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_COMPLETAR','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
    'payload',jsonb_build_object('executionId',v_execution_id,
@@ -226,7 +226,7 @@ BEGIN
  PERFORM set_config('request.jwt.claim.sub',v_coach::text,true);
  PERFORM set_config('request.jwt.claims',
    jsonb_build_object('sub',v_coach,'email','qa.rc74.coach@iberfit.cl','role','authenticated')::text,true);
- v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_CONFIRMAR','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_second,'baseRevision',0));
  IF v_ack->>'kind'<>'ack' OR v_ack->>'status'<>'confirmada'
@@ -239,7 +239,7 @@ BEGIN
       WHERE j->>'id'=v_second::text AND j->>'status'='confirmada'
         AND j->>'appointmentId' IS NULL AND left(j->>'localTime',5)='12:00')
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_SECOND_TIMED_DATE_MISSING';END IF;
- v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
     'type','OCURRENCIA_INICIAR','operationId',gen_random_uuid(),
     'clientId',v_client,'entityId',v_second,'baseRevision',1,
     'payload',jsonb_build_object('executionId',gen_random_uuid())));
