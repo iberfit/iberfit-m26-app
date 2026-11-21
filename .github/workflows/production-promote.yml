@@ -114,6 +114,14 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/release/verify_backend_preactivated.mjs
+      # Post-usage history must remain coherent. This is READ ONLY and does not
+      # certify full M44 hosted recovery or authorize reverting used training.
+      - name: Certify M1 post-use integrity and forward-only recovery boundary
+        if: ${{ env.U60_RELEASE_ACTIVE == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/release/m1_postuse_recovery_gate.mjs
+
       # Backup inventory must be confirmed BEFORE any M44 schema or Edge promotion.
       # This guard is read-only. A completed backup inventory entry still
       # requires independent restore verification prior to the first PROD DDL.
