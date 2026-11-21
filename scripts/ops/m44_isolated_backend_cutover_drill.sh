@@ -222,7 +222,7 @@ role_rls_denial(){
  [[ "$actor" == anon || "$actor" == authenticated ]] ||
   fail RESTORED_RLS_ROLE_NOT_ALLOWLISTED
  # The variable SQL fragments are fixed literals below, not user-supplied.
- observed="$(db psql -X -q -t -A -v ON_ERROR_STOP=1 \\
+ observed="$(db psql -X -q -t -A -v ON_ERROR_STOP=1 \
   -c "BEGIN READ ONLY;
     SET LOCAL ROLE $actor;
     SELECT (
