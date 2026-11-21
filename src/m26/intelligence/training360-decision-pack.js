@@ -170,6 +170,7 @@ export function buildTraining360DecisionPack({
       String(field(row,'visibleToClient','visible_to_client')??''),
       lower(field(row,'clientVisibilityLevel','client_visibility_level')),
       lower(field(row,'deliveryModality','delivery_modality')),
+      lower(field(row,'deliveryOwnership','delivery_ownership')),
       String(field(row,'title','name')??''),
     ]));
   const prescriptions=new Map([...sourcePrescriptions]
