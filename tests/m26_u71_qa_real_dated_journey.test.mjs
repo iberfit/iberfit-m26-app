@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,selectCertifiedDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,boundedHostedAuth522Recovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays,authorizedAutonomousQaBranch} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,selectCertifiedDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,boundedHostedAuth522Recovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays,authorizedAutonomousQaBranch,boundedQaCalendarPage} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -394,4 +394,30 @@ test('M1 appointmentless U74 QA is signed on Canary, never on U71 or PR dispatch
  assert.equal(authorizedAutonomousQaBranch({...verified,GITHUB_EVENT_NAME:'pull_request'},'canary/rc74-4'),false);
  assert.equal(authorizedAutonomousQaBranch({...verified,GITHUB_EVENT_NAME:'workflow_dispatch'},'canary/rc74-4'),false);
  assert.equal(authorizedAutonomousQaBranch({},'canary/rc74-4'),false);
+});
+
+// Historical QA dates must be traversed without deleting old workouts,
+// trusting a partial first page, leaking another client, or overfetching.
+test('M1 QA bounded calendar pages require cursor parity and exact owner scope',()=>{
+ const owner='10000000-0000-4000-8000-000000000001';
+ const item={id:'20000000-0000-4000-8000-000000000001',clientId:owner,localDate:'2026-11-21',status:'confirmada'};
+ const valid={status:200,body:{kind:'calendar',clientId:owner,count:1,occurrences:[item],hasMore:true,
+  nextCursor:{localDate:item.localDate,id:item.id}}};
+ assert.equal(boundedQaCalendarPage(valid,owner),true);
+ assert.equal(boundedQaCalendarPage({...valid,body:{...valid.body,nextCursor:{localDate:'2026-11-22',id:item.id}}},owner),false);
+ assert.equal(boundedQaCalendarPage({...valid,body:{...valid.body,clientId:'other'}},owner),false);
+ assert.equal(boundedQaCalendarPage({...valid,body:{...valid.body,occurrences:[{...item,clientId:'other'}]}},owner),false);
+ assert.equal(boundedQaCalendarPage({...valid,body:{...valid.body,occurrences:[{...item,publishedSnapshot:{}}]}},owner),false);
+ assert.equal(boundedQaCalendarPage({...valid,body:{...valid.body,count:2}},owner),false);
+ assert.equal(boundedQaCalendarPage({...valid,body:{...valid.body,hasMore:false,nextCursor:null}},owner),true);
+ assert.equal(boundedQaCalendarPage({...valid,body:{...valid.body,hasMore:false}},owner),false);
+});
+test('M1 shared QA gate uses bounded 4-page cursor, not first-page-only history',()=>{
+ const s=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ assert.match(s,/for\(let page=0;page<4;page\+\+\)/u);
+ assert.match(s,/afterDate:cursor\.localDate,afterId:cursor\.id/u);
+ assert.match(s,/assert\(order>previous,'CALENDAR_CURSOR_ORDER_DRIFT'\)/u);
+ assert.match(s,/QA_CALENDAR_PAGE_BUDGET_EXCEEDED/u);
+ assert.match(s,/calendar:ctx\.autonomous\?\[\]:old/u);
+ assert.match(s,/assert\(!old\.some\(row=>row\.status==='en_curso'\)/u);
 });

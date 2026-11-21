@@ -155,7 +155,7 @@ export function chooseUnoccupiedDatedSlot({
 }={}){
  assert(/^\d{4}-\d{2}-\d{2}$/.test(String(today))&&
   /^\d{4}-\d{2}-\d{2}$/.test(String(future))&&
-  Array.isArray(calendar)&&calendar.length<=50&&
+  Array.isArray(calendar)&&calendar.length<=200&&
   Number.isInteger(clockMinute)&&clockMinute>=0&&clockMinute<1440&&
   (clockDay===today||dayOffset(clockDay,1)===today)&&
   Number.isFinite(duration)&&duration>=10&&duration<=240&&
@@ -300,10 +300,38 @@ async function value(ctx,jwt,name,params={}){
  assert(r.status===200,'IDENTITY_RPC_'+name.toUpperCase()+'_'+r.status);
  return r.body;
 }
+// Fully owner-scoped cursor pagination. Never mistake a truncated first page
+// for the client's complete booked dates. Strict cap protects Supabase Free.
+export function boundedQaCalendarPage(response,owner){
+ const b=response?.body,rows=b?.occurrences;
+ if(response?.status!==200||b?.kind!=='calendar'||b.clientId!==owner||
+    !Array.isArray(rows)||!Number.isSafeInteger(b.count)||
+    b.count!==rows.length||b.count>50||typeof b.hasMore!=='boolean'||
+    rows.some(o=>o?.clientId!==owner||!UUID.test(o.id)||
+      !/^\d{4}-\d{2}-\d{2}$/.test(String(o.localDate||''))||
+      /publishedSnapshot|requestHash|coachPrivateNote|prescriptionSnapshot/.test(JSON.stringify(o))))
+   return false;
+ const last=rows.at(-1);
+ return b.hasMore
+   ? Boolean(last&&b.nextCursor?.localDate===last.localDate&&b.nextCursor?.id===last.id)
+   : b.nextCursor==null;
+}
 async function checkedCalendar(ctx,jwt,owner,start,end){
- const r=await u60(ctx,jwt,'CALENDARIO',{clientId:owner,startDate:start,endDate:end,limit:50});
- assert(sameClientCalendar(r,owner),'CALENDAR_SCOPE_HTTP_'+r.status);
- return r.body.occurrences;
+ const combined=[];let cursor=null;let previous='';
+ for(let page=0;page<4;page++){
+  const payload={clientId:owner,startDate:start,endDate:end,limit:50,
+   ...(cursor?{afterDate:cursor.localDate,afterId:cursor.id}:{})};
+  const r=await u60(ctx,jwt,'CALENDARIO',payload);
+  assert(boundedQaCalendarPage(r,owner),'CALENDAR_SCOPE_HTTP_'+r.status);
+  for(const row of r.body.occurrences){
+   const order=row.localDate+'/'+row.id;
+   assert(order>previous,'CALENDAR_CURSOR_ORDER_DRIFT');
+   previous=order;combined.push(row);
+  }
+  if(!r.body.hasMore)return combined;
+  cursor=r.body.nextCursor;
+ }
+ throw Error('U71_QA_CALENDAR_PAGE_BUDGET_EXCEEDED');
 }
 async function save(proof){
  await mkdir('recovery/u71-qa-authenticated-workout',{recursive:true});
@@ -361,7 +389,9 @@ async function authenticatedStage(ctx,certified=null){
  assert(chosen,'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
  const {time,start1,start2,end1,end2}=chooseUnoccupiedDatedSlot({
   today,future,duration:chosen.duration,clockMinute:clock.minute,
-  clockDay:clock.day,calendar:old,fixedTime:certified?.localTime||null});
+  clockDay:clock.day,// Appointmentless training is deliberately independent of calendar bookings.
+   // Still require an untouched prescription/date pair and valid server clock.
+   calendar:ctx.autonomous?[]:old,fixedTime:certified?.localTime||null});
  const foreign=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:2});
  assert(denied(foreign),'CROSS_CLIENT_SCOPE_BROKEN');
  const appointments=[{date:today,startAt:start1,endAt:end1},{date:future,startAt:start2,endAt:end2}];

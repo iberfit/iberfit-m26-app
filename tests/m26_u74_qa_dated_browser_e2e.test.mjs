@@ -151,3 +151,11 @@ test('M1 Canary U74 explicitly enables appointmentless signed QA only',()=>{
  assert.match(runner,/GITHUB_EVENT_NAME==='push'/u);
  assert.doesNotMatch(workflow,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|IBERFIT_PROD_DATABASE_URL/u);
 });
+
+test('M1 U74 no-cita slot does not depend on another session appointment',()=>{
+ const source=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ assert.match(source,/calendar:ctx\.autonomous\?\[\]:old/u);
+ assert.match(source,/const chosen=selectCertifiedDatedCandidate\(candidates,old,today,future,certified\)/u);
+ assert.match(source,/assert\(!old\.some\(row=>row\.status==='en_curso'\)/u);
+ assert.match(source,/boundedQaCalendarPage\(r,owner\)/u);
+});
