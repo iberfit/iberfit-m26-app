@@ -50,6 +50,9 @@ jobs:
     env:
       M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
       M26_QA_ONLY: 'true'
+      # Explicit legacy appointment-linked mode. The autonomous U74 variant
+      # requires an independently signed branch-scoped true value.
+      M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT: 'false'
       M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
       M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
       M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
