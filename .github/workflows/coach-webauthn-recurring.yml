@@ -1,0 +1,22 @@
+# GitHub requires workflow_dispatch files on the repository default branch.
+# This file only registers the manual control. The complete QA certification
+# exists at the identical path on canary/rc74-4 and MUST execute from there.
+# If GitHub resolves this registrar instead of the actual Canary definition,
+# fail closed: it cannot produce successful security certification.
+name: IBERFIT Coach WebAuthn Recurring
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refuse-placeholder-execution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Fail closed unless actual Canary certification is loaded
+        run: |
+          echo "::error::IBERFIT_WEB_AUTHN_REGISTRY_NOT_CERTIFICATION: select canary/rc74-4 and require the complete SHA-scoped QA workflow"
+          exit 1
