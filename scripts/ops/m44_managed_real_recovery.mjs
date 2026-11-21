@@ -268,6 +268,13 @@ async function restoreData(conn){
  const postAuth=await sup(TARGET,'/config/auth');
  if(postAuth.disable_signup!==true||postAuth.external_email_enabled!==false||
    postAuth.external_phone_enabled!==false)fail('POST_RESTORE_AUTH_EXPOSURE');
+ const apiKeys=await sup(TARGET,'/api-keys');
+ const pub=Array.isArray(apiKeys)?apiKeys.find(k=>(k.name==='anon'||k.type==='publishable')&&!k.disabled)?.api_key:null;
+ if(typeof pub!=='string'||pub.length<20)fail('POST_RESTORE_PUBLIC_KEY_UNAVAILABLE');
+ const apiResponse=await fetch('https://'+TARGET+'.supabase.co/rest/v1/iberfit_system_settings?select=key&limit=1',{
+  headers:{apikey:pub,'Accept-Profile':'public'},redirect:'error',signal:AbortSignal.timeout(12000)});
+ if(apiResponse.ok||![400,401,403,404,406].includes(apiResponse.status))
+  fail('POST_RESTORE_REAL_DATA_API_EXPOSURE');
  console.log('M44_MANAGED_REAL_APP_AUTH_SNAPSHOT_RESTORED:users_nonzero=1:settings_nonzero=1:occurrences='+Number(x.occurrences));
 }
 async function cleanup(){
