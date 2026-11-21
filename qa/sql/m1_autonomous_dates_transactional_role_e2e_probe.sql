@@ -162,7 +162,7 @@ BEGIN
  v_calendar:=private.iberfit_u33_occurrence_calendar_v1(v_client,v_date,v_date+7);
  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v_calendar->'occurrences') j
       WHERE j->>'id'=v_second::text AND j->>'status'='confirmada'
-        AND j->>'appointmentId' IS NULL AND j->>'localTime'='12:00')
+        AND j->>'appointmentId' IS NULL AND left(j->>'localTime',5)='12:00')
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_SECOND_TIMED_DATE_MISSING';END IF;
  v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
     'type','OCURRENCIA_INICIAR','operationId',gen_random_uuid(),
