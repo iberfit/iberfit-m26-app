@@ -51,7 +51,9 @@ function verifyResponse(raw,clientId,occurrenceId){
     ||!only(raw.prescriptionSnapshot,SNAPSHOT_KEYS))
     fail('RESPONSE_INVALID');
   const o=raw.occurrence,p=raw.prescriptionSnapshot;
-  if(uuid(o.id)!==occurrenceId||uuid(o.clientId)!==clientId
+  if(!Object.hasOwn(o,'appointmentId')||
+    (o.appointmentId!==null&&!UUID.test(String(o.appointmentId)))||
+    uuid(o.id)!==occurrenceId||uuid(o.clientId)!==clientId
     ||uuid(p.clientId)!==clientId||uuid(p.sessionId)!==uuid(o.sessionId)
     ||o.timeZone!=='America/Santiago'||!DATE.test(o.localDate)
     ||!Number.isFinite(Date.parse(o.localDate+'T12:00:00Z'))
@@ -111,9 +113,12 @@ export function createOccurrencePrivateReader({
     const after=actorFrom(await getAuthContext());
     if(!sameActor(before,after))fail('AUTH_CONTEXT_CHANGED');
     const verified=verifyResponse(result,owner,id);
+    // SQL U60 guarantees a linked appointment OR a confirmed published
+    // autonomous source. Never reintroduce an appointment requirement here.
     if(before.role!=='coach'&&(
       verified.occurrence.status==='planificada'||
-      !UUID.test(String(verified.occurrence.appointmentId||''))))
+      (verified.occurrence.appointmentId!==null&&
+       !UUID.test(String(verified.occurrence.appointmentId)))))
       fail('CLIENT_UNPUBLISHED_FORBIDDEN');
     return verified;
   }

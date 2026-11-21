@@ -102,6 +102,15 @@ export function qaDatedCalendarRange(now=new Date()){
   const at=delta=>new Date(t+delta*86400000).toISOString().slice(0,10);
   return Object.freeze({startDate:at(-14),endDate:at(77)});
 }
+// Calendar windows are independently requested and fully paginated by U40.
+// No hidden 50-date ceiling, and no broad bootstrap polling for historical dates.
+export function shiftedDatedCalendarRange(offset=0,now=new Date()){
+  if(!Number.isInteger(offset)||Math.abs(offset)>24)fail('CALENDAR_OFFSET_INVALID');
+  const original=qaDatedCalendarRange(now);
+  const at=(date)=>new Date(Date.parse(date+'T12:00:00.000Z')+
+    offset*92*86400000).toISOString().slice(0,10);
+  return Object.freeze({startDate:at(original.startDate),endDate:at(original.endDate)});
+}
 // Read-only planning aid. Requires existing authorized, confirmed appointments
 // with exact server timestamps; never manufactures appointments or executes SQL.
 export function suggestedConfirmedDatedAppointments(appointments,{
@@ -151,9 +160,10 @@ function parseCoachDates(value){
   const lines=String(value||'').trim().split(/\r?\n/gu).filter(Boolean);
   if(!lines.length||lines.length>52)fail('DATES_REQUIRED');
   return lines.map(line=>{
-    const match=line.trim().match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})$/u);
+    // Date-only = asynchronous guided training; a clock is optional.
+    const match=line.trim().match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2}))?$/u);
     if(!match)fail('DATE_FORMAT_INVALID');
-    return {localDate:match[1],localTime:match[2]};
+    return {localDate:match[1],localTime:match[2]??null};
   });
 }
 // Coach-only local date picker: never schedules or writes until the signed
@@ -161,17 +171,24 @@ function parseCoachDates(value){
 export function appendCoachDatedDateLine(current,date,time){
   const day=String(date??'').trim(),clock=String(time??'').trim();
   if(!/^\d{4}-\d{2}-\d{2}$/u.test(day)||
-    !/^(?:[01]\d|2[0-3]):[0-5]\d$/u.test(clock))fail('DATE_FORMAT_INVALID');
-  try{resolveSantiagoLocalInstant(day,clock);}
-  catch{fail('DATE_TIME_INVALID');}
+    (clock&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/u.test(clock)))fail('DATE_FORMAT_INVALID');
+  if(clock){
+    try{resolveSantiagoLocalInstant(day,clock);}
+    catch{fail('DATE_TIME_INVALID');}
+  }else{
+    // Validate civil-day existence even without a clock.
+    const calendarDay=Date.parse(day+'T12:00:00.000Z');
+    if(!Number.isFinite(calendarDay)||new Date(calendarDay).toISOString().slice(0,10)!==day)
+      fail('DATE_FORMAT_INVALID');
+  }
   const old=String(current??'').trim();
   const previous=old?parseCoachDates(old):[];
   if(previous.length>=52)fail('DATE_LIMIT');
   // U30/U32 authorizes one independent occurrence per Client and civil day.
   // Another hour on the same day must not masquerade as a second date.
   if(previous.some(item=>item.localDate===day))fail('DATE_DUPLICATE');
-  const next=[...previous,{localDate:day,localTime:clock}]
-    .map(item=>item.localDate+' '+item.localTime).join('\n');
+  const next=[...previous,{localDate:day,localTime:clock||null}]
+    .map(item=>item.localDate+(item.localTime?' '+item.localTime:'')).join('\n');
   if(next.length>1500)fail('DATE_LIMIT');
   return next;
 }
@@ -205,8 +222,10 @@ function humanError(error){
     return 'Se permiten hasta 52 fechas distintas por programación.';
   if(/DATE_TIME_INVALID/u.test(code))
     return 'La fecha u hora no existe o es ambigua en Chile. Elige otro horario.';
+  if(/APPOINTMENT_MATCH_REQUIRED/u.test(code))
+    return 'La cita vinculada debe estar confirmada y coincidir exactamente con la hora y la duración de la sesión.';
   if(/APPOINTMENT|DATE|CYCLE|PREVIEW|FORMAT|WINDOW/u.test(code))
-    return 'Revisa las fechas, el ciclo publicado y las citas confirmadas: deben coincidir exactamente antes de publicar.';
+    return 'Revisa fechas y ciclo publicado. Las fechas autónomas no necesitan cita; las citas vinculadas deben coincidir.';
   return 'No se pudo confirmar el cambio. El progreso local cifrado se conserva; comprueba la conexión y reintenta.';
 }
 // DOM drafts are newer than persisted checkpoints. An exit action must not
@@ -296,7 +315,8 @@ export function createDatedOccurrenceQaUi({
     createId:()=>cryptoImpl.randomUUID(),
   });
   let mounted=false,disposed=false,busy=false,ticker=null,loadedFor='',rows=[],
-    focus=null,preview=null,coachDraft=null,message='',failure='',generation=0,visibleScopeKey='';
+    focus=null,preview=null,coachDraft=null,message='',failure='',generation=0,visibleScopeKey='',
+    calendarOffset=0;
   const repaint=()=>{if(!disposed)onRender();};
   // The U33 calendar differs by signed-in role, even for one client UUID.
   // A Coach projection must never be reused by Client after changing area.
@@ -330,6 +350,7 @@ export function createDatedOccurrenceQaUi({
       // Read-only in-memory projection only. Never delete encrypted recovery
       // journals/checkpoints or active workouts when a workspace changes.
       loadedFor='';rows=[];preview=null;coachDraft=null;message='';failure='';
+      calendarOffset=0; // never carry calendar browsing to a different owner/role
     }
     return scope;
   }
@@ -476,8 +497,9 @@ export function createDatedOccurrenceQaUi({
     }else{
       const cards=isCurrent?entries.map(row=>{
         const canConfirm=coach&&canStartNew&&row.status==='planificada';
-        const canOpen=['confirmada','en_curso','completada','cancelada'].includes(row.status)
-          &&(coach||Boolean(row.appointmentId&&row.appointmentStatus));
+        const dateReady=['confirmada','en_curso','completada','cancelada'].includes(row.status);
+        const autonomous=dateReady&&row.appointmentId===null&&row.appointmentStatus===null;
+        const canOpen=dateReady&&(coach||autonomous||Boolean(row.appointmentId&&row.appointmentStatus));
         return '<article class="m26-list-card"><div><p class="m26-eyebrow">'+
           escape(row.localDate)+(row.localTime?' · '+escape(row.localTime):'')+
           '</p><h3>'+escape(row.title||'Entrenamiento')+'</h3><p>'+
@@ -507,21 +529,26 @@ export function createDatedOccurrenceQaUi({
          '<label>Sesión publicada<select name="u60Session">'+sessions+'</select></label>'+
          '<div class="m26-field-grid" data-u60-coach-date-picker>'+
          '<label>Elegir día<input type="date" name="u60AddDate" min="2020-01-01" max="2100-12-31" value="'+escape(activeDraft?.day||'')+'"></label>'+
-         '<label>Hora en Chile<input type="time" name="u60AddTime" step="60" value="'+escape(activeDraft?.time||'')+'"></label>'+
+         '<label>Hora en Chile (opcional)<input type="time" name="u60AddTime" step="60" value="'+escape(activeDraft?.time||'')+'"></label>'+
          '<div class="m26-wide m26-inline-actions"><button type="button" data-u60-add-date>Añadir fecha a esta sesión</button></div></div>'+
          '<label>Fechas seleccionadas (una por línea, hasta 52)'+
-         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-12-01 08:00&#10;2026-12-05 09:00">'+escape(activeDraft?.datesInput??activePreview?.datesInput??'')+'</textarea></label>'+
+         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-12-01&#10;2026-12-05 09:00">'+escape(activeDraft?.datesInput??activePreview?.datesInput??'')+'</textarea></label>'+
          '<div class="m26-inline-actions"><button type="button" data-u60-use-appointments>Usar citas confirmadas</button></div>'+
-         '<p class="m26-field-help">Solo prepara las fechas a partir de citas existentes; no crea citas ni publica entrenamientos.</p>'+
+         '<p class="m26-field-help">Para entrenamientos autónomos, elige solo el día o añade una hora orientativa: no necesitas crear una cita. Si la fecha coincide con una cita confirmada de esa sesión, se vincula automáticamente. Cada fecha se confirma por separado y conserva su historial.</p>'+
          '<p class="m26-field-help" role="status" aria-live="polite" data-u60-appointment-hint></p>'+
-         '<p class="m26-field-help">Cada fecha necesita una cita ya confirmada y vinculada a esa sesión, con horario y duración exactos. La cita se prepara en Agenda. La publicación nunca modifica otras fechas.</p>'+
-         '<button type="button" data-iberdates-action="u60-preview">Verificar fechas y citas</button>'+
+         '<button type="button" data-iberdates-action="u60-preview">Verificar planificación</button>'+
          '<button type="button" data-iberdates-action="u60-retry-publish">Recuperar una programación pendiente</button>'+
          (activePreview
            ?'<p role="status">'+escape(activePreview.preview.count)+' fechas verificadas · revisión requerida</p>'+
             '<button type="button" class="m26-primary-action" data-iberdates-action="u60-publish">Confirmar programación</button>'
            :'')+'</details>':'';
-      body=(isCurrent?(cards||'<p class="m26-empty-copy">No hay fechas dentro del periodo consultado.</p>')
+      const windowRange=shiftedDatedCalendarRange(calendarOffset);
+      const calendarNavigator='<div class="m26-inline-actions" aria-label="Navegar por las fechas">'+
+        '<button type="button" data-iberdates-action="u60-prev-period"'+(calendarOffset<=-24?' disabled':'')+'>Fechas anteriores</button>'+
+        '<span class="m26-field-help">'+escape(windowRange.startDate)+' a '+escape(windowRange.endDate)+'</span>'+
+        '<button type="button" data-iberdates-action="u60-next-period"'+(calendarOffset>=24?' disabled':'')+'>Fechas siguientes</button>'+
+        '</div>';
+      body=calendarNavigator+(isCurrent?(cards||'<p class="m26-empty-copy">No hay fechas dentro del periodo consultado.</p>')
         :'<p class="m26-empty-copy">Consulta el calendario autorizado para elegir una fecha.</p>')+
         publisher;
     }
@@ -545,7 +572,7 @@ export function createDatedOccurrenceQaUi({
     // paint. Establish the visible owner key before accepting remote rows.
     const visible=visibleOwner();
     if(!visible||roleScope(visible)!==roleScope(scope))fail('ACTOR_CHANGED');
-    const range=qaDatedCalendarRange();
+    const range=shiftedDatedCalendarRange(calendarOffset);
     const requestedScope=roleScope(scope),requestedGeneration=generation;
     const output=await runtime.calendar({clientId:scope.clientId,...range,limit:50});
     await authenticated();
@@ -609,6 +636,9 @@ export function createDatedOccurrenceQaUi({
     const appointments=scope.state.collections?.appointments||[];
     const appointmentIdsByDate={};
     for(const date of dates){
+      // A date without time is truly autonomous. A timed date is autonomous
+      // unless an EXACT confirmed appointment exists for that session.
+      if(!date.localTime)continue;
       const start=resolveSantiagoLocalInstant(date.localDate,date.localTime);
       const end=new Date(Date.parse(start)+minutes*60000).toISOString();
       const match=appointments.filter(row=>
@@ -618,9 +648,11 @@ export function createDatedOccurrenceQaUi({
         &&Date.parse(String(field(row,'startAt','start_at')) )===Date.parse(start)
         &&Date.parse(String(field(row,'endAt','end_at')) )===Date.parse(end)
       );
-      if(match.length!==1||!UUID.test(uid(field(match[0],'id'))))
-        fail('APPOINTMENT_MATCH_REQUIRED');
-      appointmentIdsByDate[date.localDate]=uid(field(match[0],'id'));
+      if(match.length>1)fail('APPOINTMENT_MATCH_REQUIRED');
+      if(match.length===1){
+        if(!UUID.test(uid(field(match[0],'id'))))fail('APPOINTMENT_MATCH_REQUIRED');
+        appointmentIdsByDate[date.localDate]=uid(field(match[0],'id'));
+      }
     }
     const excluded=new Set(Object.values(appointmentIdsByDate));
     const revision=Number(field(session,'revision'));
@@ -640,7 +672,7 @@ export function createDatedOccurrenceQaUi({
       fail('ACTOR_CHANGED');
     preview={clientId:scope.clientId,roleScope:roleScope(scope),sessionId,revision,
       datesInput:payload.plannedDates,preview:verified,appointmentIdsByDate};
-    message='Fechas, horarios, ciclo y citas verificados. Confirma para programar.';
+    message='Planificación y prescripción verificadas. Las fechas sin cita quedan listas para confirmar individualmente.';
   }
   async function perform(action,button,payload){
     if(disposed)fail('DESTROYED');
@@ -657,6 +689,15 @@ export function createDatedOccurrenceQaUi({
     }
     if(action==='u60-calendar'){await load(scope);return;}
     if(!vault.isUnlocked())fail('OWNER_KEY_LOCKED');
+    if(action==='u60-prev-period'||action==='u60-next-period'){
+      if(focus)fail('ACTIVE_WORKOUT_NAVIGATION_FORBIDDEN');
+      const before=calendarOffset;
+      const next=before+(action==='u60-next-period'?1:-1);
+      if(Math.abs(next)>24)fail('CALENDAR_OFFSET_INVALID');
+      calendarOffset=next;
+      try{await load(scope);}catch(error){calendarOffset=before;throw error;}
+      return;
+    }
     if(action==='u60-preview'){await previewDates(scope,payload);return;}
     if(action==='u60-retry-publish'){
       if(scope.role!=='coach')fail('COACH_REQUIRED');
@@ -693,7 +734,7 @@ export function createDatedOccurrenceQaUi({
         fail('RECOVERY_REQUIRED');
       preview=null;coachDraft=null;
       await load(scope);
-      message='Fechas creadas y confirmadas por el servidor. Confirma cada una antes de iniciarla.';
+      message='Fechas programadas por el servidor. Confirma cada fecha para que el Cliente pueda iniciarla.';
       return;
     }
     if(action==='u60-confirm'){
@@ -744,9 +785,12 @@ export function createDatedOccurrenceQaUi({
       const row=verifiedRow(payload.id,scope);
       if(!['confirmada','en_curso','completada','cancelada'].includes(row.status))
         fail('DATE_NOT_EXECUTABLE');
-      if(scope.role!=='coach'&&(!row.appointmentId||
-        !['confirmada','cancelada','completada'].includes(row.appointmentStatus)))
-        fail('APPOINTMENT_REQUIRED');
+      if(scope.role!=='coach'){
+        const autonomous=row.appointmentId===null&&row.appointmentStatus===null;
+        const linked=Boolean(row.appointmentId)&&
+          ['confirmada','cancelada','completada'].includes(row.appointmentStatus);
+        if(!autonomous&&!linked)fail('APPOINTMENT_REQUIRED');
+      }
       const target={clientId:scope.clientId,occurrenceId:row.id,role:scope.role};
       focus=target;
       // Paint an explicit, non-actionable loading state before asynchronous
@@ -902,7 +946,7 @@ export function createDatedOccurrenceQaUi({
         datesField.value=next;
         dayField.value='';
         captureCoachDateDraft(panel,scope); // local draft + reviewed preview invalidation
-        if(hint)hint.textContent='Fechas seleccionadas. Prepara sus citas en Agenda y verifica antes de publicar.';
+        if(hint)hint.textContent='Fechas seleccionadas. Si no hay cita confirmada, se programarán como entrenamiento autónomo.';
       }catch(error){if(hint)hint.textContent=humanError(error);}
       return;
     }
