@@ -197,6 +197,56 @@ check_sql BASELINE "SELECT (
  AND (SELECT relrowsecurity FROM pg_class WHERE oid='public.training_session_occurrences_v1'::regclass)
  AND NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1 WHERE status='en_curso')
 )::int;"
+# P0 M44: test ACTUAL restored production row visibility under the two
+# genuine PostgreSQL web roles. Earlier synthetic ACL/RLS fixtures do not prove
+# effective protection of restored real tables. All selects run on disposable
+# PG17 with a READ ONLY transaction; no JWT, user identity or customer row is
+# printed. This verifies DENIAL with no session, not positive app authorization.
+check_sql RESTORED_RLS_SOURCE "SELECT (
+ (SELECT count(*) FROM public.client_access_v26)>0
+ AND (SELECT count(*) FROM public.session_executions)>0
+ AND (SELECT count(*) FROM public.iberfit_system_settings)>0
+ AND (SELECT relrowsecurity FROM pg_class
+   WHERE oid='public.client_access_v26'::regclass)
+ AND (SELECT relrowsecurity FROM pg_class
+   WHERE oid='public.session_executions'::regclass)
+ AND (SELECT relrowsecurity FROM pg_class
+   WHERE oid='public.iberfit_system_settings'::regclass)
+ AND NOT EXISTS (SELECT 1 FROM pg_policy WHERE polrelid IN (
+   'public.client_access_v26'::regclass,
+   'public.session_executions'::regclass,
+   'public.iberfit_system_settings'::regclass))
+)::int;"
+role_rls_denial(){
+ local actor="$1" scope="$2" observed
+ [[ "$actor" == anon || "$actor" == authenticated ]] ||
+  fail RESTORED_RLS_ROLE_NOT_ALLOWLISTED
+ # The variable SQL fragments are fixed literals below, not user-supplied.
+ observed="$(db psql -X -q -t -A -v ON_ERROR_STOP=1 \
+  -c "BEGIN READ ONLY;
+    SET LOCAL ROLE $actor;
+    SELECT (
+      current_user='$actor'
+      AND has_table_privilege(current_user,'public.client_access_v26','SELECT')
+      AND has_table_privilege(current_user,'public.iberfit_system_settings','SELECT')
+      AND (SELECT count(*) FROM public.client_access_v26)=0
+      AND (SELECT count(*) FROM public.iberfit_system_settings)=0
+      AND NOT has_table_privilege(current_user,
+        'public.training_session_occurrences_v1','SELECT')
+      AND NOT has_function_privilege(current_user,
+        'public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+      AND NOT has_function_privilege(current_user,
+        'public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+      AND ($scope)
+    )::int;
+    ROLLBACK;" 2>"$out/real-rls-$actor-private.log")" ||
+  fail "RESTORED_RLS_${actor^^}_SQL_FAILED"
+ [[ "$observed" == 1 ]] || fail "RESTORED_RLS_${actor^^}_DENIAL_CHANGED"
+}
+role_rls_denial anon "NOT has_table_privilege(current_user,'public.session_executions','SELECT')"
+role_rls_denial authenticated "has_table_privilege(current_user,'public.session_executions','SELECT') AND (SELECT count(*) FROM public.session_executions)=0"
+echo M44_REAL_RESTORED_PROD_EFFECTIVE_RLS_UNAUTHENTICATED_DENIAL_VERIFIED_ONLY
+
 # No identifiers/row data are logged; compare only counts of protected tables.
 count_query="SELECT
  (SELECT count(*) FROM auth.users)::text||','||
