@@ -184,6 +184,16 @@ test('Coach visual multifecha editor appends distinct dates locally and preserve
   }finally{h.close();}
 });
 
+test('Coach date scheduling is exposed in Planificación and Sesión without changing Client routing',()=>{
+  const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  assert.match(app,/\['sesion','planificacion'\]\.includes\(area\)&&datedUi\?\.enabled/u);
+  assert.match(app,/datedArea==='sesion'\|\|\(role==='coach'&&datedArea==='planificacion'\)/u);
+  assert.match(app,/role==='client'&&datedPanel/u,
+    'Client date player remains inside its dedicated session route');
+  assert.match(app,/return role==='client'\?markup:markup\+datedPanel;/u,
+    'Existing Coach session and Client mounting remain unchanged');
+});
+
 test('U60 Coach calendar is invalidated when switching to Client on the same UUID',async()=>{
   const h=createHarness('coach');
   try{
