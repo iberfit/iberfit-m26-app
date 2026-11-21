@@ -49,7 +49,7 @@ function readonlyFences(){
  list+"\nEND $m1_autonomous_bundle_verified$;\n";
 }
 function validateInputs(src){
- const u72=requireText(src.u72,'U72');
+ const u72=unwrapTransaction(src.u72,'U72');
  const autonomous=requireText(src.autonomous,'AUTONOMOUS');
  const enable=unwrapTransaction(src.enable,'ENABLE');
  const disable=unwrapTransaction(src.disable,'DISABLE');
