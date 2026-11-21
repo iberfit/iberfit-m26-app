@@ -121,11 +121,14 @@ jobs:
           if(original!=='ACTIVE_HEALTHY')throw Error('M44_SLOTS_PROD_NOT_HEALTHY');
           const sandbox=await state(clone);
           if(sandbox!=='INACTIVE'){
+            if(['COMING_UP','RESTORING'].includes(sandbox))
+              await until(clone,'ACTIVE_HEALTHY');
             if(sandbox!=='PAUSING')await req(clone,'/pause','POST');
             await until(clone,'INACTIVE');
           }
           const qaState=await state(qa);
           if(qaState!=='ACTIVE_HEALTHY'){
+            if(qaState==='PAUSING')await until(qa,'INACTIVE');
             if(!['RESTORING','COMING_UP'].includes(qaState))
               await req(qa,'/restore','POST');
             await until(qa,'ACTIVE_HEALTHY');
