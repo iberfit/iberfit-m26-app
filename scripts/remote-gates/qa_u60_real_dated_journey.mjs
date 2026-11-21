@@ -308,7 +308,7 @@ export function boundedQaCalendarPage(response,owner){
     !Array.isArray(rows)||!Number.isSafeInteger(b.count)||
     b.count!==rows.length||b.count>50||typeof b.hasMore!=='boolean'||
     rows.some(o=>o?.clientId!==owner||!UUID.test(o.id)||
-      !/^\\d{4}-\\d{2}-\\d{2}$/.test(String(o.localDate||''))||
+      !/^\d{4}-\d{2}-\d{2}$/.test(String(o.localDate||''))||
       /publishedSnapshot|requestHash|coachPrivateNote|prescriptionSnapshot/.test(JSON.stringify(o))))
    return false;
  const last=rows.at(-1);
