@@ -13,7 +13,9 @@ const edge=()=>[{slug:'iberfit-admin-client-invite-v1',status:'ACTIVE',
  verify_jwt:false,ezbr_sha256:EDGE_DIGEST,version:10}];
 test('backend certificate checks exact SQL/RLS/auth and live Edge with zero writes',()=>{
  const result=certifyAlreadyActiveBackend(rows(),edge());
- assert.equal(result.functionsVerified,8);
+ assert.equal(result.functionsVerified,10);
+ assert.match(SQL,/private\.iberfit_u31_occurrence_transition_v1/u);
+ assert.match(SQL,/private\.iberfit_u33_occurrence_calendar_v1/u);
  assert.equal(result.edgeVerified,true);
  assert.equal(result.backendWrites,0);
  assert.equal(result.hostedAuthWrites,0);

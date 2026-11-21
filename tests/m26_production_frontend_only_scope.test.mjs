@@ -106,9 +106,9 @@ test('the previously deployed Edge source is allowed only as a frozen inert blob
  assert.throws(()=>verifyFrozenPreactivatedEdge({sourceSha:TARGET,
    changedPaths:[entries[0][0]]}),/FRONTEND_ONLY_EDGE_BLOB_READER_REQUIRED/u);
 });
-test('only nine immutable dormant SQL and QA rollout blobs are inert in Pages scope',()=>{
+test('only eleven exact immutable dormant SQL and QA rollout blobs are inert in Pages scope',()=>{
  const entries=Object.entries(FROZEN_INERT_CUTOVER_SQL_BLOBS);
- assert.equal(entries.length,9);
+ assert.equal(entries.length,11);
  assert.ok(entries.every(([path,sha])=>path.endsWith('.sql')&&/^[a-f0-9]{40}$/u.test(sha)));
  const paths=entries.map(([path])=>path);
  const proof=evaluateFrontendOnlyChanges({sourceSha:TARGET,

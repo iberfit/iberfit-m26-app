@@ -118,7 +118,12 @@ function verifyCalendarRow(row,owner,start,end,role){
       (['completada','cancelada'].includes(row.status)&&
         ['confirmada','cancelada','completada'].includes(row.appointmentStatus))
     );
-    if(!UUID.test(String(row.appointmentId||''))||!validAppointment)
+    // U33 verifies the private published source and snapshot for no-cita rows.
+    // A null appointment is legal only with a null appointment status and a
+    // Coach-confirmed occurrence; never accept an unconfirmed draft.
+    const autonomous=row.appointmentId===null&&row.appointmentStatus===null&&
+      ['confirmada','en_curso','completada','cancelada'].includes(row.status);
+    if(!autonomous&&(!UUID.test(String(row.appointmentId||''))||!validAppointment))
       throw error('CLIENT_CALENDAR_PRIVACY_DRIFT');
   }
   // U33 must never provide private prescription snapshots or queued writes.

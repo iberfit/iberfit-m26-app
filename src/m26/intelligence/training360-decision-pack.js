@@ -63,6 +63,7 @@ function authorizedPrescription(row,clientId,role){
     id, title:title.slice(0,100),
     status:lower(field(row,'status')),
     modality:lower(field(row,'deliveryModality','delivery_modality')),
+    ownership:lower(field(row,'deliveryOwnership','delivery_ownership')),
   });
 }
 function normalizedExecutionStatus(value){
@@ -169,6 +170,7 @@ export function buildTraining360DecisionPack({
       String(field(row,'visibleToClient','visible_to_client')??''),
       lower(field(row,'clientVisibilityLevel','client_visibility_level')),
       lower(field(row,'deliveryModality','delivery_modality')),
+      lower(field(row,'deliveryOwnership','delivery_ownership')),
       String(field(row,'title','name')??''),
     ]));
   const prescriptions=new Map([...sourcePrescriptions]
@@ -240,8 +242,14 @@ export function buildTraining360DecisionPack({
       (o.status==='en_curso'&&['confirmada','cancelada'].includes(appointmentStatus))||
       (o.status==='completada'&&['confirmada','cancelada','completada'].includes(appointmentStatus))||
       (o.status==='cancelada'&&['confirmada','cancelada','completada'].includes(appointmentStatus)));
-    const dateVisible=!isClient||Boolean(serverPublished&&o.appointmentId
-      &&authorizedAp&&visibleAppointmentState);
+    // Only owner-scoped records from the authenticated projection are inputs.
+    // U33 is the SQL authority for no-cita dates; this is a display hint,
+    // never an alternative way to authorize an execution.
+    const autonomous=serverPublished&&o.appointmentId===null
+      &&['guided_in_app','client_autonomous'].includes(p.ownership)
+      &&['confirmada','en_curso','completada','cancelada'].includes(o.status);
+    const dateVisible=!isClient||Boolean(serverPublished&&(
+      (o.appointmentId&&authorizedAp&&visibleAppointmentState)||autonomous));
     // These are advice/display hints only. Server always authorizes writes.
     return Object.freeze({
       id:o.id,sessionId:o.sessionId,localDate:o.localDate,
@@ -253,7 +261,7 @@ export function buildTraining360DecisionPack({
           o.status==='confirmada'?'scheduled':
             o.status==='cancelada'?'cancelled':'draft',
       canRequestStartHint:o.status==='confirmada'&&serverPublished
-        &&appointmentStatus==='confirmada'&&!o.executionId,
+        &&(appointmentStatus==='confirmada'||autonomous)&&!o.executionId,
       visible:dateVisible,
     });
   }).filter(item=>item.visible);

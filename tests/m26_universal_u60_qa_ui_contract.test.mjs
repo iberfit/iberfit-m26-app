@@ -214,6 +214,36 @@ test('Coach visual multifecha editor appends distinct dates locally and preserve
   }finally{h.close();}
 });
 
+test('Coach can add multiple date-only autonomous days without opening Agenda or contacting Supabase',async()=>{
+ const h=createHarness();
+ try{
+  h.state.collections.sessions=[{id:SESSION,clientId:CLIENT,title:'Fuerza autónoma',
+    status:'disponible',deliveryModality:'guiada_en_app',durationMinutes:45}];
+  assert.match(h.ui.renderPanel(),/Hora en Chile \(opcional\)/u);
+  const dates={value:''},day={value:'2026-12-01'},time={value:''};
+  const hint={textContent:''},publish={disabled:false,setAttribute(){}};
+  const panel={querySelector:key=>({
+   '[name="u60Dates"]':dates,'[name="u60AddDate"]':day,
+   '[name="u60AddTime"]':time,
+   '[data-u60-appointment-hint]':hint,
+   '[data-iberdates-action="u60-publish"]':publish,
+  })[key]??null};
+  const append={disabled:false,hasAttribute:key=>key==='data-u60-add-date',
+    closest:key=>key==='[data-u60-panel]'?panel:null};
+  const event={target:{closest:key=>key==='[data-u60-add-date]'?append:null},
+    preventDefault(){},stopPropagation(){}};
+  await h.listeners.get('click')(event);
+  assert.equal(dates.value,'2026-12-01');
+  assert.equal(day.value,'');
+  assert.equal(publish.disabled,true,'a new date invalidates previous review');
+  day.value='2026-12-03';
+  await h.listeners.get('click')(event);
+  assert.equal(dates.value,'2026-12-01\n2026-12-03');
+  assert.match(hint.textContent,/entrenamiento autónomo/u);
+  assert.equal(h.calls.length,0,'date-only planning is 100% local until signed preview');
+ }finally{h.close();}
+});
+
 test('Coach multifecha selection, validation and status are localized EN/FR/PT',()=>{
   for(const label of ["Esa fecha ya figura en la programación. Puedes elegir otro día o editar la lista.","Se permiten hasta 52 fechas distintas por programación.","La fecha u hora no existe o es ambigua en Chile. Elige otro horario.","Elegir día","Hora en Chile","Añadir fecha a esta sesión","Fechas seleccionadas (una por línea, hasta 52)","Fechas seleccionadas. Prepara sus citas en Agenda y verifica antes de publicar."]){
     for(const language of ['en','fr','pt']){

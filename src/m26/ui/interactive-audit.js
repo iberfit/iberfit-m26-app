@@ -89,6 +89,8 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   // dispatch. Audit every emitted action and its exact allowed role.
   'u60-unlock':{roles:['coach','client'],domain:'training360'},
   'u60-calendar':{roles:['coach','client'],domain:'training360'},
+  'u60-prev-period':{roles:['coach','client'],domain:'training360'},
+  'u60-next-period':{roles:['coach','client'],domain:'training360'},
   'u60-preview':{roles:['coach'],domain:'training360'},
   'u60-publish':{roles:['coach'],domain:'training360'},
   'u60-retry-publish':{roles:['coach'],domain:'training360'},
