@@ -160,8 +160,8 @@ function parseCoachDates(value){
 // preview and the atomic U32 batch both confirm this exact list of dates.
 export function appendCoachDatedDateLine(current,date,time){
   const day=String(date??'').trim(),clock=String(time??'').trim();
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/u.test(day)||
-    !/^(?:[01]\\d|2[0-3]):[0-5]\\d$/u.test(clock))fail('DATE_FORMAT_INVALID');
+  if(!/^\d{4}-\d{2}-\d{2}$/u.test(day)||
+    !/^(?:[01]\d|2[0-3]):[0-5]\d$/u.test(clock))fail('DATE_FORMAT_INVALID');
   try{resolveSantiagoLocalInstant(day,clock);}
   catch{fail('DATE_TIME_INVALID');}
   const old=String(current??'').trim();
@@ -171,7 +171,7 @@ export function appendCoachDatedDateLine(current,date,time){
   // Another hour on the same day must not masquerade as a second date.
   if(previous.some(item=>item.localDate===day))fail('DATE_DUPLICATE');
   const next=[...previous,{localDate:day,localTime:clock}]
-    .map(item=>item.localDate+' '+item.localTime).join('\\n');
+    .map(item=>item.localDate+' '+item.localTime).join('\n');
   if(next.length>1500)fail('DATE_LIMIT');
   return next;
 }
@@ -877,7 +877,7 @@ export function createDatedOccurrenceQaUi({
           confirm.disabled=true;
           confirm.setAttribute?.('aria-disabled','true');
         }
-        if(hint)hint.textContent=next.split('\\n').length+
+        if(hint)hint.textContent=next.split('\n').length+
           ' fecha(s) seleccionadas. Prepara sus citas en Agenda y verifica antes de publicar.';
       }catch(error){if(hint)hint.textContent=humanError(error);}
       return;
