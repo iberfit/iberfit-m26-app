@@ -1104,7 +1104,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       // core, NOT a longitudinal training-history conclusion. Keep the full
       // IRI assessment and its private photo consent controls operational
       // without making the Coach download an unrelated >20 MB archive.
-      if(area==='sesion'&&datedUi?.enabled)
+      if(['sesion','planificacion'].includes(area)&&datedUi?.enabled)
         return '<div class="m26-route">'+datedUi.renderPanel()+gate+'</div>';
       if(!['clientes','ajustes','iri','informes'].includes(area))
         return '<div class="m26-route">'+gate+'</div>';
@@ -1207,8 +1207,10 @@ export async function createM26Application({root=document.querySelector('#app'),
     // The production branch is closed by default at resolveM26Runtime and
     // by server EXECUTE ACL, not solely by this presentation check.
     // Coach retains its standalone date workspace below the normal route.
+    const datedArea=String(shellVm?.activeArea||'');
     const datedPanel=(runtime.qaOnly===true||runtime.datedTrainingProductionReleased===true)&&
-      String(shellVm?.activeArea||'')==='sesion'&&datedUi?.enabled
+      (datedArea==='sesion'||(role==='coach'&&datedArea==='planificacion'))&&
+      datedUi?.enabled
       ?datedUi.renderPanel():'';
     const markup=renderRouteView(role==='client'&&datedPanel
       ?{...routeVm,qaDatedPanel:datedPanel}
