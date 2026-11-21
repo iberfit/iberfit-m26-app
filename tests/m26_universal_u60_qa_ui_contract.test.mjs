@@ -146,8 +146,10 @@ test('Coach visual multifecha editor appends distinct dates locally and preserve
       status:'disponible',deliveryModality:'guiada_en_app',durationMinutes:60}];
     let markup=h.ui.renderPanel();
     for(const token of ['data-u60-add-date','name="u60AddDate"',
-      'name="u60AddTime"','name="u60Dates"','u60-preview','u60-publish'])
+      'name="u60AddTime"','name="u60Dates"','u60-preview'])
       assert.ok(markup.includes(token),token+' missing in Coach workspace');
+    assert.doesNotMatch(markup,/data-iberdates-action="u60-publish"/u,
+      'Coach cannot publish unreviewed dates');
     const dates={value:''},day={value:'2026-12-01'},time={value:'08:00'};
     const hint={textContent:''},confirm={disabled:false,
       setAttribute(name,value){this[name]=value;}};
