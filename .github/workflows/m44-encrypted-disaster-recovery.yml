@@ -200,6 +200,11 @@ on:
       # Both paths changed together trigger one run, not one run per file.
       - 'supabase/migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql'
       - 'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql'
+      # This SINGLE M1 autonomous-date release also needs a fresh genuine
+      # encrypted PROD DB+Storage restore on PROTECTED Canary merge only.
+      # The PR remains contract-only. No backup from QA or feature branches.
+      - 'supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.sql'
+      - 'supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.rollback.sql'
       # One release workflow change on protected Canary requests a fresh
       # encrypted PROD recovery point. Never execute real backup from PRs.
       - '.github/workflows/production-promote.yml'

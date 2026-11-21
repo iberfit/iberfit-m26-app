@@ -60,3 +60,15 @@ test('M1 composer fails closed on modified or missing source guard without touch
  assert.throws(()=>composeM1AutonomousBackendCutover({...originals,
   enable:originals.enable+'\nCOMMIT;\n'}),/TRANSACTION_CONTRACT/u);
 });
+
+
+test('M1 autonomous cutover requests fresh M44 PROD ciphertext restore only after protected Canary merge',()=>{
+ const wf=readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
+ const push=wf.slice(wf.indexOf('  push:\\n'),wf.indexOf('  workflow_dispatch:'));
+ for(const path of ['20261121_m1_autonomous_dates_guarded_overlay_v1.sql',
+   '20261121_m1_autonomous_dates_guarded_overlay_v1.rollback.sql'])
+  assert.ok(push.includes(path),'M44 missing protected postmerge trigger '+path);
+ assert.match(wf,/branches: \['canary\/rc74-4'\]/u);
+ assert.match(wf,/if: github\.event_name != 'pull_request'/u);
+ assert.match(wf,/M44_FULL_PLATFORM_RECOVERY_NOT_CERTIFIED/u);
+});
