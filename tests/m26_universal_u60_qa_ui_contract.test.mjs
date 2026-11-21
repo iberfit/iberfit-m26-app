@@ -184,6 +184,16 @@ test('Coach visual multifecha editor appends distinct dates locally and preserve
   }finally{h.close();}
 });
 
+test('Coach multifecha selection, validation and status are localized EN/FR/PT',()=>{
+  for(const label of ["Esa fecha ya figura en la programación. Puedes elegir otro día o editar la lista.","Se permiten hasta 52 fechas distintas por programación.","La fecha u hora no existe o es ambigua en Chile. Elige otro horario.","Elegir día","Hora en Chile","Añadir fecha a esta sesión","Fechas seleccionadas (una por línea, hasta 52)","Fechas seleccionadas. Prepara sus citas en Agenda y verifica antes de publicar."]){
+    for(const language of ['en','fr','pt']){
+      const value=iberfitSurfaceTranslate(label,{language});
+      assert.notEqual(value,label,language+': '+label);
+      assert.ok(value.length>2);
+    }
+  }
+});
+
 test('Coach date scheduling is exposed in Planificación and Sesión without changing Client routing',()=>{
   const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
   assert.match(app,/\['sesion','planificacion'\]\.includes\(area\)&&datedUi\?\.enabled/u);

@@ -877,8 +877,7 @@ export function createDatedOccurrenceQaUi({
           confirm.disabled=true;
           confirm.setAttribute?.('aria-disabled','true');
         }
-        if(hint)hint.textContent=next.split('\n').length+
-          ' fecha(s) seleccionadas. Prepara sus citas en Agenda y verifica antes de publicar.';
+        if(hint)hint.textContent='Fechas seleccionadas. Prepara sus citas en Agenda y verifica antes de publicar.';
       }catch(error){if(hint)hint.textContent=humanError(error);}
       return;
     }
