@@ -109,3 +109,15 @@ test('A public-schema positive control must be observed BEFORE an HTTP negative 
  assert.ok(positive>0&&restricted>positive&&negative>restricted);
  assert.ok(seal.indexOf('sealed=true;')>negative);
 });
+
+test('Management mutating 204/empty responses are treated as accepted only after state readback',()=>{
+ assert.match(code,/const content=await response\.text\(\)/);
+ assert.match(code,/if\(!content\.trim\(\)\)/);
+ assert.match(code,/if\(!\['POST','PATCH'\]\.includes\(method\)\)fail\('MANAGEMENT_EMPTY_READONLY_RESPONSE'\)/);
+ assert.match(code,/return Object\.freeze\(\{accepted:true,empty:true\}\)/);
+ assert.match(code,/await waitState\(QA,'INACTIVE'\)/);
+ assert.match(code,/await waitState\(TARGET,'ACTIVE_HEALTHY'\)/);
+ assert.match(workflow,/const body=await res\.text\(\)/);
+ assert.match(workflow,/if\(method==='GET'\)throw Error\('M44_SLOTS_EMPTY_GET'\)/);
+ assert.match(workflow,/return \{accepted:true\};/);
+});
