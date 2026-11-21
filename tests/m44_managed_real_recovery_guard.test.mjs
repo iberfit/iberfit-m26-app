@@ -123,3 +123,31 @@ test('Management mutating 204/empty responses are treated as accepted only after
  assert.match(workflow,/M44_SLOTS_INVALID_GET_JSON/);
  assert.match(code,/return Object\.freeze\(\{accepted:true,opaque:true\}\)/);
 });
+
+test('Every managed 400 from real recovery emits a bounded safe phase, never raw bodies or SQL',()=>{
+ assert.match(code,/MANAGEMENT_HTTP_'\+response\.status\+'_PHASE_'\+allowed/);
+ assert.match(code,/const allowed=\/\^\[A-Z0-9_\]\{3,48\}\$\/\.test\(m44Phase\)/);
+ const ordered=['SEAL_PROJECT_IDENTITY','SEAL_EMPTY_SQL_READ','SEAL_KEYS_READ',
+  'SEAL_CREATE_SYNTHETIC_PROBE_SQL','SEAL_CREATE_CLOSED_SCHEMAS_SQL',
+  'SEAL_SWITCH_POSTGREST_SCHEMA','SEAL_VERIFY_POSTGREST_SCHEMA',
+  'SEAL_DISABLE_AUTH_SIGNUPS','SEAL_VERIFY_AUTH_DISABLED',
+  'SEAL_VERIFY_SCHEMA_GRANTS'];
+ let index=0;
+ for(const name of ordered){
+  const next=code.indexOf("m44Phase='"+name+"';",index);
+  assert.ok(next>=index,'Missing ordered fail-closed management stage '+name);
+  index=next+name.length;
+ }
+ assert.match(code,/api-keys\?reveal=true/);
+ assert.doesNotMatch(code,/console\.(?:log|error)\([^;]*(?:api_key|password|response\.text|Authorization|JSON\.stringify\(.*keys)/);
+});
+
+test('M44 avoids ambiguous management error output and preserves fail-closed data sequencing',()=>{
+ assert.ok(code.includes("let m44Phase='BOOTSTRAP'"));
+ assert.ok(code.includes("const allowed=/^[A-Z0-9_]{3,48}$/.test(m44Phase)?m44Phase:'UNCLASSIFIED'"));
+ const beforeData=code.indexOf('await seal();');
+ const importData=code.indexOf('await restoreData(conn);');
+ assert.ok(beforeData>0 && importData>beforeData);
+ assert.doesNotMatch(code,/console\.(?:log|error)\([^;\n]*response\.text/);
+ assert.doesNotMatch(code,/console\.(?:log|error)\([^;\n]*JSON\.stringify\(\s*body/);
+});

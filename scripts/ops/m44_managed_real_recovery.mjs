@@ -23,6 +23,8 @@ let qaPaused=false;
 let clonedData=false;
 let sealed=false;
 let directory='';
+// Diagnostic identifier ONLY: fixed public operation labels, never URL, SQL, tokens or response bodies.
+let m44Phase='BOOTSTRAP';
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function fail(code){throw Error(PREFIX+code);}
 function required(value,code){if(!value)fail(code);return value;}
@@ -45,7 +47,10 @@ async function request(url,{method='GET',body,token=process.env.SUPABASE_ACCESS_
    Accept:'application/json',...(body?{'Content-Type':'application/json'}:{}),...headers
   },body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(timeout)});
  }catch{fail('MANAGEMENT_UNREACHABLE');}
- if(!response.ok)fail('MANAGEMENT_HTTP_'+response.status);
+ if(!response.ok){
+  const allowed=/^[A-Z0-9_]{3,48}$/.test(m44Phase)?m44Phase:'UNCLASSIFIED';
+  fail('MANAGEMENT_HTTP_'+response.status+'_PHASE_'+allowed);
+ }
  // Management POST pause/restore and some PATCH operations return HTTP 204
  // with EMPTY bodies. Never mistake a successful state transition for a
  // failed request; inspect the authoritative project GET state afterwards.
@@ -127,16 +132,19 @@ async function isolate(){
  console.log('M44_FREE_SWAP_ISOLATED_TARGET_ACTIVE_QA_PAUSED');
 }
 async function seal(){
+ m44Phase='SEAL_PROJECT_IDENTITY';
  const identity=await sup(TARGET,'');
  if(identity.ref!==TARGET||identity.name!=='iberfit-m44-recovery-isolated-20261121')
    fail('ISOLATED_TARGET_IDENTITY_INVALID');
+ m44Phase='SEAL_EMPTY_SQL_READ';
  const empty=await sup(TARGET,'/database/query',{method:'POST',body:{
   query:"SELECT (SELECT count(*) FROM auth.users) AS users, (SELECT count(*) FROM storage.objects) AS objects, (SELECT count(*) FROM pg_tables WHERE schemaname='public') AS tables"
  }});
  const row=Array.isArray(empty)?empty[0]:empty?.result?.[0];
  if(!row||Number(row.users)!==0||Number(row.objects)!==0||Number(row.tables)!==0)
    fail('ISOLATED_PROJECT_NOT_EMPTY');
- const keys=await sup(TARGET,'/api-keys');
+ m44Phase='SEAL_KEYS_READ';
+ const keys=await sup(TARGET,'/api-keys?reveal=true');
  if(!Array.isArray(keys))fail('KEY_LIST_INVALID');
  const key=keys.find(k=>(k.name==='anon'||k.type==='publishable')&&!k.disabled)?.api_key;
  if(typeof key!=='string'||key.length<20)fail('SANDBOX_ANON_KEY_NOT_AVAILABLE');
@@ -144,6 +152,7 @@ async function seal(){
  // sealing, so HTTP 404 from a missing application table cannot create a
  // false assurance that public PII will be inaccessible after import.
  const probeURL='https://'+TARGET+'.supabase.co/rest/v1/m44_recovery_exposure_probe?select=sentinel&limit=1';
+ m44Phase='SEAL_CREATE_SYNTHETIC_PROBE_SQL';
  await sup(TARGET,'/database/query',{method:'POST',body:{
   query:"CREATE VIEW public.m44_recovery_exposure_probe WITH (security_invoker=true) AS SELECT 'M44_ISOLATION_SENTINEL_ONLY'::text AS sentinel; GRANT SELECT ON public.m44_recovery_exposure_probe TO anon; NOTIFY pgrst, 'reload schema'"
  }});
@@ -161,10 +170,13 @@ async function seal(){
   await sleep(1200);
  }
  if(!positiveControl)fail('PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN');
+ m44Phase='SEAL_CREATE_CLOSED_SCHEMAS_SQL';
  await sup(TARGET,'/database/query',{method:'POST',body:{
   query:"CREATE SCHEMA IF NOT EXISTS m44_recovery_closed; CREATE SCHEMA IF NOT EXISTS private; REVOKE ALL ON SCHEMA m44_recovery_closed FROM PUBLIC, anon, authenticated, service_role"
  }});
+ m44Phase='SEAL_SWITCH_POSTGREST_SCHEMA';
  await sup(TARGET,'/postgrest',{method:'PATCH',body:{db_schema:'m44_recovery_closed'}});
+ m44Phase='SEAL_VERIFY_POSTGREST_SCHEMA';
  const rest=await sup(TARGET,'/postgrest');
  if(rest.db_schema!=='m44_recovery_closed')fail('DATA_API_NOT_SEALED');
  let negativeControl=false;
@@ -178,15 +190,18 @@ async function seal(){
   await sleep(1200);
  }
  if(!negativeControl)fail('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED');
+ m44Phase='SEAL_DISABLE_AUTH_SIGNUPS';
  await sup(TARGET,'/config/auth',{method:'PATCH',body:{
   disable_signup:true,external_email_enabled:false,external_phone_enabled:false,
   external_anonymous_users_enabled:false
  }});
+ m44Phase='SEAL_VERIFY_AUTH_DISABLED';
  const auth=await sup(TARGET,'/config/auth');
  if(auth.disable_signup!==true||auth.external_email_enabled!==false||
     auth.external_phone_enabled!==false||auth.external_anonymous_users_enabled!==false)
   fail('AUTH_EGRESS_NOT_DISABLED');
  sealed=true;
+ m44Phase='SEAL_VERIFY_SCHEMA_GRANTS';
  const guard=await sup(TARGET,'/database/query',{method:'POST',body:{query:
   "SELECT has_schema_privilege('anon','m44_recovery_closed','USAGE') AS anon, has_schema_privilege('authenticated','m44_recovery_closed','USAGE') AS auth"}});
  const got=Array.isArray(guard)?guard[0]:guard?.result?.[0];
@@ -194,6 +209,7 @@ async function seal(){
  console.log('M44_MANAGED_AUTH_EMAIL_PHONE_SIGNUP_AND_PUBLIC_DATA_API_SEALED');
 }
 async function databaseConnection(){
+ m44Phase='DB_READ_POOLER_CONFIG';
  const pool=await sup(TARGET,'/config/database/pooler');
  if(!Array.isArray(pool))fail('POOLER_CONFIG_SHAPE');
  const entry=pool.find(p=>typeof(p.connection_string||p.connectionString)==='string'&&
@@ -203,6 +219,7 @@ async function databaseConnection(){
  const match=uri.match(/@([a-z0-9.-]+\.pooler\.supabase\.com):(5432|6543)\//i);
  if(!match)fail('POOLER_HOST_UNTRUSTED');
  const password=randomBytes(32).toString('hex');
+ m44Phase='DB_ROTATE_SANDBOX_PASSWORD';
  await sup(TARGET,'/database/password',{method:'PATCH',body:{password}});
  const env={...process.env,PGHOST:match[1],PGPORT:'5432',PGUSER:'postgres.'+TARGET,
   PGPASSWORD:password,PGDATABASE:'postgres',PGSSLMODE:'require',PGCONNECT_TIMEOUT:'12'};
@@ -287,6 +304,7 @@ function generateSelectedToc(){
  return toc;
 }
 async function restoreData(conn){
+ m44Phase='DB_MANAGED_SQL_RESTORE';
  const selected=generateSelectedToc();
  // The only SQL executor credentials point to TARGET; all management calls
  // are also fixed to TARGET. The archive contains user records: never log it.
@@ -321,6 +339,7 @@ async function restoreData(conn){
  console.log('M44_MANAGED_REAL_APP_AUTH_SNAPSHOT_RESTORED:users_nonzero=1:settings_nonzero=1:occurrences='+Number(x.occurrences));
 }
 async function restorePrivateStorage(){
+ m44Phase='STORAGE_PRIVATE_RESTORE';
  // Not a public-bucket promotion. Every restored object stays PRIVATE even
  // when its source bucket was deliberately public in the original project.
  const file=join(directory,'storage','manifest.json');
