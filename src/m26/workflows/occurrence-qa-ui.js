@@ -296,7 +296,7 @@ export function createDatedOccurrenceQaUi({
     createId:()=>cryptoImpl.randomUUID(),
   });
   let mounted=false,disposed=false,busy=false,ticker=null,loadedFor='',rows=[],
-    focus=null,preview=null,message='',failure='',generation=0,visibleScopeKey='';
+    focus=null,preview=null,coachDraft=null,message='',failure='',generation=0,visibleScopeKey='';
   const repaint=()=>{if(!disposed)onRender();};
   // The U33 calendar differs by signed-in role, even for one client UUID.
   // A Coach projection must never be reused by Client after changing area.
@@ -329,7 +329,7 @@ export function createDatedOccurrenceQaUi({
       generation++; // invalidate any calendar or preview started in an older role
       // Read-only in-memory projection only. Never delete encrypted recovery
       // journals/checkpoints or active workouts when a workspace changes.
-      loadedFor='';rows=[];preview=null;message='';failure='';
+      loadedFor='';rows=[];preview=null;coachDraft=null;message='';failure='';
     }
     return scope;
   }
@@ -491,22 +491,26 @@ export function createDatedOccurrenceQaUi({
       }).join(''):'';
       const activePreview=preview?.clientId===scope.clientId&&
         preview?.roleScope===roleScope(scope)?preview:null;
+      // Volatile, role/client-scoped Coach edits survive route repaints.
+      // Never serialize drafts, recovery secrets or server acknowledgements.
+      const activeDraft=coach&&coachDraft?.roleScope===roleScope(scope)?coachDraft:null;
+      const selectedDraftSession=activeDraft?.selectedSession||activePreview?.sessionId;
       const sessions=coach?(scope.state.collections?.sessions||[])
         .filter(s=>uid(field(s,'clientId','client_id'))===scope.clientId
           &&String(field(s,'status')||'').toLowerCase()==='disponible'
           &&String(field(s,'deliveryModality')||'')==='guiada_en_app')
         .map(s=>'<option value="'+escape(field(s,'id'))+'"'+
-          (activePreview?.sessionId===uid(field(s,'id'))?' selected':'')+'>'+
+          (selectedDraftSession===uid(field(s,'id'))?' selected':'')+'>'+
           escape(String(field(s,'title')||'Entrenamiento').slice(0,90))+'</option>').join(''):'';
       const publisher=coach&&canStartNew&&sessions
         ?'<details class="m26-panel"><summary>Programar varias fechas de una sesión publicada</summary>'+
          '<label>Sesión publicada<select name="u60Session">'+sessions+'</select></label>'+
          '<div class="m26-field-grid" data-u60-coach-date-picker>'+
-         '<label>Elegir día<input type="date" name="u60AddDate" min="2020-01-01" max="2100-12-31"></label>'+
-         '<label>Hora en Chile<input type="time" name="u60AddTime" step="60"></label>'+
+         '<label>Elegir día<input type="date" name="u60AddDate" min="2020-01-01" max="2100-12-31" value="'+escape(activeDraft?.day||'')+'"></label>'+
+         '<label>Hora en Chile<input type="time" name="u60AddTime" step="60" value="'+escape(activeDraft?.time||'')+'"></label>'+
          '<div class="m26-wide m26-inline-actions"><button type="button" data-u60-add-date>Añadir fecha a esta sesión</button></div></div>'+
          '<label>Fechas seleccionadas (una por línea, hasta 52)'+
-         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-12-01 08:00&#10;2026-12-05 09:00">'+escape(activePreview?.datesInput||'')+'</textarea></label>'+
+         '<textarea name="u60Dates" rows="4" maxlength="1500" placeholder="2026-12-01 08:00&#10;2026-12-05 09:00">'+escape(activeDraft?.datesInput??activePreview?.datesInput??'')+'</textarea></label>'+
          '<div class="m26-inline-actions"><button type="button" data-u60-use-appointments>Usar citas confirmadas</button></div>'+
          '<p class="m26-field-help">Solo prepara las fechas a partir de citas existentes; no crea citas ni publica entrenamientos.</p>'+
          '<p class="m26-field-help" role="status" aria-live="polite" data-u60-appointment-hint></p>'+
@@ -663,6 +667,7 @@ export function createDatedOccurrenceQaUi({
       const receipt=await runtime.retryDates({clientId:scope.clientId,sessionId:id});
       if(receipt.kind!=='ack'||receipt.localRecoveryPending)
         fail('RECOVERY_REQUIRED');
+      coachDraft=null;
       await load(scope);message='Programación pendiente reconciliada con su operación original.';
       return;
     }
@@ -686,7 +691,7 @@ export function createDatedOccurrenceQaUi({
       });
       if(response.kind!=='ack'||response.localRecoveryPending)
         fail('RECOVERY_REQUIRED');
-      preview=null;
+      preview=null;coachDraft=null;
       await load(scope);
       message='Fechas creadas y confirmadas por el servidor. Confirma cada una antes de iniciarla.';
       return;
@@ -851,6 +856,32 @@ export function createDatedOccurrenceQaUi({
     }
     fail('UNKNOWN_ACTION');
   }
+  function captureCoachDateDraft(panel,scope){
+    const value=name=>String(panel?.querySelector?.('[name="'+name+'"]')?.value??'');
+    coachDraft={
+      roleScope:roleScope(scope),
+      selectedSession:uid(value('u60Session')),
+      datesInput:value('u60Dates').slice(0,1500),
+      day:value('u60AddDate').slice(0,10),
+      time:value('u60AddTime').slice(0,5),
+    };
+    // Editing a reviewed schedule never leaves a publishable stale snapshot.
+    preview=null;
+    const confirm=panel?.querySelector?.('[data-iberdates-action="u60-publish"]');
+    if(confirm){
+      confirm.disabled=true;
+      confirm.setAttribute?.('aria-disabled','true');
+    }
+  }
+  function onCoachDateInput(event){
+    if(!['u60Session','u60Dates','u60AddDate','u60AddTime']
+      .includes(String(event?.target?.name||''))||disposed)return;
+    const panel=event.target.closest?.('[data-u60-panel]');
+    if(!panel||!root.contains(panel))return;
+    const scope=visibleOwner();
+    if(scope?.role!=='coach'||(productionReleased&&newStartsEnabled!==true))return;
+    captureCoachDateDraft(panel,scope); // in-memory only, zero network/DB calls
+  }
   async function onClick(event){
     const addDateButton=event?.target?.closest?.('[data-u60-add-date]');
     if(addDateButton?.hasAttribute?.('data-u60-add-date')&&
@@ -870,13 +901,7 @@ export function createDatedOccurrenceQaUi({
         const next=appendCoachDatedDateLine(datesField.value,dayField.value,timeField.value);
         datesField.value=next;
         dayField.value='';
-        // New dates invalidate the old reviewed preview, but no remote write
-        // is made here. Keep the editor intact and ask for fresh verification.
-        const confirm=panel?.querySelector?.('[data-iberdates-action="u60-publish"]');
-        if(confirm){
-          confirm.disabled=true;
-          confirm.setAttribute?.('aria-disabled','true');
-        }
+        captureCoachDateDraft(panel,scope); // local draft + reviewed preview invalidation
         if(hint)hint.textContent='Fechas seleccionadas. Prepara sus citas en Agenda y verifica antes de publicar.';
       }catch(error){if(hint)hint.textContent=humanError(error);}
       return;
@@ -914,6 +939,7 @@ export function createDatedOccurrenceQaUi({
         return;
       }
       datesField.value=dates.join('\n');
+      captureCoachDateDraft(panel,scope);
       message('Se han incorporado citas confirmadas. Revisa las fechas y verifica antes de publicar.');
       return; // Only local editing; server publication always needs preview.
     }
@@ -1028,6 +1054,8 @@ export function createDatedOccurrenceQaUi({
     // so first-action errors are not lost to a later scope initialization.
     visibleOwner();
     mounted=true;root.addEventListener('click',onClick);
+    root.addEventListener('input',onCoachDateInput);
+    root.addEventListener('change',onCoachDateInput);
     // One lightweight text-only tick while QA is authenticated. The timer is
     // derived from the SERVER ACK's startedAt, not a speculative click.
     ticker=globalThis.setInterval?.(tick,1000)??null;
@@ -1038,8 +1066,10 @@ export function createDatedOccurrenceQaUi({
     if(ticker!==null)globalThis.clearInterval?.(ticker);
     ticker=null;
     root.removeEventListener('click',onClick);
+    root.removeEventListener('input',onCoachDateInput);
+    root.removeEventListener('change',onCoachDateInput);
     vault.destroy();persistence.close();
-    rows=[];preview=null;focus=null;
+    rows=[];preview=null;coachDraft=null;focus=null;
   }
   return Object.freeze({enabled:true,mount,destroy,renderPanel,hasBlockingWorkout,verifySessionRetirement});
 }

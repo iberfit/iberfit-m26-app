@@ -139,6 +139,36 @@ test('Coach composes one prescription on distinct dates without implicit server 
     /U60_UI_DATE_LIMIT/u);
 });
 
+test('Coach multifecha edits survive route re-render and never cross Client scope',async()=>{
+  const h=createHarness();
+  try{
+    h.state.collections.sessions=[{id:SESSION,clientId:CLIENT,title:'Sesión guiada',
+      status:'disponible',deliveryModality:'guiada_en_app',durationMinutes:60}];
+    const values={
+      '[name="u60Session"]':{value:SESSION},
+      '[name="u60Dates"]':{value:'2026-12-02 07:30\\n2026-12-09 08:30'},
+      '[name="u60AddDate"]':{value:'2026-12-12'},
+      '[name="u60AddTime"]':{value:'11:30'},
+      '[data-iberdates-action="u60-publish"]':{disabled:false,
+        setAttribute(name,value){this[name]=value;}},
+    };
+    const panel={querySelector:query=>values[query]||null};
+    const target={name:'u60Dates',closest:()=>panel};
+    h.listeners.get('input')({target});
+    assert.equal(values['[data-iberdates-action="u60-publish"]'].disabled,true);
+    const preserved=h.ui.renderPanel();
+    assert.match(preserved,/2026-12-02 07:30\\n2026-12-09 08:30/u);
+    assert.match(preserved,/name="u60AddDate"[^>]*value="2026-12-12"/u);
+    assert.match(preserved,/name="u60AddTime"[^>]*value="11:30"/u);
+    assert.equal(h.calls.length,0,'draft input must not call Supabase');
+    h.state.identity.role='client';
+    assert.doesNotMatch(h.ui.renderPanel(),/2026-12-09 08:30/u);
+    h.state.identity.role='coach';
+    assert.doesNotMatch(h.ui.renderPanel(),/2026-12-09 08:30/u,
+      'returning to Coach cannot resurrect old role/client date drafts');
+  }finally{h.close();}
+});
+
 test('Coach visual multifecha editor appends distinct dates locally and preserves review boundary',async()=>{
   const h=createHarness();
   try{
