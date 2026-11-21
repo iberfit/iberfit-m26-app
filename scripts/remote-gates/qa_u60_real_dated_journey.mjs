@@ -221,9 +221,34 @@ async function http(ctx,path,body={},jwt=null,method='POST'){
  const headers={apikey:ctx.key,origin:'https://m26-canary.iberfit.cl'};
  if(jwt)headers.authorization='Bearer '+jwt;
  if(method==='POST')headers['content-type']='application/json';
- const res=await fetch(u,{method,headers,redirect:'error',signal:AbortSignal.timeout(18000),
-  ...(method==='POST'?{body:JSON.stringify(body)}:{})});
- return {status:res.status,body:await res.json().catch(()=>null)};
+ // Timeouts on IDENTITY/READ calls are not evidence of a missing or bad
+ // authorization. Extend only the single bounded read; NEVER retry commands.
+ const readOnly=method==='GET'||path.startsWith('/auth/v1/token?')
+  ||(path.startsWith('/rest/v1/rpc/')&&(
+    path.includes('iberfit_current_role_v26')||
+    path.includes('iberfit_client_id')||
+    path.includes('iberfit_environment')||
+    path.includes('iberfit_u71_dated_candidates_qa_v1')||
+    path.includes('iberfit_occurrence_detail_v1')||
+    (path.includes('iberfit_occurrence_api_u60_v1')&&
+      ['CALENDARIO','DETALLE'].includes(body.p_action))
+  ));
+ const routeLabel=path.startsWith('/auth/v1/token')?'HOSTED_AUTH'
+  :path.includes('iberfit_u71_dated_candidates_qa_v1')?'BOUNDED_CANDIDATES'
+  :path.includes('iberfit_occurrence_api_u60_v1')?'OWNER_U60'
+  :path.includes('iberfit_current_role_v26')?'ROLE'
+  :path.includes('iberfit_client_id')?'OWNER'
+  :path.includes('iberfit_environment')?'ENVIRONMENT':'OTHER';
+ try{
+  const res=await fetch(u,{method,headers,redirect:'error',
+   signal:AbortSignal.timeout(readOnly?26000:18000),
+   ...(method==='POST'?{body:JSON.stringify(body)}:{})});
+  return {status:res.status,body:await res.json().catch(()=>null)};
+ }catch(error){
+  if(error?.name==='TimeoutError'||error?.name==='AbortError')
+   throw Error('QA_HTTP_'+routeLabel+'_'+(readOnly?'READ':'WRITE')+'_TIMEOUT');
+  throw error;
+ }
 }
 async function login(ctx,email,password){
  const r=await http(ctx,'/auth/v1/token?grant_type=password',{email,password});
