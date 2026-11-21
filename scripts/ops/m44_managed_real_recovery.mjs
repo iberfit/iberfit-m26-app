@@ -35,7 +35,9 @@ function safe(cmd,args,options={}){
 async function request(url,{method='GET',body,token=process.env.SUPABASE_ACCESS_TOKEN,timeout=30000,headers={}}={}){
  const parsed=new URL(url);
  if(!['https://api.supabase.com','https://api.github.com'].includes(parsed.origin))fail('EGRESS_DENIED');
- if(parsed.origin==='https://api.supabase.com'&& !parsed.pathname.startsWith('/v1/projects/'))fail('MANAGEMENT_PATH_DENIED');
+ if(parsed.origin==='https://api.supabase.com'&&
+    parsed.pathname!=='/v1/projects'&&!parsed.pathname.startsWith('/v1/projects/'))
+  fail('MANAGEMENT_PATH_DENIED');
  let response;
  try{
   response=await fetch(parsed,{method,redirect:'error',headers:{
@@ -263,6 +265,11 @@ async function restoreData(conn){
   "SELECT (SELECT count(*) FROM auth.users) users,(SELECT count(*) FROM public.iberfit_system_settings) settings,(SELECT count(*) FROM public.training_session_occurrences_v1) occurrences"}});
  const x=Array.isArray(rows)?rows[0]:rows?.result?.[0];
  if(!x||Number(x.users)<1||Number(x.settings)<1)fail('RESTORE_READBACK_INVALID');
+ const postgrest=await sup(TARGET,'/postgrest');
+ if(postgrest.db_schema!=='m44_recovery_closed')fail('POST_RESTORE_API_EXPOSURE');
+ const postAuth=await sup(TARGET,'/config/auth');
+ if(postAuth.disable_signup!==true||postAuth.external_email_enabled!==false||
+   postAuth.external_phone_enabled!==false)fail('POST_RESTORE_AUTH_EXPOSURE');
  console.log('M44_MANAGED_REAL_APP_AUTH_SNAPSHOT_RESTORED:users_nonzero=1:settings_nonzero=1:occurrences='+Number(x.occurrences));
 }
 async function cleanup(){
