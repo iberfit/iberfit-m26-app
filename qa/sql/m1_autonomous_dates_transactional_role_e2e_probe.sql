@@ -193,6 +193,23 @@ BEGIN
      'executionBaseRevision',3,'results','{}'::jsonb,'skippedSets','{}'::jsonb)));
  IF v_ack->>'kind'<>'rejected' OR v_ack->>'reason'<>'EXECUTION_PAUSED'
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSED_WRITE_NOT_FENCED';END IF;
+ -- Client B must not resume Client A's paused workout, even with a guessed ID.
+ PERFORM set_config('request.jwt.claim.sub',v_user_b::text,true);
+ PERFORM set_config('request.jwt.claims',
+   jsonb_build_object('sub',v_user_b,'role','authenticated')::text,true);
+ BEGIN
+   v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
+     'type','OCURRENCIA_REANUDAR','operationId',gen_random_uuid(),
+     'clientId',v_client,'entityId',v_occ,'baseRevision',2,
+     'payload',jsonb_build_object('executionId',v_execution_id,
+       'executionBaseRevision',3)));
+   IF v_ack->>'kind'='ack' THEN
+     RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_CLIENT_B_RESUME_IDOR';
+   END IF;
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ PERFORM set_config('request.jwt.claim.sub',v_user_a::text,true);
+ PERFORM set_config('request.jwt.claims',
+   jsonb_build_object('sub',v_user_a,'role','authenticated')::text,true);
  v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_REANUDAR','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
