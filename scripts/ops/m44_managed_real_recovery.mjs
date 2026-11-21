@@ -153,12 +153,11 @@ async function seal(){
 async function databaseConnection(){
  const pool=await sup(TARGET,'/config/database/pooler');
  if(!Array.isArray(pool))fail('POOLER_CONFIG_SHAPE');
- const entry=pool.find(p=>p.pool_mode==='session'&&
-  typeof(p.connection_string||p.connectionString)==='string'&&
-  (p.connection_string||p.connectionString).includes(':5432/'));
- if(!entry)fail('POOLER_SESSION_UNAVAILABLE');
+ const entry=pool.find(p=>typeof(p.connection_string||p.connectionString)==='string'&&
+  /@[a-z0-9.-]+\.pooler\.supabase\.com:(5432|6543)\//i.test(p.connection_string||p.connectionString));
+ if(!entry)fail('POOLER_VERIFIED_HOST_UNAVAILABLE');
  const uri=entry.connection_string||entry.connectionString;
- const match=uri.match(/@([a-z0-9.-]+\.pooler\.supabase\.com):5432\//i);
+ const match=uri.match(/@([a-z0-9.-]+\.pooler\.supabase\.com):(5432|6543)\//i);
  if(!match)fail('POOLER_HOST_UNTRUSTED');
  const password=randomBytes(32).toString('hex');
  await sup(TARGET,'/database/password',{method:'PATCH',body:{password}});
@@ -248,15 +247,14 @@ async function restoreData(conn){
  const selected=generateSelectedToc();
  // The only SQL executor credentials point to TARGET; all management calls
  // are also fixed to TARGET. The archive contains user records: never log it.
- const args=[...conn.cmd.slice(0,-1),'-v',directory+':/work:ro','postgres:17-alpine',
-  'pg_restore','--dbname=postgres','--no-owner','--no-acl',
-  '--no-comments','--single-transaction','--exit-on-error',
-  '--use-list=/work/restricted-restore.list','/work/database.pgcustom'];
- // Docker must mount before the image name. Rebuild explicitly, fail closed.
+ // Docker mounts only the private runner directory; DB TLS credentials are
+ // injected as environment, never arguments or log text.
  const docker=['run','--rm','--network','host','-v',directory+':/work:ro'];
  for(const k of ['PGHOST','PGPORT','PGUSER','PGPASSWORD','PGDATABASE','PGSSLMODE','PGCONNECT_TIMEOUT'])
   docker.push('-e',k);
- docker.push('postgres:17-alpine',...args.slice(args.indexOf('pg_restore')));
+ docker.push('postgres:17-alpine','pg_restore','--dbname=postgres','--no-owner',
+  '--no-acl','--no-comments','--single-transaction','--exit-on-error',
+  '--use-list=/work/restricted-restore.list','/work/database.pgcustom');
  const res=spawnSync('docker',docker,{env:conn.env,encoding:'utf8',
    timeout:18*60*1000,maxBuffer:1024*1024});
  if(res.error||res.status!==0)fail('MANAGED_SQL_RESTORE_FAILED_CLOSED');
