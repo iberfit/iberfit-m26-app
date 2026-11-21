@@ -13,7 +13,7 @@ test('M44 managed real-data rehearsal requires protected current Canary and expl
   "process.env.GITHUB_REF!=='refs/heads/canary/rc74-4'",
   "process.env.M44_USER_AUTHORIZATION!=='REAL_DATA_CLONE_ONLY_20261121'",
   "process.env.GITHUB_EVENT_NAME!=='push'",
-  "process.env.GITHUB_RUN_ATTEMPT!=='1'",
+  "!['1','2','3'].includes(process.env.GITHUB_RUN_ATTEMPT||'')",
   "process.env.IBERFIT_BACKUP_PASSPHRASE"
  ]) assert.ok(code.includes(check),check);
  assert.match(workflow,/environment: m26-canary-readonly/);
