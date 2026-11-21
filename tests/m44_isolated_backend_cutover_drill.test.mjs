@@ -91,7 +91,7 @@ test('actual restored production ACL and RLS are exercised with restricted SQL r
   'M44_REAL_RESTORED_PROD_EFFECTIVE_RLS_UNAUTHENTICATED_DENIAL_VERIFIED_ONLY',
  ])assert.ok(s.includes(requirement),requirement);
  const roleBlock=s.slice(source,install);
- assert.doesNotMatch(roleBlock,/SELECT\\s+\\*|UPDATE\\s+public|INSERT\\s+INTO|DELETE\\s+FROM/i);
+ assert.doesNotMatch(roleBlock,/SELECT\s+\*|UPDATE\s+public|INSERT\s+INTO|DELETE\s+FROM/i);
  assert.ok(roleBlock.includes('2>"$out/real-rls-$actor-private.log"'));
  assert.ok(!roleBlock.includes('https://'));
  const parsed=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
