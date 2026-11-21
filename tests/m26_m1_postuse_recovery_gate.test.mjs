@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {certifyM1PostuseIntegrity,runLiveM1PostuseGate,SQL}
  from '../scripts/release/m1_postuse_recovery_gate.mjs';
@@ -69,4 +70,16 @@ test('the CLI cannot execute outside protected release',()=>{
  assert.notEqual(v.status,0);
  assert.match(v.stderr,/M1_POSTUSE_PROTECTED_RELEASE_CONTEXT_REQUIRED/u);
  assert.equal(v.stdout,'');
+});
+
+test('production active release runs the exact post-use audit before backup gate',()=>{
+ const workflow=readFileSync('.github/workflows/production-promote.yml','utf8');
+ const backend=workflow.indexOf('Certify independently active SQL U72 U60 Coach and Edge');
+ const postuse=workflow.indexOf('Certify M1 post-use integrity and forward-only recovery boundary');
+ const backup=workflow.indexOf('Certify recent recoverable recovery point for M44');
+ assert.ok(backend>0&&postuse>backend&&backup>postuse);
+ const area=workflow.slice(postuse,backup);
+ assert.match(area,/env\.U60_RELEASE_ACTIVE == 'true'/u);
+ assert.match(area,/node scripts\/release\/m1_postuse_recovery_gate\.mjs/u);
+ assert.doesNotMatch(area,/supabase db push|apply_migration|GRANT EXECUTE/u);
 });
