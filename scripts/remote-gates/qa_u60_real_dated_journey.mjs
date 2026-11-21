@@ -250,9 +250,17 @@ async function http(ctx,path,body={},jwt=null,method='POST'){
   throw error;
  }
 }
+// A QA Hosted Auth HTTP 522 is a gateway timeout, never a credential rejection.
+// Only password login may make one delayed retry; never repeat a business write.
+export async function boundedHostedAuth522Recovery(request,wait=async()=>new Promise(resolve=>setTimeout(resolve,1500))){
+ const first=await request();
+ if(first.status!==522)return first;
+ await wait();
+ return request();
+}
 async function login(ctx,email,password){
- const r=await http(ctx,'/auth/v1/token?grant_type=password',{email,password});
- assert(r.status===200&&typeof r.body?.access_token==='string','AUTHENTICATION');
+ const r=await boundedHostedAuth522Recovery(()=>http(ctx,'/auth/v1/token?grant_type=password',{email,password}));
+ assert(r.status===200&&typeof r.body?.access_token==='string','AUTHENTICATION_HTTP_'+r.status);
  return {jwt:r.body.access_token,actor:r.body.user?.id};
 }
 const rpc=(ctx,jwt,name,params)=>http(ctx,'/rest/v1/rpc/'+name,params,jwt);
@@ -308,11 +316,10 @@ async function canonical(ctx,coachJwt,command){
 }
 async function authenticatedStage(ctx,certified=null){
  const e=ctx.e;
- const [coach,a,b]=await Promise.all([
-  login(ctx,e.M26_QA_COACH_EMAIL,e.M26_QA_COACH_PASSWORD),
-  login(ctx,e.M26_QA_CLIENT_A_EMAIL,e.M26_QA_CLIENT_A_PASSWORD),
-  login(ctx,e.M26_QA_CLIENT_B_EMAIL,e.M26_QA_CLIENT_B_PASSWORD),
- ]);
+ // Avoid three simultaneous Hosted Auth requests on the constrained QA Free tier.
+ const coach=await login(ctx,e.M26_QA_COACH_EMAIL,e.M26_QA_COACH_PASSWORD);
+ const a=await login(ctx,e.M26_QA_CLIENT_A_EMAIL,e.M26_QA_CLIENT_A_PASSWORD);
+ const b=await login(ctx,e.M26_QA_CLIENT_B_EMAIL,e.M26_QA_CLIENT_B_PASSWORD);
  assert(new Set([coach.actor,a.actor,b.actor]).size===3,'ACTORS_NOT_SEPARATE');
  const [roleCoach,roleA,roleB,clientA,clientB,environment,raw]=await Promise.all([
   value(ctx,coach.jwt,'iberfit_current_role_v26'),
@@ -370,11 +377,9 @@ async function verifyBrowserWorkout(ctx){
   &&f&&[f.clientId,f.occurrenceId,f.futureOccurrenceId,f.sessionId]
     .every(x=>UUID.test(x))&&f.occurrenceId!==f.futureOccurrenceId,
    'UI_PROOF_NOT_SAME_RUN');
- const [coach,a,b]=await Promise.all([
-  login(ctx,ctx.e.M26_QA_COACH_EMAIL,ctx.e.M26_QA_COACH_PASSWORD),
-  login(ctx,ctx.e.M26_QA_CLIENT_A_EMAIL,ctx.e.M26_QA_CLIENT_A_PASSWORD),
-  login(ctx,ctx.e.M26_QA_CLIENT_B_EMAIL,ctx.e.M26_QA_CLIENT_B_PASSWORD),
- ]);
+ const coach=await login(ctx,ctx.e.M26_QA_COACH_EMAIL,ctx.e.M26_QA_COACH_PASSWORD);
+ const a=await login(ctx,ctx.e.M26_QA_CLIENT_A_EMAIL,ctx.e.M26_QA_CLIENT_A_PASSWORD);
+ const b=await login(ctx,ctx.e.M26_QA_CLIENT_B_EMAIL,ctx.e.M26_QA_CLIENT_B_PASSWORD);
  const [rc,ra,rb,ca,cb]=await Promise.all([
   value(ctx,coach.jwt,'iberfit_current_role_v26'),
   value(ctx,a.jwt,'iberfit_current_role_v26'),
