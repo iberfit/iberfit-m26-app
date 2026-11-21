@@ -103,7 +103,11 @@ export const FROZEN_INERT_CUTOVER_SQL_BLOBS=Object.freeze({
   "supabase/qa-rollouts/20261118032000_p0_free_completed_execution_scalar_fast_v1.enable.sql": "5dbaa3b77df96319cf287a7b19b13d1ca3acdc5d",
   "supabase/qa-rollouts/p0_free_qa_history_page64_v1.sql": "cc9b4a0e77b39b7e299b286730a4bf3af4581f1b",
   "supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql": "75f1b5c7c21d303dd9fda523a4b8911d9df080c8",
-  "supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql": "1b96811cae4b7cfc1daa069e1ece14f264e9768c"
+  "supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql": "1b96811cae4b7cfc1daa069e1ece14f264e9768c",
+  // M1 autonomous date-only SQL is inert source in the PAGES-only release.
+  // Backend must already be independently certified; no SQL is run here.
+  "supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.sql": "97ab01d06d474fcad94d65efd751ae4b325f8f25",
+  "supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.rollback.sql": "65019b43733199df33fe74fe9112b3cccf220351"
 });
 export function verifyFrozenInertCutoverSql({sourceSha,changedPaths,blobAtSource}={}){
  if(!SHA.test(sourceSha||'')||!Array.isArray(changedPaths))
