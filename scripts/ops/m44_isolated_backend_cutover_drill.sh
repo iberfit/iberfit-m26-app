@@ -231,9 +231,15 @@ check_sql RESTORED_RLS_SOURCE "SELECT (
          AND polname='system_settings_admin_read' AND polcmd='r')
 )::int;"
 role_rls_denial(){
- local actor="$1" scope="$2" observed
+ local actor="$1" scope="$2" observed settings_check
  [[ "$actor" == anon || "$actor" == authenticated ]] ||
   fail RESTORED_RLS_ROLE_NOT_ALLOWLISTED
+ # PROD explicitly denies anon EXECUTE on the iberfit_role() helper used
+ # in its settings RLS policy. Allow 0-row SELECT only under authenticated.
+ settings_check="(SELECT count(*) FROM public.iberfit_system_settings)=0"
+ if [[ "$actor" == anon ]]; then
+  settings_check="NOT has_function_privilege(current_user,'public.iberfit_role()','EXECUTE')"
+ fi
  # The variable SQL fragments are fixed literals below, not user-supplied.
  observed="$(db psql -X -q -t -A -v ON_ERROR_STOP=1 \
   -c "BEGIN READ ONLY;
@@ -243,7 +249,7 @@ role_rls_denial(){
       AND has_table_privilege(current_user,'public.client_access_v26','SELECT')
       AND has_table_privilege(current_user,'public.iberfit_system_settings','SELECT')
       AND (SELECT count(*) FROM public.client_access_v26)=0
-      AND (SELECT count(*) FROM public.iberfit_system_settings)=0
+      AND ($settings_check)
       AND NOT has_table_privilege(current_user,
         'public.training_session_occurrences_v1','SELECT')
       AND NOT has_function_privilege(current_user,
@@ -258,6 +264,112 @@ role_rls_denial(){
 }
 role_rls_denial anon "NOT has_table_privilege(current_user,'public.session_executions','SELECT')"
 role_rls_denial authenticated "has_table_privilege(current_user,'public.session_executions','SELECT') AND (SELECT count(*) FROM public.session_executions)=0"
+# Exercise direct anon settings read, which must fail with EXACT 42501.
+# The private logs are removed with the isolated restore runner.
+if db psql -X -q -t -A -v ON_ERROR_STOP=1 -v VERBOSITY=sqlstate \
+    -c 'BEGIN READ ONLY;
+        SET LOCAL ROLE anon;
+        SELECT count(*) FROM public.iberfit_system_settings;
+        ROLLBACK;' \
+    >"$out/real-rls-anon-settings-stdout-private.log" \
+    2>"$out/real-rls-anon-settings-private.log"; then
+  fail RESTORED_RLS_ANON_SETTINGS_UNEXPECTEDLY_READABLE
+fi
+if ! grep -Eq '^ERROR:[[:space:]]+42501[[:space:]]*
+
+# No identifiers/row data are logged; compare only counts of protected tables.
+count_query="SELECT
+ (SELECT count(*) FROM auth.users)::text||','||
+ (SELECT count(*) FROM auth.sessions)::text||','||
+ (SELECT count(*) FROM public.training_session_occurrences_v1)::text||','||
+ (SELECT count(*) FROM public.session_executions)::text||','||
+ (SELECT count(*) FROM public.client_access_v26)::text||','||
+ (SELECT count(*) FROM vault.secrets)::text;"
+before="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c "$count_query" 2>"$out/count-source.log")" ||
+ fail SOURCE_COUNTS_FAILED
+apply U72_INSTALL /release/20261117_m1_u72_prod_guarded_materialized_v1.sql
+check_sql U72_INSTALLED "SELECT (
+ to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NOT NULL
+ AND md5(pg_get_functiondef('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure))='1270cf1db8c9a162ccc5736207a258e1'
+ AND md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='944aaac897289954a9c589292d8faf87'
+ AND NOT has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+)::int;"
+apply U60_ENABLE /release/20261112_m1_u60_prod_guarded_enable.sql
+check_sql U60_OPEN "SELECT (
+ has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+ AND NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+)::int;"
+apply U60_DISABLE /release/20261112_m1_u60_prod_guarded_disable.sql
+check_sql U60_CLOSED "SELECT (
+ NOT has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+ AND NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+)::int;"
+apply U72_ROLLBACK /release/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql
+check_sql U72_RESTORED "SELECT (
+ to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NULL
+ AND md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='5914acf371015a6bbeeaf95f99e056e3'
+ AND NOT has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+)::int;"
+# Rehearse both possible real PROD states without touching PROD/QA:
+# before rollout: install -> rollback; after rollout: rollback -> reinstall.
+# Restoring the CURRENT upgraded backup must not mistake a healthy Coach
+# upgrade for source drift. Both paths preserve all user/Auth table counts.
+before_coach="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c \
+ "SELECT md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure));" \
+ 2>"$out/coach-source.log")" || fail COACH_BASELINE_UNAVAILABLE
+coach_guard_installed="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c \
+ "SELECT (to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NOT NULL)::int;" \
+ 2>"$out/coach-install-state.log")" || fail COACH_INSTALL_STATE_UNAVAILABLE
+[[ "$coach_guard_installed" == 0 || "$coach_guard_installed" == 1 ]] ||
+ fail COACH_INSTALL_STATE_INVALID
+if [[ "$coach_guard_installed" == 1 ]]; then
+ check_sql COACH_PREINSTALLED_SOURCE "SELECT (
+  md5(pg_get_functiondef('public.iberfit_admin_client_invitation_prepare_v26(uuid,text)'::regprocedure))='c6ce72f2333fbc369b66792b735dc8ef'
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_bind_v26(uuid,uuid)'::regprocedure))='c8bbd63ace0634a4b1ad5f444fdd0d98'
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='168dc6bd262169a58a6d9ff12558078d'
+  AND NOT has_function_privilege('anon','public.iberfit_admin_client_invitation_prepare_v26(uuid,text)','EXECUTE')
+ )::int;"
+ apply COACH_ROLLBACK /rollbacks/20261117235000_coach_scoped_hosted_invitation_v1.rollback.sql
+ check_sql COACH_ROLLED_BACK "SELECT (
+  to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NULL
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='66743cf255b81523a4733b63d1c98fc0'
+ )::int;"
+ apply COACH_REINSTALL /migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql
+ check_sql COACH_REINSTALLED "SELECT (
+  to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NOT NULL
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='168dc6bd262169a58a6d9ff12558078d'
+ )::int;"
+ echo M44_ISOLATED_COACH_FORWARD_RECOVERY_VERIFIED_ONLY
+else
+ check_sql COACH_PREINSTALL_SOURCE "SELECT (
+  md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='66743cf255b81523a4733b63d1c98fc0'
+ )::int;"
+ apply COACH_INSTALL /migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql
+ check_sql COACH_INSTALLED "SELECT (
+  to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NOT NULL
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='168dc6bd262169a58a6d9ff12558078d'
+ )::int;"
+ apply COACH_ROLLBACK /rollbacks/20261117235000_coach_scoped_hosted_invitation_v1.rollback.sql
+ check_sql COACH_RESTORED "SELECT (
+  to_regprocedure('private.iberfit_coach_invite_source_guard_v1()') IS NULL
+  AND md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure))='66743cf255b81523a4733b63d1c98fc0'
+ )::int;"
+ echo M44_ISOLATED_COACH_ROLLBACK_REHEARSAL_VERIFIED_ONLY
+fi
+after_coach="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c \
+ "SELECT md5(pg_get_functiondef('public.iberfit_admin_client_invitation_finalize_v26(uuid,text,text,text)'::regprocedure));" \
+ 2>"$out/coach-after.log")" || fail COACH_READBACK_UNAVAILABLE
+[[ "$before_coach" == "$after_coach" ]] || fail COACH_SOURCE_CHANGED
+after="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c "$count_query" 2>"$out/count-after.log")" ||
+ fail RESTORED_COUNTS_FAILED
+[[ "$before" == "$after" ]] || fail CUSTOMER_OR_AUTH_TABLE_COUNT_DRIFT
+echo M44_REAL_PROD_BACKEND_SQL_INSTALL_AND_ROLLBACK_ISOLATED_ONLY
+echo M44_HOSTED_AUTH_VAULT_EDGE_RUNTIME_NOT_CERTIFIED
+ \
+    "$out/real-rls-anon-settings-private.log"; then
+  fail RESTORED_RLS_ANON_SETTINGS_UNEXPECTED_DENIAL_CLASS
+fi
+echo M44_REAL_RESTORED_PROD_ANON_ROLE_HELPER_42501_DENIED_ONLY
 echo M44_REAL_RESTORED_PROD_EFFECTIVE_RLS_UNAUTHENTICATED_DENIAL_VERIFIED_ONLY
 
 # No identifiers/row data are logged; compare only counts of protected tables.
