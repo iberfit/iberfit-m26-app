@@ -120,4 +120,6 @@ test('Management mutating 204/empty responses are treated as accepted only after
  assert.match(workflow,/const body=await res\.text\(\)/);
  assert.match(workflow,/if\(method==='GET'\)throw Error\('M44_SLOTS_EMPTY_GET'\)/);
  assert.match(workflow,/return \{accepted:true\};/);
+ assert.match(workflow,/M44_SLOTS_INVALID_GET_JSON/);
+ assert.match(code,/return Object\.freeze\(\{accepted:true,opaque:true\}\)/);
 });
