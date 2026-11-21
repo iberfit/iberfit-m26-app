@@ -199,7 +199,9 @@ check_sql BASELINE "SELECT (
 )::int;"
 # P0 M44: test ACTUAL restored production row visibility under the two
 # genuine PostgreSQL web roles. Earlier synthetic ACL/RLS fixtures do not prove
-# effective protection of restored real tables. All selects run on disposable
+# effective protection of restored real tables. Confirm the real six-policy
+# inventory instead of falsely assuming these tables have no policies.
+# All selects run on disposable
 # PG17 with a READ ONLY transaction; no JWT, user identity or customer row is
 # printed. This verifies DENIAL with no session, not positive app authorization.
 check_sql RESTORED_RLS_SOURCE "SELECT (
@@ -212,10 +214,21 @@ check_sql RESTORED_RLS_SOURCE "SELECT (
    WHERE oid='public.session_executions'::regclass)
  AND (SELECT relrowsecurity FROM pg_class
    WHERE oid='public.iberfit_system_settings'::regclass)
- AND NOT EXISTS (SELECT 1 FROM pg_policy WHERE polrelid IN (
-   'public.client_access_v26'::regclass,
-   'public.session_executions'::regclass,
-   'public.iberfit_system_settings'::regclass))
+ AND (SELECT count(*) FROM pg_catalog.pg_policy
+       WHERE polrelid='public.client_access_v26'::regclass)=1
+ AND (SELECT count(*) FROM pg_catalog.pg_policy
+       WHERE polrelid='public.session_executions'::regclass)=4
+ AND (SELECT count(*) FROM pg_catalog.pg_policy
+       WHERE polrelid='public.iberfit_system_settings'::regclass)=1
+ AND EXISTS (SELECT 1 FROM pg_catalog.pg_policy
+       WHERE polrelid='public.client_access_v26'::regclass
+         AND polname='client_access_v26_select' AND polcmd='r')
+ AND EXISTS (SELECT 1 FROM pg_catalog.pg_policy
+       WHERE polrelid='public.session_executions'::regclass
+         AND polname='session_executions_read' AND polcmd='r')
+ AND EXISTS (SELECT 1 FROM pg_catalog.pg_policy
+       WHERE polrelid='public.iberfit_system_settings'::regclass
+         AND polname='system_settings_admin_read' AND polcmd='r')
 )::int;"
 role_rls_denial(){
  local actor="$1" scope="$2" observed
