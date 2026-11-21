@@ -27,6 +27,15 @@ const branchFromRef=ref=>{
  assert(BRANCHES.has(branch),'BRANCH_NOT_ALLOWLISTED');
  return branch;
 };
+// Two explicitly trusted QA U74 run sources: original signed feature lane
+// and protected Canary after integration. U71, PR, manual and other workflows
+// cannot opt into appointmentless writes even if the env flag is overridden.
+export function authorizedAutonomousQaBranch(e,branch){
+ return (branch==='feat/m26-autonomous-dates-m44-one-prod-release-20261121'||
+  branch==='canary/rc74-4')&&
+  e?.GITHUB_WORKFLOW==='IBERFIT U74 Real QA Dated Browser Write E2E'&&
+  e?.GITHUB_EVENT_NAME==='push';
+}
 const REPO='iberfit/iberfit-m26-app';
 const FILE='recovery/u71-qa-authenticated-workout/evidence.json';
 const PREVIOUS='.tmp/u71-first/evidence.json';
@@ -195,7 +204,7 @@ function context(mode){
  const branch=branchFromRef(e.GITHUB_REF);
  const autonomous=e.M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT==='true';
  assert(e.M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT==='true'||e.M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT==='false','MODE_EXPLICIT_REQUIRED');
- assert(!autonomous||branch==='feat/m26-autonomous-dates-m44-one-prod-release-20261121','AUTONOMOUS_BRANCH_DENIED');
+ assert(!autonomous||authorizedAutonomousQaBranch(e,branch),'AUTONOMOUS_BRANCH_DENIED');
  assert(e.GITHUB_REPOSITORY===REPO
   &&UUID.test(derivedUuid(e.GITHUB_RUN_ID,'check')),'INVALID_RUN_CONTEXT');
  assert(/^[a-f0-9]{40}$/.test(e.GITHUB_SHA),'INVALID_SHA');
