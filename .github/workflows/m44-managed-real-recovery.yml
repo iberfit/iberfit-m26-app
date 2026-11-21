@@ -112,7 +112,11 @@ jobs:
               if(method==='GET')throw Error('M44_SLOTS_EMPTY_GET');
               return {accepted:true};
             }
-            return JSON.parse(body);
+            try{return JSON.parse(body);}
+            catch{
+              if(method==='GET')throw Error('M44_SLOTS_INVALID_GET_JSON');
+              return {accepted:true,opaque:true};
+            }
           }
           async function state(ref){return (await req(ref)).status;}
           async function until(ref,desired){
