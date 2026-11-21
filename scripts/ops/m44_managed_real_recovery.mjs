@@ -7,6 +7,7 @@ import {mkdtempSync,writeFileSync,readFileSync,createWriteStream,openSync,closeS
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {classifyM44RestoreFailure} from './m44_managed_pg_restore_failure.mjs';
 
 const TARGET='zfvaouggafdbqfbpwhfx';
 const QA='gjztkdwfmunnzhtvxrsu';
@@ -318,7 +319,13 @@ async function restoreData(conn){
   '--use-list=/work/restricted-restore.list','/work/database.pgcustom');
  const res=spawnSync('docker',docker,{env:conn.env,encoding:'utf8',
    timeout:18*60*1000,maxBuffer:1024*1024});
- if(res.error||res.status!==0)fail('MANAGED_SQL_RESTORE_FAILED_CLOSED');
+ if(res.error||res.status!==0){
+  const classification=classifyM44RestoreFailure(res.stderr,res);
+  // SQL excerpts may contain PII. Publish ONLY bounded category and known SQLSTATE.
+  console.error('M44_MANAGED_RESTORE_FAILURE_CLASS='+classification.code+
+   ':sqlstate='+(classification.sqlstate||'UNAVAILABLE'));
+  fail('MANAGED_SQL_RESTORE_FAILED_CLOSED');
+ }
  clonedData=true;
  const rows=await sup(TARGET,'/database/query',{method:'POST',body:{query:
   "SELECT (SELECT count(*) FROM auth.users) users,(SELECT count(*) FROM public.iberfit_system_settings) settings,(SELECT count(*) FROM public.training_session_occurrences_v1) occurrences"}});
@@ -329,7 +336,7 @@ async function restoreData(conn){
  const postAuth=await sup(TARGET,'/config/auth');
  if(postAuth.disable_signup!==true||postAuth.external_email_enabled!==false||
    postAuth.external_phone_enabled!==false)fail('POST_RESTORE_AUTH_EXPOSURE');
- const apiKeys=await sup(TARGET,'/api-keys');
+ const apiKeys=await sup(TARGET,'/api-keys?reveal=true');
  const pub=Array.isArray(apiKeys)?apiKeys.find(k=>(k.name==='anon'||k.type==='publishable')&&!k.disabled)?.api_key:null;
  if(typeof pub!=='string'||pub.length<20)fail('POST_RESTORE_PUBLIC_KEY_UNAVAILABLE');
  const apiResponse=await fetch('https://'+TARGET+'.supabase.co/rest/v1/iberfit_system_settings?select=key&limit=1',{
