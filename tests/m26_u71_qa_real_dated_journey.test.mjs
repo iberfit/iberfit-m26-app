@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,selectCertifiedDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,selectCertifiedDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,boundedHostedAuth522Recovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -177,6 +177,33 @@ test('U71 never retries invalid audience, expired token, forbidden role, network
  assert.equal(attempts,2);
  assert.equal(pauses,1);
 });
+test('M1 U71 recovers once from Hosted Auth 522 but never from credential or quota denials',async()=>{
+ let n=0,pauses=0;
+ const ok=await boundedHostedAuth522Recovery(async()=>++n===1?{status:522}:{status:200},async()=>{pauses++});
+ assert.equal(ok.status,200);assert.equal(n,2);assert.equal(pauses,1);
+ n=0;pauses=0;
+ const persistent=await boundedHostedAuth522Recovery(async()=>{n++;return {status:522};},async()=>{pauses++});
+ assert.equal(persistent.status,522);assert.equal(n,2);assert.equal(pauses,1);
+ for(const status of [200,400,401,403,429,500,502,503,504]){
+  n=0;pauses=0;
+  const x=await boundedHostedAuth522Recovery(async()=>{n++;return {status};},async()=>{pauses++});
+  assert.equal(x.status,status);assert.equal(n,1);assert.equal(pauses,0);
+ }
+});
+test('M1 U71 serializes Hosted Auth in both QA stages without weakening identity assertions',()=>{
+ const s=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const stages=[s.slice(s.indexOf('async function authenticatedStage('),s.indexOf('async function verifyBrowserWorkout(')),s.slice(s.indexOf('async function verifyBrowserWorkout('),s.indexOf('async function main()'))];
+ for(const b of stages){
+  assert.equal(b.includes('const [coach,a,b]=await Promise.all(['),false);
+  assert.ok(b.includes('const coach=await login('));
+  assert.ok(b.includes('const a=await login('));
+  assert.ok(b.includes('const b=await login('));
+ }
+ assert.ok(s.includes('AUTHENTICATION_HTTP_'));
+ assert.ok(s.includes('ACTORS_NOT_SEPARATE'));
+ assert.ok(s.includes('UI_PROOF_OWNER_DRIFT'));
+});
+
 test('U71 skew recovery is restricted to read-only identity and cannot reissue writes',()=>{
  const source=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
  const first=source.indexOf('async function value(ctx,jwt,name');
