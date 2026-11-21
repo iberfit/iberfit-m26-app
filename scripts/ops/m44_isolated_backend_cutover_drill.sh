@@ -231,9 +231,15 @@ check_sql RESTORED_RLS_SOURCE "SELECT (
          AND polname='system_settings_admin_read' AND polcmd='r')
 )::int;"
 role_rls_denial(){
- local actor="$1" scope="$2" observed
+ local actor="$1" scope="$2" observed settings_check
  [[ "$actor" == anon || "$actor" == authenticated ]] ||
   fail RESTORED_RLS_ROLE_NOT_ALLOWLISTED
+ # PROD intentionally denies anon EXECUTE on iberfit_role() used by the
+ # public settings RLS policy. Authenticated without JWT must see zero rows.
+ settings_check="(SELECT count(*) FROM public.iberfit_system_settings)=0"
+ if [[ "$actor" == anon ]]; then
+  settings_check="NOT has_function_privilege(current_user,'public.iberfit_role()','EXECUTE')"
+ fi
  # The variable SQL fragments are fixed literals below, not user-supplied.
  observed="$(db psql -X -q -t -A -v ON_ERROR_STOP=1 \
   -c "BEGIN READ ONLY;
@@ -243,7 +249,7 @@ role_rls_denial(){
       AND has_table_privilege(current_user,'public.client_access_v26','SELECT')
       AND has_table_privilege(current_user,'public.iberfit_system_settings','SELECT')
       AND (SELECT count(*) FROM public.client_access_v26)=0
-      AND (SELECT count(*) FROM public.iberfit_system_settings)=0
+      AND ($settings_check)
       AND NOT has_table_privilege(current_user,
         'public.training_session_occurrences_v1','SELECT')
       AND NOT has_function_privilege(current_user,
@@ -258,6 +264,22 @@ role_rls_denial(){
 }
 role_rls_denial anon "NOT has_table_privilege(current_user,'public.session_executions','SELECT')"
 role_rls_denial authenticated "has_table_privilege(current_user,'public.session_executions','SELECT') AND (SELECT count(*) FROM public.session_executions)=0"
+# Direct anon settings SELECT must fail with SQLSTATE EXACTLY 42501.
+# Its output and private errors never enter CI, and are removed at cleanup.
+if db psql -X -q -t -A -v ON_ERROR_STOP=1 -v VERBOSITY=sqlstate \
+    -c 'BEGIN READ ONLY;
+        SET LOCAL ROLE anon;
+        SELECT count(*) FROM public.iberfit_system_settings;
+        ROLLBACK;' \
+    >"$out/real-rls-anon-settings-stdout-private.log" \
+    2>"$out/real-rls-anon-settings-private.log"; then
+  fail RESTORED_RLS_ANON_SETTINGS_UNEXPECTEDLY_READABLE
+fi
+if ! grep -Eq '^ERROR:[[:space:]]+42501[[:space:]]*$' \
+    "$out/real-rls-anon-settings-private.log"; then
+  fail RESTORED_RLS_ANON_SETTINGS_UNEXPECTED_DENIAL_CLASS
+fi
+echo M44_REAL_RESTORED_PROD_ANON_ROLE_HELPER_42501_DENIED_ONLY
 echo M44_REAL_RESTORED_PROD_EFFECTIVE_RLS_UNAUTHENTICATED_DENIAL_VERIFIED_ONLY
 
 # No identifiers/row data are logged; compare only counts of protected tables.

@@ -92,6 +92,13 @@ test('actual restored production ACL and RLS are exercised with restricted SQL r
   'RESTORED_RLS_ROLE_NOT_ALLOWLISTED',
   'RESTORED_RLS_${actor^^}_DENIAL_CHANGED',
   'M44_REAL_RESTORED_PROD_EFFECTIVE_RLS_UNAUTHENTICATED_DENIAL_VERIFIED_ONLY',
+  'M44_REAL_RESTORED_PROD_ANON_ROLE_HELPER_42501_DENIED_ONLY',
+  'RESTORED_RLS_ANON_SETTINGS_UNEXPECTEDLY_READABLE',
+  'RESTORED_RLS_ANON_SETTINGS_UNEXPECTED_DENIAL_CLASS',
+  "settings_check=\"NOT has_function_privilege(current_user,'public.iberfit_role()','EXECUTE')\"",
+  'AND ($settings_check)',
+  '-v VERBOSITY=sqlstate',
+  "grep -Eq '^ERROR:[[:space:]]+42501[[:space:]]*$'",
  ])assert.ok(s.includes(requirement),requirement);
  const roleBlock=s.slice(source,install);
  assert.doesNotMatch(roleBlock,/SELECT\s+\*|UPDATE\s+public|INSERT\s+INTO|DELETE\s+FROM/i);
