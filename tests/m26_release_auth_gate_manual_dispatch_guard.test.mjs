@@ -24,7 +24,7 @@ test('M44 positive PDF writes remain push-only even when Coach WebAuthn is manua
   const wf=await read('.github/workflows/coach-webauthn-recurring.yml');
   const guard=await read('qa/m44/positive-webauthn-issued-pdf.mjs');
   assert.ok(wf.includes("M26_QA_M44_POSITIVE_CERT: ${{ github.event_name == 'push' && github.ref == 'refs/heads/canary/rc74-4' }}"));
-  assert.doesNotMatch(wf,/M26_QA_M44_POSITIVE_CERT:\s*['\"]true['\"]/u);
+  assert.doesNotMatch(wf,/M26_QA_M44_POSITIVE_CERT:\s*['"]true['"]/u);
   assert.match(guard,/e\.GITHUB_EVENT_NAME!=='push'/u);
   assert.match(guard,/e\.GITHUB_REF_NAME!=='canary\/rc74-4'/u);
   assert.match(guard,/e\.M26_PROJECT_REF!==QA_REF/u);
