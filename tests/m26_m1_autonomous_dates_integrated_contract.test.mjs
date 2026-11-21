@@ -127,7 +127,7 @@ test('Training360 decision hints include only authorized autonomous confirmed da
 
 test('M1 backend script strictly maintains U60 closed until protected release',()=>{
  const path='supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.sql';
- const rollback=readFileSync(path+'.rollback.sql','utf8');
+ const rollback=readFileSync(path.replace(/\.sql$/u,'.rollback.sql'),'utf8');
  const sql=readFileSync(path,'utf8');
  for(const source of [sql,rollback])for(const fn of [
   'iberfit_u31_occurrence_transition_v1',
