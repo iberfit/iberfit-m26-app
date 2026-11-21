@@ -76,3 +76,23 @@ test('Unauthorized local execution rejects before any network or filesystem muta
  assert.equal(exec.status,1);
  assert.match(exec.stderr,/M44_MANAGED_REAL_PROTECTED_ONE_TIME_CONTEXT_REQUIRED/);
 });
+
+test('Real Storage stays PRIVATE with per-object SHA-256 parity; no public restoration or email',()=>{
+ const m=code.slice(code.indexOf('async function restorePrivateStorage(){'));
+ assert.ok(m.includes("public:false"));
+ assert.ok(m.includes("public_buckets=0"));
+ assert.ok(m.includes("/object/authenticated/"));
+ assert.ok(m.includes("digest.digest('hex')!==o.sha256"));
+ assert.ok(m.includes("SOURCE_STORAGE_BYTES_TAMPERED"));
+ assert.ok(m.includes("CLONE_PRIVATE_STORAGE_FINAL_READBACK_DRIFT"));
+ assert.ok(code.indexOf('await restoreData(conn)')<code.indexOf('await restorePrivateStorage()'));
+ assert.doesNotMatch(workflow,/supabase\/functions\/.*deploy|smtp_host:/i);
+});
+test('Failed or cancelled data-replay is followed by a separate protected Free-slot recovery job',()=>{
+ assert.match(workflow,/restore-free-slots:/);
+ assert.match(workflow,/needs: \[wait-exact-canary, managed-recovery\]/);
+ assert.match(workflow,/if: \$\{\{ always\(\)/);
+ assert.match(workflow,/await req\(clone,'\/pause','POST'\)/);
+ assert.match(workflow,/await req\(qa,'\/restore','POST'\)/);
+ assert.match(workflow,/M44_MANAGED_FREE_SLOTS_RESTORED/);
+});
