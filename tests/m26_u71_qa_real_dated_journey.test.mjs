@@ -342,3 +342,15 @@ test('U74 exact preflight candidate survives unrelated QA source additions',()=>
  assert.throws(()=>selectCertifiedDatedCandidate(candidates,[],today,future,{candidateId:ids[0],candidateRevision:0}),/CERTIFIED_SOURCE_INVALID/);
  assert.equal(selectCertifiedDatedCandidate(candidates,[],today,future,null).id,ids[0]);
 });
+
+
+test('U71 protected QA legacy workflow supplies explicit false autonomous mode to signed runner',()=>{
+ const source=readFileSync(new URL('../.github/workflows/u71-qa-real-dated-e2e.yml',import.meta.url),'utf8');
+ const runner=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ assert.match(source,/M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT:\s*'false'/u);
+ assert.match(runner,/MODE_EXPLICIT_REQUIRED/u);
+ assert.match(runner,/AUTONOMOUS_BRANCH_DENIED/u);
+ assert.match(source,/github\.run_attempt == 1/u);
+ assert.match(source,/github\.run_attempt == 2/u);
+ assert.doesNotMatch(source,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|pjhmrhejsoofmouedavw/u);
+});
