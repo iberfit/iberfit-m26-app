@@ -238,7 +238,7 @@ test('Coach can add multiple date-only autonomous days without opening Agenda or
   assert.equal(publish.disabled,true,'a new date invalidates previous review');
   day.value='2026-12-03';
   await h.listeners.get('click')(event);
-  assert.equal(dates.value,'2026-12-01\\n2026-12-03');
+  assert.equal(dates.value,'2026-12-01\n2026-12-03');
   assert.match(hint.textContent,/entrenamiento autónomo/u);
   assert.equal(h.calls.length,0,'date-only planning is 100% local until signed preview');
  }finally{h.close();}
