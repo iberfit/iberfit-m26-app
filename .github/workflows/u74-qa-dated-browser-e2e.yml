@@ -17,6 +17,7 @@ on:
       - 'feat/iberfit-real-training-360-20261114'
       - 'feat/real-training-360-one-release-20261117'
       - 'canary/rc74-4'
+      - 'feat/m26-autonomous-dates-m44-one-prod-release-20261121'
     paths:
       - '.github/workflows/u74-qa-dated-browser-e2e.yml'
       - 'scripts/remote-gates/qa_u60_real_dated_journey.mjs'
@@ -29,6 +30,8 @@ on:
       - 'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql'
       - 'supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.rollback.sql'
       - 'src/m26/workflows/occurrence-*.js'
+      - 'supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.sql'
+      - 'qa/sql/m1_autonomous_dates_transactional_role_e2e_probe.sql'
       - 'src/m26/app/workflow-controller.js'
       # The transport and auth shell form part of the dated Client journey:
       # a changed RPC mapping must trigger a new exact-SHA browser proof.
@@ -57,6 +60,8 @@ jobs:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
       M26_QA_ONLY: 'true'
+      # Signed no-cita mode is authorized ONLY on the single-PR branch.
+      M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT: ${{ github.ref == 'refs/heads/feat/m26-autonomous-dates-m44-one-prod-release-20261121' }}
       M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
       M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
       M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}

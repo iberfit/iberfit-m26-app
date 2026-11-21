@@ -40,6 +40,9 @@ function signedFixture(){
  for(const key of ['clientId','occurrenceId','futureOccurrenceId','sessionId'])
   expect(proof.fixture?.[key]).toMatch(UUID);
  expect(proof.fixture.occurrenceId).not.toBe(proof.fixture.futureOccurrenceId);
+ const autonomous=process.env.M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT==='true';
+ expect(proof.appointmentless).toBe(autonomous);
+ expect(proof.fixture.appointmentless).toBe(autonomous);
  expect(proof.fixture.stepsExpected).toBeGreaterThanOrEqual(1);
  expect(proof.fixture.stepsExpected).toBeLessThanOrEqual(40);
  return proof.fixture;

@@ -124,3 +124,16 @@ test('U74 persisted preflight binds same synthetic source, revision, SHA, run an
  assert.match(src,/CERTIFIED_SOURCE_REVISION_CHANGED/u);
  assert.match(src,/CERTIFIED_SOURCE_DATES_OCCUPIED/u);
 });
+
+
+test('U74 one-PR authenticated no-cita browser workflow is strict branch and two-attempt signed',()=>{
+ const wf=readFileSync('.github/workflows/u74-qa-dated-browser-e2e.yml','utf8');
+ const code=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ const ui=readFileSync('qa/rc64/u74-dated-ui-write.spec.mjs','utf8');
+ assert.ok(wf.includes('feat/m26-autonomous-dates-m44-one-prod-release-20261121')&&code.includes('feat/m26-autonomous-dates-m44-one-prod-release-20261121'));
+ for(const marker of ['M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT','github.run_attempt == 2','m26-canary-readonly']) assert.ok(wf.includes(marker));
+ for(const marker of ['AUTONOMOUS_BRANCH_DENIED','MODE_EXPLICIT_REQUIRED','two_no_appointment_dates_persisted','AUTONOMOUS_PROOF_MODE_MISMATCH']) assert.ok(code.includes(marker));
+ assert.ok(code.includes('?\[{localDate:today},{localDate:future,localTime:plan.time}]'.replace('\\[','[')));
+ assert.ok(ui.includes('proof.fixture.appointmentless'));
+ assert.doesNotMatch(wf,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|IBERFIT_PROD_DATABASE_URL/u);
+});

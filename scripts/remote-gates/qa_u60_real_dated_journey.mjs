@@ -19,6 +19,7 @@ const BRANCHES=new Set([
  'feat/iberfit-m1-training-reliability-20261112',
  'feat/iberfit-real-training-360-20261114',
  'feat/real-training-360-one-release-20261117',
+ 'feat/m26-autonomous-dates-m44-one-prod-release-20261121',
 ]);
 const branchFromRef=ref=>{
  const prefix='refs/heads/';
@@ -192,6 +193,9 @@ function context(mode){
  assert(e.M26_QA_ONLY==='true'&&e.M26_PROJECT_REF===QA
   &&new URL(e.M26_SUPABASE_URL).origin===BASE,'NOT_QA');
  const branch=branchFromRef(e.GITHUB_REF);
+ const autonomous=e.M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT==='true';
+ assert(e.M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT==='true'||e.M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT==='false','MODE_EXPLICIT_REQUIRED');
+ assert(!autonomous||branch==='feat/m26-autonomous-dates-m44-one-prod-release-20261121','AUTONOMOUS_BRANCH_DENIED');
  assert(e.GITHUB_REPOSITORY===REPO
   &&UUID.test(derivedUuid(e.GITHUB_RUN_ID,'check')),'INVALID_RUN_CONTEXT');
  assert(/^[a-f0-9]{40}$/.test(e.GITHUB_SHA),'INVALID_SHA');
@@ -200,7 +204,7 @@ function context(mode){
   'NON_EXPLICIT_ATTEMPT');
  const key=e.M26_SUPABASE_PUBLISHABLE_KEY;
  assert(key.length>20&&!/service.?role|sb_secret/i.test(key),'PRIVILEGED_KEY_DENIED');
- return {e,key,branch};
+ return {e,key,branch,autonomous};
 }
 async function currentSha(ctx){
  const res=await fetch('https://api.github.com/repos/'+REPO+'/git/ref/heads/'+
@@ -327,13 +331,14 @@ async function authenticatedStage(ctx,certified=null){
   return {...base,entityId:derivedUuid(e.GITHUB_RUN_ID,'appointment-'+i),
     operationId:derivedUuid(e.GITHUB_RUN_ID,'appointment-create-'+i)};
  });
- for(const cmd of commands)await canonical(ctx,coach.jwt,cmd);
+ if(!ctx.autonomous)for(const cmd of commands)await canonical(ctx,coach.jwt,cmd);
  const fingerprint=hash(clientA+':'+chosen.id+':'+chosen.revision+':'+today+':'+future+':'+time);
  return {ctx,coach,a,b,clientA,clientB,chosen,appointments,commands,today,future,time,fingerprint};
 }
 async function verifyBrowserWorkout(ctx){
  // READ-ONLY after the real Chromium Client workout, never retry its writes.
  const proof=JSON.parse(await readFile(FILE,'utf8')),f=proof.fixture;
+ assert(proof.appointmentless===ctx.autonomous&&f?.appointmentless===ctx.autonomous,'AUTONOMOUS_PROOF_MODE_MISMATCH');
  assert(proof.stage==='prepare-browser'&&proof.project==='QA'
   &&proof.status==='QA_BROWSER_FIXTURE_READY'&&proof.writesApplied===true
   &&proof.sha===ctx.e.GITHUB_SHA&&proof.runId===ctx.e.GITHUB_RUN_ID
@@ -358,13 +363,15 @@ async function verifyBrowserWorkout(ctx){
  const first=calendar.find(r=>r.id===f.occurrenceId);
  const second=calendar.find(r=>r.id===f.futureOccurrenceId);
  assert(first?.sessionId===f.sessionId&&first?.status==='completada'
-  &&second?.sessionId===f.sessionId&&second?.status==='confirmada',
+  &&second?.sessionId===f.sessionId&&second?.status==='confirmada'
+  &&(!ctx.autonomous||(f.appointmentless===true&&first.appointmentId===null&&second.appointmentId===null)),
    'UI_COACH_DATES_NOT_INDEPENDENT');
  const detail=await rpc(ctx,coach.jwt,'iberfit_occurrence_detail_v1',{
   p_client_id:f.clientId,p_occurrence_id:f.occurrenceId});
  assert(detail.status===200&&detail.body?.kind==='private-occurrence'
   &&detail.body?.executionBody?.status==='completada'
   &&detail.body?.executionBody?.occurrenceId===f.occurrenceId
+  &&(!ctx.autonomous||detail.body?.occurrence?.appointmentId===null)
   &&Object.keys(detail.body?.executionBody?.results||{}).length===f.stepsExpected,
   'UI_COACH_EXECUTION_NOT_COMMITTED');
  const forbidden=await u60(ctx,b.jwt,'CALENDARIO',{
@@ -411,6 +418,7 @@ async function main(){
    localDate:plan.today,futureDate:plan.future,localTime:plan.time,
    sourceFixture:'existing QA synthetic published prescription',
    realJwtForCoachAndTwoClients:true,prodTouched:false,serviceRole:false,
+   appointmentless:ctx.autonomous,
    writesApplied:false,checks:['identity_roles_scoped','canary_owner_A_B_distinct',
     'two_calendar_dates_free','native_appointment_preflights_ack','exact_daylight_santiago'],
    status:'PENDING'};
@@ -435,7 +443,7 @@ async function main(){
  proof.status='QA_SYNTHETIC_WRITE_STARTED';await save(proof);
  const {coach,a,b,clientA,clientB,chosen,appointments,commands,today,future}=plan;
  // No broad grant, no DB table writes. These use the SAME production commands.
- for(let i=0;i<commands.length;i++){
+ if(!ctx.autonomous)for(let i=0;i<commands.length;i++){
   const cmd=commands[i],r=await rpc(ctx,coach.jwt,'iberfit_execute_command_v26',{p_command:cmd});
   assert(r.status===200&&r.body?.kind==='ack','APPOINTMENT_CREATE_ACK_'+i+'_'+r.status);
   proof.checks.push('appointment_created_'+i);await save(proof);
@@ -454,15 +462,17 @@ async function main(){
   operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'occurrence-batch'),
   clientId:clientA,entityId:chosen.id,baseRevision:chosen.revision,
   payload:{targetClientId:clientA,previewConfirmed:true,
-   dates:appointments.map((x,i)=>({localDate:x.date,localTime:plan.time,
-    appointmentId:commands[i].entityId}))},
+   dates:ctx.autonomous
+    ?[{localDate:today},{localDate:future,localTime:plan.time}]
+    :appointments.map((x,i)=>({localDate:x.date,localTime:plan.time,
+     appointmentId:commands[i].entityId}))},
  };
  const ack=await u60(ctx,coach.jwt,'CREAR_LOTE',batch);
  assert(ack.status===200&&ack.body?.kind==='ack'&&Number(ack.body.count)===2
    &&ack.body.occurrences?.length===2,'BATCH_NOT_ACK_'+ack.status);
  const occ=ack.body.occurrences.map(x=>x.id);
  assert(occ.every(x=>UUID.test(x))&&occ[0]!==occ[1],'OCCURRENCE_IDENTITIES');
- proof.checks.push('two_dates_persisted');await save(proof);
+ proof.checks.push(ctx.autonomous?'two_no_appointment_dates_persisted':'two_dates_persisted');await save(proof);
  const retry=await u60(ctx,coach.jwt,'CREAR_LOTE',batch);
  assert(retry.status===200&&retry.body?.kind==='ack'&&retry.body.duplicate===true,
    'BATCH_IDEMPOTENT_REPLAY');
@@ -480,7 +490,8 @@ async function main(){
  }
  const visible=await checkedCalendar(ctx,a.jwt,clientA,today,future);
  const ownVisible=visible.filter(row=>occ.includes(row.id));
- assert(ownVisible.length===2&&occ.every(id=>ownVisible.some(x=>x.id===id&&x.status==='confirmada')),
+ assert(ownVisible.length===2&&occ.every(id=>ownVisible.some(x=>x.id===id&&x.status==='confirmada'
+  &&(!ctx.autonomous||(x.appointmentId===null&&x.appointmentStatus===null)))),
    'CLIENT_DATES_NOT_VISIBLE');
  proof.checks.push('client_two_independent_confirmed_dates');
  const forbidden=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:10});
@@ -489,7 +500,8 @@ async function main(){
   p_client_id:clientA,p_occurrence_id:occ[0]});
  assert(detail.status===200&&detail.body?.kind==='private-occurrence'
   &&detail.body?.occurrence?.id===occ[0]&&detail.body?.occurrence?.clientId===clientA
-  &&Array.isArray(detail.body?.prescriptionSnapshot?.queue),'CLIENT_PRIVATE_DETAIL_INVALID');
+  &&Array.isArray(detail.body?.prescriptionSnapshot?.queue)
+  &&(!ctx.autonomous||detail.body?.occurrence?.appointmentId===null),'CLIENT_PRIVATE_DETAIL_INVALID');
  const foreignDetail=await rpc(ctx,b.jwt,'iberfit_occurrence_detail_v1',{
   p_client_id:clientA,p_occurrence_id:occ[0]});
  assert(denied(foreignDetail),'CLIENT_B_PRIVATE_DETAIL_EXPOSED');
@@ -503,7 +515,8 @@ async function main(){
    'UI_FIXTURE_STEPS_OUT_OF_BOUND');
   proof.fixture={clientId:clientA,sessionId:chosen.id,
    occurrenceId:occ[0],futureOccurrenceId:occ[1],
-   localDate:today,futureDate:future,stepsExpected:steps};
+   localDate:today,futureDate:future,stepsExpected:steps,
+   appointmentless:ctx.autonomous};
   proof.status='QA_BROWSER_FIXTURE_READY';proof.writesApplied=true;
   await save(proof);
   process.stdout.write('IBERFIT_U74_QA_SYNTHETIC_DATED_BROWSER_FIXTURE_READY\n');
