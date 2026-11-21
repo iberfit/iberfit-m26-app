@@ -83,3 +83,52 @@ jobs:
       - name: Run isolated real-snapshot recovery and ALWAYS restore two Free slots
         shell: bash
         run: node scripts/ops/m44_managed_real_recovery.mjs
+
+  restore-free-slots:
+    needs: [wait-exact-canary, managed-recovery]
+    if: ${{ always() && github.repository == 'iberfit/iberfit-m26-app' }}
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - name: Emergency return of Free project slots even if data restore job fails
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          const prod='pjhmrhejsoofmouedavw',qa='gjztkdwfmunnzhtvxrsu',clone='zfvaouggafdbqfbpwhfx';
+          const token=process.env.SUPABASE_ACCESS_TOKEN;
+          if(process.env.GITHUB_REF!=='refs/heads/canary/rc74-4'||!token)
+            throw Error('M44_SLOTS_PROTECTED_CONTEXT_REQUIRED');
+          async function req(ref,path='',method='GET'){
+            const res=await fetch('https://api.supabase.com/v1/projects/'+ref+path,{
+              method,redirect:'error',headers:{Authorization:'Bearer '+token,Accept:'application/json'},
+              signal:AbortSignal.timeout(20000)});
+            if(!res.ok)throw Error('M44_SLOTS_MANAGEMENT_HTTP_'+res.status);
+            return res.json();
+          }
+          async function state(ref){return (await req(ref)).status;}
+          async function until(ref,desired){
+            for(let i=0;i<45;i++){
+              if(await state(ref)===desired)return;
+              await new Promise(r=>setTimeout(r,7000));
+            }
+            throw Error('M44_SLOTS_REPAIR_TIMEOUT');
+          }
+          const original=await state(prod);
+          if(original!=='ACTIVE_HEALTHY')throw Error('M44_SLOTS_PROD_NOT_HEALTHY');
+          const sandbox=await state(clone);
+          if(sandbox!=='INACTIVE'){
+            if(sandbox!=='PAUSING')await req(clone,'/pause','POST');
+            await until(clone,'INACTIVE');
+          }
+          const qaState=await state(qa);
+          if(qaState!=='ACTIVE_HEALTHY'){
+            if(!['RESTORING','COMING_UP'].includes(qaState))
+              await req(qa,'/restore','POST');
+            await until(qa,'ACTIVE_HEALTHY');
+          }
+          console.log('M44_MANAGED_FREE_SLOTS_RESTORED:prod_active=1:qa_active=1:clone_inactive=1');
+          JS
