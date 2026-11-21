@@ -141,3 +141,13 @@ test('Every managed 400 from real recovery emits a bounded safe phase, never raw
  assert.match(code,/api-keys\?reveal=true/);
  assert.doesNotMatch(code,/console\.(?:log|error)\([^;]*(?:api_key|password|response\.text|Authorization|JSON\.stringify\(.*keys)/);
 });
+
+test('M44 avoids ambiguous management error output and preserves fail-closed data sequencing',()=>{
+ assert.ok(code.includes("let m44Phase='BOOTSTRAP'"));
+ assert.ok(code.includes("const allowed=/^[A-Z0-9_]{3,48}$/.test(m44Phase)?m44Phase:'UNCLASSIFIED'"));
+ const beforeData=code.indexOf('await seal();');
+ const importData=code.indexOf('await restoreData(conn);');
+ assert.ok(beforeData>0 && importData>beforeData);
+ assert.doesNotMatch(code,/console\.(?:log|error)\([^;\n]*response\.text/);
+ assert.doesNotMatch(code,/console\.(?:log|error)\([^;\n]*JSON\.stringify\(\s*body/);
+});
