@@ -4,6 +4,7 @@
  * of tokens, email, IDs or raw metrics. This is NOT native E2E certification.
  */
 import {mkdir,writeFile} from 'node:fs/promises';
+import {qaM42ReadOnlyRpcWithFutureIatRetry} from './qa_m42_readonly_future_iat_retry.mjs';
 
 const REF='gjztkdwfmunnzhtvxrsu';
 const ORIGIN='https://m26-canary.iberfit.cl';
@@ -48,7 +49,16 @@ async function request(path,{token=null,method='POST',payload={}}={}){
   const json=await res.json().catch(()=>null);
   return {status:res.status,body:json};
 }
+const QA_READ_ONLY_IDENTITY_RPCS=new Set(['iberfit_current_role_v26','iberfit_client_id']);
 async function rpc(name,token,payload={}){
+  // Bounded clock-skew recovery is restricted to these non-mutating identity reads.
+  // Writes, revoked JWTs and arbitrary 401/403 must remain fail-closed.
+  if(QA_READ_ONLY_IDENTITY_RPCS.has(name)){
+    return qaM42ReadOnlyRpcWithFutureIatRetry({
+      name,token,json:payload,
+      send:(path,{token:readToken,json})=>request(path,{token:readToken,payload:json}),
+    });
+  }
   return request('/rest/v1/rpc/'+name,{token,payload});
 }
 async function success(name,token,payload={}){

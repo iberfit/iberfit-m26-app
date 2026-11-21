@@ -47,3 +47,12 @@ test('M42 real gate uses only centralized exact clock skew helper',()=>{
  assert.match(source,/qaM42ReadOnlyRpcWithFutureIatRetry\(\{name,token,json,send\}\)/u);
  assert.doesNotMatch(source,/if\(r\.status===401\)|retryAny|skipRoleCheck/u);
 });
+
+test('V45 synthetic QA reuses bounded future-iat identity reads',()=>{
+  const source=readFileSync(new URL('../scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs',import.meta.url),'utf8');
+  assert.ok(source.includes("QA_READ_ONLY_IDENTITY_RPCS=new Set(['iberfit_current_role_v26','iberfit_client_id'])"));
+  assert.ok(source.includes('if(QA_READ_ONLY_IDENTITY_RPCS.has(name))'));
+  assert.ok(source.includes('qaM42ReadOnlyRpcWithFutureIatRetry({'));
+  assert.ok(source.includes("return request('/rest/v1/rpc/'+name,{token,payload});"));
+  assert.doesNotMatch(source,/retryAny401|ignorePgrst303/iu);
+});
