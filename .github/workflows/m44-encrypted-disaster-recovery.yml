@@ -615,8 +615,10 @@ jobs:
               PGDATABASE=iberfit_recovery_acl_test \
               bash scripts/ops/m44_isolated_backend_cutover_drill.sh "$WORK/isolated"; then
             echo 'M44_ISOLATED_BACKEND_SQL_ROLLBACK_REHEARSAL_VERIFIED_ONLY'
+            echo 'backend_drill_verified=true' >> "$GITHUB_OUTPUT"
           else
             echo 'M44_ISOLATED_BACKEND_SQL_ROLLBACK_NOT_CERTIFIED'
+            echo 'backend_drill_verified=false' >> "$GITHUB_OUTPUT"
           fi
           # Model approved 19-Nov: NO current JWT rotation; only disaster reauth.
           # Both experiments run solely on the restored localhost PG17 copy.
@@ -678,6 +680,18 @@ jobs:
           path: ${{ runner.temp }}/iberfit-recovery/cipher/*.ibf
           retention-days: 1
           if-no-files-found: error
+      # Do not let a green encrypted-backup job conceal a FAILED real
+      # owner/ACL/RLS/rollback rehearsal. Publish the genuine ciphertext
+      # first; then mark full backend recovery subproof NO-GO if it failed.
+      - name: Fail closed on real backend RLS or rollback after preserving backup
+        if: ${{ steps.restore.outcome == 'success' }}
+        shell: bash
+        run: |
+          if [[ "${{ steps.restore.outputs.backend_drill_verified }}" != 'true' ]]; then
+            echo 'M44_REAL_RESTORED_BACKEND_RLS_OR_ROLLBACK_NOT_CERTIFIED'
+            exit 75
+          fi
+          echo 'M44_REAL_RESTORED_BACKEND_RLS_AND_ROLLBACK_VERIFIED_ONLY'
       - name: Remove all temporary plaintext and ciphertext from runner
         if: always()
         shell: bash
