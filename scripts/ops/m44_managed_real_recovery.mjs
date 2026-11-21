@@ -55,7 +55,13 @@ async function request(url,{method='GET',body,token=process.env.SUPABASE_ACCESS_
   return Object.freeze({accepted:true,empty:true});
  }
  try{return JSON.parse(content);}
- catch{fail('MANAGEMENT_JSON_INVALID');}
+ catch{
+  // Some successful Management control-plane mutations answer with plain
+  // text instead of JSON. Only accept them when the next authoritative GET
+  // must verify the requested state; never accept this on a GET.
+  if(!['POST','PATCH'].includes(method))fail('MANAGEMENT_JSON_INVALID');
+  return Object.freeze({accepted:true,opaque:true});
+ }
 }
 const sup=(ref,path,options)=>request(mgmt+ref+path,options);
 const git=(path,options)=>request('https://api.github.com/repos/'+REPO+path,{
