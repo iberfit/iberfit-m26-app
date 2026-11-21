@@ -85,7 +85,10 @@ test('actual restored production ACL and RLS are exercised with restricted SQL r
   "(SELECT count(*) FROM public.client_access_v26)=0",
   "(SELECT count(*) FROM public.session_executions)=0",
   "(SELECT count(*) FROM public.iberfit_system_settings)=0",
-  'NOT EXISTS (SELECT 1 FROM pg_policy',
+  "(SELECT count(*) FROM pg_catalog.pg_policy",
+  "polname='client_access_v26_select' AND polcmd='r'",
+  "polname='session_executions_read' AND polcmd='r'",
+  "polname='system_settings_admin_read' AND polcmd='r'",
   'RESTORED_RLS_ROLE_NOT_ALLOWLISTED',
   'RESTORED_RLS_${actor^^}_DENIAL_CHANGED',
   'M44_REAL_RESTORED_PROD_EFFECTIVE_RLS_UNAUTHENTICATED_DENIAL_VERIFIED_ONLY',
@@ -124,6 +127,22 @@ test('installer sequence and both Coach recovery directions are guarded and pres
   "to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NULL"
  ])assert.ok(s.includes(marker),marker);
 });
+test('M44 genuine isolated RLS and U72 rollback failure fails post-backup without discarding encrypted artifact',()=>{
+ const yaml=fs.readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
+ for(const marker of [
+  'backend_drill_verified=true', 'backend_drill_verified=false',
+  'steps.restore.outputs.backend_drill_verified',
+  'M44_REAL_RESTORED_BACKEND_RLS_OR_ROLLBACK_NOT_CERTIFIED',
+  'M44_REAL_RESTORED_BACKEND_RLS_AND_ROLLBACK_VERIFIED_ONLY',
+ ])assert.ok(yaml.includes(marker),marker);
+ const saved=yaml.indexOf('Publish verified encrypted archive for immediate private-drive transfer');
+ const gate=yaml.indexOf('Fail closed on real backend RLS or rollback after preserving backup');
+ const cleanup=yaml.indexOf('Remove all temporary plaintext and ciphertext from runner');
+ assert.ok(saved>0&&gate>saved&&cleanup>gate);
+ assert.ok(yaml.includes('if: ${{ steps.restore.outcome == \'success\' }}'));
+ assert.ok(yaml.includes('exit 75'));
+});
+
 test('M44 workflow executes drill only inside isolated restore step',()=>{
  const yaml=fs.readFileSync('.github/workflows/m44-encrypted-disaster-recovery.yml','utf8');
  const at=yaml.indexOf('bash scripts/ops/m44_isolated_backend_cutover_drill.sh');
