@@ -76,7 +76,7 @@ async function projects(){
  return map;
 }
 async function projectState(ref){return (await sup(ref,'')).status;}
-async function waitState(ref,desired,limit=240000){
+async function waitState(ref,desired,limit=600000){
  const until=Date.now()+limit;
  while(Date.now()<until){
   if(await projectState(ref)===desired)return;
@@ -392,14 +392,14 @@ async function cleanup(){
  try{
   if(activeClone){
    await sup(TARGET,'/pause',{method:'POST'});
-   await waitState(TARGET,'INACTIVE',300000);
+   await waitState(TARGET,'INACTIVE',600000);
    console.log('M44_MANAGED_SANDBOX_PAUSED');
   }
  }catch{console.error('M44_MANAGED_SANDBOX_PAUSE_FAILED');process.exitCode=1;}
  try{
   if(qaPaused){
    await sup(QA,'/restore',{method:'POST'});
-   await waitState(QA,'ACTIVE_HEALTHY',360000);
+   await waitState(QA,'ACTIVE_HEALTHY',600000);
    console.log('M44_MANAGED_QA_ACTIVE_RESTORED');
   }
  }catch{console.error('M44_MANAGED_QA_RESTORE_FAILED');process.exitCode=1;}
