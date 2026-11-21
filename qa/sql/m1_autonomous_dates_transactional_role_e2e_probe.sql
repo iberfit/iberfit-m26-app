@@ -167,7 +167,7 @@ BEGIN
  IF v_ack->>'kind'<>'ack' OR (v_ack->>'executionRevision')::integer<>2
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PROGRESS_NOT_ACK';END IF;
  v_pause_operation:=gen_random_uuid();
- v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_ack:=private.iberfit_u72_occurrence_pause_resume_v1(jsonb_build_object(
    'type','OCURRENCIA_PAUSAR','operationId',v_pause_operation,
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
    'payload',jsonb_build_object('executionId',v_execution_id,
@@ -179,7 +179,7 @@ BEGIN
  IF v_detail#>>'{executionBody,status}' IS DISTINCT FROM 'pausada'
     OR v_detail->'executionBody'->'results'->(v_exercise_id||':1')->>'reps' IS DISTINCT FROM '10'
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSE_NOT_DURABLE';END IF;
- v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_ack:=private.iberfit_u72_occurrence_pause_resume_v1(jsonb_build_object(
    'type','OCURRENCIA_PAUSAR','operationId',v_pause_operation,
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
    'payload',jsonb_build_object('executionId',v_execution_id,
@@ -193,7 +193,7 @@ BEGIN
      'executionBaseRevision',3,'results','{}'::jsonb,'skippedSets','{}'::jsonb)));
  IF v_ack->>'kind'<>'rejected' OR v_ack->>'reason'<>'EXECUTION_PAUSED'
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSED_WRITE_NOT_FENCED';END IF;
- v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_ack:=private.iberfit_u72_occurrence_pause_resume_v1(jsonb_build_object(
    'type','OCURRENCIA_REANUDAR','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
    'payload',jsonb_build_object('executionId',v_execution_id,
