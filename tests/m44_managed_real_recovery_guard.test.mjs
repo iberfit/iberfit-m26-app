@@ -96,3 +96,16 @@ test('Failed or cancelled data-replay is followed by a separate protected Free-s
  assert.match(workflow,/await req\(qa,'\/restore','POST'\)/);
  assert.match(workflow,/M44_MANAGED_FREE_SLOTS_RESTORED/);
 });
+
+test('A public-schema positive control must be observed BEFORE an HTTP negative control permits real data import',()=>{
+ const seal=code.slice(code.indexOf('async function seal(){'),code.indexOf('async function databaseConnection(){'));
+ assert.match(seal,/CREATE VIEW public\.m44_recovery_exposure_probe WITH \(security_invoker=true\)/);
+ assert.match(seal,/GRANT SELECT ON public\.m44_recovery_exposure_probe TO anon/);
+ assert.match(seal,/PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN/);
+ assert.match(seal,/PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED/);
+ const positive=seal.indexOf("if(!positiveControl)fail");
+ const restricted=seal.indexOf("db_schema:'m44_recovery_closed'");
+ const negative=seal.indexOf("if(!negativeControl)fail");
+ assert.ok(positive>0&&restricted>positive&&negative>restricted);
+ assert.ok(seal.indexOf('sealed=true;')>negative);
+});
