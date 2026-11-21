@@ -706,7 +706,7 @@ BEGIN
       OR (v_occ.status='completada' AND v_ap_status IN ('completada','cancelada','confirmada'))
       OR (v_occ.status='cancelada' AND v_ap_status IN ('confirmada','cancelada','completada'))
       ))
-  ) THEN
+  )) THEN
     RAISE EXCEPTION 'U60_CLIENT_DATE_NOT_PUBLISHED' USING errcode='42501';
   END IF;
   IF v_occ.prescription_snapshot->>'clientId' IS DISTINCT FROM v_occ.client_id::text
