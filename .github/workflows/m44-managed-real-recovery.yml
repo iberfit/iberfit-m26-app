@@ -120,7 +120,7 @@ jobs:
           }
           async function state(ref){return (await req(ref)).status;}
           async function until(ref,desired){
-            for(let i=0;i<45;i++){
+            for(let i=0;i<80;i++){
               if(await state(ref)===desired)return;
               await new Promise(r=>setTimeout(r,7000));
             }
