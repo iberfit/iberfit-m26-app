@@ -8,11 +8,15 @@ name: IBERFIT U74 Real QA Dated Browser Write E2E
 
 # Attempt 1 is read-only. Explicit rerun of the SAME job, runId, SHA
 # and signed future slot only permits bounded synthetic QA writes. Never PROD.
+# Certify the exact protected Canary integration source too: first push is
+# ALWAYS read-only; second-attempt QA writes require explicit authorized rerun,
+# unchanged SHA/runId and an unoccupied synthetic date. Keep Supabase Free usage bounded.
 on:
   push:
     branches:
       - 'feat/iberfit-real-training-360-20261114'
       - 'feat/real-training-360-one-release-20261117'
+      - 'canary/rc74-4'
     paths:
       - '.github/workflows/u74-qa-dated-browser-e2e.yml'
       - 'scripts/remote-gates/qa_u60_real_dated_journey.mjs'

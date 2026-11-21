@@ -99,11 +99,14 @@ test('U74 uses UTF-8 byte size, never character count, for synthetic progress wr
 test('U74 actual Real Training branch retains signed two-attempt QA boundaries',()=>{
  const wf=readFileSync('.github/workflows/u74-qa-dated-browser-e2e.yml','utf8');
  const js=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
- assert.match(wf,/branches:\s*\n\s+- 'feat\/iberfit-real-training-360-20261114'\s*\n\s+- 'feat\/real-training-360-one-release-20261117'/u);
+ assert.match(wf,/branches:\s*\n\s+- 'feat\/iberfit-real-training-360-20261114'\s*\n\s+- 'feat\/real-training-360-one-release-20261117'\s*\n\s+- 'canary\/rc74-4'/u);
  for(const attempt of [1,2])assert.ok(wf.includes('github.run_attempt == '+attempt));
  for(const action of ['preflight-browser','prepare-browser','verify-browser'])
    assert.ok(wf.includes('qa_u60_real_dated_journey.mjs '+action));
  assert.match(js,/BRANCH_HEAD_MOVED/u);
+ assert.match(js,/'canary\/rc74-4'/u);
+ assert.match(wf,/if:\s*\$\{\{ github\.run_attempt == 1 \}\}/u);
+ assert.match(wf,/if:\s*\$\{\{ github\.run_attempt == 2 \}\}/u);
  assert.match(js,/PREFLIGHT_MISSING_STALE_OR_CHANGED/u);
  assert.match(js,/old\.sha===proof\.sha/u);
  assert.match(js,/old\.runId===proof\.runId/u);
