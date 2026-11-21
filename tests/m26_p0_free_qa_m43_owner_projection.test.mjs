@@ -79,11 +79,11 @@ test('SQL QA-only invoker, original bootstrap, ownership, no DML, reversible',()
  assert.match(rollback,/DROP FUNCTION public\.iberfit_qa_m43_owner_projection_v1/u);
  assert.match(rollback,/IS DISTINCT FROM 'QA'/u);
 });
-test('M43 preserves full baseline A/B, recovery and final historical audit, replaces exactly 4 owner snapshots',()=>{
+test('M43 preserves serialized baseline A/B, recovery and final historical audit, replaces exactly 4 owner snapshots',()=>{
  const writer=readFileSync('scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs','utf8');
- assert.match(writer,/bootstrap\(clientA\),bootstrap\(clientB\),rpc\('iberfit_current_role_v26'/u);
+ assert.match(writer,/let a=await bootstrap\(clientA\);\s*let b=await bootstrap\(clientB\);\s*const coachRole=await rpc\('iberfit_current_role_v26'/u);
  assert.match(writer,/const observed=await bootstrap\(clientA\)/u);
- assert.match(writer,/const \[finalA,finalForeign\]=await Promise\.all\(\[\s*bootstrap\(clientA\),/u);
+ assert.match(writer,/const finalA=await bootstrap\(clientA\);\s*const finalForeign=await foreignVisibility\(clientB,'session_execution',execution\.id\);/u);
  assert.match(writer,/CLIENT_HTTP_THREE_SPORT_METRICS/u);
  assert.match(writer,/UNPUBLISHED_SECOND_CYCLE_HIDDEN/u);
  assert.match(writer,/GUIDED_ATOMIC_ENABLEMENT_/u);
