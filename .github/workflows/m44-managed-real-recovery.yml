@@ -1,0 +1,137 @@
+name: IBERFIT M44 Authorized Managed Recovery Drill
+
+# One-time, explicitly authorized real-PROD-snapshot rehearsal on the FIXED
+# separate M44 sandbox. Never changes PROD; QA is temporarily swapped on Free.
+# The only payload leaving GitHub is the authenticated ciphertext into the
+# protected runner. No plaintext is uploaded to CI artifacts, logs or Drive.
+on:
+  push:
+    branches:
+      - canary/rc74-4
+    paths:
+      - 'scripts/ops/m44_managed_real_recovery.mjs'
+      - '.github/workflows/m44-managed-real-recovery.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: iberfit-m44-managed-real-recovery-one-time
+  cancel-in-progress: false
+
+jobs:
+  wait-exact-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Verify latest exact source and Canary deploy before touching QA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'iberfit/iberfit-m26-app'
+          test "$GITHUB_REF" = 'refs/heads/canary/rc74-4'
+          sha="$(gh api repos/iberfit/iberfit-m26-app/branches/canary/rc74-4 --jq '.commit.sha')"
+          test "$sha" = "$TARGET_SHA"
+          passed=false
+          for _ in $(seq 1 110); do
+            state="$(gh api 'repos/iberfit/iberfit-m26-app/actions/workflows/canary-exact-deploy.yml/runs?branch=canary%2Frc74-4&per_page=25' \
+              --jq '[.workflow_runs[] | select(.head_sha==env.TARGET_SHA) | .conclusion][0] // "pending"')"
+            if [ "$state" = success ]; then passed=true; break; fi
+            if [ "$state" = failure ] || [ "$state" = cancelled ]; then
+              echo 'M44_MANAGED_EXACT_CANARY_GATE_REJECTED'; exit 1
+            fi
+            sleep 12
+          done
+          test "$passed" = true || { echo M44_MANAGED_EXACT_CANARY_GATE_TIMEOUT; exit 1; }
+          echo 'M44_MANAGED_EXACT_CANARY_PRECHECK_PASSED'
+
+  managed-recovery:
+    needs: wait-exact-canary
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 75
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      IBERFIT_BACKUP_PASSPHRASE: ${{ secrets.IBERFIT_BACKUP_PASSPHRASE }}
+      M44_USER_AUTHORIZATION: REAL_DATA_CLONE_ONLY_20261121
+    steps:
+      - name: Checkout exact certified source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Block superseded Canary SHA before importing protected data
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
+      - name: Verify restore script syntax and policy regression
+        run: |
+          node --check scripts/ops/m44_managed_real_recovery.mjs
+          node --test tests/m44_managed_real_recovery_guard.test.mjs
+      - name: Run isolated real-snapshot recovery and ALWAYS restore two Free slots
+        shell: bash
+        run: node scripts/ops/m44_managed_real_recovery.mjs
+
+  restore-free-slots:
+    needs: [wait-exact-canary, managed-recovery]
+    if: ${{ always() && github.repository == 'iberfit/iberfit-m26-app' }}
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - name: Emergency return of Free project slots even if data restore job fails
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          const prod='pjhmrhejsoofmouedavw',qa='gjztkdwfmunnzhtvxrsu',clone='zfvaouggafdbqfbpwhfx';
+          const token=process.env.SUPABASE_ACCESS_TOKEN;
+          if(process.env.GITHUB_REF!=='refs/heads/canary/rc74-4'||!token)
+            throw Error('M44_SLOTS_PROTECTED_CONTEXT_REQUIRED');
+          async function req(ref,path='',method='GET'){
+            const res=await fetch('https://api.supabase.com/v1/projects/'+ref+path,{
+              method,redirect:'error',headers:{Authorization:'Bearer '+token,Accept:'application/json'},
+              signal:AbortSignal.timeout(20000)});
+            if(!res.ok)throw Error('M44_SLOTS_MANAGEMENT_HTTP_'+res.status);
+            return res.json();
+          }
+          async function state(ref){return (await req(ref)).status;}
+          async function until(ref,desired){
+            for(let i=0;i<45;i++){
+              if(await state(ref)===desired)return;
+              await new Promise(r=>setTimeout(r,7000));
+            }
+            throw Error('M44_SLOTS_REPAIR_TIMEOUT');
+          }
+          const original=await state(prod);
+          if(original!=='ACTIVE_HEALTHY')throw Error('M44_SLOTS_PROD_NOT_HEALTHY');
+          const sandbox=await state(clone);
+          if(sandbox!=='INACTIVE'){
+            if(['COMING_UP','RESTORING'].includes(sandbox))
+              await until(clone,'ACTIVE_HEALTHY');
+            if(sandbox!=='PAUSING')await req(clone,'/pause','POST');
+            await until(clone,'INACTIVE');
+          }
+          const qaState=await state(qa);
+          if(qaState!=='ACTIVE_HEALTHY'){
+            if(qaState==='PAUSING')await until(qa,'INACTIVE');
+            if(!['RESTORING','COMING_UP'].includes(qaState))
+              await req(qa,'/restore','POST');
+            await until(qa,'ACTIVE_HEALTHY');
+          }
+          console.log('M44_MANAGED_FREE_SLOTS_RESTORED:prod_active=1:qa_active=1:clone_inactive=1');
+          JS
