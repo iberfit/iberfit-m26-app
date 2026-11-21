@@ -186,7 +186,7 @@ BEGIN
      'executionBaseRevision',2)));
  IF v_ack->>'kind'<>'ack' OR v_ack->>'duplicate'<>'true'
    THEN RAISE EXCEPTION 'M1_AUTONOMOUS_PROBE_PAUSE_REPLAY_NOT_IDEMPOTENT';END IF;
- v_ack:=private.iberfit_u31_occurrence_transition_v1(jsonb_build_object(
+ v_ack:=public.iberfit_occurrence_api_u60_v1('TRANSICION',jsonb_build_object(
    'type','OCURRENCIA_GUARDAR_PROGRESO','operationId',gen_random_uuid(),
    'clientId',v_client,'entityId',v_occ,'baseRevision',2,
    'payload',jsonb_build_object('executionId',v_execution_id,
