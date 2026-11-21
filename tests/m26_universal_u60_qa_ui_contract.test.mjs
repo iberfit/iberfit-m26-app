@@ -621,7 +621,9 @@ test('U60 Coach publication must match the immutable reviewed role/session/date 
   assert.ok(code.includes("if(!datedCoachPreviewMatchesForm(pending,{"));
   assert.ok(code.includes("fail('PREVIEW_FORM_CHANGED')"));
   assert.ok(code.includes("plannedDates:planning?formValue(button,'u60Dates')"));
-  assert.ok(code.includes("escape(activePreview?.datesInput||'')"));
+  assert.ok(code.includes("escape(activeDraft?.datesInput??activePreview?.datesInput??'')"),
+    'Coach keeps its editable dates without reusing a stale reviewed snapshot');
+  assert.ok(code.includes('captureCoachDateDraft(panel,scope)'));
   assert.ok(code.includes('data-u60-use-appointments'));
   assert.doesNotMatch(code,/data-iberdates-action="u60-use-appointments"/u);
 });
