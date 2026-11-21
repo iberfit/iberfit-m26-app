@@ -30,3 +30,13 @@ test('alternativa seleccionada permanece visible aunque salga del ranking princi
   assert.match(html,/optgroup label="Alternativa actual"/u);
   assert.match(html,/option value="d" selected/u);
 });
+
+test('Plan B de último recurso muestra otros patrones solo si no existe alternativa del mismo patrón',()=>{
+  const sparse=createExerciseCatalog(catalog.list().filter((item)=>['a','d'].includes(item.id)));
+  const draft=createSessionDraft({clientId:'c'});
+  addCatalogExercise(draft,'a',sparse);
+  const html=renderSessionBuilder({draft,catalog:sparse,role:'coach'});
+  assert.match(html,/optgroup label="Otros patrones · revisar con Coach"><option value="d">/u);
+  assert.match(html,/IBERFIT no cambia el ejercicio automáticamente/u);
+  assert.doesNotMatch(html,/option value="d" selected/u);
+});
