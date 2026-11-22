@@ -201,17 +201,28 @@ async function seal(){
  m44Phase='SEAL_VERIFY_POSTGREST_SCHEMA';
  const rest=await sup(TARGET,'/postgrest');
  if(rest.db_schema!=='m44_recovery_closed')fail('DATA_API_NOT_SEALED');
+ // The Management API can acknowledge a new PostgREST schema before the
+ // serving nodes adopt it. During propagation the harmless synthetic probe
+ // may still answer 200. NEVER import real data until it returns a genuine
+ // denial. Limit retries; a persistent public API remains a hard NO-GO.
  let negativeControl=false;
- for(let i=0;i<20;i++){
+ for(let i=0;i<30;i++){
   const response=await fetch(probeURL,{headers:{apikey:key,'Accept-Profile':'public'},
    redirect:'error',signal:AbortSignal.timeout(12000)});
-  if(response.ok)fail('PUBLIC_DATA_API_NOT_DENIED');
-  if([400,401,403,404,406].includes(response.status)){
+  if(!response.ok&&[400,401,403,404,406].includes(response.status)){
    negativeControl=true;break;
   }
-  await sleep(1200);
+  if(response.ok||[425,429,500,502,503,504,520,521,522,523,524].includes(response.status)){
+   if(i===29)break;
+   await sleep(2000);
+   continue;
+  }
+  fail('PUBLIC_API_NEGATIVE_CONTROL_UNEXPECTED_HTTP');
  }
- if(!negativeControl)fail('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED');
+ if(!negativeControl)fail('PUBLIC_DATA_API_NOT_DENIED');
+ const finalApi=await sup(TARGET,'/postgrest');
+ if(finalApi?.db_schema!=='m44_recovery_closed')
+  fail('PUBLIC_API_CONFIG_DRIFT_AFTER_DENIAL');
  m44Phase='SEAL_DISABLE_AUTH_SIGNUPS';
  await sup(TARGET,'/config/auth',{method:'PATCH',body:{
   disable_signup:true,external_email_enabled:false,external_phone_enabled:false,
