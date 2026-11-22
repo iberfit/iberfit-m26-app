@@ -44,6 +44,13 @@ export function selectAppOnlyPrivilegeToc(input){
   if(!/^\d+;/.test(line))return line;
   const m=/^\d+;\s+\d+\s+\d+\s+(ACL|DEFAULT ACL)\s+(public|private)\s/.exec(line);
   if(!m)return ';'+line;
+  // PostgreSQL cannot ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin
+  // when connected as the managed project's postgres role. Those managed
+  // defaults must already exist and are independently compared by digest.
+  // Never SET ROLE, change membership, or ask for elevated grants.
+  if(m[1]==='DEFAULT ACL'&&!/\s+postgres\s*$/.test(line))return ';'+line;
+  if(m[1]==='ACL'&&!/\s+postgres\s*$/.test(line))
+   fail('APP_OBJECT_OWNER_NOT_POSTGRES');
   active++;
   if(m[1]==='ACL')grants++;else defaults++;
   return line;
@@ -83,6 +90,74 @@ async function readCensus(project){
  const rows=Array.isArray(data)?data:data?.result;
  if(!Array.isArray(rows)||rows.length!==1||!rows[0]?.census)fail('CENSUS_RESPONSE_INVALID');
  return rows[0].census;
+}
+// Before replay check only Supabase-managed default privileges and unchanged RLS policies; schema/object ACLs can be absent precisely because this is a --no-acl restore.
+// Metadata-only digests. Never return grants, policy bodies or object names.
+// Exclude the one synthetic exposure probe intentionally created on the clone.
+const aclDigestSql=`WITH material AS (
+ SELECT
+ (SELECT encode(sha256(convert_to(COALESCE(jsonb_agg(
+  jsonb_build_array(n.nspname,n.nspacl::text) ORDER BY n.nspname),'[]'::jsonb)::text,'UTF8')),'hex')
+  FROM pg_namespace n WHERE n.nspname IN ('public','private')) AS schema_acl,
+ (SELECT encode(sha256(convert_to(COALESCE(jsonb_agg(
+  jsonb_build_array(n.nspname,c.relname,c.relkind,c.relacl::text)
+  ORDER BY n.nspname,c.relname),'[]'::jsonb)::text,'UTF8')),'hex')
+  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+  WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p','v','m','S','f')
+  AND NOT (n.nspname='public' AND c.relname='m44_recovery_exposure_probe')) AS relation_acl,
+ (SELECT encode(sha256(convert_to(COALESCE(jsonb_agg(
+  jsonb_build_array(n.nspname,p.oid::regprocedure::text,p.proacl::text)
+  ORDER BY n.nspname,p.oid::regprocedure::text),'[]'::jsonb)::text,'UTF8')),'hex')
+  FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+  WHERE n.nspname IN ('public','private')) AS function_acl,
+ (SELECT encode(sha256(convert_to(COALESCE(jsonb_agg(
+  jsonb_build_array(n.nspname,c.relname,a.attname,a.attacl::text)
+  ORDER BY n.nspname,c.relname,a.attname),'[]'::jsonb)::text,'UTF8')),'hex')
+  FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid
+  JOIN pg_namespace n ON n.oid=c.relnamespace
+  WHERE n.nspname IN ('public','private') AND a.attnum>0 AND NOT a.attisdropped
+   AND c.relkind IN ('r','p','v','m','f')
+   AND NOT (n.nspname='public' AND c.relname='m44_recovery_exposure_probe')) AS column_acl,
+ (SELECT encode(sha256(convert_to(COALESCE(jsonb_agg(
+  jsonb_build_array(n.nspname,d.defaclobjtype::text,d.defaclacl::text)
+  ORDER BY n.nspname,d.defaclobjtype::text),'[]'::jsonb)::text,'UTF8')),'hex')
+  FROM pg_default_acl d JOIN pg_namespace n ON n.oid=d.defaclnamespace
+  WHERE n.nspname IN ('public','private')
+  AND pg_get_userbyid(d.defaclrole)='supabase_admin') AS managed_defaults,
+ (SELECT encode(sha256(convert_to(COALESCE(jsonb_agg(
+  jsonb_build_array(n.nspname,d.defaclobjtype::text,d.defaclacl::text)
+  ORDER BY n.nspname,d.defaclobjtype::text),'[]'::jsonb)::text,'UTF8')),'hex')
+  FROM pg_default_acl d JOIN pg_namespace n ON n.oid=d.defaclnamespace
+  WHERE n.nspname IN ('public','private')
+  AND pg_get_userbyid(d.defaclrole)='postgres') AS postgres_defaults,
+ (SELECT encode(sha256(convert_to(COALESCE(jsonb_agg(
+  jsonb_build_array(schemaname,tablename,policyname,permissive,roles,cmd,qual,with_check)
+  ORDER BY schemaname,tablename,policyname),'[]'::jsonb)::text,'UTF8')),'hex')
+  FROM pg_policies WHERE schemaname IN ('public','private')) AS policy_digest
+)
+SELECT row_to_json(material) AS acl_digests FROM material`;
+const REQUIRED_DIGESTS=Object.freeze(['schema_acl','relation_acl','function_acl',
+ 'column_acl','managed_defaults','postgres_defaults','policy_digest']);
+export function certifyM44AppAclDigests(source,after,{phase='after'}={}){
+ for(const x of [source,after]){
+  if(!x||typeof x!=='object'||Array.isArray(x)||
+    Object.keys(x).length!==REQUIRED_DIGESTS.length||
+    REQUIRED_DIGESTS.some(k=>typeof x[k]!=='string'||!/^[0-9a-f]{64}$/.test(x[k])))
+   fail('ACL_DIGEST_FORMAT_INVALID');
+ }
+ const keys=phase==='before'?['managed_defaults','policy_digest']:
+  REQUIRED_DIGESTS;
+ if(!['before','after'].includes(phase))fail('ACL_DIGEST_PHASE_INVALID');
+ const drift=keys.filter(k=>source[k]!==after[k]);
+ if(drift.length)fail(phase==='before'?'MANAGED_BASELINE_DIGEST_DRIFT':'ACL_DIGEST_PARITY_DRIFT');
+ return Object.freeze({matched:keys.length,platformRecoveryCertified:false});
+}
+async function readAclDigests(project){
+ const response=await mg(project,'/database/query',{method:'POST',body:{query:aclDigestSql}});
+ const rows=Array.isArray(response)?response:response?.result;
+ if(!Array.isArray(rows)||rows.length!==1||!rows[0]?.acl_digests)
+  fail('ACL_DIGEST_READBACK_INVALID');
+ return rows[0].acl_digests;
 }
 async function assertSealed(){
  const p=await mg(TARGET,'/postgrest');
@@ -223,6 +298,7 @@ async function main(){
   // BEFORE any read from the sensitive clone or application ACL replay.
   m44Phase='PROD_CENSUS_READONLY';
   const source=await readCensus(PROD); // SELECT-only catalog/counts. No PROD mutations.
+  const sourceAclDigests=await readAclDigests(PROD);
   m44Phase='PAUSE_QA_SAFE_SWAP';
   qaPaused=true;await mg(QA,'/pause',{method:'POST'});await until(QA,'INACTIVE');
   m44Phase='RESUME_EXISTING_SEALED_SANDBOX';
@@ -233,6 +309,9 @@ async function main(){
   const before=await readCensus(TARGET);
   for(const k of ['rls','policies','app_tables','users','storage','invalid_indexes'])
    if(before[k]!==source[k])fail('PRE_REPLAY_SCHEMA_OR_DATA_DRIFT');
+  m44Phase='MANAGED_DEFAULT_PRIVILEGES_PROVENANCE';
+  const beforeAclDigests=await readAclDigests(TARGET);
+  certifyM44AppAclDigests(sourceAclDigests,beforeAclDigests,{phase:'before'});
   m44Phase='SEALED_APP_ACL_REPLAY';
   await replayACL();
   m44Phase='POST_ACL_AUTH_API_SEAL';
@@ -240,6 +319,10 @@ async function main(){
   m44Phase='POST_ACL_READONLY_CENSUS';
   const after=await readCensus(TARGET);
   certifyManagedAppAclCensus(source,after);
+  m44Phase='EXACT_APP_ACL_DIGEST_READBACK';
+  const afterAclDigests=await readAclDigests(TARGET);
+  certifyM44AppAclDigests(sourceAclDigests,afterAclDigests,{phase:'after'});
+  console.log('M44_MANAGED_APP_ACL_DIGEST_PARITY_VERIFIED:categories=7:managed_admin_defaults_unchanged=1');
   console.log('M44_MANAGED_APP_ACL_PARITY_VERIFIED:rls_policies_stable=1:auth_storage_preserved=1:prod_writes=0:full_platform_NOT_certified');
  }finally{
   try{if(cloneActivated){await mg(TARGET,'/pause',{method:'POST'});await until(TARGET,'INACTIVE');console.log('M44_ACL_CLONE_PAUSED');}}
