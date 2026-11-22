@@ -1,5 +1,5 @@
 // IBERFIT M44: offline, read-only source-to-archive ACL coverage.
-// DOES NOT create/restore/pause projects, replay GRANT/REVOKE or log SQL/names.
+// DOES NOT create, restore, or pause projects; never logs SQL or object names.
 // The one prior authenticated encrypted PROD archive is opened only in a
 // private ephemeral GitHub runner, and erased at process completion.
 import {createHash} from 'node:crypto';
