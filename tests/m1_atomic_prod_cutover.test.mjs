@@ -44,3 +44,15 @@ test('This is offline-only materialization, not a hidden production release',()=
  assert.equal(r.status,1);
  assert.match(r.stderr,/M1_ATOMIC_PROD_NO_EXTERNAL_ARGUMENTS/);
 });
+
+test('Autonomous overlay pins the actual closed PROD U60 detail function baseline',()=>{
+ const overlay=original('supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.sql');
+ const reviewed=M1_ATOMIC_SOURCES.find(x=>x.id==='AUTONOMOUS_DATES');
+ assert.equal(reviewed.blob,'a7c4d255e1aee7e6546fbd2dad2019a4af4f6c5e');
+ assert.match(overlay,/35862b8e4977fcf0c3d611937fe83126/);
+ assert.doesNotMatch(overlay,/dd1027122e0843b44529cf87dad746b5/);
+ const candidate=materializeM1AtomicProdCutover();
+ assert.match(candidate.sql,/M1_AUTONOMOUS_U60_BASELINE_DRIFT/);
+ assert.match(candidate.sql,/35862b8e4977fcf0c3d611937fe83126/);
+ assert.equal(candidate.executableOnlyAfterIndependentAuthorization,true);
+});
