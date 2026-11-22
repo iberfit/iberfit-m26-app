@@ -13,7 +13,7 @@ export const M1_ATOMIC_SOURCES=Object.freeze([
   proof:'M1_U72_PROD_AUTH_ACL_DRIFT'}),
  Object.freeze({id:'AUTONOMOUS_DATES',
   path:'supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.sql',
-  blob:'97ab01d06d474fcad94d65efd751ae4b325f8f25',transaction:false,
+  blob:'a7c4d255e1aee7e6546fbd2dad2019a4af4f6c5e',transaction:false,
   proof:'M1_AUTONOMOUS_U33_INSTALL_FAILED'}),
  Object.freeze({id:'U60_ENABLE',
   path:'supabase/release-procedures/20261112_m1_u60_prod_guarded_enable.sql',
