@@ -46,7 +46,7 @@ test('Public Data API, Auth email/phone and signup are isolated before any real 
   "db_schema:'m44_recovery_closed'",
   "external_email_enabled:false","external_phone_enabled:false",
   "external_anonymous_users_enabled:false","disable_signup:true",
-  "PUBLIC_DATA_API_NOT_DENIED","ISOLATION_SCHEMA_GRANTS_UNSAFE",
+  "PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED","PUBLIC_API_CONTROL_PLANE_REOPENED","ISOLATION_SCHEMA_GRANTS_UNSAFE",
   "ISOLATED_PROJECT_NOT_EMPTY"
  ])assert.ok(code.includes(item),item);
 });
