@@ -139,11 +139,24 @@ async function seal(){
    fail('ISOLATED_TARGET_IDENTITY_INVALID');
  m44Phase='SEAL_EMPTY_SQL_READ';
  const empty=await sup(TARGET,'/database/query',{method:'POST',body:{
-  query:"SELECT (SELECT count(*) FROM auth.users) AS users, (SELECT count(*) FROM storage.objects) AS objects, (SELECT count(*) FROM pg_tables WHERE schemaname='public') AS tables"
+  query:"SELECT (SELECT count(*) FROM auth.users) AS users, (SELECT count(*) FROM auth.identities) AS identities, (SELECT count(*) FROM auth.sessions) AS sessions, (SELECT count(*) FROM storage.objects) AS objects, (SELECT count(*) FROM storage.buckets) AS buckets, (SELECT count(*) FROM vault.secrets) AS vault_secrets, (SELECT count(*) FROM pg_tables WHERE schemaname IN ('public','private')) AS tables, (SELECT count(*) FROM pg_views WHERE schemaname='public' AND viewname <> 'm44_recovery_exposure_probe') AS unexpected_views, (SELECT count(*) FROM pg_views WHERE schemaname='public' AND viewname='m44_recovery_exposure_probe') AS synthetic_views"
  }});
  const row=Array.isArray(empty)?empty[0]:empty?.result?.[0];
- if(!row||Number(row.users)!==0||Number(row.objects)!==0||Number(row.tables)!==0)
+ if(!row||['users','identities','sessions','objects','buckets','vault_secrets','tables','unexpected_views'].some(k=>Number(row[k])!==0)||
+    ![0,1].includes(Number(row.synthetic_views)))
    fail('ISOLATED_PROJECT_NOT_EMPTY');
+ // A failed rehearsal may leave only the known synthetic exposure probe and
+ // PostgREST pointing at the already-closed schema. Reset public API solely
+ // when every real-data-bearing source above has been proved empty.
+ m44Phase='SEAL_RESET_EMPTY_SANDBOX_POSTGREST';
+ const apiBefore=await sup(TARGET,'/postgrest');
+ if(!apiBefore||!['public','m44_recovery_closed'].includes(apiBefore.db_schema))
+   fail('UNEXPECTED_PRE_RESTORE_DATA_API_CONFIGURATION');
+ if(apiBefore.db_schema==='m44_recovery_closed'){
+  await sup(TARGET,'/postgrest',{method:'PATCH',body:{db_schema:'public'}});
+  const reopened=await sup(TARGET,'/postgrest');
+  if(reopened?.db_schema!=='public')fail('EMPTY_SANDBOX_RESET_NOT_CONFIRMED');
+ }
  m44Phase='SEAL_KEYS_READ';
  const keys=await sup(TARGET,'/api-keys?reveal=true');
  if(!Array.isArray(keys))fail('KEY_LIST_INVALID');
@@ -155,7 +168,7 @@ async function seal(){
  const probeURL='https://'+TARGET+'.supabase.co/rest/v1/m44_recovery_exposure_probe?select=sentinel&limit=1';
  m44Phase='SEAL_CREATE_SYNTHETIC_PROBE_SQL';
  await sup(TARGET,'/database/query',{method:'POST',body:{
-  query:"CREATE VIEW public.m44_recovery_exposure_probe WITH (security_invoker=true) AS SELECT 'M44_ISOLATION_SENTINEL_ONLY'::text AS sentinel; GRANT SELECT ON public.m44_recovery_exposure_probe TO anon; NOTIFY pgrst, 'reload schema'"
+  query:"CREATE OR REPLACE VIEW public.m44_recovery_exposure_probe WITH (security_invoker=true) AS SELECT 'M44_ISOLATION_SENTINEL_ONLY'::text AS sentinel; GRANT SELECT ON public.m44_recovery_exposure_probe TO anon; NOTIFY pgrst, 'reload schema'"
  }});
  let positiveControl=false;
  for(let i=0;i<20;i++){
