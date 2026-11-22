@@ -8,6 +8,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {classifyM44RestoreFailure} from './m44_managed_pg_restore_failure.mjs';
+import {orderM44ManagedDataRestore} from './m44_managed_auth_toc_order.mjs';
 
 const TARGET='zfvaouggafdbqfbpwhfx';
 const QA='gjztkdwfmunnzhtvxrsu';
@@ -311,10 +312,11 @@ function generateSelectedToc(){
   out.push(isAuth||isApp?line:';'+line);
  }
  if(authUsers!==1||app<100||appData<15)fail('RESTORE_SOURCE_SCOPE_INVALID');
+ const ordered=orderM44ManagedDataRestore(out);
  const toc=join(directory,'restricted-restore.list');
- writeFileSync(toc,out.join('\n'),{encoding:'utf8',mode:0o600,flag:'wx'});
+ writeFileSync(toc,ordered.lines.join('\n'),{encoding:'utf8',mode:0o600,flag:'wx'});
  console.log('M44_MANAGED_RECOVERY_TOC_SCOPE_VERIFIED:app_entries='+app+
-  ':app_data_tables='+appData+':auth_user_data=1');
+  ':app_data_tables='+appData+':auth_user_data=1:auth_dependency_order=verified');
  return toc;
 }
 async function restoreData(conn){
