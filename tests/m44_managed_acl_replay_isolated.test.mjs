@@ -97,6 +97,18 @@ test('Managed default permissions and exact app ACL digests must match before pr
  assert.throws(()=>certifyM44AppAclDigests(baseline,
   {...baseline,managed_defaults:'not-a-hash'},{phase:'before'}),/ACL_DIGEST_FORMAT_INVALID/);
 });
+test('Synthetic M44 exposure probe is excluded from actual app ACL census',()=>{
+ const s=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
+ const count=s.match(/'relation_acl',\(SELECT count\(\*\) FROM pg_class[^\n]+/);
+ assert.ok(count,'Expected relation ACL census');
+ assert.match(count[0],/c.relacl IS NOT NULL AND NOT \(n.nspname='public' AND c.relname='m44_recovery_exposure_probe'\)/);
+ const appOnly=Object.freeze({...src,relation_acl:src.relation_acl});
+ assert.equal(certifyManagedAppAclCensus(src,appOnly).aclRestored,true);
+ assert.throws(()=>certifyManagedAppAclCensus(src,{...src,relation_acl:src.relation_acl+1}),
+  /ACL_PARITY_DRIFT_RELATION_ACL/);
+ assert.throws(()=>certifyManagedAppAclCensus(src,{...src,function_acl:src.function_acl+1}),
+  /ACL_PARITY_DRIFT_FUNCTION_ACL/);
+});
 test('Exact ACL digests are collected only after sealed clone and before replay',()=>{
  const s=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
  const start=s.indexOf('async function main()');

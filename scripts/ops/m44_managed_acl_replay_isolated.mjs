@@ -67,7 +67,7 @@ export function certifyManagedAppAclCensus(source,after){
  const stable=['rls','policies','app_tables','users','storage','invalid_indexes'];
  for(const k of stable)if(source[k]!==after[k])fail('SECURITY_OR_DATA_DRIFT');
  const acls=['relation_acl','function_acl','default_acl'];
- for(const k of acls)if(after[k]!==source[k])fail('ACL_PARITY_DRIFT');
+ for(const k of acls)if(after[k]!==source[k])fail('ACL_PARITY_DRIFT_'+k.toUpperCase());
  if(source.rls<100||source.policies<100||source.app_tables<100||
   source.relation_acl<100||source.function_acl<100||source.default_acl<1||
   source.users<1||source.storage<1||source.invalid_indexes!==0)
@@ -79,7 +79,7 @@ const censusSql=`SELECT jsonb_build_object(
  'app_tables',(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p')),
  'rls',(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p') AND c.relrowsecurity),
  'policies',(SELECT count(*) FROM pg_policies WHERE schemaname IN ('public','private')),
- 'relation_acl',(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private') AND c.relacl IS NOT NULL),
+ 'relation_acl',(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private') AND c.relacl IS NOT NULL AND NOT (n.nspname='public' AND c.relname='m44_recovery_exposure_probe')),
  'function_acl',(SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','private') AND p.proacl IS NOT NULL),
  'default_acl',(SELECT count(*) FROM pg_default_acl d JOIN pg_namespace n ON n.oid=d.defaclnamespace WHERE n.nspname IN ('public','private')),
  'invalid_indexes',(SELECT count(*) FROM pg_index i JOIN pg_class c ON c.oid=i.indrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private') AND (NOT i.indisvalid OR NOT i.indisready)),
@@ -149,7 +149,7 @@ export function certifyM44AppAclDigests(source,after,{phase='after'}={}){
   REQUIRED_DIGESTS;
  if(!['before','after'].includes(phase))fail('ACL_DIGEST_PHASE_INVALID');
  const drift=keys.filter(k=>source[k]!==after[k]);
- if(drift.length)fail(phase==='before'?'MANAGED_BASELINE_DIGEST_DRIFT':'ACL_DIGEST_PARITY_DRIFT');
+ if(drift.length)fail((phase==='before'?'MANAGED_BASELINE_DIGEST_DRIFT_':'ACL_DIGEST_PARITY_DRIFT_')+drift[0].toUpperCase());
  return Object.freeze({matched:keys.length,platformRecoveryCertified:false});
 }
 async function readAclDigests(project){
