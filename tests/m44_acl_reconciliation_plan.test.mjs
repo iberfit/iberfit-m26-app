@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {planM44AclReconciliation as plan} from '../scripts/ops/m44_acl_reconciliation_plan.mjs';
 const owner=['postgres','postgres','SELECT',false];
+const schemaOwner=['postgres','postgres','USAGE',false];
 const unauth=['postgres','anon','DELETE',false];
 const client=['postgres','authenticated','USAGE',false];
 const execution=['postgres','anon','EXECUTE',false];
@@ -18,12 +19,12 @@ const col=p=>({name:'public:training:notes',schema_name:'public',
 const schema=(name,p)=>({name,owner_name:'postgres',privileges:p});
 const original={
  relations:[table([owner])],functions:[fn([])],
- schemas:[schema('public',[owner,client]),schema('private',[owner])],
+ schemas:[schema('public',[schemaOwner,client]),schema('private',[schemaOwner])],
  defaults:[defaults([])],columns:[col([column])]
 };
 const restored={
  relations:[table([owner,unauth])],functions:[fn([execution])],
- schemas:[schema('public',[owner]),schema('private',[owner])],
+ schemas:[schema('public',[schemaOwner]),schema('private',[schemaOwner])],
  defaults:[defaults([defaultExtra])],columns:[col([column])]
 };
 test('bounded repair reverses only unexpected clone grants and replays column grants after table revokes',()=>{
@@ -80,4 +81,13 @@ test('PG17 long function identities are supported without opening SQL injection 
  const p=plan(s,t);
  assert.equal(p.summary.functions.extra,1);
  assert.ok(p.commands.some(x=>x.includes('REVOKE EXECUTE ON FUNCTION '+sig)));
+});
+
+test('privilege classes are checked before SQL generation to reject unsafe input',()=>{
+ const dangerous={...restored,defaults:[defaults([
+  ['postgres','anon','SELECT;DROP TABLE',false]])]};
+ assert.throws(()=>plan(original,dangerous),/PRIVILEGE_OUT_OF_SCOPE/);
+ const invalidFunction={...restored,functions:[fn([
+  ['postgres','anon','TRUNCATE',false]])]};
+ assert.throws(()=>plan(original,invalidFunction),/PRIVILEGE_OUT_OF_SCOPE/);
 });
