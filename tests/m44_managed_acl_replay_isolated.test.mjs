@@ -127,8 +127,8 @@ test('A successfully replayed managed sandbox is verified read-only; no non-idem
  const source=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
  const main=source.slice(source.indexOf('async function main()'));
  const replay=main.indexOf('await replayACL();');
- const first=main.indexOf("certifyM44AppAclDigests(sourceAclDigests,beforeAclDigests,{phase:'after'})");
- const second=main.indexOf("certifyM44AppAclDigests(sourceAclDigests,afterAclDigests,{phase:'after'})");
+ const first=main.indexOf("const beforeAttestation=certifyM44AppAclSemanticReadback(");
+ const second=main.indexOf("const attestation=certifyM44AppAclSemanticReadback(");
  const seal=main.indexOf('await assertSealed();await assertDenied();');
  assert.equal(replay,-1,'No second ACL restore of already-mutated managed clone');
  assert.ok(seal>=0&&first>seal&&second>first);
