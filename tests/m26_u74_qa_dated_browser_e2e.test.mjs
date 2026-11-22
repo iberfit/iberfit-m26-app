@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {chooseUnoccupiedDatedSlot,chooseAppointmentlessDateOnlyQaSlot} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {chooseUnoccupiedDatedSlot,chooseAppointmentlessDateOnlyQaSlot,buildQaAutonomousDateOnlyPair} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 import {santiagoAppointmentInstant} from '../src/m26/workflows/agenda-workflow.js';
 import {isQaReadonlyDatedRequest,isQaScopedDatedSyntheticWrite} from '../qa/rc64/secure-current-source-auth.mjs';
 const CLIENT='10000000-0000-4000-8000-000000000001';
@@ -135,7 +135,7 @@ test('U74 one-PR authenticated no-cita browser workflow is strict branch and two
  assert.ok(wf.includes('feat/m26-autonomous-dates-m44-one-prod-release-20261121')&&code.includes('feat/m26-autonomous-dates-m44-one-prod-release-20261121'));
  for(const marker of ['M26_QA_U74_AUTONOMOUS_NO_APPOINTMENT','github.run_attempt == 2','m26-canary-readonly']) assert.ok(wf.includes(marker));
  for(const marker of ['AUTONOMOUS_BRANCH_DENIED','MODE_EXPLICIT_REQUIRED','two_no_appointment_dates_persisted','AUTONOMOUS_PROOF_MODE_MISMATCH']) assert.ok(code.includes(marker));
- assert.ok(code.includes('?\[{localDate:today},{localDate:future,localTime:plan.time}]'.replace('\\[','[')));
+ assert.ok(code.includes('?buildQaAutonomousDateOnlyPair(today,future)'));
  assert.ok(ui.includes('proof.fixture.appointmentless'));
  assert.doesNotMatch(wf,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|IBERFIT_PROD_DATABASE_URL/u);
 });
@@ -181,9 +181,9 @@ test('U74 stale signed time fails closed after QA queue, fresh read-only slot re
  assert.notEqual(fresh.start1,old.start1);
 });
 
-// The no-cita path stores a date-only FIRST occurrence. The fixed localTime
-// belongs to the second occurrence next week: QA queue delay must not
-// invalidate the signed preflight, unlike an appointment-bound U71 slot.
+// The no-cita path stores TWO date-only occurrences; its fixed signed time
+// is an internal evidence marker and never an appointment/occurrence time.
+// QA mutex delays must not invalidate it, unlike appointment-bound U71.
 test('U74 date-only preflight is stable across QA queue without relaxing signed dates',()=>{
  const today='2026-11-22',future='2026-11-29',duration=30;
  const one=chooseAppointmentlessDateOnlyQaSlot({today,future,duration,clockDay:today});
@@ -205,4 +205,19 @@ test('U74 date-only preflight is stable across QA queue without relaxing signed 
  assert.match(runner,/old\.fingerprint===proof\.fingerprint/u);
  assert.match(runner,/old\.localDate===proof\.localDate/u);
  assert.match(runner,/old\.localTime===proof\.localTime/u);
+});
+
+test('U74 creates two independent date-only occurrences without fabricating time or bookings',()=>{
+ const rows=buildQaAutonomousDateOnlyPair('2026-11-22','2026-11-29');
+ assert.deepEqual(rows,[{localDate:'2026-11-22'},{localDate:'2026-11-29'}]);
+ assert.equal(Object.isFrozen(rows),true);
+ assert.ok(rows.every(row=>Object.isFrozen(row)&&!('localTime' in row)&&!('appointmentId' in row)));
+ assert.throws(()=>buildQaAutonomousDateOnlyPair('2026-11-22','2026-11-30'),
+  /U74_DATE_ONLY_PAIR_INVALID/);
+ assert.throws(()=>buildQaAutonomousDateOnlyPair('bad','2026-11-29'),
+  /U74_DATE_ONLY_PAIR_INVALID/);
+ const runner=readFileSync('scripts/remote-gates/qa_u60_real_dated_journey.mjs','utf8');
+ assert.match(runner,/dates:ctx\.autonomous\s*\?buildQaAutonomousDateOnlyPair\(today,future\)/u);
+ assert.match(runner,/appointments\.map\(\(x,i\)=>\(\{localDate:x\.date,localTime:plan\.time,/u);
+ assert.match(runner,/appointmentId:commands\[i\]\.entityId/u);
 });
