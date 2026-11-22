@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
-import {selectAppOnlyPrivilegeToc,certifyManagedAppAclCensus} from '../scripts/ops/m44_managed_acl_replay_isolated.mjs';
+import {selectAppOnlyPrivilegeToc,certifyManagedAppAclCensus,certifyM44AppAclDigests} from '../scripts/ops/m44_managed_acl_replay_isolated.mjs';
 const example=['; Archive created','; TOC Entries: 7',
 '1; 2615 10 TABLE public.clients postgres',
 '2; 0 0 ACL public TABLE clients postgres',
@@ -62,6 +62,53 @@ test('Do not query paused project service config: prove prior seal and check aft
  assert.ok(a>0&&pause>a&&resume>pause&&seal>resume&&replay>seal);
  assert.doesNotMatch(s.slice(s.indexOf("async function main()"),resume),/await assertSealed\(\)/);
  assert.match(s,/MANAGEMENT_HTTP_'\+r.status\+'_PHASE_'\+m44Phase/);
+});
+
+test('Managed supabase_admin default privileges are never re-granted by postgres',()=>{
+ const parts=['; Archive synthetic','; TOC Entries: 127'];
+ for(let i=1;i<=120;i++)parts.push(i+'; 0 0 ACL public TABLE fixture_'+i+' postgres');
+ parts.push('121; 0 0 DEFAULT ACL public DEFAULT PRIVILEGES FOR TABLES postgres');
+ parts.push('122; 0 0 DEFAULT ACL public DEFAULT PRIVILEGES FOR TABLES supabase_admin');
+ parts.push('123; 0 0 ACL public TABLE suspicious supabase_admin');
+ parts.push('124; 0 0 ACL auth TABLE users postgres');
+ parts.push('125; 0 0 ACL storage TABLE objects postgres');
+ parts.push('126; 0 0 TABLE DATA public.clients postgres');
+ parts.push('127; 0 0 FUNCTION public fixture postgres');
+ assert.throws(()=>selectAppOnlyPrivilegeToc(parts.join('\n')),/APP_OBJECT_OWNER_NOT_POSTGRES/);
+ parts[124]='123; 0 0 ACL public TABLE safe postgres';
+ const result=selectAppOnlyPrivilegeToc(parts.join('\n'));
+ assert.equal(result.grants,121);
+ assert.equal(result.defaults,1);
+ assert.match(result.output,/;122; 0 0 DEFAULT ACL public DEFAULT PRIVILEGES FOR TABLES supabase_admin/);
+ assert.ok(!result.output.split('\n').some(l=>/^122;/.test(l)));
+});
+test('Managed default permissions and exact app ACL digests must match before promotion',()=>{
+ const keys=['schema_acl','relation_acl','function_acl','column_acl','managed_defaults',
+  'postgres_defaults','policy_digest'];
+ const baseline=Object.fromEntries(keys.map((k,i)=>[k,String(i+1).repeat(64)]));
+ assert.deepEqual(certifyM44AppAclDigests(baseline,{...baseline},{phase:'after'}).matched,7);
+ for(const k of keys)assert.throws(()=>certifyM44AppAclDigests(baseline,
+  {...baseline,[k]:'a'.repeat(64)},{phase:'after'}),/ACL_DIGEST_PARITY_DRIFT/);
+ for(const k of ['managed_defaults','schema_acl','policy_digest'])
+  assert.throws(()=>certifyM44AppAclDigests(baseline,
+   {...baseline,[k]:'b'.repeat(64)},{phase:'before'}),/MANAGED_BASELINE_DIGEST_DRIFT/);
+ assert.equal(certifyM44AppAclDigests(baseline,
+  {...baseline,relation_acl:'f'.repeat(64)},{phase:'before'}).matched,3);
+ assert.throws(()=>certifyM44AppAclDigests(baseline,
+  {...baseline,managed_defaults:'not-a-hash'},{phase:'before'}),/ACL_DIGEST_FORMAT_INVALID/);
+});
+test('Exact ACL digests are collected only after sealed clone and before replay',()=>{
+ const s=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
+ const start=s.indexOf('async function main()');
+ const segment=s.slice(start);
+ const seal=segment.indexOf('await assertSealed();await assertDenied();');
+ const before=segment.indexOf("const beforeAclDigests=await readAclDigests(TARGET)");
+ const replay=segment.indexOf('await replayACL();');
+ const after=segment.indexOf("const afterAclDigests=await readAclDigests(TARGET)");
+ assert.ok(seal>=0&&before>seal&&replay>before&&after>replay);
+ assert.match(s,/managed_defaults/);
+ assert.match(s,/m44_recovery_exposure_probe/);
+ assert.doesNotMatch(s,/SET ROLE supabase_admin|GRANT supabase_admin TO postgres/);
 });
 test('Unprotected direct execution rejects without network or changes',()=>{
  const r=spawnSync(process.execPath,['scripts/ops/m44_managed_acl_replay_isolated.mjs'],{
