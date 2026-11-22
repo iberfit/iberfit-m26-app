@@ -20,6 +20,7 @@ jobs:
     environment: m26-canary-readonly
     env:
       GITHUB_TOKEN: ${{ github.token }}
+      GH_READ_TOKEN: ${{ github.token }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       IBERFIT_BACKUP_PASSPHRASE: ${{ secrets.IBERFIT_BACKUP_PASSPHRASE }}
       M44_USER_AUTHORIZATION: APP_ACL_SANDBOX_ONLY_20261122
