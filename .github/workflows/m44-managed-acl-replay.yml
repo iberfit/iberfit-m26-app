@@ -1,4 +1,4 @@
-name: IBERFIT M44 Managed App ACL Parity on Restored Sandbox
+name: IBERFIT M44 Verify Persisted App ACL on Sealed Sandbox
 on:
   push:
     branches: [canary/rc74-4]
@@ -14,7 +14,7 @@ concurrency:
   queue: max
   cancel-in-progress: false
 jobs:
-  app-acl-restoration:
+  verify-existing-app-acl:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     environment: m26-canary-readonly
@@ -35,10 +35,10 @@ jobs:
         run: |
           node --check scripts/ops/m44_managed_acl_replay_isolated.mjs
           node --test tests/m44_managed_acl_replay_isolated.test.mjs tests/m44_acl_toc_selector.test.mjs
-      - name: Reuse existing sealed data sandbox and restore only application ACLs
+      - name: Check persisted app ACLs without replaying SQL or resetting passwords
         run: node scripts/ops/m44_managed_acl_replay_isolated.mjs
   restore-free-slots:
-    needs: [app-acl-restoration]
+    needs: [verify-existing-app-acl]
     if: ${{ always() && github.repository == 'iberfit/iberfit-m26-app' }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly

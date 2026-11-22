@@ -122,6 +122,20 @@ test('Exact ACL digests are collected only after sealed clone and before replay'
  assert.match(s,/m44_recovery_exposure_probe/);
  assert.doesNotMatch(s,/SET ROLE supabase_admin|GRANT supabase_admin TO postgres/);
 });
+test('A successfully replayed managed sandbox is verified read-only; no non-idempotent REVOKE retries',()=>{
+ const source=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
+ const main=source.slice(source.indexOf('async function main()'));
+ const replay=main.indexOf('await replayACL();');
+ const first=main.indexOf("certifyM44AppAclDigests(sourceAclDigests,beforeAclDigests,{phase:'after'})");
+ const second=main.indexOf("certifyM44AppAclDigests(sourceAclDigests,afterAclDigests,{phase:'after'})");
+ const seal=main.indexOf('await assertSealed();await assertDenied();');
+ assert.equal(replay,-1,'No second ACL restore of already-mutated managed clone');
+ assert.ok(seal>=0&&first>seal&&second>first);
+ assert.match(main,/certifyManagedAppAclCensus\(source,before\)/);
+ assert.match(main,/certifyManagedAppAclCensus\(source,after\)/);
+ assert.match(main,/M44_MANAGED_EXISTING_APP_ACL_VERIFIED_READONLY/);
+ assert.doesNotMatch(main,/await connection\(\)|await archive\(\)|await replayACL\(\)/);
+});
 test('Unprotected direct execution rejects without network or changes',()=>{
  const r=spawnSync(process.execPath,['scripts/ops/m44_managed_acl_replay_isolated.mjs'],{
   env:{PATH:process.env.PATH},encoding:'utf8',timeout:6000});
