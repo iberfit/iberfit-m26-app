@@ -9,6 +9,7 @@ import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {classifyM44RestoreFailure} from './m44_managed_pg_restore_failure.mjs';
 import {orderM44ManagedDataRestore} from './m44_managed_auth_toc_order.mjs';
+import {planM44ManagedExtensionParity,certifyM44ManagedExtensionParity} from './m44_managed_extension_parity.mjs';
 
 const TARGET='zfvaouggafdbqfbpwhfx';
 const QA='gjztkdwfmunnzhtvxrsu';
@@ -340,6 +341,39 @@ function generateSelectedToc(){
   ':app_data_tables='+appData+':auth_user_data=1:auth_dependency_order=verified');
  return toc;
 }
+// pg_restore -L intentionally omits Supabase's EXTENSION TOC entries. The
+// destination project must therefore have source-compatible extension schemas
+// before rebuilding app indexes; otherwise gin_trgm_ops and similar dependencies
+// can fail despite all app tables and data being present.
+async function prepareM44ManagedExtensions(){
+ if(!sealed||clonedData||!activeClone||!qaPaused)fail('MANAGED_EXTENSION_SEAL_REQUIRED');
+ m44Phase='DB_MANAGED_EXTENSION_INVENTORY';
+ const query="SELECT e.extname AS name, n.nspname AS schema_name, "+
+  "EXISTS(SELECT 1 FROM pg_opclass oc JOIN pg_namespace onsp ON onsp.oid=oc.opcnamespace "+
+  "WHERE onsp.nspname='extensions' AND oc.opcname='gin_trgm_ops') AS gin_trgm_ready "+
+  "FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace "+
+  "WHERE e.extname IN ('plpgsql','pg_stat_statements','uuid-ossp','pgcrypto','supabase_vault','pg_trgm')";
+ const fetchInstalled=async()=>{
+  const r=await sup(TARGET,'/database/query',{method:'POST',body:{query}});
+  const rows=Array.isArray(r)?r:r?.result;
+  if(!Array.isArray(rows))fail('MANAGED_EXTENSION_INVENTORY_INVALID');
+  return rows;
+ };
+ const before=await fetchInstalled();
+ let plan;
+ try{plan=planM44ManagedExtensionParity(before);}
+ catch{fail('MANAGED_EXTENSION_INVENTORY_DRIFT');}
+ for(const statement of plan.installSql){
+  // SQL comes exclusively from the audited static allowlist; never from API.
+  m44Phase='DB_MANAGED_ALLOWLISTED_EXTENSION_INSTALL';
+  await sup(TARGET,'/database/query',{method:'POST',body:{query:statement}});
+ }
+ m44Phase='DB_MANAGED_EXTENSION_READBACK';
+ const after=plan.ready?before:await fetchInstalled();
+ try{certifyM44ManagedExtensionParity(after);}
+ catch{fail('MANAGED_EXTENSION_PARITY_NOT_VERIFIED');}
+ console.log('M44_MANAGED_EXTENSION_PARITY_VERIFIED:source_required=6:gin_trgm_ops=ready');
+}
 async function restoreData(conn){
  m44Phase='DB_MANAGED_SQL_RESTORE';
  const selected=generateSelectedToc();
@@ -489,6 +523,7 @@ async function main(){
   await seal();
   const conn=await databaseConnection();
   await downloadArchive();
+  await prepareM44ManagedExtensions();
   await restoreData(conn);
   await restorePrivateStorage();
   if(!sealed||!clonedData)fail('RESTORE_NOT_ISOLATED');

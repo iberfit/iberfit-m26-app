@@ -12,6 +12,8 @@ test('M44 restore errors produce bounded non-sensitive classifications only',()=
   ['ERROR: duplicate key value violates unique constraint','UNIQUE_CONFLICT'],
   ['pg_restore: error: COPY failed for table "secret"','POSTGRES_COPY_FAILED'],
   ['ERROR: role "pg_test" does not exist','MISSING_ROLE_OR_TYPE'],
+  ['ERROR: operator class "gin_trgm_ops" does not exist for access method "gin"','INDEX_OPERATOR_DEPENDENCY'],
+  ['ERROR: could not create unique index "idx_secret"','INDEX_UNIQUE_DATA_CONFLICT'],
   ['server closed the connection unexpectedly','CONNECTION_OR_POOLER']
  ];
  for(const [raw,expected] of synthetic){
