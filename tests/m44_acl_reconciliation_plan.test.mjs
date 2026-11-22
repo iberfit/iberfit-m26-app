@@ -71,3 +71,13 @@ test('source-to-sandbox grant comparison cannot inject a second SQL statement',(
     owner_name:'postgres',privileges:[execution]}]};
  assert.throws(()=>plan(original,attempt),/M44_ACL_PLAN_/);
 });
+
+test('PG17 long function identities are supported without opening SQL injection paths',()=>{
+ const sig='public.example_function('+Array.from({length:45},()=> 'integer').join(', ')+')';
+ assert.ok(sig.length>128&&sig.length<512);
+ const s={...original,functions:[{...fn([]),name:sig}]};
+ const t={...restored,functions:[{...fn([execution]),name:sig}]};
+ const p=plan(s,t);
+ assert.equal(p.summary.functions.extra,1);
+ assert.ok(p.commands.some(x=>x.includes('REVOKE EXECUTE ON FUNCTION '+sig)));
+});
