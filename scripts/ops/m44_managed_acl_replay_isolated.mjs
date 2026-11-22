@@ -312,17 +312,23 @@ async function main(){
   m44Phase='MANAGED_DEFAULT_PRIVILEGES_PROVENANCE';
   const beforeAclDigests=await readAclDigests(TARGET);
   certifyM44AppAclDigests(sourceAclDigests,beforeAclDigests,{phase:'before'});
-  m44Phase='SEALED_APP_ACL_REPLAY';
-  await replayACL();
-  m44Phase='POST_ACL_AUTH_API_SEAL';
+  // Prior managed drill #44982480166 atomically applied 390 app ACLs and
+  // three postgres default privilege entries. Subsequent REVOKE attempts
+  // against the *same* sandbox failed. Never replay against an already
+  // modified managed clone: independently attest the persisted ACLs first.
+  // This intentionally performs zero SQL writes, including no password resets.
+  m44Phase='PREVIOUS_ACL_REPLAY_READONLY_VERIFICATION';
+  certifyManagedAppAclCensus(source,before);
+  certifyM44AppAclDigests(sourceAclDigests,beforeAclDigests,{phase:'after'});
+  m44Phase='REPEAT_SEAL_AND_DENIAL_READONLY';
   await assertSealed();await assertDenied();
-  m44Phase='POST_ACL_READONLY_CENSUS';
+  m44Phase='FINAL_READONLY_CENSUS';
   const after=await readCensus(TARGET);
   certifyManagedAppAclCensus(source,after);
-  m44Phase='EXACT_APP_ACL_DIGEST_READBACK';
+  m44Phase='FINAL_ACL_DIGEST_READBACK';
   const afterAclDigests=await readAclDigests(TARGET);
   certifyM44AppAclDigests(sourceAclDigests,afterAclDigests,{phase:'after'});
-  console.log('M44_MANAGED_APP_ACL_DIGEST_PARITY_VERIFIED:categories=7:managed_admin_defaults_unchanged=1');
+  console.log('M44_MANAGED_EXISTING_APP_ACL_VERIFIED_READONLY:categories=7:no_replay=1:prod_writes=0');
   console.log('M44_MANAGED_APP_ACL_PARITY_VERIFIED:rls_policies_stable=1:auth_storage_preserved=1:prod_writes=0:full_platform_NOT_certified');
  }finally{
   try{if(cloneActivated){await mg(TARGET,'/pause',{method:'POST'});await until(TARGET,'INACTIVE');console.log('M44_ACL_CLONE_PAUSED');}}
