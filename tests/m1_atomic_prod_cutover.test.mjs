@@ -45,14 +45,18 @@ test('This is offline-only materialization, not a hidden production release',()=
  assert.match(r.stderr,/M1_ATOMIC_PROD_NO_EXTERNAL_ARGUMENTS/);
 });
 
-test('Autonomous overlay pins the actual closed PROD U60 detail function baseline',()=>{
+test('U72 install changes private detail before autonomous overlay preflight',()=>{
+ const u72=original('supabase/release-procedures/20261117_m1_u72_prod_guarded_materialized_v1.sql');
  const overlay=original('supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.sql');
  const reviewed=M1_ATOMIC_SOURCES.find(x=>x.id==='AUTONOMOUS_DATES');
- assert.equal(reviewed.blob,'a7c4d255e1aee7e6546fbd2dad2019a4af4f6c5e');
- assert.match(overlay,/35862b8e4977fcf0c3d611937fe83126/);
- assert.doesNotMatch(overlay,/dd1027122e0843b44529cf87dad746b5/);
+ // U72 first checks the closed PROD baseline, then replaces this function.
+ assert.match(u72,/M1_U72_BASELINE_DETAIL_DRIFT/);
+ assert.match(u72,/35862b8e4977fcf0c3d611937fe83126/);
+ assert.match(u72,/M1_U72_CANDIDATE_DETAIL_DRIFT/);
+ assert.match(u72,/dd1027122e0843b44529cf87dad746b5/);
+ assert.equal(reviewed.blob,'97ab01d06d474fcad94d65efd751ae4b325f8f25');
+ assert.match(overlay,/dd1027122e0843b44529cf87dad746b5/);
  const candidate=materializeM1AtomicProdCutover();
- assert.match(candidate.sql,/M1_AUTONOMOUS_U60_BASELINE_DRIFT/);
- assert.match(candidate.sql,/35862b8e4977fcf0c3d611937fe83126/);
+ assert.ok(candidate.sql.indexOf('STAGE U72_INSTALL')<candidate.sql.indexOf('STAGE AUTONOMOUS_DATES'));
  assert.equal(candidate.executableOnlyAfterIndependentAuthorization,true);
 });
