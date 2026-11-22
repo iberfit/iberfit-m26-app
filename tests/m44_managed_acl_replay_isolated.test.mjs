@@ -52,6 +52,17 @@ test('M44 app ACL workflow does not mutate PROD or replay data and always restor
  assert.match(y,/environment: m26-canary-readonly/);
  assert.match(y,/concurrency:/);
 });
+test('Do not query paused project service config: prove prior seal and check after resume',()=>{
+ const s=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
+ const a=s.indexOf("const source=await readCensus(PROD)");
+ const pause=s.indexOf("qaPaused=true;await mg(QA,'/pause'");
+ const resume=s.indexOf("cloneActivated=true;await mg(TARGET,'/restore'");
+ const seal=s.indexOf("await assertSealed();await assertDenied();");
+ const replay=s.indexOf("await replayACL();");
+ assert.ok(a>0&&pause>a&&resume>pause&&seal>resume&&replay>seal);
+ assert.doesNotMatch(s.slice(s.indexOf("async function main()"),resume),/await assertSealed\(\)/);
+ assert.match(s,/MANAGEMENT_HTTP_'\+r.status\+'_PHASE_'\+m44Phase/);
+});
 test('Unprotected direct execution rejects without network or changes',()=>{
  const r=spawnSync(process.execPath,['scripts/ops/m44_managed_acl_replay_isolated.mjs'],{
   env:{PATH:process.env.PATH},encoding:'utf8',timeout:6000});
