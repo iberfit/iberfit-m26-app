@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {chooseUnoccupiedDatedSlot} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {santiagoAppointmentInstant} from '../src/m26/workflows/agenda-workflow.js';
 import {isQaReadonlyDatedRequest,isQaScopedDatedSyntheticWrite} from '../qa/rc64/secure-current-source-auth.mjs';
 const CLIENT='10000000-0000-4000-8000-000000000001';
 const OCC='20000000-0000-4000-8000-000000000001';
@@ -158,4 +160,23 @@ test('M1 U74 no-cita slot does not depend on another session appointment',()=>{
  assert.match(source,/const chosen=selectCertifiedDatedCandidate\(candidates,old,today,future,certified\)/u);
  assert.match(source,/assert\(!old\.some\(row=>row\.status==='en_curso'\)/u);
  assert.match(source,/boundedQaCalendarPage\(r,owner\)/u);
+});
+
+// A first-run signed QA slot can expire while the Free-tier QA mutex is held.
+// Never execute a dated workout against that stale slot; a new run must do a
+// fresh read-only preflight and sign a NEW time before performing any write.
+test('U74 stale signed time fails closed after QA queue, fresh read-only slot remains viable',()=>{
+ const today='2026-11-22',future='2026-11-29';
+ const original=Date.parse(santiagoAppointmentInstant(today+'T13:00'));
+ const old=chooseUnoccupiedDatedSlot({today,future,duration:20,
+  clockMinute:13*60,calendar:[],nowMs:original});
+ assert.equal(old.time,'13:25');
+ assert.throws(()=>chooseUnoccupiedDatedSlot({today,future,duration:20,
+  clockMinute:13*60+26,calendar:[],fixedTime:old.time,
+  nowMs:original+26*60_000}),/U71_QA_NO_CONFLICT_FREE_SLOT/);
+ const fresh=chooseUnoccupiedDatedSlot({today,future,duration:20,
+  clockMinute:13*60+26,calendar:[],nowMs:original+26*60_000});
+ assert.equal(fresh.time,'13:55');
+ assert.ok(Date.parse(fresh.start1)>original+26*60_000);
+ assert.notEqual(fresh.start1,old.start1);
 });
