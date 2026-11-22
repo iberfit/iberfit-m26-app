@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
-import {selectAppOnlyPrivilegeToc,certifyManagedAppAclCensus,certifyM44AppAclDigests} from '../scripts/ops/m44_managed_acl_replay_isolated.mjs';
+import {selectAppOnlyPrivilegeToc,certifyManagedAppAclCensus,certifyM44AppAclDigests,certifyM44AppAclSemanticReadback} from '../scripts/ops/m44_managed_acl_replay_isolated.mjs';
 const example=['; Archive created','; TOC Entries: 7',
 '1; 2615 10 TABLE public.clients postgres',
 '2; 0 0 ACL public TABLE clients postgres',
@@ -132,10 +132,52 @@ test('A successfully replayed managed sandbox is verified read-only; no non-idem
  const seal=main.indexOf('await assertSealed();await assertDenied();');
  assert.equal(replay,-1,'No second ACL restore of already-mutated managed clone');
  assert.ok(seal>=0&&first>seal&&second>first);
- assert.match(main,/certifyManagedAppAclCensus\(source,before\)/);
- assert.match(main,/certifyManagedAppAclCensus\(source,after\)/);
+ assert.match(main,/certifyM44AppAclSemanticReadback\(/);
+ assert.match(main,/readRelationSemantics\(PROD\)/);
+ assert.match(main,/readRelationSemantics\(TARGET\)/);
  assert.match(main,/M44_MANAGED_EXISTING_APP_ACL_VERIFIED_READONLY/);
  assert.doesNotMatch(main,/await connection\(\)|await archive\(\)|await replayACL\(\)/);
+});
+test('A PostgreSQL NULL ACL equivalent to explicit owner-default grants is not a security drift',()=>{
+ const keys=['schema_acl','relation_acl','function_acl','column_acl','managed_defaults',
+  'postgres_defaults','policy_digest'];
+ const srcDig=Object.fromEntries(keys.map(x=>[x,'a'.repeat(64)]));
+ const dstDig={...srcDig,relation_acl:'b'.repeat(64)};
+ const semantic={count:135,fingerprint:'c'.repeat(64)};
+ const compatible=certifyM44AppAclSemanticReadback(src,{...src,relation_acl:133},
+  srcDig,dstDig,semantic,{...semantic});
+ assert.equal(compatible.effectiveRelationAclEqual,true);
+ assert.equal(compatible.physicalRelationAclCountDrift,true);
+ assert.equal(compatible.physicalRelationAclArrayDrift,true);
+ assert.equal(compatible.otherAclDigestsEqual,true);
+ assert.equal(compatible.fullPlatformCertified,false);
+});
+test('The semantic fingerprint rejects any changed grantor, grantee, privilege or grant option',()=>{
+ const keys=['schema_acl','relation_acl','function_acl','column_acl','managed_defaults',
+  'postgres_defaults','policy_digest'];
+ const dig=Object.fromEntries(keys.map(x=>[x,'a'.repeat(64)]));
+ const semantic={count:135,fingerprint:'c'.repeat(64)};
+ assert.throws(()=>certifyM44AppAclSemanticReadback(src,src,dig,dig,semantic,
+  {...semantic,fingerprint:'d'.repeat(64)}),/EFFECTIVE_RELATION_ACL_DRIFT/);
+ assert.throws(()=>certifyM44AppAclSemanticReadback(src,src,dig,dig,semantic,
+  {...semantic,count:136}),/EFFECTIVE_RELATION_ACL_DRIFT/);
+ for(const category of keys.filter(x=>x!=='relation_acl')){
+  assert.throws(()=>certifyM44AppAclSemanticReadback(src,src,dig,
+   {...dig,[category]:'b'.repeat(64)},semantic,semantic),/ACL_DIGEST_PARITY_DRIFT_/);
+ }
+ assert.throws(()=>certifyM44AppAclSemanticReadback(src,
+  {...src,function_acl:src.function_acl+1},dig,dig,semantic,semantic),
+  /SECURITY_COUNT_DRIFT_FUNCTION_ACL/);
+});
+test('Canonical readback is sorted across relation kind and grantor/grantee, not raw aclitem order',()=>{
+ const s=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
+ assert.match(s,/aclexplode\(coalesce\(c.relacl,/);
+ assert.match(s,/acldefault\(CASE WHEN c.relkind='S' THEN 'S'::"char" ELSE 'r'::"char" END,c.relowner\)/);
+ assert.match(s,/a\.privilege_type,a\.is_grantable/);
+ assert.match(s,/ORDER BY schema_name,relation_name,kind/);
+ assert.match(s,/m44_recovery_exposure_probe/);
+ const main=s.slice(s.indexOf('async function main()'));
+ assert.doesNotMatch(main,/await replayACL\(\)|await connection\(\)|await archive\(\)/);
 });
 test('Unprotected direct execution rejects without network or changes',()=>{
  const r=spawnSync(process.execPath,['scripts/ops/m44_managed_acl_replay_isolated.mjs'],{

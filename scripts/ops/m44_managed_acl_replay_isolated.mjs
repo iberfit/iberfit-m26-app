@@ -159,6 +159,74 @@ async function readAclDigests(project){
   fail('ACL_DIGEST_READBACK_INVALID');
  return rows[0].acl_digests;
 }
+// Security semantics, not storage representation. A NULL relacl means the
+// object's PostgreSQL acldefault(), NOT an empty list of permissions. By
+// canonically expanding ACLs we can detect actual unauthorized access without
+// treating equivalent NULL/explicit owner-default ACL storage as a regression.
+const relationSemanticSql=`WITH material AS (
+ SELECT n.nspname AS schema_name,c.relname AS relation_name,c.relkind::text AS kind,
+  pg_get_userbyid(c.relowner) AS owner_name,
+  (SELECT coalesce(jsonb_agg(
+   jsonb_build_array(
+    CASE WHEN a.grantor=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantor) END,
+    CASE WHEN a.grantee=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+    a.privilege_type,a.is_grantable)
+   ORDER BY CASE WHEN a.grantor=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantor) END,
+    CASE WHEN a.grantee=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+    a.privilege_type,a.is_grantable),
+   '[]'::jsonb)
+   FROM aclexplode(coalesce(c.relacl,
+    acldefault(CASE WHEN c.relkind='S' THEN 'S'::"char" ELSE 'r'::"char" END,c.relowner))) a
+  ) AS effective_privileges
+ FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+ WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p','v','m','S','f')
+ AND NOT (n.nspname='public' AND c.relname='m44_recovery_exposure_probe')
+)
+SELECT jsonb_build_object(
+ 'count',(SELECT count(*) FROM material),
+ 'fingerprint',(SELECT encode(sha256(convert_to(coalesce(jsonb_agg(to_jsonb(material)
+ ORDER BY schema_name,relation_name,kind),'[]'::jsonb)::text,'UTF8')),'hex') FROM material)
+) AS effective_acl`;
+async function readRelationSemantics(project){
+ const response=await mg(project,'/database/query',{method:'POST',body:{query:relationSemanticSql}});
+ const rows=Array.isArray(response)?response:response?.result;
+ if(!Array.isArray(rows)||rows.length!==1||!rows[0]?.effective_acl)
+  fail('EFFECTIVE_RELATION_READBACK_INVALID');
+ return rows[0].effective_acl;
+}
+export function certifyM44AppAclSemanticReadback(source,after,sourceDigest,afterDigest,sourceEffective,afterEffective){
+ for(const x of [sourceEffective,afterEffective]){
+  if(!x||typeof x!=='object'||!Number.isSafeInteger(x.count)||x.count<130||
+   typeof x.fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(x.fingerprint))
+   fail('EFFECTIVE_RELATION_FINGERPRINT_INVALID');
+ }
+ if(sourceEffective.count!==afterEffective.count||
+  sourceEffective.fingerprint!==afterEffective.fingerprint)
+  fail('EFFECTIVE_RELATION_ACL_DRIFT');
+ for(const x of [source,after]){
+  if(!x||typeof x!=='object'||Object.values(x).some(v=>!Number.isSafeInteger(v)||v<0))
+   fail('CENSUS_INVALID');
+ }
+ const securityCounts=['rls','policies','app_tables','users','storage','invalid_indexes','function_acl','default_acl'];
+ for(const k of securityCounts)if(source[k]!==after[k])fail('SECURITY_COUNT_DRIFT_'+k.toUpperCase());
+ if(source.rls<100||source.policies<100||source.app_tables<100||
+  source.relation_acl<100||source.function_acl<100||source.default_acl<1||
+  source.users<1||source.storage<1||source.invalid_indexes!==0)
+  fail('BASELINE_UNEXPECTED');
+ // Validate all seven raw fingerprints as well; the one permissible physical
+ // difference is relacl storage, and ONLY after expanded effective ACL equality.
+ certifyM44AppAclDigests(sourceDigest,sourceDigest,{phase:'after'});
+ certifyM44AppAclDigests(afterDigest,afterDigest,{phase:'after'});
+ for(const k of REQUIRED_DIGESTS.filter(x=>x!=='relation_acl')){
+  if(sourceDigest[k]!==afterDigest[k])fail('ACL_DIGEST_PARITY_DRIFT_'+k.toUpperCase());
+ }
+ return Object.freeze({
+  effectiveRelationAclEqual:true,otherAclDigestsEqual:true,
+  physicalRelationAclCountDrift:source.relation_acl!==after.relation_acl,
+  physicalRelationAclArrayDrift:sourceDigest.relation_acl!==afterDigest.relation_acl,
+  prodWrites:0,fullPlatformCertified:false
+ });
+}
 async function assertSealed(){
  const p=await mg(TARGET,'/postgrest');
  if(p.db_schema!=='m44_recovery_closed')fail('POSTGREST_NOT_CLOSED');
@@ -299,6 +367,7 @@ async function main(){
   m44Phase='PROD_CENSUS_READONLY';
   const source=await readCensus(PROD); // SELECT-only catalog/counts. No PROD mutations.
   const sourceAclDigests=await readAclDigests(PROD);
+  const sourceRelationEffective=await readRelationSemantics(PROD);
   m44Phase='PAUSE_QA_SAFE_SWAP';
   qaPaused=true;await mg(QA,'/pause',{method:'POST'});await until(QA,'INACTIVE');
   m44Phase='RESUME_EXISTING_SEALED_SANDBOX';
@@ -311,6 +380,7 @@ async function main(){
    if(before[k]!==source[k])fail('PRE_REPLAY_SCHEMA_OR_DATA_DRIFT');
   m44Phase='MANAGED_DEFAULT_PRIVILEGES_PROVENANCE';
   const beforeAclDigests=await readAclDigests(TARGET);
+  const beforeRelationEffective=await readRelationSemantics(TARGET);
   certifyM44AppAclDigests(sourceAclDigests,beforeAclDigests,{phase:'before'});
   // Prior managed drill #44982480166 atomically applied 390 app ACLs and
   // three postgres default privilege entries. Subsequent REVOKE attempts
@@ -318,17 +388,26 @@ async function main(){
   // modified managed clone: independently attest the persisted ACLs first.
   // This intentionally performs zero SQL writes, including no password resets.
   m44Phase='PREVIOUS_ACL_REPLAY_READONLY_VERIFICATION';
-  certifyManagedAppAclCensus(source,before);
-  certifyM44AppAclDigests(sourceAclDigests,beforeAclDigests,{phase:'after'});
+  const beforeAttestation=certifyM44AppAclSemanticReadback(
+   source,before,sourceAclDigests,beforeAclDigests,
+   sourceRelationEffective,beforeRelationEffective);
   m44Phase='REPEAT_SEAL_AND_DENIAL_READONLY';
   await assertSealed();await assertDenied();
   m44Phase='FINAL_READONLY_CENSUS';
   const after=await readCensus(TARGET);
-  certifyManagedAppAclCensus(source,after);
   m44Phase='FINAL_ACL_DIGEST_READBACK';
   const afterAclDigests=await readAclDigests(TARGET);
-  certifyM44AppAclDigests(sourceAclDigests,afterAclDigests,{phase:'after'});
-  console.log('M44_MANAGED_EXISTING_APP_ACL_VERIFIED_READONLY:categories=7:no_replay=1:prod_writes=0');
+  const afterRelationEffective=await readRelationSemantics(TARGET);
+  const attestation=certifyM44AppAclSemanticReadback(
+   source,after,sourceAclDigests,afterAclDigests,
+   sourceRelationEffective,afterRelationEffective);
+  if(attestation.physicalRelationAclCountDrift!==beforeAttestation.physicalRelationAclCountDrift||
+   attestation.physicalRelationAclArrayDrift!==beforeAttestation.physicalRelationAclArrayDrift)
+   fail('ACL_PHYSICAL_REPRESENTATION_CHANGED_DURING_RECHECK');
+  console.log('M44_RELATION_EFFECTIVE_PRIVILEGES_PARITY_VERIFIED:physical_storage_difference='+
+    Number(attestation.physicalRelationAclCountDrift||attestation.physicalRelationAclArrayDrift)+
+    ':grantor_grantee_grant_options_verified=1');
+  console.log('M44_MANAGED_EXISTING_APP_ACL_VERIFIED_READONLY:semantic_relation_grants=1:other_exact_digests=6:no_replay=1:prod_writes=0');
   console.log('M44_MANAGED_APP_ACL_PARITY_VERIFIED:rls_policies_stable=1:auth_storage_preserved=1:prod_writes=0:full_platform_NOT_certified');
  }finally{
   try{if(cloneActivated){await mg(TARGET,'/pause',{method:'POST'});await until(TARGET,'INACTIVE');console.log('M44_ACL_CLONE_PAUSED');}}
