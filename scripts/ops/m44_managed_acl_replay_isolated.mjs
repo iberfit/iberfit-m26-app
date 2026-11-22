@@ -8,6 +8,7 @@ import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {selectPrivilegeToc} from './m44_acl_toc_selector.mjs';
 import {classifyM44RestoreFailure} from './m44_managed_pg_restore_failure.mjs';
+import {summarizeM44EffectiveAclDifferences} from './m44_acl_effective_diagnostic.mjs';
 const PROD='pjhmrhejsoofmouedavw',QA='gjztkdwfmunnzhtvxrsu',TARGET='zfvaouggafdbqfbpwhfx';
 const REPO='iberfit/iberfit-m26-app', VERIFIED_RUN=44976946195;
 const VERIFIED_SHA='79687a28c1e7da3630b14f76fc1d6494c03adfdd';
@@ -193,6 +194,24 @@ async function readRelationSemantics(project){
  if(!Array.isArray(rows)||rows.length!==1||!rows[0]?.effective_acl)
   fail('EFFECTIVE_RELATION_READBACK_INVALID');
  return rows[0].effective_acl;
+}
+// Projection of the already-reviewed semantic CTE. Raw names and grants are
+// strictly private, used only to classify a genuine fingerprint mismatch.
+const relationDetailSql=relationSemanticSql.split('\nSELECT jsonb_build_object(')[0]+
+ '\nSELECT schema_name,relation_name,kind,owner_name,effective_privileges FROM material '+
+ 'ORDER BY schema_name,relation_name,kind';
+async function diagnoseRelationDriftOnClone(){
+ const [source,clone]=await Promise.all([PROD,TARGET].map(async project=>{
+  const response=await mg(project,'/database/query',{method:'POST',body:{query:relationDetailSql}});
+  const rows=Array.isArray(response)?response:response?.result;
+  if(!Array.isArray(rows)||rows.length<130||rows.length>500)
+   fail('DIAGNOSTIC_RELATION_READBACK_INVALID');
+  return rows;
+ }));
+ // The summary has an intentionally fixed numeric-only output shape; never
+ // print source/target rows, object identifiers, SQL, permissions or roles.
+ const summary=summarizeM44EffectiveAclDifferences(source,clone);
+ console.log('M44_EFFECTIVE_RELATION_DRIFT_COUNTS:'+JSON.stringify(summary));
 }
 export function certifyM44AppAclSemanticReadback(source,after,sourceDigest,afterDigest,sourceEffective,afterEffective){
  for(const x of [sourceEffective,afterEffective]){
@@ -388,9 +407,18 @@ async function main(){
   // modified managed clone: independently attest the persisted ACLs first.
   // This intentionally performs zero SQL writes, including no password resets.
   m44Phase='PREVIOUS_ACL_REPLAY_READONLY_VERIFICATION';
-  const beforeAttestation=certifyM44AppAclSemanticReadback(
-   source,before,sourceAclDigests,beforeAclDigests,
-   sourceRelationEffective,beforeRelationEffective);
+  let beforeAttestation;
+  try{
+   beforeAttestation=certifyM44AppAclSemanticReadback(
+    source,before,sourceAclDigests,beforeAclDigests,
+    sourceRelationEffective,beforeRelationEffective);
+  }catch(error){
+   if(String(error?.message)==='M44_MANAGED_ACL_EFFECTIVE_RELATION_ACL_DRIFT'){
+    try{await diagnoseRelationDriftOnClone();}
+    catch{console.error('M44_EFFECTIVE_RELATION_DIAGNOSTIC_UNAVAILABLE');}
+   }
+   throw error; // Preserve the original security gate and failure class.
+  }
   m44Phase='REPEAT_SEAL_AND_DENIAL_READONLY';
   await assertSealed();await assertDenied();
   m44Phase='FINAL_READONLY_CENSUS';
