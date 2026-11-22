@@ -183,6 +183,6 @@ test('Repeated synthetic sandbox recovery skips DDL when the known probe already
  const negative=seal.indexOf("if(!negativeControl)fail('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED')");
  assert.ok(validate>0&&existing>validate&&ddl>existing&&reuse>ddl&&positive>reuse&&close>positive&&negative>close);
  assert.match(seal,/if\(Number\(row\.synthetic_views\)===0\)\s*\{/);
- assert.match(seal,/Number\(row\.unexpected_views\)/);
+ assert.match(seal,/'unexpected_views'/);
  assert.match(seal,/data\[0\]\?\.sentinel==='M44_ISOLATION_SENTINEL_ONLY'/);
 });
