@@ -48,3 +48,33 @@ test('The manager consumes classification without logging pg_restore stderr/stdo
  assert.doesNotMatch(source,/console\.(log|error)\s*\([^)]*res\.stdout/u);
  assert.match(source,/MANAGED_SQL_RESTORE_FAILED_CLOSED/u);
 });
+
+test('Failed pg_restore Command was is reduced to fixed SQL kind, with no PII, object name or SQL text',()=>{
+ const cases=[
+  ["pg_restore: error: could not execute query: ERROR: synthetic unknown failure\nCommand was: CREATE TABLE private.customer_sensitive (name text);", "DDL_TABLE"],
+  ["pg_restore: error: could not execute query: ERROR: synthetic unknown failure\nCommand was: COPY public.private_details (id, secret) FROM stdin;", "COPY_DATA"],
+  ["pg_restore: error: could not execute query: ERROR: synthetic unknown failure\nCommand was: ALTER TABLE ONLY auth.users ADD CONSTRAINT p_sensitive CHECK (true);", "ALTER_TABLE"],
+  ["pg_restore: error: could not execute query: ERROR: synthetic unknown failure\nCommand was: SELECT pg_catalog.setval('private.secret_seq', 3, true);", "SEQUENCE_DATA"],
+  ["pg_restore: error: could not execute query: ERROR: synthetic unknown failure\nCommand was: CREATE FUNCTION public.secret_mfa() RETURNS text AS $$ SELECT 'password' $$ LANGUAGE sql;", "DDL_FUNCTION"],
+  ["pg_restore: error: could not execute query: ERROR: synthetic unknown failure\nCommand was: CREATE TRIGGER t_secret AFTER INSERT ON auth.users EXECUTE FUNCTION private.x();", "DDL_TRIGGER"],
+  ["pg_restore: error: could not execute query: ERROR: synthetic unknown failure\nCommand was: CREATE POLICY secret_policy ON public.users TO authenticated USING (true);", "DDL_POLICY"],
+  ["pg_restore: error: could not execute query: ERROR: synthetic unknown failure\nCommand was: SELECT * FROM public.customer_secret;", "OTHER_SQL_VERB"]
+ ];
+ for(const [stderr,kind] of cases){
+  const v=classifyM44RestoreFailure(stderr,{status:1});
+  assert.equal(v.statementKind,kind);
+  assert.equal(v.redacted,true);
+  assert.doesNotMatch(JSON.stringify(v),/password|secret|customer|auth\.users|private\.|public\./i);
+ }
+});
+test('Raw messages without a command cannot forge kind or leak sensitive content',()=>{
+ const v=classifyM44RestoreFailure("ERROR: someone@example.org\nCommand was: select 'secret' from private.pii",{status:1});
+ assert.equal(v.statementKind,'OTHER_SQL_VERB');
+ assert.doesNotMatch(JSON.stringify(v),/someone|secret|private|pii/i);
+ assert.equal(classifyM44RestoreFailure("ERROR: secret",{status:1}).statementKind,'UNAVAILABLE');
+});
+test('Protected manager emits only fixed code + optional known SQLSTATE + statement kind',()=>{
+ const src=readFileSync('scripts/ops/m44_managed_real_recovery.mjs','utf8');
+ assert.match(src,/:statementKind='\+classification\.statementKind/);
+ assert.doesNotMatch(src,/console\.(?:error|log)\s*\([^)]*(?:res\.stderr|res\.stdout|query|password)/);
+});
