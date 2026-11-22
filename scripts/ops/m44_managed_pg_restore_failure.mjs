@@ -21,6 +21,8 @@ const RULES=Object.freeze([
  [/schema .* does not exist|relation .* does not exist|type .* does not exist/iu,'MISSING_DEPENDENCY'],
  [/role .* does not exist/iu,'MISSING_ROLE_OR_TYPE'],
  [/extension .* is not available|could not open extension control file/iu,'EXTENSION_UNAVAILABLE'],
+ [/operator class .* does not exist|operator family .* does not exist|access method .* does not exist/iu,'INDEX_OPERATOR_DEPENDENCY'],
+ [/could not create unique index/iu,'INDEX_UNIQUE_DATA_CONFLICT'],
  [/could not connect|connection refused|server closed the connection|connection unexpectedly closed|could not translate host name|timeout expired/iu,'CONNECTION_OR_POOLER'],
  [/pg_restore: error: could not execute query/iu,'POSTGRES_STATEMENT_REJECTED'],
  [/pg_restore: error: COPY failed/iu,'POSTGRES_COPY_FAILED'],
