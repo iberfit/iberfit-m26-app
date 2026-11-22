@@ -1,3 +1,4 @@
+# IBERFIT M1/M44 final source attestation 2026-11-22: retrigger unchanged, protected Canary CI, QA, WebAuthn, Device and release gates on exact source SHA. No permission, step, SQL or deployment policy change.
 name: IBERFIT Production Promotion
 
 on:
