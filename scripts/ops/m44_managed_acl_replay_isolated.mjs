@@ -91,6 +91,7 @@ async function readCensus(project){
  if(!Array.isArray(rows)||rows.length!==1||!rows[0]?.census)fail('CENSUS_RESPONSE_INVALID');
  return rows[0].census;
 }
+// Before replay check only Supabase-managed default privileges and unchanged RLS policies; schema/object ACLs can be absent precisely because this is a --no-acl restore.
 // Metadata-only digests. Never return grants, policy bodies or object names.
 // Exclude the one synthetic exposure probe intentionally created on the clone.
 const aclDigestSql=`WITH material AS (
@@ -144,7 +145,7 @@ export function certifyM44AppAclDigests(source,after,{phase='after'}={}){
     REQUIRED_DIGESTS.some(k=>typeof x[k]!=='string'||!/^[0-9a-f]{64}$/.test(x[k])))
    fail('ACL_DIGEST_FORMAT_INVALID');
  }
- const keys=phase==='before'?['managed_defaults','schema_acl','policy_digest']:
+ const keys=phase==='before'?['managed_defaults','policy_digest']:
   REQUIRED_DIGESTS;
  if(!['before','after'].includes(phase))fail('ACL_DIGEST_PHASE_INVALID');
  const drift=keys.filter(k=>source[k]!==after[k]);

@@ -89,11 +89,11 @@ test('Managed default permissions and exact app ACL digests must match before pr
  assert.deepEqual(certifyM44AppAclDigests(baseline,{...baseline},{phase:'after'}).matched,7);
  for(const k of keys)assert.throws(()=>certifyM44AppAclDigests(baseline,
   {...baseline,[k]:'a'.repeat(64)},{phase:'after'}),/ACL_DIGEST_PARITY_DRIFT/);
- for(const k of ['managed_defaults','schema_acl','policy_digest'])
+ for(const k of ['managed_defaults','policy_digest'])
   assert.throws(()=>certifyM44AppAclDigests(baseline,
    {...baseline,[k]:'b'.repeat(64)},{phase:'before'}),/MANAGED_BASELINE_DIGEST_DRIFT/);
  assert.equal(certifyM44AppAclDigests(baseline,
-  {...baseline,relation_acl:'f'.repeat(64)},{phase:'before'}).matched,3);
+  {...baseline,relation_acl:'f'.repeat(64)},{phase:'before'}).matched,2);
  assert.throws(()=>certifyM44AppAclDigests(baseline,
   {...baseline,managed_defaults:'not-a-hash'},{phase:'before'}),/ACL_DIGEST_FORMAT_INVALID/);
 });
