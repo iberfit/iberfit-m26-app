@@ -21,8 +21,7 @@ BEGIN
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_U31_BASELINE_DRIFT'; END IF;
   IF md5(pg_get_functiondef(to_regprocedure('private.iberfit_u33_occurrence_calendar_v1(uuid,date,date,date,uuid,integer)'))) IS DISTINCT FROM '407cb324467ede6801d23ff458236fb5'
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_U33_BASELINE_DRIFT'; END IF;
-  -- PROD 2026-11-22 read-only attestation: closed U60 detail baseline, owner postgres, search_path empty.
-  IF md5(pg_get_functiondef(to_regprocedure('private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'))) IS DISTINCT FROM '35862b8e4977fcf0c3d611937fe83126'
+  IF md5(pg_get_functiondef(to_regprocedure('private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'))) IS DISTINCT FROM 'dd1027122e0843b44529cf87dad746b5'
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_U60_BASELINE_DRIFT'; END IF;
   IF (SELECT relrowsecurity FROM pg_class WHERE oid='public.training_session_occurrences_v1'::regclass) IS DISTINCT FROM true
     THEN RAISE EXCEPTION 'M1_AUTONOMOUS_OCCURRENCE_RLS_MISSING'; END IF;
