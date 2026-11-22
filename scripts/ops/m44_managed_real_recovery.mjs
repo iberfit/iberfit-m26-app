@@ -201,15 +201,29 @@ async function seal(){
  m44Phase='SEAL_VERIFY_POSTGREST_SCHEMA';
  const rest=await sup(TARGET,'/postgrest');
  if(rest.db_schema!=='m44_recovery_closed')fail('DATA_API_NOT_SEALED');
+ // Supabase Management GET can reflect a patched PostgREST schema before
+ // all edge/PostgREST instances finish reloading. A transient 200 is never
+ // accepted as "sealed": require 8 CONSECUTIVE real denials after propagation.
+ // Bounded to 40 requests / <= 2 minutes. No real data is touched before this.
  let negativeControl=false;
- for(let i=0;i<20;i++){
-  const response=await fetch(probeURL,{headers:{apikey:key,'Accept-Profile':'public'},
-   redirect:'error',signal:AbortSignal.timeout(12000)});
-  if(response.ok)fail('PUBLIC_DATA_API_NOT_DENIED');
+ let consecutiveDenied=0;
+ for(let i=0;i<40;i++){
+  const response=await fetch(probeURL,{headers:{
+    apikey:key,'Accept-Profile':'public','Cache-Control':'no-cache'
+   },redirect:'error',cache:'no-store',signal:AbortSignal.timeout(12000)});
   if([400,401,403,404,406].includes(response.status)){
+   consecutiveDenied++;
+  }else{
+   // Any 2xx, transient 5xx or other unverified response resets the proof.
+   consecutiveDenied=0;
+  }
+  if(consecutiveDenied>=8){
+   const finalConfig=await sup(TARGET,'/postgrest');
+   if(finalConfig?.db_schema!=='m44_recovery_closed')
+     fail('PUBLIC_API_CONTROL_PLANE_REOPENED');
    negativeControl=true;break;
   }
-  await sleep(1200);
+  await sleep(3000);
  }
  if(!negativeControl)fail('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED');
  m44Phase='SEAL_DISABLE_AUTH_SIGNUPS';
