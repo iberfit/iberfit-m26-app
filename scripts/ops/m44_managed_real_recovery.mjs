@@ -359,7 +359,8 @@ async function restoreData(conn){
   const classification=classifyM44RestoreFailure(res.stderr,res);
   // SQL excerpts may contain PII. Publish ONLY bounded category and known SQLSTATE.
   console.error('M44_MANAGED_RESTORE_FAILURE_CLASS='+classification.code+
-   ':sqlstate='+(classification.sqlstate||'UNAVAILABLE'));
+   ':sqlstate='+(classification.sqlstate||'UNAVAILABLE')+
+   ':statementKind='+classification.statementKind);
   fail('MANAGED_SQL_RESTORE_FAILED_CLOSED');
  }
  clonedData=true;

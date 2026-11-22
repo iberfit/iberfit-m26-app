@@ -26,6 +26,38 @@ const RULES=Object.freeze([
  [/pg_restore: error: COPY failed/iu,'POSTGRES_COPY_FAILED'],
  [/signal:|killed|out of memory/iu,'RESOURCE_EXHAUSTED']
 ]);
+
+// Isolate ONLY the SQL verb / known object kind following the pg_restore error.
+// SQL text, table names, client identifiers and values NEVER leave the runner.
+function sanitizedRestoreStatementKind(stderr){
+ const raw=typeof stderr==='string'?stderr.slice(-131072):'';
+ const marker=raw.indexOf('Command was:');
+ if(marker<0)return 'UNAVAILABLE';
+ const query=raw.slice(marker+'Command was:'.length,marker+'Command was:'.length+4096)
+  .replace(/^(?:\s*--[^\r\n]*(?:\r?\n|$)){0,4}/u,'').trimStart();
+ if(/^COPY\s/iu.test(query))return 'COPY_DATA';
+ if(/^INSERT\s/iu.test(query))return 'INSERT_DATA';
+ if(/^SELECT\s+pg_catalog\.setval\s*\(/iu.test(query))return 'SEQUENCE_DATA';
+ if(/^CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s/iu.test(query))return 'DDL_FUNCTION';
+ if(/^CREATE\s+(?:OR\s+REPLACE\s+)?TRIGGER\s/iu.test(query))return 'DDL_TRIGGER';
+ if(/^CREATE\s+POLICY\s/iu.test(query))return 'DDL_POLICY';
+ if(/^CREATE\s+(?:UNIQUE\s+)?INDEX\s/iu.test(query))return 'DDL_INDEX';
+ if(/^CREATE\s+(?:UNLOGGED\s+|TEMP(?:ORARY)?\s+)?TABLE\s/iu.test(query))return 'DDL_TABLE';
+ if(/^CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s/iu.test(query))return 'DDL_VIEW';
+ if(/^CREATE\s+TYPE\s/iu.test(query))return 'DDL_TYPE';
+ if(/^CREATE\s+EXTENSION\s/iu.test(query))return 'DDL_EXTENSION';
+ if(/^CREATE\s+SCHEMA\s/iu.test(query))return 'DDL_SCHEMA';
+ if(/^ALTER\s+TABLE\s/iu.test(query))return 'ALTER_TABLE';
+ if(/^ALTER\s+(?:FUNCTION|PROCEDURE)\s/iu.test(query))return 'ALTER_FUNCTION';
+ if(/^ALTER\s+TYPE\s/iu.test(query))return 'ALTER_TYPE';
+ if(/^COMMENT\s+ON\s/iu.test(query))return 'COMMENT';
+ if(/^GRANT\s/iu.test(query))return 'GRANT';
+ if(/^REVOKE\s/iu.test(query))return 'REVOKE';
+ if(/^SET\s/iu.test(query))return 'SET_CONFIG';
+ if(/^DO\s+\$/iu.test(query))return 'DO_BLOCK';
+ return 'OTHER_SQL_VERB';
+}
+
 export function classifyM44RestoreFailure(stderr,execution={}){
  const text=typeof stderr==='string'?stderr.slice(-131072):'';
  const state=/\bSQLSTATE(?:=|:|\s+)([A-Z0-9]{5})\b/u.exec(text)?.[1]||null;
@@ -39,6 +71,7 @@ export function classifyM44RestoreFailure(stderr,execution={}){
  const status=Number.isInteger(execution?.status)&&execution.status>=0&&execution.status<=255?execution.status:null;
  return Object.freeze({
   code:PREFIX+failureClass,
+  statementKind:sanitizedRestoreStatementKind(text),
   // Never emit unknown SQLSTATE strings, query excerpts or raw stderr.
   sqlstate:byState?state:null,
   exit:status,
