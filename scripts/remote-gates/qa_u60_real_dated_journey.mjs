@@ -192,6 +192,28 @@ export function chooseUnoccupiedDatedSlot({
  throw Error('U71_QA_NO_CONFLICT_FREE_SLOT');
 }
 
+// U74 appointmentless QA dates do not have a current-day appointment time.
+// A fixed localTime belongs ONLY to the second date, seven days later.
+// Signing the same day and future local time stays stable through shared QA
+// queues, while any change of Santiago calendar day fails closed. Never
+// use this helper for appointment-linked U71 or a production release.
+export function chooseAppointmentlessDateOnlyQaSlot({today,future,duration,
+ clockDay=today,fixedTime=null}={}){
+ assert(/^\d{4}-\d{2}-\d{2}$/.test(String(today))&&
+  /^\d{4}-\d{2}-\d{2}$/.test(String(future))&&
+  today===clockDay&&future===dayOffset(today,7)&&
+  Number.isSafeInteger(duration)&&duration>=10&&duration<=240&&
+  (fixedTime===null||fixedTime==='12:00'),'U74_DATE_ONLY_SLOT_INVALID');
+ const time='12:00';
+ const start1=santiagoAppointmentInstant(today+'T'+time);
+ const start2=santiagoAppointmentInstant(future+'T'+time);
+ const a=Date.parse(start1),b=Date.parse(start2);
+ assert(Number.isFinite(a)&&Number.isFinite(b)&&b>a,'U74_DATE_ONLY_TIMESTAMP_INVALID');
+ return Object.freeze({time,start1,start2,
+  end1:new Date(a+duration*60000).toISOString(),
+  end2:new Date(b+duration*60000).toISOString()});
+}
+
 function context(mode){
  const e=process.env;
  for(const name of ['M26_QA_ONLY','M26_PROJECT_REF','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -372,7 +394,9 @@ async function authenticatedStage(ctx,certified=null){
  assert(environment?.environment==='QA'&&environment.realDataAllowed===false
   &&environment.productionBlocked===true,'ENV_ISOLATION');
  const clock=chileanClock();
- const {candidateDay,today,future}=u71PlanningDays(clock);
+ const {candidateDay,today,future}=ctx.autonomous
+  ?{candidateDay:clock.day,today:clock.day,future:dayOffset(clock.day,7)}
+  :u71PlanningDays(clock);
  const candidates=validatedDatedCandidates(raw,clientA,candidateDay);
  assert(candidates.length>0,'NO_SUITABLE_SYNTHETIC_PRESCRIPTION');
  // The exact available slot is selected from the complete authorised dated
@@ -387,11 +411,14 @@ async function authenticatedStage(ctx,certified=null){
  assert(!old.some(row=>row.status==='en_curso'),'QA_CLIENT_ACTIVE_EXECUTION');
  const chosen=selectCertifiedDatedCandidate(candidates,old,today,future,certified);
  assert(chosen,'QA_FIXTURE_SOURCE_DATES_NOT_CLEAN');
- const {time,start1,start2,end1,end2}=chooseUnoccupiedDatedSlot({
-  today,future,duration:chosen.duration,clockMinute:clock.minute,
-  clockDay:clock.day,// Appointmentless training is deliberately independent of calendar bookings.
-   // Still require an untouched prescription/date pair and valid server clock.
-   calendar:ctx.autonomous?[]:old,fixedTime:certified?.localTime||null});
+ // Appointmentless U74 signs today's DATE and next week's noon, not
+ // an artificial 25-minute current-day appointment which can expire in QA.
+ const {time,start1,start2,end1,end2}=ctx.autonomous
+  ?chooseAppointmentlessDateOnlyQaSlot({today,future,duration:chosen.duration,
+    clockDay:clock.day,fixedTime:certified?.localTime||null})
+  :chooseUnoccupiedDatedSlot({today,future,duration:chosen.duration,
+    clockMinute:clock.minute,clockDay:clock.day,
+    calendar:ctx.autonomous?[]:old,fixedTime:certified?.localTime||null});
  const foreign=await u60(ctx,b.jwt,'CALENDARIO',{clientId:clientA,startDate:today,endDate:future,limit:2});
  assert(denied(foreign),'CROSS_CLIENT_SCOPE_BROKEN');
  const appointments=[{date:today,startAt:start1,endAt:end1},{date:future,startAt:start2,endAt:end2}];
