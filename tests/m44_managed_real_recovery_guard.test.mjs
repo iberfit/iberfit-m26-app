@@ -102,7 +102,7 @@ test('A public-schema positive control must be observed BEFORE an HTTP negative 
  assert.match(seal,/CREATE OR REPLACE VIEW public\.m44_recovery_exposure_probe WITH \(security_invoker=true\)/);
  assert.match(seal,/GRANT SELECT ON public\.m44_recovery_exposure_probe TO anon/);
  assert.match(seal,/PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN/);
- assert.match(seal,/PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED/);
+ assert.match(seal,/PUBLIC_DATA_API_NOT_DENIED/);
  const positive=seal.indexOf("if(!positiveControl)fail");
  const restricted=seal.indexOf("db_schema:'m44_recovery_closed'");
  const negative=seal.indexOf("if(!negativeControl)fail");
@@ -169,7 +169,7 @@ test('Interrupted sealed sandbox can be reused ONLY after proving it has no pers
  assert.match(seal,/if\(apiBefore\.db_schema==='m44_recovery_closed'\)/);
  assert.match(seal,/if\(reopened\?\.db_schema!=='public'\)fail\('EMPTY_SANDBOX_RESET_NOT_CONFIRMED'\)/);
  assert.match(seal,/if\(!positiveControl\)fail\('PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN'\)/);
- assert.match(seal,/if\(!negativeControl\)fail\('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED'\)/);
+ assert.match(seal,/if\(!negativeControl\)fail\('PUBLIC_DATA_API_NOT_DENIED'\)/);
 });
 
 test('Repeated synthetic sandbox recovery skips DDL when the known probe already exists',()=>{
@@ -180,9 +180,25 @@ test('Repeated synthetic sandbox recovery skips DDL when the known probe already
  const reuse=seal.indexOf("SEAL_REUSE_EXISTING_SYNTHETIC_PROBE_HTTP");
  const positive=seal.indexOf("if(!positiveControl)fail('PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN')");
  const close=seal.indexOf("db_schema:'m44_recovery_closed'");
- const negative=seal.indexOf("if(!negativeControl)fail('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED')");
+ const negative=seal.indexOf("if(!negativeControl)fail('PUBLIC_DATA_API_NOT_DENIED')");
  assert.ok(validate>0&&existing>validate&&ddl>existing&&reuse>ddl&&positive>reuse&&close>positive&&negative>close);
  assert.match(seal,/if\(Number\(row\.synthetic_views\)===0\)\s*\{/);
  assert.match(seal,/'unexpected_views'/);
  assert.match(seal,/data\[0\]\?\.sentinel==='M44_ISOLATION_SENTINEL_ONLY'/);
+});
+
+test('PostgREST serving propagation must finish before restoring real data, even after control-plane GET',()=>{
+ const seal=code.slice(code.indexOf('async function seal(){'),code.indexOf('async function databaseConnection(){'));
+ assert.match(seal,/for\(let i=0;i<30;i\+\+\)/);
+ assert.match(seal,/if\(response\.ok\|\|\[425,429,500,502,503,504,520,521,522,523,524\]/);
+ assert.match(seal,/await sleep\(2000\)/);
+ assert.doesNotMatch(seal,/if\(response\.ok\)fail\('PUBLIC_DATA_API_NOT_DENIED'\)/);
+ assert.match(seal,/if\(!negativeControl\)fail\('PUBLIC_DATA_API_NOT_DENIED'\)/);
+ assert.match(seal,/if\(finalApi\?\.db_schema!=='m44_recovery_closed'\)/);
+ assert.match(seal,/PUBLIC_API_CONFIG_DRIFT_AFTER_DENIAL/);
+ const close=seal.indexOf("body:{db_schema:'m44_recovery_closed'}");
+ const deny=seal.indexOf("if(!negativeControl)fail('PUBLIC_DATA_API_NOT_DENIED')");
+ const verified=seal.indexOf("fail('PUBLIC_API_CONFIG_DRIFT_AFTER_DENIAL')");
+ const enable=seal.indexOf("sealed=true");
+ assert.ok(close>=0&&deny>close&&verified>deny&&enable>verified);
 });
