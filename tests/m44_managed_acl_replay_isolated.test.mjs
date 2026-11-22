@@ -127,7 +127,7 @@ test('A successfully replayed managed sandbox is verified read-only; no non-idem
  const source=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
  const main=source.slice(source.indexOf('async function main()'));
  const replay=main.indexOf('await replayACL();');
- const first=main.indexOf("const beforeAttestation=certifyM44AppAclSemanticReadback(");
+ const first=main.indexOf("beforeAttestation=certifyM44AppAclSemanticReadback(");
  const second=main.indexOf("const attestation=certifyM44AppAclSemanticReadback(");
  const seal=main.indexOf('await assertSealed();await assertDenied();');
  assert.equal(replay,-1,'No second ACL restore of already-mutated managed clone');
@@ -138,6 +138,10 @@ test('A successfully replayed managed sandbox is verified read-only; no non-idem
  assert.match(main,/M44_MANAGED_EXISTING_APP_ACL_VERIFIED_READONLY/);
  assert.doesNotMatch(main,/await connection\(\)|await archive\(\)|await replayACL\(\)/);
 });
+const scope=Object.freeze({
+ schemas:Object.freeze({count:2,fingerprint:'e'.repeat(64)}),
+ functions:Object.freeze({count:255,fingerprint:'f'.repeat(64)})
+});
 test('A PostgreSQL NULL ACL equivalent to explicit owner-default grants is not a security drift',()=>{
  const keys=['schema_acl','relation_acl','function_acl','column_acl','managed_defaults',
   'postgres_defaults','policy_digest'];
@@ -145,7 +149,7 @@ test('A PostgreSQL NULL ACL equivalent to explicit owner-default grants is not a
  const dstDig={...srcDig,relation_acl:'b'.repeat(64)};
  const semantic={count:135,fingerprint:'c'.repeat(64)};
  const compatible=certifyM44AppAclSemanticReadback(src,{...src,relation_acl:133},
-  srcDig,dstDig,semantic,{...semantic});
+  srcDig,dstDig,semantic,{...semantic},scope,scope);
  assert.equal(compatible.effectiveRelationAclEqual,true);
  assert.equal(compatible.physicalRelationAclCountDrift,true);
  assert.equal(compatible.physicalRelationAclArrayDrift,true);
@@ -158,16 +162,42 @@ test('The semantic fingerprint rejects any changed grantor, grantee, privilege o
  const dig=Object.fromEntries(keys.map(x=>[x,'a'.repeat(64)]));
  const semantic={count:135,fingerprint:'c'.repeat(64)};
  assert.throws(()=>certifyM44AppAclSemanticReadback(src,src,dig,dig,semantic,
-  {...semantic,fingerprint:'d'.repeat(64)}),/EFFECTIVE_RELATION_ACL_DRIFT/);
+  {...semantic,fingerprint:'d'.repeat(64)},scope,scope),/EFFECTIVE_RELATION_ACL_DRIFT/);
  assert.throws(()=>certifyM44AppAclSemanticReadback(src,src,dig,dig,semantic,
-  {...semantic,count:136}),/EFFECTIVE_RELATION_ACL_DRIFT/);
- for(const category of keys.filter(x=>x!=='relation_acl')){
+  {...semantic,count:136},scope,scope),/EFFECTIVE_RELATION_ACL_DRIFT/);
+ for(const category of ['column_acl','managed_defaults','postgres_defaults','policy_digest']){
   assert.throws(()=>certifyM44AppAclSemanticReadback(src,src,dig,
-   {...dig,[category]:'b'.repeat(64)},semantic,semantic),/ACL_DIGEST_PARITY_DRIFT_/);
+   {...dig,[category]:'b'.repeat(64)},semantic,semantic,scope,scope),/ACL_DIGEST_PARITY_DRIFT_/);
  }
  assert.throws(()=>certifyM44AppAclSemanticReadback(src,
-  {...src,function_acl:src.function_acl+1},dig,dig,semantic,semantic),
+  {...src,function_acl:src.function_acl+1},dig,dig,semantic,semantic,scope,scope),
   /SECURITY_COUNT_DRIFT_FUNCTION_ACL/);
+});
+test('schema and function physical array drift is tolerated only after exact semantic equality',()=>{
+ const keys=['schema_acl','relation_acl','function_acl','column_acl','managed_defaults',
+  'postgres_defaults','policy_digest'];
+ const d=Object.fromEntries(keys.map(k=>[k,'a'.repeat(64)]));
+ const physical={...d,schema_acl:'b'.repeat(64),function_acl:'c'.repeat(64),
+  relation_acl:'d'.repeat(64)};
+ const semantic={count:135,fingerprint:'1'.repeat(64)};
+ const ok=certifyM44AppAclSemanticReadback(src,{...src,relation_acl:133},
+  d,physical,semantic,semantic,scope,scope);
+ assert.equal(ok.effectiveSupplementalAclEqual,true);
+ assert.equal(ok.physicalSchemaAclArrayDrift,true);
+ assert.equal(ok.physicalFunctionAclArrayDrift,true);
+ assert.equal(ok.otherAclDigestsEqual,true);
+ for(const category of ['schemas','functions']){
+  const different={...scope,[category]:{...scope[category],fingerprint:'9'.repeat(64)}};
+  assert.throws(()=>certifyM44AppAclSemanticReadback(src,src,d,d,semantic,
+   semantic,scope,different),/SUPPLEMENTAL_EFFECTIVE_ACL_DRIFT_/);
+  const missing={...scope,[category]:{...scope[category],count:0}};
+  assert.throws(()=>certifyM44AppAclSemanticReadback(src,src,d,d,semantic,
+   semantic,scope,missing),/SUPPLEMENTAL_EFFECTIVE_FORMAT_/);
+ }
+ const legacy=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
+ assert.match(legacy,/readSupplementalSemantics\(PROD\)/);
+ assert.match(legacy,/readSupplementalSemantics\(TARGET\)/);
+ assert.match(legacy,/supplementalSemanticSql/);
 });
 test('Canonical readback is sorted across relation kind and grantor/grantee, not raw aclitem order',()=>{
  const s=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');

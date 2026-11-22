@@ -8,6 +8,7 @@ import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {selectPrivilegeToc} from './m44_acl_toc_selector.mjs';
 import {classifyM44RestoreFailure} from './m44_managed_pg_restore_failure.mjs';
+import {summarizeM44EffectiveAclDifferences} from './m44_acl_effective_diagnostic.mjs';
 const PROD='pjhmrhejsoofmouedavw',QA='gjztkdwfmunnzhtvxrsu',TARGET='zfvaouggafdbqfbpwhfx';
 const REPO='iberfit/iberfit-m26-app', VERIFIED_RUN=44976946195;
 const VERIFIED_SHA='79687a28c1e7da3630b14f76fc1d6494c03adfdd';
@@ -187,6 +188,14 @@ SELECT jsonb_build_object(
  'fingerprint',(SELECT encode(sha256(convert_to(coalesce(jsonb_agg(to_jsonb(material)
  ORDER BY schema_name,relation_name,kind),'[]'::jsonb)::text,'UTF8')),'hex') FROM material)
 ) AS effective_acl`;
+const supplementalSemanticSql="WITH material AS (\n SELECT 'schemas'::text AS category,n.nspname AS object_name,\n pg_get_userbyid(n.nspowner) AS owner_name,\n (SELECT COALESCE(jsonb_agg(jsonb_build_array(CASE WHEN a.grantor=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantor) END,CASE WHEN a.grantee=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,a.privilege_type,a.is_grantable) ORDER BY CASE WHEN a.grantor=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantor) END,CASE WHEN a.grantee=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,a.privilege_type,a.is_grantable),'[]'::jsonb) FROM aclexplode(coalesce(n.nspacl,acldefault('n'::\"char\",n.nspowner))) a) AS privileges\n FROM pg_namespace n WHERE n.nspname IN ('public','private')\n UNION ALL\n SELECT 'functions'::text AS category,\n format('%I.%I(%s)',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)) AS object_name,\n pg_get_userbyid(p.proowner) AS owner_name,\n (SELECT COALESCE(jsonb_agg(jsonb_build_array(CASE WHEN a.grantor=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantor) END,CASE WHEN a.grantee=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,a.privilege_type,a.is_grantable) ORDER BY CASE WHEN a.grantor=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantor) END,CASE WHEN a.grantee=0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,a.privilege_type,a.is_grantable),'[]'::jsonb) FROM aclexplode(coalesce(p.proacl,acldefault('f'::\"char\",p.proowner))) a) AS privileges\n FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace\n WHERE n.nspname IN ('public','private')\n)\nSELECT jsonb_object_agg(category,jsonb_build_object(\n 'count',objects,'fingerprint',fingerprint)) AS supplemental_acl\nFROM (SELECT category,count(*) AS objects,\n encode(sha256(convert_to(COALESCE(jsonb_agg(to_jsonb(material) ORDER BY object_name),'[]'::jsonb)::text,'UTF8')),'hex') AS fingerprint\n FROM material GROUP BY category) counts";
+async function readSupplementalSemantics(project){
+ const response=await mg(project,'/database/query',{method:'POST',body:{query:supplementalSemanticSql}});
+ const rows=Array.isArray(response)?response:response?.result;
+ if(!Array.isArray(rows)||rows.length!==1||!rows[0]?.supplemental_acl)
+  fail('SUPPLEMENTAL_EFFECTIVE_READBACK_INVALID');
+ return rows[0].supplemental_acl;
+}
 async function readRelationSemantics(project){
  const response=await mg(project,'/database/query',{method:'POST',body:{query:relationSemanticSql}});
  const rows=Array.isArray(response)?response:response?.result;
@@ -194,7 +203,25 @@ async function readRelationSemantics(project){
   fail('EFFECTIVE_RELATION_READBACK_INVALID');
  return rows[0].effective_acl;
 }
-export function certifyM44AppAclSemanticReadback(source,after,sourceDigest,afterDigest,sourceEffective,afterEffective){
+// Projection of the already-reviewed semantic CTE. Raw names and grants are
+// strictly private, used only to classify a genuine fingerprint mismatch.
+const relationDetailSql=relationSemanticSql.split('\nSELECT jsonb_build_object(')[0]+
+ '\nSELECT schema_name,relation_name,kind,owner_name,effective_privileges FROM material '+
+ 'ORDER BY schema_name,relation_name,kind';
+async function diagnoseRelationDriftOnClone(){
+ const [source,clone]=await Promise.all([PROD,TARGET].map(async project=>{
+  const response=await mg(project,'/database/query',{method:'POST',body:{query:relationDetailSql}});
+  const rows=Array.isArray(response)?response:response?.result;
+  if(!Array.isArray(rows)||rows.length<130||rows.length>500)
+   fail('DIAGNOSTIC_RELATION_READBACK_INVALID');
+  return rows;
+ }));
+ // The summary has an intentionally fixed numeric-only output shape; never
+ // print source/target rows, object identifiers, SQL, permissions or roles.
+ const summary=summarizeM44EffectiveAclDifferences(source,clone);
+ console.log('M44_EFFECTIVE_RELATION_DRIFT_COUNTS:'+JSON.stringify(summary));
+}
+export function certifyM44AppAclSemanticReadback(source,after,sourceDigest,afterDigest,sourceEffective,afterEffective,sourceSupplemental,afterSupplemental){
  for(const x of [sourceEffective,afterEffective]){
   if(!x||typeof x!=='object'||!Number.isSafeInteger(x.count)||x.count<130||
    typeof x.fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(x.fingerprint))
@@ -203,6 +230,17 @@ export function certifyM44AppAclSemanticReadback(source,after,sourceDigest,after
  if(sourceEffective.count!==afterEffective.count||
   sourceEffective.fingerprint!==afterEffective.fingerprint)
   fail('EFFECTIVE_RELATION_ACL_DRIFT');
+ for(const category of ['schemas','functions']){
+  const min=category==='schemas'?2:200;
+  for(const entry of [sourceSupplemental?.[category],afterSupplemental?.[category]]){
+   if(!entry||typeof entry!=='object'||!Number.isSafeInteger(entry.count)||
+    entry.count<min||entry.count>500||typeof entry.fingerprint!=='string'||
+    !/^[a-f0-9]{64}$/.test(entry.fingerprint))fail('SUPPLEMENTAL_EFFECTIVE_FORMAT_'+category.toUpperCase());
+  }
+  if(sourceSupplemental[category].count!==afterSupplemental[category].count||
+    sourceSupplemental[category].fingerprint!==afterSupplemental[category].fingerprint)
+   fail('SUPPLEMENTAL_EFFECTIVE_ACL_DRIFT_'+category.toUpperCase());
+ }
  for(const x of [source,after]){
   if(!x||typeof x!=='object'||Object.values(x).some(v=>!Number.isSafeInteger(v)||v<0))
    fail('CENSUS_INVALID');
@@ -213,17 +251,21 @@ export function certifyM44AppAclSemanticReadback(source,after,sourceDigest,after
   source.relation_acl<100||source.function_acl<100||source.default_acl<1||
   source.users<1||source.storage<1||source.invalid_indexes!==0)
   fail('BASELINE_UNEXPECTED');
- // Validate all seven raw fingerprints as well; the one permissible physical
- // difference is relacl storage, and ONLY after expanded effective ACL equality.
+ // Canonical privileges, owner and grant options have been verified for
+ // relations, schemas and functions. Their physical ACL array order and
+ // implicit NULL/default representations may legitimately differ. Column,
+ // platform-managed and role-default ACLs plus policies remain byte-exact.
  certifyM44AppAclDigests(sourceDigest,sourceDigest,{phase:'after'});
  certifyM44AppAclDigests(afterDigest,afterDigest,{phase:'after'});
- for(const k of REQUIRED_DIGESTS.filter(x=>x!=='relation_acl')){
+ for(const k of ['column_acl','managed_defaults','postgres_defaults','policy_digest']){
   if(sourceDigest[k]!==afterDigest[k])fail('ACL_DIGEST_PARITY_DRIFT_'+k.toUpperCase());
  }
  return Object.freeze({
-  effectiveRelationAclEqual:true,otherAclDigestsEqual:true,
+  effectiveRelationAclEqual:true,effectiveSupplementalAclEqual:true,otherAclDigestsEqual:true,
   physicalRelationAclCountDrift:source.relation_acl!==after.relation_acl,
   physicalRelationAclArrayDrift:sourceDigest.relation_acl!==afterDigest.relation_acl,
+  physicalSchemaAclArrayDrift:sourceDigest.schema_acl!==afterDigest.schema_acl,
+  physicalFunctionAclArrayDrift:sourceDigest.function_acl!==afterDigest.function_acl,
   prodWrites:0,fullPlatformCertified:false
  });
 }
@@ -368,6 +410,7 @@ async function main(){
   const source=await readCensus(PROD); // SELECT-only catalog/counts. No PROD mutations.
   const sourceAclDigests=await readAclDigests(PROD);
   const sourceRelationEffective=await readRelationSemantics(PROD);
+  const sourceSupplemental=await readSupplementalSemantics(PROD);
   m44Phase='PAUSE_QA_SAFE_SWAP';
   qaPaused=true;await mg(QA,'/pause',{method:'POST'});await until(QA,'INACTIVE');
   m44Phase='RESUME_EXISTING_SEALED_SANDBOX';
@@ -381,6 +424,7 @@ async function main(){
   m44Phase='MANAGED_DEFAULT_PRIVILEGES_PROVENANCE';
   const beforeAclDigests=await readAclDigests(TARGET);
   const beforeRelationEffective=await readRelationSemantics(TARGET);
+  const beforeSupplemental=await readSupplementalSemantics(TARGET);
   certifyM44AppAclDigests(sourceAclDigests,beforeAclDigests,{phase:'before'});
   // Prior managed drill #44982480166 atomically applied 390 app ACLs and
   // three postgres default privilege entries. Subsequent REVOKE attempts
@@ -388,9 +432,18 @@ async function main(){
   // modified managed clone: independently attest the persisted ACLs first.
   // This intentionally performs zero SQL writes, including no password resets.
   m44Phase='PREVIOUS_ACL_REPLAY_READONLY_VERIFICATION';
-  const beforeAttestation=certifyM44AppAclSemanticReadback(
-   source,before,sourceAclDigests,beforeAclDigests,
-   sourceRelationEffective,beforeRelationEffective);
+  let beforeAttestation;
+  try{
+   beforeAttestation=certifyM44AppAclSemanticReadback(
+    source,before,sourceAclDigests,beforeAclDigests,
+    sourceRelationEffective,beforeRelationEffective,sourceSupplemental,beforeSupplemental);
+  }catch(error){
+   if(String(error?.message)==='M44_MANAGED_ACL_EFFECTIVE_RELATION_ACL_DRIFT'){
+    try{await diagnoseRelationDriftOnClone();}
+    catch{console.error('M44_EFFECTIVE_RELATION_DIAGNOSTIC_UNAVAILABLE');}
+   }
+   throw error; // Preserve the original security gate and failure class.
+  }
   m44Phase='REPEAT_SEAL_AND_DENIAL_READONLY';
   await assertSealed();await assertDenied();
   m44Phase='FINAL_READONLY_CENSUS';
@@ -398,16 +451,19 @@ async function main(){
   m44Phase='FINAL_ACL_DIGEST_READBACK';
   const afterAclDigests=await readAclDigests(TARGET);
   const afterRelationEffective=await readRelationSemantics(TARGET);
+  const afterSupplemental=await readSupplementalSemantics(TARGET);
   const attestation=certifyM44AppAclSemanticReadback(
    source,after,sourceAclDigests,afterAclDigests,
-   sourceRelationEffective,afterRelationEffective);
+   sourceRelationEffective,afterRelationEffective,sourceSupplemental,afterSupplemental);
   if(attestation.physicalRelationAclCountDrift!==beforeAttestation.physicalRelationAclCountDrift||
-   attestation.physicalRelationAclArrayDrift!==beforeAttestation.physicalRelationAclArrayDrift)
+   attestation.physicalRelationAclArrayDrift!==beforeAttestation.physicalRelationAclArrayDrift||
+   attestation.physicalSchemaAclArrayDrift!==beforeAttestation.physicalSchemaAclArrayDrift||
+   attestation.physicalFunctionAclArrayDrift!==beforeAttestation.physicalFunctionAclArrayDrift)
    fail('ACL_PHYSICAL_REPRESENTATION_CHANGED_DURING_RECHECK');
   console.log('M44_RELATION_EFFECTIVE_PRIVILEGES_PARITY_VERIFIED:physical_storage_difference='+
     Number(attestation.physicalRelationAclCountDrift||attestation.physicalRelationAclArrayDrift)+
     ':grantor_grantee_grant_options_verified=1');
-  console.log('M44_MANAGED_EXISTING_APP_ACL_VERIFIED_READONLY:semantic_relation_grants=1:other_exact_digests=6:no_replay=1:prod_writes=0');
+  console.log('M44_MANAGED_EXISTING_APP_ACL_VERIFIED_READONLY:semantic_relation_grants=1:semantic_schema_function_grants=1:other_exact_digests=4:no_replay=1:prod_writes=0');
   console.log('M44_MANAGED_APP_ACL_PARITY_VERIFIED:rls_policies_stable=1:auth_storage_preserved=1:prod_writes=0:full_platform_NOT_certified');
  }finally{
   try{if(cloneActivated){await mg(TARGET,'/pause',{method:'POST'});await until(TARGET,'INACTIVE');console.log('M44_ACL_CLONE_PAUSED');}}

@@ -34,7 +34,7 @@ jobs:
       - name: Test strict app-only ACL TOC and fail-closed isolation
         run: |
           node --check scripts/ops/m44_managed_acl_replay_isolated.mjs
-          node --test tests/m44_managed_acl_replay_isolated.test.mjs tests/m44_acl_toc_selector.test.mjs
+          node --test tests/m44_managed_acl_replay_isolated.test.mjs tests/m44_acl_toc_selector.test.mjs tests/m44_acl_effective_diagnostic.test.mjs
       - name: Check persisted app ACLs without replaying SQL or resetting passwords
         run: node scripts/ops/m44_managed_acl_replay_isolated.mjs
   restore-free-slots:
