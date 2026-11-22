@@ -15,6 +15,7 @@ const BACKUP_ARTIFACT=14723146683, BACKUP_RUN=44944459633;
 const BACKUP_SHA='a68a5f1289bc974c0cc7ec62adfbced4325153d4271e5de278a4988bcfc913f1';
 const PREFIX='M44_MANAGED_ACL_';
 let qaPaused=false,cloneActivated=false,work='';
+let m44Phase='BOOTSTRAP';
 const fail=c=>{throw Error(PREFIX+c);};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const fetchJson=async (url,{method='GET',body,token=process.env.SUPABASE_ACCESS_TOKEN}={})=>{
@@ -24,7 +25,7 @@ const fetchJson=async (url,{method='GET',body,token=process.env.SUPABASE_ACCESS_
  const r=await fetch(u,{method,redirect:'error',headers:{Authorization:'Bearer '+token,
   Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},
   body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});
- if(!r.ok)fail('MANAGEMENT_HTTP_'+r.status);
+ if(!r.ok)fail('MANAGEMENT_HTTP_'+r.status+'_PHASE_'+m44Phase);
  const s=await r.text();
  if(!s.trim()&&method!=='GET')return {accepted:true};
  try{return JSON.parse(s);}catch{fail('RESPONSE_SHAPE');}
@@ -206,7 +207,9 @@ async function main(){
   String(process.env.IBERFIT_BACKUP_PASSPHRASE||'').length<32)fail('PROTECTED_CONTEXT_REQUIRED');
  work=mkdtempSync(join(tmpdir(),'m44-app-acl-managed-'));
  try{
+  m44Phase='VERIFY_PREVIOUS_RESTORE';
   await checkRun();
+  m44Phase='PROJECTS_PREFLIGHT';
   const list=await fetchJson('https://api.supabase.com/v1/projects');
   const projects=Array.isArray(list)?list:[];
   const get=ref=>projects.find(p=>p.ref===ref);
@@ -214,16 +217,27 @@ async function main(){
    get(TARGET)?.status!=='INACTIVE'||get(TARGET)?.name!=='iberfit-m44-recovery-isolated-20261121'||
    projects.filter(p=>p.status==='ACTIVE_HEALTHY').length!==2)
     fail('FREE_SLOTS_OR_PROJECT_IDENTITY_DRIFT');
-  await assertSealed();
+  // Management /postgrest and /config/auth can return HTTP 404 while paused.
+  // Never interpret 404 as a sealed API. The previous exact-run seal proof
+  // is mandatory; re-attest Auth and PostgREST immediately AFTER resume,
+  // BEFORE any read from the sensitive clone or application ACL replay.
+  m44Phase='PROD_CENSUS_READONLY';
   const source=await readCensus(PROD); // SELECT-only catalog/counts. No PROD mutations.
+  m44Phase='PAUSE_QA_SAFE_SWAP';
   qaPaused=true;await mg(QA,'/pause',{method:'POST'});await until(QA,'INACTIVE');
+  m44Phase='RESUME_EXISTING_SEALED_SANDBOX';
   cloneActivated=true;await mg(TARGET,'/restore',{method:'POST'});await until(TARGET,'ACTIVE_HEALTHY');
+  m44Phase='CLONE_AUTH_AND_API_SEAL';
   await assertSealed();await assertDenied();
+  m44Phase='CLONE_READONLY_CENSUS';
   const before=await readCensus(TARGET);
   for(const k of ['rls','policies','app_tables','users','storage','invalid_indexes'])
    if(before[k]!==source[k])fail('PRE_REPLAY_SCHEMA_OR_DATA_DRIFT');
+  m44Phase='SEALED_APP_ACL_REPLAY';
   await replayACL();
+  m44Phase='POST_ACL_AUTH_API_SEAL';
   await assertSealed();await assertDenied();
+  m44Phase='POST_ACL_READONLY_CENSUS';
   const after=await readCensus(TARGET);
   certifyManagedAppAclCensus(source,after);
   console.log('M44_MANAGED_APP_ACL_PARITY_VERIFIED:rls_policies_stable=1:auth_storage_preserved=1:prod_writes=0:full_platform_NOT_certified');
