@@ -186,3 +186,21 @@ test('Repeated synthetic sandbox recovery skips DDL when the known probe already
  assert.match(seal,/'unexpected_views'/);
  assert.match(seal,/data\[0\]\?\.sentinel==='M44_ISOLATION_SENTINEL_ONLY'/);
 });
+
+test('Managed PostgREST must repeatedly deny an originally public synthetic view before ANY real data import',()=>{
+ const seal=code.slice(code.indexOf('async function seal(){'),code.indexOf('async function databaseConnection(){'));
+ const controlStart=seal.indexOf('let consecutiveDenied=0');
+ const controlEnd=seal.indexOf("if(!negativeControl)fail('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED')");
+ const control=seal.slice(controlStart,controlEnd);
+ assert.ok(controlStart>0 && controlEnd>controlStart);
+ assert.match(control,/for\(let i=0;i<40;i\+\+\)/);
+ assert.match(control,/consecutiveDenied\+\+/);
+ assert.match(control,/consecutiveDenied=0/);
+ assert.match(control,/if\(consecutiveDenied>=8\)/);
+ assert.match(control,/await sleep\(3000\)/);
+ assert.match(control,/cache:'no-store'/);
+ assert.match(control,/finalConfig\?\.db_schema!=='m44_recovery_closed'/);
+ assert.doesNotMatch(control,/if\(response\.ok\)fail/);
+ assert.ok(seal.indexOf('sealed=true;')>controlEnd);
+ assert.ok(code.indexOf('await restoreData(conn);')>code.indexOf('await seal();'));
+});
