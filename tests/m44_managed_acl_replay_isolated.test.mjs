@@ -58,8 +58,8 @@ test('Do not query paused project service config: prove prior seal and check aft
  const pause=s.indexOf("qaPaused=true;await mg(QA,'/pause'");
  const resume=s.indexOf("cloneActivated=true;await mg(TARGET,'/restore'");
  const seal=s.indexOf("await assertSealed();await assertDenied();");
- const replay=s.indexOf("await replayACL();");
- assert.ok(a>0&&pause>a&&resume>pause&&seal>resume&&replay>seal);
+ const firstReadback=s.indexOf("const beforeAclDigests=await readAclDigests(TARGET)");
+ assert.ok(a>0&&pause>a&&resume>pause&&seal>resume&&firstReadback>seal);
  assert.doesNotMatch(s.slice(s.indexOf("async function main()"),resume),/await assertSealed\(\)/);
  assert.match(s,/MANAGEMENT_HTTP_'\+r.status\+'_PHASE_'\+m44Phase/);
 });
@@ -109,7 +109,7 @@ test('Synthetic M44 exposure probe is excluded from actual app ACL census',()=>{
  assert.throws(()=>certifyManagedAppAclCensus(src,{...src,function_acl:src.function_acl+1}),
   /ACL_PARITY_DRIFT_FUNCTION_ACL/);
 });
-test('Exact ACL digests are collected only after sealed clone and before replay',()=>{
+test('Exact ACL digests are collected after sealed clone and no replay runs',()=>{
  const s=readFileSync('scripts/ops/m44_managed_acl_replay_isolated.mjs','utf8');
  const start=s.indexOf('async function main()');
  const segment=s.slice(start);
@@ -117,7 +117,8 @@ test('Exact ACL digests are collected only after sealed clone and before replay'
  const before=segment.indexOf("const beforeAclDigests=await readAclDigests(TARGET)");
  const replay=segment.indexOf('await replayACL();');
  const after=segment.indexOf("const afterAclDigests=await readAclDigests(TARGET)");
- assert.ok(seal>=0&&before>seal&&replay>before&&after>replay);
+ assert.ok(seal>=0&&before>seal&&after>before);
+ assert.equal(replay,-1);
  assert.match(s,/managed_defaults/);
  assert.match(s,/m44_recovery_exposure_probe/);
  assert.doesNotMatch(s,/SET ROLE supabase_admin|GRANT supabase_admin TO postgres/);
