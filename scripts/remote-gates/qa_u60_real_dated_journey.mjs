@@ -214,6 +214,18 @@ export function chooseAppointmentlessDateOnlyQaSlot({today,future,duration,
   end2:new Date(b+duration*60000).toISOString()});
 }
 
+// Deterministic QA-only payload for the genuine no-appointment product path.
+// The time in the signed U74 evidence is an internal immutable proof marker;
+// it is NEVER an occurrence time or booking. Timed U71 remains unchanged.
+export function buildQaAutonomousDateOnlyPair(today,future){
+ assert(/^\d{4}-\d{2}-\d{2}$/.test(String(today))&&
+  /^\d{4}-\d{2}-\d{2}$/.test(String(future))&&
+  future===dayOffset(today,7),'U74_DATE_ONLY_PAIR_INVALID');
+ return Object.freeze([
+  Object.freeze({localDate:today}),Object.freeze({localDate:future}),
+ ]);
+}
+
 function context(mode){
  const e=process.env;
  for(const name of ['M26_QA_ONLY','M26_PROJECT_REF','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -558,8 +570,11 @@ async function main(){
   operationId:derivedUuid(ctx.e.GITHUB_RUN_ID,'occurrence-batch'),
   clientId:clientA,entityId:chosen.id,baseRevision:chosen.revision,
   payload:{targetClientId:clientA,previewConfirmed:true,
+   // Appointmentless U74 is DATE ONLY on BOTH days. Supplying the
+   // signed QA time as a future appointment invents a conflicting booking
+   // and U32 correctly rejects it. Never alter U32 overlap security.
    dates:ctx.autonomous
-    ?[{localDate:today},{localDate:future,localTime:plan.time}]
+    ?buildQaAutonomousDateOnlyPair(today,future)
     :appointments.map((x,i)=>({localDate:x.date,localTime:plan.time,
      appointmentId:commands[i].entityId}))},
  };
