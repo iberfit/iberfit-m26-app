@@ -11,6 +11,7 @@ on:
     paths:
       - 'scripts/ops/m44_managed_real_recovery.mjs'
       - 'scripts/ops/m44_managed_pg_restore_failure.mjs'
+      - 'scripts/ops/m44_managed_auth_toc_order.mjs'
       - '.github/workflows/m44-managed-real-recovery.yml'
 
 permissions:
@@ -80,7 +81,7 @@ jobs:
       - name: Verify restore script syntax and policy regression
         run: |
           node --check scripts/ops/m44_managed_real_recovery.mjs
-          node --test tests/m44_managed_real_recovery_guard.test.mjs tests/m44_managed_pg_restore_failure.test.mjs
+          node --test tests/m44_managed_real_recovery_guard.test.mjs tests/m44_managed_pg_restore_failure.test.mjs tests/m44_managed_auth_toc_order.test.mjs
       - name: Run isolated real-snapshot recovery and ALWAYS restore two Free slots
         shell: bash
         run: node scripts/ops/m44_managed_real_recovery.mjs
