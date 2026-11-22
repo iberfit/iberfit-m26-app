@@ -16,7 +16,8 @@ function index(category,rows){
  const m=new Map();
  for(const row of rows){
   if(!row||typeof row!=='object'||Array.isArray(row)||
-    !identifier(row.name)||!Array.isArray(row.privileges)||row.privileges.length>300||
+    !(category==='functions'?functionName(row.name):identifier(row.name))||
+    !Array.isArray(row.privileges)||row.privileges.length>300||
     typeof row.owner_name!=='string'||!row.owner_name)fail('ROW_FORMAT');
   if(m.has(row.name))fail('DUPLICATE_OBJECT');
   if(category==='relations'&&(!SCHEMAS.has(row.schema_name)||
