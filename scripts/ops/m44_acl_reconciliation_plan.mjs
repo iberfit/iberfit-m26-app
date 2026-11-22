@@ -7,6 +7,11 @@ const fail=x=>{throw Error(PREFIX+x);};
 const ROLES=new Set(['postgres','anon','authenticated','service_role']);
 const SCHEMAS=new Set(['public','private']);
 const MAX={relations:500,functions:1000,schemas:2,defaults:20,columns:10000};
+const TABLE=new Set(['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN']);
+const SEQUENCE=new Set(['USAGE','SELECT','UPDATE']);
+const DEFAULTS={r:TABLE,S:SEQUENCE,f:new Set(['EXECUTE']),T:new Set(['USAGE']),n:new Set(['USAGE','CREATE'])};
+const CATEGORY_PRIVILEGES={functions:new Set(['EXECUTE']),schemas:new Set(['CREATE','USAGE']),
+ columns:new Set(['SELECT','INSERT','UPDATE','REFERENCES'])};
 const q=s=>'"'+s.replaceAll('"','""')+'"';
 const identifier=s=>typeof s==='string'&&s.length>0&&s.length<=128&&!/[\x00-\x1f]/.test(s);
 const functionName=s=>typeof s==='string'&&s.length>5&&s.length<=512&&
@@ -32,6 +37,9 @@ function index(category,rows){
   for(const g of row.privileges){
    if(!Array.isArray(g)||g.length!==4||typeof g[0]!=='string'||
      typeof g[1]!=='string'||typeof g[2]!=='string'||typeof g[3]!=='boolean')fail('GRANT_FORMAT');
+   const allowed=category==='relations'?(row.object_type==='S'?SEQUENCE:TABLE):
+    category==='defaults'?DEFAULTS[row.object_type]:CATEGORY_PRIVILEGES[category];
+   if(!allowed||!allowed.has(g[2]))fail('PRIVILEGE_OUT_OF_SCOPE');
    const token=JSON.stringify(g);
    if(grants.has(token))fail('DUPLICATE_GRANT');
    grants.add(token);
