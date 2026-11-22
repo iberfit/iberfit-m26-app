@@ -171,3 +171,18 @@ test('Interrupted sealed sandbox can be reused ONLY after proving it has no pers
  assert.match(seal,/if\(!positiveControl\)fail\('PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN'\)/);
  assert.match(seal,/if\(!negativeControl\)fail\('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED'\)/);
 });
+
+test('Repeated synthetic sandbox recovery skips DDL when the known probe already exists',()=>{
+ const seal=code.slice(code.indexOf('async function seal(){'),code.indexOf('async function databaseConnection(){'));
+ const validate=seal.indexOf("fail('ISOLATED_PROJECT_NOT_EMPTY')");
+ const existing=seal.indexOf("if(Number(row.synthetic_views)===0)");
+ const ddl=seal.indexOf("CREATE OR REPLACE VIEW public.m44_recovery_exposure_probe");
+ const reuse=seal.indexOf("SEAL_REUSE_EXISTING_SYNTHETIC_PROBE_HTTP");
+ const positive=seal.indexOf("if(!positiveControl)fail('PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN')");
+ const close=seal.indexOf("db_schema:'m44_recovery_closed'");
+ const negative=seal.indexOf("if(!negativeControl)fail('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED')");
+ assert.ok(validate>0&&existing>validate&&ddl>existing&&reuse>ddl&&positive>reuse&&close>positive&&negative>close);
+ assert.match(seal,/if\(Number\(row\.synthetic_views\)===0\)\s*\{/);
+ assert.match(seal,/'unexpected_views'/);
+ assert.match(seal,/data\[0\]\?\.sentinel==='M44_ISOLATION_SENTINEL_ONLY'/);
+});

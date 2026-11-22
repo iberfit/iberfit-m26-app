@@ -167,10 +167,17 @@ async function seal(){
  // sealing, so HTTP 404 from a missing application table cannot create a
  // false assurance that public PII will be inaccessible after import.
  const probeURL='https://'+TARGET+'.supabase.co/rest/v1/m44_recovery_exposure_probe?select=sentinel&limit=1';
- m44Phase='SEAL_CREATE_SYNTHETIC_PROBE_SQL';
- await sup(TARGET,'/database/query',{method:'POST',body:{
-  query:"CREATE OR REPLACE VIEW public.m44_recovery_exposure_probe WITH (security_invoker=true) AS SELECT 'M44_ISOLATION_SENTINEL_ONLY'::text AS sentinel; GRANT SELECT ON public.m44_recovery_exposure_probe TO anon; NOTIFY pgrst, 'reload schema'"
- }});
+ // A previous fail-closed run may have already created this harmless view.
+ // NEVER execute DDL again if the exact probe exists; first verify the
+ // sandbox has no other views/data, then require positive HTTP sentinel proof.
+ if(Number(row.synthetic_views)===0){
+  m44Phase='SEAL_CREATE_SYNTHETIC_PROBE_SQL';
+  await sup(TARGET,'/database/query',{method:'POST',body:{
+   query:"CREATE OR REPLACE VIEW public.m44_recovery_exposure_probe WITH (security_invoker=true) AS SELECT 'M44_ISOLATION_SENTINEL_ONLY'::text AS sentinel; GRANT SELECT ON public.m44_recovery_exposure_probe TO anon; NOTIFY pgrst, 'reload schema'"
+  }});
+ }else{
+  m44Phase='SEAL_REUSE_EXISTING_SYNTHETIC_PROBE_HTTP';
+ }
  let positiveControl=false;
  for(let i=0;i<20;i++){
   const response=await fetch(probeURL,{headers:{apikey:key,'Accept-Profile':'public'},
