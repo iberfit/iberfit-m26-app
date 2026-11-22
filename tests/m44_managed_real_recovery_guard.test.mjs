@@ -99,7 +99,7 @@ test('Failed or cancelled data-replay is followed by a separate protected Free-s
 
 test('A public-schema positive control must be observed BEFORE an HTTP negative control permits real data import',()=>{
  const seal=code.slice(code.indexOf('async function seal(){'),code.indexOf('async function databaseConnection(){'));
- assert.match(seal,/CREATE VIEW public\.m44_recovery_exposure_probe WITH \(security_invoker=true\)/);
+ assert.match(seal,/CREATE OR REPLACE VIEW public\.m44_recovery_exposure_probe WITH \(security_invoker=true\)/);
  assert.match(seal,/GRANT SELECT ON public\.m44_recovery_exposure_probe TO anon/);
  assert.match(seal,/PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN/);
  assert.match(seal,/PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED/);
@@ -150,4 +150,24 @@ test('M44 avoids ambiguous management error output and preserves fail-closed dat
  assert.ok(beforeData>0 && importData>beforeData);
  assert.doesNotMatch(code,/console\.(?:log|error)\([^;\n]*response\.text/);
  assert.doesNotMatch(code,/console\.(?:log|error)\([^;\n]*JSON\.stringify\(\s*body/);
+});
+
+test('Interrupted sealed sandbox can be reused ONLY after proving it has no personal data',()=>{
+ const seal=code.slice(code.indexOf('async function seal(){'),code.indexOf('async function databaseConnection(){'));
+ const checks=["auth.users","auth.identities","auth.sessions","storage.objects",
+  "storage.buckets","vault.secrets","schemaname IN ('public','private')",
+  "viewname <> 'm44_recovery_exposure_probe'","ISOLATED_PROJECT_NOT_EMPTY",
+  "SEAL_RESET_EMPTY_SANDBOX_POSTGREST",
+  "UNEXPECTED_PRE_RESTORE_DATA_API_CONFIGURATION","EMPTY_SANDBOX_RESET_NOT_CONFIRMED"];
+ for(const check of checks)assert.ok(seal.includes(check),'Missing safety check '+check);
+ const emptyRead=seal.indexOf("fail('ISOLATED_PROJECT_NOT_EMPTY')");
+ const exposed=seal.indexOf("body:{db_schema:'public'}");
+ const recreated=seal.indexOf("CREATE OR REPLACE VIEW public.m44_recovery_exposure_probe");
+ const sealed=seal.indexOf("body:{db_schema:'m44_recovery_closed'}");
+ const importBegin=code.indexOf('await restoreData(conn);');
+ assert.ok(emptyRead>=0&&exposed>emptyRead&&recreated>exposed&&sealed>recreated&&importBegin>0);
+ assert.match(seal,/if\(apiBefore\.db_schema==='m44_recovery_closed'\)/);
+ assert.match(seal,/if\(reopened\?\.db_schema!=='public'\)fail\('EMPTY_SANDBOX_RESET_NOT_CONFIRMED'\)/);
+ assert.match(seal,/if\(!positiveControl\)fail\('PUBLIC_SCHEMA_POSITIVE_CONTROL_NOT_PROVEN'\)/);
+ assert.match(seal,/if\(!negativeControl\)fail\('PUBLIC_API_NEGATIVE_CONTROL_UNVERIFIED'\)/);
 });
