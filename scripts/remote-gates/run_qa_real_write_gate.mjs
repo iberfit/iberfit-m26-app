@@ -1,3 +1,4 @@
+import {releaseQaAuthSessions} from './release_qa_auth_sessions.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash,randomUUID} from 'node:crypto';
 import {readQaClientIdentity} from './qa_client_identity_rpc.mjs';
@@ -62,6 +63,7 @@ async function json(url,init={}){
   throw new Error(`QA_WRITE_HTTP_RETRY_EXHAUSTED:${target.pathname}`);
 }
 
+const qaIssuedSessions=[];
 async function login(email,password){
   const body=await json(`${base}/auth/v1/token?grant_type=password`,{
     method:'POST',
@@ -69,6 +71,7 @@ async function login(email,password){
     body:JSON.stringify({email,password}),
   });
   if(!body?.access_token||!body?.user?.id)throw new Error('QA_WRITE_AUTH_FAILED');
+  qaIssuedSessions.push({email,token:body.access_token});
   return {token:body.access_token,userId:body.user.id};
 }
 
@@ -492,4 +495,7 @@ console.log(JSON.stringify(evidence,null,2));
   await mkdir('recovery',{recursive:true});
   await writeFile('recovery/P0_QA_REAL_WRITE_EVIDENCE.json',JSON.stringify(failureEvidence,null,2)+'\n');
   throw error;
+}finally{
+  const outcome=await releaseQaAuthSessions({sessions:qaIssuedSessions,base:base,key:key,projectRef:'gjztkdwfmunnzhtvxrsu',qaOnly:process.env.M26_QA_ONLY});
+  console.log('QA_AUTH_RELEASE='+JSON.stringify(outcome));
 }

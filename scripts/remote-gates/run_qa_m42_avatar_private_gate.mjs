@@ -1,3 +1,4 @@
+import {releaseQaAuthSessions} from './release_qa_auth_sessions.mjs';
 /**
  * M42 real QA-only Storage security: synthetic Client A/B and assigned Coach.
  * Publishable key + user JWT only. No PROD endpoints and no service role.
@@ -39,9 +40,11 @@ async function send(path,{method='GET',token,json,bytes,upsert=false,readBytes=f
  const blob=!isJson?Buffer.from(await r.arrayBuffer()):null;
  return {ok:r.ok,status:r.status,body,bytes:readBytes?blob:null};
 }
+const qaIssuedSessions=[];
 async function login(email,password){
  const r=await send('/auth/v1/token?grant_type=password',{method:'POST',json:{email,password}});
  check(r.ok&&typeof r.body?.access_token==='string','AUTHENTICATION');
+ qaIssuedSessions.push({email,token:r.body.access_token});
  return r.body.access_token;
 }
 async function rpc(name,token,json={}){
@@ -151,4 +154,6 @@ try{await main();}catch(e){
  await writeFile('recovery/m42-qa/avatar-private-real-write.json',JSON.stringify(evidence,null,2)+'\n');
  console.log('M42_AVATAR_QA='+JSON.stringify({passed:evidence.passed,phase:evidence.phase,
   checks:evidence.checks.length,cleanupConfirmed:evidence.cleanupConfirmed,error:evidence.errorCode||null}));
+  const outcome=await releaseQaAuthSessions({sessions:qaIssuedSessions,base:BASE,key:process.env.M26_SUPABASE_PUBLISHABLE_KEY,projectRef:'gjztkdwfmunnzhtvxrsu',qaOnly:process.env.M26_QA_ONLY});
+  console.log('QA_AUTH_RELEASE='+JSON.stringify(outcome));
 }
