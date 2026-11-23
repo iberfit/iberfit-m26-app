@@ -1,0 +1,59 @@
+name: IBERFIT Free QA Fixture Auth Reset (one-shot guarded)
+
+on:
+  push:
+    branches: [canary/rc74-4]
+    paths:
+      - '.github/workflows/free-qa-fixture-auth-reset.yml'
+      - 'scripts/ops/qa_fixture_auth_free_reset.mjs'
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Escribe QA_FIXTURE_GLOBAL_RESET_V1 para cerrar solo las sesiones de las 3 cuentas sintéticas de QA'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  reset:
+    if: ${{ github.event_name == 'push' || inputs.confirmation == 'QA_FIXTURE_GLOBAL_RESET_V1' }}
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 15
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - name: Checkout exact Canary
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm exact current Canary SHA
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: node scripts/ops/require_current_canary_sha.mjs
+      - name: Offline QA-only scope, origin, fixture, and no-leak tests
+        run: node --test tests/m26_p0_free_qa_fixture_auth_reset.test.mjs
+      - name: Guarded reset of synthetic QA fixture sessions only
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          QA_FIXTURE_RESET_AUTHORIZED: ${{ (github.event_name == 'push' && contains(github.event.head_commit.message, 'QA_FIXTURE_GLOBAL_RESET_V1')) || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'QA_FIXTURE_GLOBAL_RESET_V1') }}
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/ops/qa_fixture_auth_free_reset.mjs
