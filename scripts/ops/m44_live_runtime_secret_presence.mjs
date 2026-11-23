@@ -29,10 +29,11 @@ export function assessM44RuntimePresence({source,inventory,functions,secrets,aut
   const configured=new Set();
   if(!Array.isArray(secrets)||secrets.length>500)fail('SECRET_METADATA_INVALID');
   for(const item of secrets){
+    // Management API may include value-bearing fields in metadata responses.
+    // Deliberately read ONLY the name; never inspect, copy, log or return values.
     if(!item||typeof item!=='object'||Array.isArray(item)||
-      typeof item.name!=='string'||!KEY.test(item.name)||
-      Object.hasOwn(item,'value')||Object.hasOwn(item,'secret')||
-      Object.hasOwn(item,'plaintext'))fail('SECRET_METADATA_UNSAFE');
+      !Object.hasOwn(item,'name')||typeof item.name!=='string'||!KEY.test(item.name))
+      fail('SECRET_METADATA_UNSAFE');
     if(configured.has(item.name))fail('SECRET_METADATA_DUPLICATE');
     configured.add(item.name);
   }
