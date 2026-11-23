@@ -1,5 +1,6 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {CLIENT_SIGNATURE_U24_AREAS,certifyClientSignatureRoute} from './signature-u24-client-route-audit.mjs';
 import {
   CANARY_ORIGIN,
@@ -697,6 +698,7 @@ test('authenticated visual evidence uses Client-only QA plus privileged Coach ga
       expect(unexpectedQaResourceErrors(consoleErrors,missingAvatar.length,verifiedFutureIat.length)).toEqual([]);
       expect(pageErrors).toEqual([]);
     }finally{
+      console.log('M26_QA_SESSION_CLEANUP:'+await releaseQaSessionBeforeContextClose(page));
       await context.close().catch(()=>{});
     }
   }
