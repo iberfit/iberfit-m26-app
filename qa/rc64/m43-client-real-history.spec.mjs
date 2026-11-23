@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {m43QaRunMarkers} from '../../scripts/remote-gates/m43-qa-fixture-safety.mjs';
 import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -41,6 +42,14 @@ if(process.env.GITHUB_ACTIONS==='true'&&!WRITER_ATTEMPT)
   throw Error('M43_QA_WRITER_ATTESTATION_REQUIRED');
 const LIVE_MARKER=m43QaRunMarkers({runId:process.env.GITHUB_RUN_ID,attempt:WRITER_ATTEMPT||process.env.GITHUB_RUN_ATTEMPT}).sessionTitle;
 const SECRET_MARKER='IBERFIT QA M43 · ciclo no publicado';
+
+
+test.afterEach(async({page},testInfo)=>{
+  const status=await releaseQaSessionBeforeContextClose(page);
+  console.log('M43_QA_PAGE_AUTH_RELEASE='+status);
+  // Never mask a prior failure; a passing browser test must not leak its QA lease.
+  if(testInfo.status==='passed')expect(['released','no-session']).toContain(status);
+});
 
 test('M43 authenticated Cliente sees published multideporte and completed history, never unpublished cycles',async({page,context},testInfo)=>{
   const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',

@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createQaSupabaseWireMeter,verifyQaFreeBrowserWireBudget} from './qa-supabase-wire-meter.mjs';
@@ -65,6 +66,14 @@ async function observeQaHydrationReasons(page){
   });
   return counts;
 }
+
+
+test.afterEach(async({page},testInfo)=>{
+  const status=await releaseQaSessionBeforeContextClose(page);
+  console.log('M43_QA_PAGE_AUTH_RELEASE='+status);
+  // Never mask a prior failure; a passing browser test must not leak its QA lease.
+  if(testInfo.status==='passed')expect(['released','no-session']).toContain(status);
+});
 
 test('Client executes exact synthetic guided workout through real UI and confirms server history',async({page,context,browser},testInfo)=>{
   // One fixture now runs two COMPLETE, independent server-ACKed sports lifecycles.
@@ -361,12 +370,14 @@ test('Client executes exact synthetic guided workout through real UI and confirm
     locale:'es-ES',timezoneId:'America/Santiago',
     serviceWorkers:'block',reducedMotion:'reduce',
   });
+  let desktopPage=null;
+  try{
   await installCurrentSourceQaNetworkPolicy(runningDesktopContext,{
     readOnlyRpcs:READ_ONLY_RPCS,
     allowQaSyntheticWrite:allowExactSyntheticWrite,
     onBlocked:label=>blocked.push(label),
   });
-  const desktopPage=await runningDesktopContext.newPage();
+  desktopPage=await runningDesktopContext.newPage();
   const desktopWire=createQaSupabaseWireMeter(desktopPage,{origin:SUPABASE_ORIGIN});
   const desktopHydrationReasons=await observeQaHydrationReasons(desktopPage);
   desktopPage.on('pageerror',error=>pageErrors.push(String(error?.message||error).slice(0,180)));
@@ -521,5 +532,11 @@ test('Client executes exact synthetic guided workout through real UI and confirm
   await testInfo.attach('m43-qa-supabase-wire-evidence',{
     body:Buffer.from(JSON.stringify(wireEvidence,null,2)),contentType:'application/json',
   });
-  await runningDesktopContext.close();
+  }finally{
+    if(desktopPage){
+      const status=await releaseQaSessionBeforeContextClose(desktopPage);
+      console.log('M43_QA_DESKTOP_AUTH_RELEASE='+status);
+    }
+    await runningDesktopContext.close();
+  }
 });
