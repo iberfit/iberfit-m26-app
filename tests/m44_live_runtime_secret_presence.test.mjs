@@ -52,9 +52,19 @@ test('deployed bundle, JWT, function or inventory drift is rejected',()=>{
     assert.throws(()=>assessM44RuntimePresence(x),/M44_RUNTIME_PRESENCE_/u);
   }
 });
-test('metadata values, duplicate/unsafe names, bad Auth and inventory are rejected',()=>{
+test('secret value-bearing response fields are ignored, never returned as proof',()=>{
+  const x=fixture();
+  x.secrets[0].value='REALISH_SECRET_MUST_NEVER_APPEAR_IN_REPORT';
+  x.secrets[1].plaintext='ALSO_PRIVATE';
+  const proof=assessM44RuntimePresence(x);
+  assert.equal(proof.runtimeNamesPresent,true);
+  assert.equal(proof.credentialValuesRecovered,false);
+  assert.equal(proof.productionActivationAuthorized,false);
+  assert.equal(JSON.stringify(proof).includes('REALISH_SECRET'),false);
+  assert.equal(JSON.stringify(proof).includes('ALSO_PRIVATE'),false);
+});
+test('duplicate/unsafe names, bad Auth and inventory are rejected',()=>{
   for(const change of [
-    x=>{x.secrets[0].value='DO_NOT_EXPORT';},
     x=>{x.secrets.push({name:x.secrets[0].name});},
     x=>{x.secrets[0].name='../bad';},
     x=>{x.authConfig.disable_signup=false;},
