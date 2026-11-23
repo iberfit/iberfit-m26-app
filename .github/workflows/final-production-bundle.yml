@@ -54,7 +54,7 @@ jobs:
         env:
           GH_READ_TOKEN: ${{ github.token }}
         run: node scripts/ops/require_current_canary_sha.mjs
-      - name: Inspect PROD migration ledger, permissions and U60 staged state - READ ONLY
+      - name: Inspect PROD ledger, ACTIVE U72/U60 RLS and NO GO boundary - READ ONLY
         run: node scripts/ops/verify_current_prod_baseline.mjs
       - name: Preserve non-executable evidence only
         uses: actions/upload-artifact@v4
