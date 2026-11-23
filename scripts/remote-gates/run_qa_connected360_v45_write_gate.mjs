@@ -82,8 +82,10 @@ async function login(email,password){
       payload:{email,password},
     });
     if(res.status===200&&typeof res.body?.access_token==='string'
-      &&typeof res.body?.user?.id==='string')
-      {qaIssuedSessions.push({email,token:res.body.access_token});return {token:res.body.access_token,userId:res.body.user.id};}
+      &&typeof res.body?.user?.id==='string'){
+      qaIssuedSessions.push({email,token:res.body.access_token});
+      return {token:res.body.access_token,userId:res.body.user.id};
+    }
     if(attempt===0&&TRANSIENT_QA_AUTH_GATEWAY.has(res.status)){
       // Only one retry, only a transient gateway failure; never retry bad
       // credentials, 429 or revoked users. No secrets or PII in diagnostics.

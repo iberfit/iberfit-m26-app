@@ -33,6 +33,7 @@ on:
       # QA writer-only helpers are covered by qa-real-write-cert.yml; do not
       # start an extra multibrowser remote suite for those maintenance changes.
       - 'scripts/remote-gates/run_authenticated_readonly_gate.mjs'
+      - 'scripts/remote-gates/release_qa_auth_sessions.mjs'
       - 'scripts/remote-gates/readonly-network-policy.mjs'
       - 'scripts/remote-gates/readonly-gate-bootstrap-privacy.mjs'
       - 'scripts/remote-gates/readonly-gate-client-isolation.mjs'

@@ -37,14 +37,14 @@ function sourceImports(path){
   });
 }
 test('readonly remote QA only fires for its own runtime and modules, never unrelated writer-only QA scripts',()=>{
-  assert.equal(remotePush.filter(p=>p.startsWith('scripts/remote-gates/')).length,4);
+  assert.equal(remotePush.filter(p=>p.startsWith('scripts/remote-gates/')).length,5);
   assert.ok(!remotePush.includes('scripts/remote-gates/**'));
   const required=[
     'scripts/remote-gates/run_authenticated_readonly_gate.mjs',
     ...sourceImports('scripts/remote-gates/run_authenticated_readonly_gate.mjs')
       .filter(path=>path.startsWith('scripts/remote-gates/')),
   ];
-  assert.equal(new Set(required).size,4,'Only explicitly audited direct reader deps');
+  assert.equal(new Set(required).size,5,'Only explicitly audited direct reader deps');
   for(const path of required)
     assert.ok(remotePush.includes(path),'MISSING_REMOTE_READER_TRIGGER:'+path);
   assert.ok(remotePush.includes('src/m26/command-catalog.js'),'MISSING_REMOTE_COMMAND_CATALOG_TRIGGER');
