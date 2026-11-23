@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {
@@ -21,6 +22,14 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_measurement_profiles_public_v1',
   'iberfit_exercise_media_manifest_v1',
 ]);
+
+
+test.afterEach(async({page},testInfo)=>{
+  const status=await releaseQaSessionBeforeContextClose(page);
+  console.log('M43_QA_PAGE_AUTH_RELEASE='+status);
+  // Never mask a prior failure; a passing browser test must not leak its QA lease.
+  if(testInfo.status==='passed')expect(['released','no-session']).toContain(status);
+});
 
 test('M43 Coach first-factor enforces genuine device assurance; verify workspace only if MFA is already complete',async({page,context},testInfo)=>{
   const required=['M26_PROJECT_REF','M26_QA_ONLY','M26_SUPABASE_URL',

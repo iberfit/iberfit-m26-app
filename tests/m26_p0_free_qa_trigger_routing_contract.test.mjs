@@ -115,6 +115,8 @@ test('QA real-write routing tracks writer helper and library dependencies for PR
     'scripts/remote-gates/m43-qa-fixture-safety.mjs',
     'scripts/remote-gates/m43-qa-retained-history-v3.json',
     'scripts/remote-gates/m43-writer-handoff.mjs',
+    'qa/rc64/m43-coach-real-workspace.spec.mjs',
+    'tests/m26_p0_free_m43_browser_session_cleanup_contract.test.mjs',
   ]) assert.ok(covered(dep,qaPull),'QA_WRITE_MANDATORY_TRIGGER_MISSING:'+dep);
   assert.match(qa,/group: iberfit-qa-shared-auth-readonly/u);
   assert.match(qa,/run: node scripts\/remote-gates\/run_qa_m43_coach_client_write_gate\.mjs/u);
