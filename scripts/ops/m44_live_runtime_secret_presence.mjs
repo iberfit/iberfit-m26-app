@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import {resolve} from 'node:path';
 import {validateAuthConfigRecord} from './m44_hosted_auth_config_archive.mjs';
+import {attestM44ExternalEscrow} from './m44_external_escrow_digest_parity.mjs';
 
 const PROJECT='pjhmrhejsoofmouedavw',REPO='iberfit/iberfit-m26-app';
 const SHA=/^[a-f0-9]{40}$/u,HEX=/^[a-f0-9]{64}$/u,KEY=/^[A-Z][A-Z0-9_]{2,100}$/u;
@@ -84,10 +85,33 @@ if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.u
     const [functions,secrets,authConfig]=await Promise.all([
       management('/functions',token),management('/secrets',token),management('/config/auth',token)]);
     const result=assessM44RuntimePresence({source,inventory,functions,secrets,authConfig});
+    // Optional operator escrow candidates exist only in this protected GitHub
+    // environment, never in the repo, logs, backup artifact, or returned proof.
+    const escrow=attestM44ExternalEscrow({
+      managedSecrets:secrets,
+      candidates:{
+        GEMINI_API_KEY:process.env.IBERFIT_M44_RECOVERY_GEMINI_API_KEY,
+        GOOGLE_API_KEY:process.env.IBERFIT_M44_RECOVERY_GOOGLE_API_KEY,
+        IBERFIT_WEB_PUSH_VAPID_PRIVATE_KEY:
+          process.env.IBERFIT_M44_RECOVERY_WEB_PUSH_VAPID_PRIVATE_KEY,
+        IBERFIT_WEB_PUSH_VAPID_PUBLIC_KEY:
+          process.env.IBERFIT_M44_RECOVERY_WEB_PUSH_VAPID_PUBLIC_KEY,
+        IBERFIT_WEB_PUSH_VAPID_SUBJECT:
+          process.env.IBERFIT_M44_RECOVERY_WEB_PUSH_VAPID_SUBJECT
+      },
+      smtpCandidate:process.env.IBERFIT_M44_RECOVERY_SMTP_PASSWORD
+    });
     console.log('M44_RUNTIME_READONLY_CHECK:edge='+result.deployedFunctionsVerified+
       ':names='+result.runtimeNamesInspected+':ai='+Number(result.aiConfigured)+
       ':push='+Number(result.pushConfigured)+':hosted_config=1:prod_writes=0');
-    console.log('M44_PLATFORM_RECOVERY_NOT_CERTIFIED:external_values_not_recovered=1:integrations_not_probed=1');
+    console.log('M44_EXTERNAL_ESCROW_READONLY:configured='+escrow.managedExternalNames+
+      ':source_sha256='+Number(escrow.digestMetadataCompatible)+
+      ':external_exact_matches='+escrow.matchingIndependentCandidates+
+      ':ai_match='+Number(escrow.aiCandidateMatched)+
+      ':vapid_match='+Number(escrow.vapidCandidateMatched)+
+      ':smtp_candidate_present='+Number(escrow.smtpCandidatePresent)+
+      ':smtp_match_verified=0:production_writes=0');
+    console.log('M44_PLATFORM_RECOVERY_NOT_CERTIFIED:independent_live_restore=0:external_providers_unverified=1');
     if(!result.runtimeNamesPresent)fail('EXTERNAL_SECRET_NAMES_MISSING');
   }catch(error){
     const message=String(error?.message||'');
