@@ -1,0 +1,32 @@
+name: IBERFIT M44 Live Runtime Secret Presence Read-only
+on:
+  push:
+    branches: [canary/rc74-4]
+    paths:
+      - 'scripts/ops/m44_live_runtime_secret_presence.mjs'
+      - 'tests/m44_live_runtime_secret_presence.test.mjs'
+      - '.github/workflows/m44-live-runtime-presence.yml'
+permissions:
+  contents: read
+concurrency:
+  group: iberfit-m44-live-runtime-presence
+  cancel-in-progress: false
+jobs:
+  inspect-names-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    environment: m26-canary-readonly
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      M44_RUNTIME_PRESENCE_READONLY: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test fail-closed metadata handling and runtime identity
+        run: node --test tests/m44_live_runtime_secret_presence.test.mjs tests/m44_hosted_auth_config_archive.test.mjs
+      - name: Inspect configured PROD secret names and deployed Edge identity (read-only)
+        run: node scripts/ops/m44_live_runtime_secret_presence.mjs
