@@ -10,24 +10,30 @@ const valid=()=>({
  applied_migrations:14,migration_total:EXACT_LEDGER_TOTAL,
  migration_latest:EXACT_LEDGER_LATEST,migration_ledger_sha256:EXACT_LEDGER_SHA256,
  existing_webauthn:true,existing_rc74:true,staged_u60:true,
- existing_m44:true,existing_connected360:true,u72_not_installed:true,
+ existing_m44:true,existing_connected360:true,u72_installed:true,
  coach_guard_installed:true,coach_prepare_acl:true,coach_finalize_acl:true,
  coach_prepare_md5:'c6ce72f2333fbc369b66792b735dc8ef',
  coach_bind_md5:'c8bbd63ace0634a4b1ad5f444fdd0d98',
  coach_finalize_md5:'168dc6bd262169a58a6d9ff12558078d',
- u60_auth_execute:false,u60_anon_execute:false,u60_detail_auth_execute:false,
- u72_source_gateway_md5:'5914acf371015a6bbeeaf95f99e056e3',
- u72_source_detail_md5:'35862b8e4977fcf0c3d611937fe83126',
- u72_source_receipt_md5:'f97d7df4fdd510b63ac1249352273927',
+ u60_auth_execute:true,u60_anon_execute:false,u60_detail_auth_execute:true,
+ u60_detail_anon_execute:false,u72_private_auth_execute:false,
+ u72_private_anon_execute:false,occurrence_direct_auth:false,occurrence_direct_anon:false,
+ u72_source_gateway_md5:'944aaac897289954a9c589292d8faf87',
+ u72_source_detail_md5:'a022c4e11a7431775a5a76b710f17f0d',
+ u72_source_receipt_md5:'65e675f56c67aa8f9ddc4b36f3a9a73d',
+ u72_pause_md5:'1270cf1db8c9a162ccc5736207a258e1',
+ autonomous_start_md5:'6e63f97899c94d94192c23e669cfd347',
+ autonomous_calendar_md5:'3eb919f3032f7ffed566a203b43ff453',
+ u60_public_detail_md5:'00b8ee39c85fd92f593732c055902cf2',
  u60_fences:2,registry_rls:true,locks_rls:true,entities_rls:true,
  occurrences_rls:true,environment_rpc_acl:true,
 });
 test('catalog-only query has no business rows, RLS bypass, privilege mutation or app RPC call',()=>{
  assert.equal(PROD_REF,'pjhmrhejsoofmouedavw');
  assert.equal(REQUIRED_VERSIONS.length,14);
- assert.equal(EXACT_LEDGER_TOTAL,227);
- assert.equal(EXACT_LEDGER_LATEST,'20261120220043');
- assert.equal(EXACT_LEDGER_SHA256,'6b3ac9930f59ef4e5fb197dd0b7cbe1a81aea68294fd071c8947676bb00915de');
+ assert.equal(EXACT_LEDGER_TOTAL,228);
+ assert.equal(EXACT_LEDGER_LATEST,'20261123150735');
+ assert.equal(EXACT_LEDGER_SHA256,'7ac3c83cd710606e939159da21a08e6313e508b707868c7ae486a96faee7de56');
  assert.match(EXACT_LEDGER_SHA256,/^[a-f0-9]{64}$/u);
  assert.match(QUERY,/^SELECT\n/u);
  assert.match(QUERY,/FROM supabase_migrations\.schema_migrations/u);
@@ -46,6 +52,9 @@ test('current PROD catalog gives only NO-GO partial evidence, never certifies hi
  assert.equal(result.projectRef,PROD_REF);
  assert.equal(result.fullMigrationLedgerVerified,true);
  assert.equal(result.u72ReviewedSourceCompatible,true);
+ assert.equal(result.u72Installed,true);
+ assert.equal(result.u60Authenticated,true);
+ assert.equal(result.observedState,'RC74_WEBAUTHN_U72_U60_ACTIVE_COACH_INVITE_INSTALLED');
  assert.equal(result.legacyPromotionSqlRejected,true);
  assert.equal(result.registryCountVerified,false);
  assert.equal(result.activeTrainingState,'UNVERIFIED_PROTECTED_RLS');
@@ -64,12 +73,16 @@ test('rejected migration drift, source fingerprint, widening ACL or RLS disabled
   {applied_migrations:13},{migration_total:224},
   {migration_latest:'20261107144121'},{migration_ledger_sha256:'f'.repeat(64)},
   {existing_webauthn:false},{existing_rc74:false},{staged_u60:false},
-  {existing_m44:false},{existing_connected360:false},{u72_not_installed:false},
+  {existing_m44:false},{existing_connected360:false},{u72_installed:false},
   {coach_guard_installed:false},{coach_prepare_acl:false},{coach_finalize_acl:false},
   {coach_prepare_md5:'bad'},{coach_bind_md5:'bad'},{coach_finalize_md5:'bad'},
-  {u60_auth_execute:true},{u60_anon_execute:true},{u60_detail_auth_execute:true},
+  {u60_auth_execute:false},{u60_anon_execute:true},{u60_detail_auth_execute:false},
+  {u60_detail_anon_execute:true},{u72_private_auth_execute:true},{u72_private_anon_execute:true},
+  {occurrence_direct_auth:true},{occurrence_direct_anon:true},
   {u72_source_gateway_md5:'bad'},{u72_source_detail_md5:'bad'},
-  {u72_source_receipt_md5:'bad'},{u60_fences:1},
+  {u72_source_receipt_md5:'bad'},{u72_pause_md5:'bad'},
+  {autonomous_start_md5:'bad'},{autonomous_calendar_md5:'bad'},
+  {u60_public_detail_md5:'bad'},{u60_fences:1},
   {registry_rls:false},{locks_rls:false},{entities_rls:false},
   {occurrences_rls:false},{environment_rpc_acl:false},
   {migration_total:'226'},
