@@ -198,7 +198,7 @@ check_sql BASELINE "SELECT (
  AND NOT has_table_privilege('anon','public.training_session_occurrences_v1','SELECT,INSERT,UPDATE,DELETE')
  AND NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
  AND NOT has_function_privilege('anon','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
- AND NOT has_function_privilege('authenticated','private.iberfit_u72_occurrence_pause_resume_v1(jsonb)','EXECUTE')
+ AND NOT coalesce(has_function_privilege('authenticated',to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'),'EXECUTE'),false)
 )::int;"
 snapshot_state="$(db psql -X -q -t -A -v ON_ERROR_STOP=1 -c "SELECT CASE
  WHEN md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='5914acf371015a6bbeeaf95f99e056e3'
