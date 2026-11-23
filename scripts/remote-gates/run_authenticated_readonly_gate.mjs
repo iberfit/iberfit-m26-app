@@ -1,3 +1,4 @@
+import {releaseQaAuthSessions} from './release_qa_auth_sessions.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import {isRetryableReadOnlyRequest,classifyTransientNetworkIssue} from './readonly-network-policy.mjs';
 import { createHash } from 'node:crypto';
@@ -70,11 +71,13 @@ async function requestResult(url,options={}){
   const body=await response.json().catch(()=>null);
   return Object.freeze({ok:response.ok,status:Number(response.status)||0,body});
 }
+const qaIssuedSessions=[];
 async function login(email,password){
   const body=await requestJson(`${base}/auth/v1/token?grant_type=password`,{
     method:'POST',headers:{apikey:key,'content-type':'application/json'},body:JSON.stringify({email,password}),
   });
   if(!body?.access_token||!body?.user?.id)throw new Error(`RC74_4_AUTH_FAILED:${email}`);
+  qaIssuedSessions.push({email,token:body.access_token});
   return {token:body.access_token,userId:body.user.id};
 }
 function restHeaders(token){
@@ -105,6 +108,7 @@ const accounts=[
   {name:'client_b',expectedRole:'client',email:process.env.M26_QA_CLIENT_B_EMAIL,password:process.env.M26_QA_CLIENT_B_PASSWORD},
 ];
 const sessions=[];
+try{
 for(const account of accounts){sessions.push({...account,...await login(account.email,account.password)});}
 const environment=await rpc('iberfit_environment',sessions[0].token,{});
 if(environment?.environment!=='QA'||environment?.realDataAllowed!==false||environment?.productionBlocked!==true){
@@ -261,3 +265,7 @@ const evidence={
 await mkdir('recovery',{recursive:true});
 await writeFile('recovery/RC74_4_REMOTE_AUTH_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
 console.log(JSON.stringify(evidence,null,2));
+}finally{
+  const outcome=await releaseQaAuthSessions({sessions:qaIssuedSessions,base:base,key:key,projectRef:'gjztkdwfmunnzhtvxrsu',qaOnly:process.env.M26_QA_ONLY});
+  console.log('QA_AUTH_RELEASE='+JSON.stringify(outcome));
+}

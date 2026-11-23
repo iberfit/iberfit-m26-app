@@ -1,3 +1,4 @@
+import {releaseQaAuthSessions} from './release_qa_auth_sessions.mjs';
 /**
  * QA-ONLY: synthetic-client authentication + real RPC persistence fence for V45.
  * No service role, no physical watch data, no production egress and no output
@@ -74,14 +75,17 @@ function errorIsForbidden(res){
       ||/M26_CONNECTED360_V45_/u.test(String(res?.body?.message||'')));
 }
 const TRANSIENT_QA_AUTH_GATEWAY=new Set([502,503,504,520,521,522,523,524]);
+const qaIssuedSessions=[];
 async function login(email,password){
   for(let attempt=0;attempt<2;attempt++){
     const res=await request('/auth/v1/token?grant_type=password',{
       payload:{email,password},
     });
     if(res.status===200&&typeof res.body?.access_token==='string'
-      &&typeof res.body?.user?.id==='string')
+      &&typeof res.body?.user?.id==='string'){
+      qaIssuedSessions.push({email,token:res.body.access_token});
       return {token:res.body.access_token,userId:res.body.user.id};
+    }
     if(attempt===0&&TRANSIENT_QA_AUTH_GATEWAY.has(res.status)){
       // Only one retry, only a transient gateway failure; never retry bad
       // credentials, 429 or revoked users. No secrets or PII in diagnostics.
@@ -271,4 +275,6 @@ try{
       console.error('IBERFIT_V45_QA_SYNTHETIC_CLEANUP_MANUAL_REVIEW_REQUIRED');
     }
   }
+  const outcome=await releaseQaAuthSessions({sessions:qaIssuedSessions,base:URL_BASE,key:KEY,projectRef:'gjztkdwfmunnzhtvxrsu',qaOnly:process.env.M26_QA_ONLY});
+  console.log('QA_AUTH_RELEASE='+JSON.stringify(outcome));
 }

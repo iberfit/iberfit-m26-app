@@ -1,3 +1,4 @@
+import {releaseQaAuthSessions} from './release_qa_auth_sessions.mjs';
 /**
  * M43 authenticated QA-only Coach -> Client acceptance.
  * Fixed isolated QA origin; synthetic actors; never service_role or PROD.
@@ -43,9 +44,11 @@ async function request(path,{token=null,payload,auth=false}={}){
     body:JSON.stringify(payload||{})});
   return {status:response.status,body:await response.json().catch(()=>null)};
 }
+const qaIssuedSessions=[];
 async function login(email,password){
   const r=await request('/auth/v1/token?grant_type=password',{payload:{email,password}});
   check(r.status===200&&typeof r.body?.access_token==='string','AUTHENTICATION');
+  qaIssuedSessions.push({email,token:r.body.access_token});
   return {token:r.body.access_token};
 }
 async function rpc(name,session,params={}){
@@ -358,4 +361,6 @@ try{await main();}catch(error){
   await writeFile('recovery/m43-qa/coach-client-real-write.json',JSON.stringify(evidence,null,2)+'\n');
   console.log('M43_REAL_QA='+JSON.stringify({passed:evidence.passed,phase:evidence.phase,
     checks:evidence.checks.length,warnings:evidence.warnings.length,error:evidence.errorCode||null}));
+  const outcome=await releaseQaAuthSessions({sessions:qaIssuedSessions,base:BASE,key:KEY,projectRef:'gjztkdwfmunnzhtvxrsu',qaOnly:process.env.M26_QA_ONLY});
+  console.log('QA_AUTH_RELEASE='+JSON.stringify(outcome));
 }
