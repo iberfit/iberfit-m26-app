@@ -10,6 +10,7 @@ import {certifyU48CompletedReadback} from './u48-completed-readback.mjs';
 import {certifyU48UniversalSessionVisibility} from './u48-client-visible-readback.mjs';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from '../rc64/qa-session-cleanup.mjs';
 import {isQaPrivateAvatarRead} from '../rc64/secure-current-source-auth.mjs';
 import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
 import {isQaIriSignedPhotoRead,qaIriPrivatePhotoEvidenceLabel} from './qa-iri-signed-photo-read.mjs';
@@ -804,6 +805,9 @@ async function certifyOfflineCoachAuthoring(page,context,cdp,evidence,pageErrors
     }finally{
       await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
       await cdp.send('WebAuthn.disable').catch(()=>{});
+      const clientPage=u56Client?.context?.pages?.()?.find(candidate=>!candidate.isClosed?.());
+      if(clientPage)console.log('M26_QA_SESSION_CLEANUP_CLIENT:'+await releaseQaSessionBeforeContextClose(clientPage));
+      console.log('M26_QA_SESSION_CLEANUP_COACH:'+await releaseQaSessionBeforeContextClose(page));
       await u56Client?.context.close().catch(()=>{});
       await context.close().catch(()=>{});
     }
