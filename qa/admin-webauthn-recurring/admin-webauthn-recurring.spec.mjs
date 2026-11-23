@@ -1,6 +1,7 @@
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from '../rc64/qa-session-cleanup.mjs';
 import {auditAuthenticatedProfessionalRoutes} from '../signature-u26-authenticated-professional-routes.mjs';
 import {isAuthorizedQaAvatarRead} from './avatar-read-policy.js';
 import {isQaMissingPrivateAvatarResponse,unexpectedQaResourceErrors} from '../rc64/secure-current-source-auth.mjs';
@@ -373,6 +374,7 @@ test('Admin completes real WebAuthn registration and authentication before expli
   }finally{
     await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
     await cdp.send('WebAuthn.disable').catch(()=>{});
+    console.log('M26_QA_SESSION_CLEANUP_ADMIN:'+await releaseQaSessionBeforeContextClose(page));
     await context.close().catch(()=>{});
   }
 });
