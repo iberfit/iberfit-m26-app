@@ -142,3 +142,23 @@ test('malformed shared public cache does not spoof success or suppress remote re
     assert.equal(JSON.parse(durable.read(key)).schema,'iberfit.public-catalog.v1');
   }finally{f.restore();}
 });
+
+test('new deployment invalidates one stable public cache slot without unbounded keys per SHA',async()=>{
+  const f=browserFixture(),durable=memoryStorage();
+  try{
+    globalThis.localStorage=durable;
+    await loadExerciseCatalog(base);
+    assert.equal(f.calls.length,2);
+    assert.equal(durable.keys().length,1);
+    const [key]=durable.keys();
+    const original=JSON.parse(durable.read(key));
+    assert.equal(original.version,'26.test');
+    globalThis.__IBERFIT_M26_RUNTIME__.version='26.test-next-sha';
+    await loadExerciseCatalog(base);
+    assert.equal(f.calls.length,4,'A new source version must revalidate public data');
+    assert.equal(durable.keys().length,1,'Never leak one cache key per deployment');
+    const revised=JSON.parse(durable.read(key));
+    assert.equal(revised.version,'26.test-next-sha');
+    assert.ok(revised.createdAt>=original.createdAt);
+  }finally{f.restore();}
+});
