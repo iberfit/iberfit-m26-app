@@ -2,6 +2,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 // P0 #1209: existing read-only QA Client A/B runner. No writes or new secrets.
 import {registerQaLiveHistoryTestSuite} from '../p0-free-history/live-client-a-cases.mjs';
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {
   CANARY_ORIGIN,
   QA_PROJECT_REF,
@@ -718,6 +719,7 @@ test('current authenticated contract separates privileged fail-closed identities
       console.log('M26_QA_SUPABASE_PAYLOAD_FOOTPRINT:'+JSON.stringify({
         project:projectName,role:account.role,...sizes,
       }));
+      console.log('M26_QA_SESSION_CLEANUP:'+await releaseQaSessionBeforeContextClose(page));
       await context.close().catch(()=>{});
     }
   }
