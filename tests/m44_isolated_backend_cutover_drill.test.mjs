@@ -269,3 +269,85 @@ test('real protected U72 rollback terminates every restored function and preserv
   assert.ok(rollback.includes(md5),'rollback must assert original function hash');
  assert.match(rollback,/\nCOMMIT;\s*$/u);
 });
+
+
+test('both closed and active restored production snapshots require exact fingerprints and deny partial activation',()=>{
+ const gate=s.indexOf('check_sql BASELINE ');
+ const state=s.indexOf('snapshot_state="$(db psql');
+ const role=s.indexOf('check_sql RESTORED_RLS_SOURCE ');
+ const active=s.indexOf('check_sql U72_ACTIVE_RESTORED ');
+ assert.ok(gate>=0&&state>gate&&role>state&&active>role);
+ for(const key of [
+  "THEN 'closed'","THEN 'active'","ELSE 'invalid' END",
+  'RELEASE_SOURCE_PARTIAL_OR_DRIFT',
+  'RELEASE_SOURCE_STATE_READ_FAILED',
+  'M44_REAL_RESTORED_PROD_DATED_STATE_$snapshot_state',
+  'M44_REAL_PROD_ACTIVE_U72_U60_RECOVERY_BOUNDARY_VERIFIED_ONLY',
+  '944aaac897289954a9c589292d8faf87',
+  '1270cf1db8c9a162ccc5736207a258e1',
+  '6e63f97899c94d94192c23e669cfd347',
+  '3eb919f3032f7ffed566a203b43ff453',
+  'a022c4e11a7431775a5a76b710f17f0d',
+  '65e675f56c67aa8f9ddc4b36f3a9a73d',
+  'NOT has_function_privilege',
+  'NOT has_table_privilege',
+ ])assert.ok(s.includes(key),key);
+ const beforeRole=s.slice(state,role);
+ assert.ok(beforeRole.includes("has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1"));
+ assert.ok(s.slice(gate,state).includes("NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1"));
+ assert.ok(!beforeRole.includes('UPDATE public.'));
+ assert.ok(!beforeRole.includes('GRANT EXECUTE'));
+ assert.ok(!beforeRole.includes('DROP FUNCTION'));
+});
+
+test('actual JWT-less authenticated and anonymous role probes respect deployed U60 ACL without weakening row isolation',()=>{
+ const start=s.indexOf('role_rls_denial(){');
+ const end=s.indexOf('role_rls_denial anon ',start);
+ const probe=s.slice(start,end);
+ assert.ok(start>0&&end>start);
+ assert.ok(probe.includes('if [[ "$actor" == authenticated && "$snapshot_state" == active ]]; then'));
+ assert.ok(probe.includes('NOT has_function_privilege(current_user'));
+ assert.ok(probe.includes('has_function_privilege(current_user'));
+ assert.ok(probe.includes('AND ($u60_authenticated_acl)'));
+ assert.ok(probe.includes("SET LOCAL ROLE $actor;"));
+ assert.ok(probe.includes('BEGIN READ ONLY;'));
+ assert.ok(probe.includes('AND (SELECT count(*) FROM public.client_access_v26)=0'));
+ assert.ok(probe.includes("AND NOT has_table_privilege(current_user,"));
+ assert.ok(probe.includes("AND ($settings_check)"));
+ assert.ok(!probe.includes('BYPASSRLS'));
+ assert.ok(!probe.includes('RESET ROLE'));
+});
+
+test('active source retains U72 schema and allows only guarded U60 grant reversal when no training is in progress',()=>{
+ const branch=s.indexOf('if [[ "$snapshot_state" == closed ]]; then');
+ const start=s.indexOf('apply U72_INSTALL /release/');
+ const rollback=s.indexOf('apply U72_ROLLBACK /release/');
+ const alternative=s.indexOf('check_sql U72_ACTIVE_RESTORED ');
+ const coach=s.indexOf('# Rehearse both possible real PROD states',alternative);
+ assert.ok(branch>0&&start>branch&&rollback>start&&alternative>rollback&&coach>alternative);
+ const active=s.slice(alternative,coach);
+ for(const marker of [
+  "active_count=\"$(db psql",
+  "WHERE status='en_curso'",
+  'if [[ "$active_count" == 0 ]]; then',
+  'apply U60_DISABLE_ACTIVE /release/20261112_m1_u60_prod_guarded_disable.sql',
+  'check_sql U60_CLOSED_ACTIVE ',
+  'apply U60_REENABLE_ACTIVE /release/20261112_m1_u60_prod_guarded_enable.sql',
+  'check_sql U72_ACTIVE_RESTORED_AFTER ',
+  'M44_REAL_ACTIVE_U60_GRANT_REVERSAL_RESTORED_ISOLATED_ONLY',
+  'M44_ACTIVE_TRAINING_RESTORE_READONLY_NO_GRANT_REVOCATION_ONLY',
+  'M44_REAL_PROD_ACTIVE_U72_U60_RECOVERY_BOUNDARY_VERIFIED_ONLY',
+ ])assert.ok(active.includes(marker),marker);
+ assert.ok(active.indexOf("WHERE status='en_curso'")<
+   active.indexOf('apply U60_DISABLE_ACTIVE'));
+ assert.ok(active.indexOf('apply U60_DISABLE_ACTIVE')<
+   active.indexOf('apply U60_REENABLE_ACTIVE'));
+ assert.ok(active.indexOf('apply U60_REENABLE_ACTIVE')<
+   active.indexOf('check_sql U72_ACTIVE_RESTORED_AFTER'));
+ assert.doesNotMatch(active,/apply U72_INSTALL |apply U72_ROLLBACK |DROP (?:TABLE|FUNCTION)|TRUNCATE |DELETE FROM /u);
+ assert.match(active,/NOT has_table_privilege\('authenticated'/u);
+ const readOnly=s.slice(s.indexOf('M44_ACTIVE_TRAINING_RESTORE_READONLY_NO_GRANT_REVOCATION_ONLY'),coach);
+ assert.doesNotMatch(readOnly,/apply U60_/u);
+ const parsed=spawnSync('bash',['-n',file],{encoding:'utf8',timeout:5000});
+ assert.equal(parsed.status,0,parsed.stderr);
+});

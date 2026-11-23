@@ -1,5 +1,6 @@
 import {localiseExerciseForDisplay} from './castellano.js';
 import {exerciseSearchNames} from './names.js';
+import {publicResourceCacheStores} from '../app/public-resource-cache-storage.js';
 const CATALOG_FETCH_TIMEOUT_MS=5_000;
 const TRUSTED_EXERCISE_MEDIA_ORIGINS=new Set(['https://pjhmrhejsoofmouedavw.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co']);
 const DYNAMIC_PUBLIC_CATALOG_RPC='iberfit_exercise_catalog_public_v1';
@@ -12,41 +13,52 @@ const PUBLIC_CATALOG_CACHE_TTL_MS=120_000;
 const PUBLIC_CATALOG_CACHE_MAX_CHARS=1_800_000;
 // Only anonymous/public catalog responses are in flight. Never store auth tokens.
 const publicCatalogInFlight=new Map();
-// Never cache private bootstraps, JWTs, role state or customer data.
-function publicCatalogStorage(){
-  try{return globalThis.sessionStorage||null;}catch{return null;}
-}
+// Public RPC responses only: localStorage shares one 120-second copy between
+// the user's tabs and browser restarts. Login, roles, JWTs, workouts and other
+// private responses MUST NOT use this cache. Storage can be denied or full.
 function catalogCacheKey(runtime){
-  return 'iberfit-public-catalog-v1:'+runtime.origin+':'+runtime.version;
+  // One bounded slot per public Supabase origin. Runtime version is checked
+  // inside the payload, so new releases replace old bytes instead of filling
+  // persistent localStorage with an unbounded key per SHA.
+  return 'iberfit-public-catalog-v1:'+runtime.origin;
 }
 function getCachedPublicCatalog(runtime){
-  try{
-    const raw=publicCatalogStorage()?.getItem(catalogCacheKey(runtime));
-    if(!raw||raw.length>PUBLIC_CATALOG_CACHE_MAX_CHARS)return null;
-    const v=JSON.parse(raw),age=Date.now()-v?.createdAt;
-    if(v?.schema!==PUBLIC_CATALOG_CACHE_SCHEMA||v?.origin!==runtime.origin
-      ||v?.version!==runtime.version||!Number.isSafeInteger(v?.createdAt)
-      ||age<0||age>PUBLIC_CATALOG_CACHE_TTL_MS
-      ||!Array.isArray(v?.remoteRows)||v.remoteRows.length>DYNAMIC_MAX_ROWS
-      ||!Array.isArray(v?.measurementProfiles)||v.measurementProfiles.length>DYNAMIC_MAX_ROWS
-      ||v.remoteRows.some(x=>!x||typeof x!=='object'||Array.isArray(x))
-      ||v.measurementProfiles.some(x=>!x||typeof x!=='object'||Array.isArray(x)))return null;
-    return {remoteRows:v.remoteRows,measurementProfiles:v.measurementProfiles};
-  }catch{return null;}
+  const key=catalogCacheKey(runtime);
+  for(const store of publicResourceCacheStores()){
+    try{
+      const raw=store.getItem(key);
+      if(!raw||raw.length>PUBLIC_CATALOG_CACHE_MAX_CHARS)continue;
+      const v=JSON.parse(raw),age=Date.now()-v?.createdAt;
+      if(v?.schema!==PUBLIC_CATALOG_CACHE_SCHEMA||v?.origin!==runtime.origin
+        ||v?.version!==runtime.version||!Number.isSafeInteger(v?.createdAt)
+        ||age<0||age>PUBLIC_CATALOG_CACHE_TTL_MS
+        ||!Array.isArray(v?.remoteRows)||v.remoteRows.length>DYNAMIC_MAX_ROWS
+        ||!Array.isArray(v?.measurementProfiles)||v.measurementProfiles.length>DYNAMIC_MAX_ROWS
+        ||v.remoteRows.some(x=>!x||typeof x!=='object'||Array.isArray(x))
+        ||v.measurementProfiles.some(x=>!x||typeof x!=='object'||Array.isArray(x)))continue;
+      return {remoteRows:v.remoteRows,measurementProfiles:v.measurementProfiles};
+    }catch{} // Corrupt/blocked storage must never prevent a live public read.
+  }
+  return null;
 }
 function cachePublicCatalog(runtime,{remoteRows,measurementProfiles}){
   try{
-    const store=publicCatalogStorage();
-    if(!store)return;
     const raw=JSON.stringify({schema:PUBLIC_CATALOG_CACHE_SCHEMA,
       origin:runtime.origin,version:runtime.version,createdAt:Date.now(),
       remoteRows,measurementProfiles});
-    if(raw.length<=PUBLIC_CATALOG_CACHE_MAX_CHARS)
-      store.setItem(catalogCacheKey(runtime),raw);
-  }catch{} // Quota/private-mode failures must not block the product.
+    if(raw.length>PUBLIC_CATALOG_CACHE_MAX_CHARS)return;
+    // Persist once where possible; fall back to tab-only storage if the
+    // browser denies cross-tab storage. No duplicated private data or RPC.
+    for(const store of publicResourceCacheStores()){
+      try{store.setItem(catalogCacheKey(runtime),raw);return;}
+      catch{} // Quota/private mode: continue to next store or live fetch.
+    }
+  }catch{} // No cache write may block the application.
 }
 function clearCachedPublicCatalog(runtime){
-  try{publicCatalogStorage()?.removeItem(catalogCacheKey(runtime));}catch{}
+  for(const store of publicResourceCacheStores()){
+    try{store.removeItem(catalogCacheKey(runtime));}catch{}
+  }
 }
 // Coalesce identical public RPC reads before sessionStorage is populated.
 // Explicit editor refresh supersedes the old flight: an older response must

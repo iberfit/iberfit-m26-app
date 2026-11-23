@@ -188,15 +188,41 @@ executor_acl="$(db psql -X -q -A -t -v ON_ERROR_STOP=1 -d "$PGDATABASE" \
   fail LOCAL_EFFECTIVE_OWNER_ACL_READBACK_FAILED
 [[ "$executor_acl" == 1 ]] || fail LOCAL_EFFECTIVE_OWNER_ACL_DRIFT
 echo 'M44_ISOLATED_DATABASE_OWNER_AND_EXECUTOR_CREATE_PARITY_VERIFIED_ONLY'
+# The live PROD source may be either pre-activation or active; other states
+# fail closed. This is a read-only forensic snapshot of an isolated PG17 copy.
 check_sql BASELINE "SELECT (
  (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment')='PRODUCTION'
- AND md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='5914acf371015a6bbeeaf95f99e056e3'
  AND pg_get_userbyid((SELECT proowner FROM pg_proc WHERE oid='public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='postgres'
- AND to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NULL
- AND NOT has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
  AND (SELECT relrowsecurity FROM pg_class WHERE oid='public.training_session_occurrences_v1'::regclass)
- AND NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1 WHERE status='en_curso')
+ AND NOT has_table_privilege('authenticated','public.training_session_occurrences_v1','SELECT,INSERT,UPDATE,DELETE')
+ AND NOT has_table_privilege('anon','public.training_session_occurrences_v1','SELECT,INSERT,UPDATE,DELETE')
+ AND NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+ AND NOT has_function_privilege('anon','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+ AND NOT coalesce(has_function_privilege('authenticated',to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'),'EXECUTE'),false)
 )::int;"
+snapshot_state="$(db psql -X -q -t -A -v ON_ERROR_STOP=1 -c "SELECT CASE
+ WHEN md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='5914acf371015a6bbeeaf95f99e056e3'
+  AND to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NULL
+  AND NOT has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+  AND NOT has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+  AND NOT EXISTS(SELECT 1 FROM public.training_session_occurrences_v1 WHERE status='en_curso')
+ THEN 'closed'
+ WHEN md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='944aaac897289954a9c589292d8faf87'
+  AND md5(pg_get_functiondef('public.iberfit_occurrence_detail_v1(uuid,uuid)'::regprocedure))='00b8ee39c85fd92f593732c055902cf2'
+  AND md5(pg_get_functiondef('private.iberfit_u60_occurrence_detail_v1(uuid,uuid)'::regprocedure))='a022c4e11a7431775a5a76b710f17f0d'
+  AND md5(pg_get_functiondef('private.iberfit_u60_dated_mirror_receipt_guard_v1()'::regprocedure))='65e675f56c67aa8f9ddc4b36f3a9a73d'
+  AND md5(pg_get_functiondef('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure))='1270cf1db8c9a162ccc5736207a258e1'
+  AND md5(pg_get_functiondef('private.iberfit_u31_occurrence_transition_v1(jsonb)'::regprocedure))='6e63f97899c94d94192c23e669cfd347'
+  AND md5(pg_get_functiondef('private.iberfit_u33_occurrence_calendar_v1(uuid,date,date,date,uuid,integer)'::regprocedure))='3eb919f3032f7ffed566a203b43ff453'
+  AND has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+  AND has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+  AND NOT has_function_privilege('service_role','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+  AND NOT has_function_privilege('service_role','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+ THEN 'active'
+ ELSE 'invalid' END;" 2>"$out/source-state-private.log")" || fail RELEASE_SOURCE_STATE_READ_FAILED
+[[ "$snapshot_state" == closed || "$snapshot_state" == active ]] ||
+ fail RELEASE_SOURCE_PARTIAL_OR_DRIFT
+echo "M44_REAL_RESTORED_PROD_DATED_STATE_$snapshot_state"_EXACT_ONLY
 # P0 M44: test ACTUAL restored production row visibility under the two
 # genuine PostgreSQL web roles. Earlier synthetic ACL/RLS fixtures do not prove
 # effective protection of restored real tables. Confirm the real six-policy
@@ -241,6 +267,15 @@ role_rls_denial(){
   settings_check="NOT has_function_privilege(current_user,'public.iberfit_role()','EXECUTE')"
  fi
  # The variable SQL fragments are fixed literals below, not user-supplied.
+ # Active U60 RPCs deliberately grant EXECUTE to authenticated, but still
+ # require JWT/role checks to return any protected business data.
+ local u60_authenticated_acl
+ u60_authenticated_acl="NOT has_function_privilege(current_user,'public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+      AND NOT has_function_privilege(current_user,'public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')"
+ if [[ "$actor" == authenticated && "$snapshot_state" == active ]]; then
+  u60_authenticated_acl="has_function_privilege(current_user,'public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+      AND has_function_privilege(current_user,'public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')"
+ fi
  observed="$(db psql -X -q -t -A -v ON_ERROR_STOP=1 \
   -c "BEGIN READ ONLY;
     SET LOCAL ROLE $actor;
@@ -252,10 +287,7 @@ role_rls_denial(){
       AND ($settings_check)
       AND NOT has_table_privilege(current_user,
         'public.training_session_occurrences_v1','SELECT')
-      AND NOT has_function_privilege(current_user,
-        'public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
-      AND NOT has_function_privilege(current_user,
-        'public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+      AND ($u60_authenticated_acl)
       AND ($scope)
     )::int;
     ROLLBACK;" 2>"$out/real-rls-$actor-private.log")" ||
@@ -292,6 +324,9 @@ count_query="SELECT
  (SELECT count(*) FROM vault.secrets)::text;"
 before="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c "$count_query" 2>"$out/count-source.log")" ||
  fail SOURCE_COUNTS_FAILED
+if [[ "$snapshot_state" == closed ]]; then
+ # Legacy staged snapshot: genuinely install U72 and rollback, with verified
+ # locked ACL before and after. No effect outside the isolated PG17 database.
 apply U72_INSTALL /release/20261117_m1_u72_prod_guarded_materialized_v1.sql
 check_sql U72_INSTALLED "SELECT (
  to_regprocedure('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)') IS NOT NULL
@@ -315,6 +350,53 @@ check_sql U72_RESTORED "SELECT (
  AND md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='5914acf371015a6bbeeaf95f99e056e3'
  AND NOT has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
 )::int;"
+ echo M44_REAL_PROD_BACKEND_SQL_INSTALL_AND_ROLLBACK_ISOLATED_ONLY
+else
+ # The active production source already contains U72 + autonomous U31/U33.
+ # Replaying the old schema installation/rollback would be unsound after
+ # historical dated training. Certify the restored functions exactly, and
+ # only exercise the supported U60 permission toggle if no workout is live.
+ check_sql U72_ACTIVE_RESTORED "SELECT (
+  md5(pg_get_functiondef('public.iberfit_occurrence_api_u60_v1(text,jsonb)'::regprocedure))='944aaac897289954a9c589292d8faf87'
+  AND md5(pg_get_functiondef('public.iberfit_occurrence_detail_v1(uuid,uuid)'::regprocedure))='00b8ee39c85fd92f593732c055902cf2'
+  AND md5(pg_get_functiondef('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure))='1270cf1db8c9a162ccc5736207a258e1'
+  AND md5(pg_get_functiondef('private.iberfit_u31_occurrence_transition_v1(jsonb)'::regprocedure))='6e63f97899c94d94192c23e669cfd347'
+  AND md5(pg_get_functiondef('private.iberfit_u33_occurrence_calendar_v1(uuid,date,date,date,uuid,integer)'::regprocedure))='3eb919f3032f7ffed566a203b43ff453'
+  AND has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+  AND has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+  AND NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+  AND NOT has_function_privilege('anon','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+  AND (SELECT relrowsecurity FROM pg_class WHERE oid='public.training_session_occurrences_v1'::regclass)
+ )::int;"
+ active_count="$(db psql -X -q -t -A -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM public.training_session_occurrences_v1 WHERE status='en_curso';" 2>"$out/active-executions-private.log")" || fail DATED_EXECUTION_STATUS_READ_FAILED
+ [[ "$active_count" =~ ^[0-9]{1,9}$ ]] || fail DATED_EXECUTION_COUNT_INVALID
+ if [[ "$active_count" == 0 ]]; then
+  # Fail-closed guarded grant revocation and re-enable, exclusively on the
+  # disposable local snapshot. This is NOT a U72 schema rollback.
+  apply U60_DISABLE_ACTIVE /release/20261112_m1_u60_prod_guarded_disable.sql
+  check_sql U60_CLOSED_ACTIVE "SELECT (
+   NOT has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+   AND NOT has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+   AND NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+  )::int;"
+  apply U60_REENABLE_ACTIVE /release/20261112_m1_u60_prod_guarded_enable.sql
+  check_sql U72_ACTIVE_RESTORED_AFTER "SELECT (
+   md5(pg_get_functiondef('private.iberfit_u72_occurrence_pause_resume_v1(jsonb)'::regprocedure))='1270cf1db8c9a162ccc5736207a258e1'
+   AND md5(pg_get_functiondef('private.iberfit_u31_occurrence_transition_v1(jsonb)'::regprocedure))='6e63f97899c94d94192c23e669cfd347'
+   AND md5(pg_get_functiondef('private.iberfit_u33_occurrence_calendar_v1(uuid,date,date,date,uuid,integer)'::regprocedure))='3eb919f3032f7ffed566a203b43ff453'
+   AND has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+   AND has_function_privilege('authenticated','public.iberfit_occurrence_detail_v1(uuid,uuid)','EXECUTE')
+   AND NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1(text,jsonb)','EXECUTE')
+   AND NOT has_table_privilege('authenticated','public.training_session_occurrences_v1','SELECT,INSERT,UPDATE,DELETE')
+  )::int;"
+  echo M44_REAL_ACTIVE_U60_GRANT_REVERSAL_RESTORED_ISOLATED_ONLY
+ else
+  # Preserve active workouts. A source readback and effective RLS denial prove
+  # the current state is recoverable without disrupting live training.
+  echo M44_ACTIVE_TRAINING_RESTORE_READONLY_NO_GRANT_REVOCATION_ONLY
+ fi
+ echo M44_REAL_PROD_ACTIVE_U72_U60_RECOVERY_BOUNDARY_VERIFIED_ONLY
+fi
 # Rehearse both possible real PROD states without touching PROD/QA:
 # before rollout: install -> rollback; after rollout: rollback -> reinstall.
 # Restoring the CURRENT upgraded backup must not mistake a healthy Coach
@@ -368,5 +450,6 @@ after_coach="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c \
 after="$(db psql -X -t -A -v ON_ERROR_STOP=1 -c "$count_query" 2>"$out/count-after.log")" ||
  fail RESTORED_COUNTS_FAILED
 [[ "$before" == "$after" ]] || fail CUSTOMER_OR_AUTH_TABLE_COUNT_DRIFT
-echo M44_REAL_PROD_BACKEND_SQL_INSTALL_AND_ROLLBACK_ISOLATED_ONLY
+# In the active lane, no U72 schema rollback is claimed; all restored roles,
+# RLS, dated functions and their real grants must match the protected source.
 echo M44_HOSTED_AUTH_VAULT_EDGE_RUNTIME_NOT_CERTIFIED

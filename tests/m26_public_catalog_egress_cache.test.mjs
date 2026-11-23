@@ -12,12 +12,13 @@ function memoryStorage(){
     removeItem:k=>data.delete(k),keys:()=>[...data.keys()],read:k=>data.get(k)};
 }
 function browserFixture(){
-  const names=['window','fetch','sessionStorage','__IBERFIT_M26_RUNTIME__'];
+  const names=['window','fetch','sessionStorage','localStorage','__IBERFIT_M26_RUNTIME__'];
   const old=Object.fromEntries(names.map(k=>[k,{present:Object.prototype.hasOwnProperty.call(globalThis,k),value:globalThis[k]}]));
   const store=memoryStorage(),calls=[];
   let broken=false;
   globalThis.window={};
   globalThis.sessionStorage=store;
+  globalThis.localStorage=undefined; // Keep the original session-only contract deterministic.
   globalThis.__IBERFIT_M26_RUNTIME__={enabled:true,
     url:'https://gjztkdwfmunnzhtvxrsu.supabase.co',
     publishableKey:'public-test-only',version:'26.test',timeoutMs:2000};
@@ -73,5 +74,91 @@ test('storage denied and offline preserve static catalog fallback',async()=>{
     const c=await loadExerciseCatalog(base);
     assert.equal(c.count,367);
     assert.equal(c.get('IBF-0000').name_es,'Ejercicio 0');
+  }finally{f.restore();}
+});
+
+test('cross-tab public-only catalog uses shared bounded local cache without extra Supabase egress',async()=>{
+  const f=browserFixture(),durable=memoryStorage();
+  try{
+    globalThis.localStorage=durable;
+    const first=await loadExerciseCatalog(base);
+    assert.equal(first.get('IBF-0000').name_es,'Ejercicio actualizado');
+    assert.equal(f.calls.length,2);
+    assert.equal(f.store.keys().length,0,'Do not write duplicate tab storage');
+    assert.equal(durable.keys().length,1);
+    const [key]=durable.keys();
+    assert.ok(key.includes('gjztkdwfmunnzhtvxrsu'));
+    assert.doesNotMatch(durable.read(key),/access_token|refresh_token|session_id|service_role|Bearer /iu);
+
+    // New browser tab: separate sessionStorage; same public-origin localStorage.
+    globalThis.sessionStorage=memoryStorage();
+    const next=await loadExerciseCatalog(base);
+    assert.equal(next.get('IBF-0000').name_es,'Ejercicio actualizado');
+    assert.equal(f.calls.length,2,'Second tab must not re-fetch identical public RPC');
+
+    // Editor publication explicitly overrides both caches, preserving freshness.
+    await loadExerciseCatalog(base,{forceRemoteRefresh:true});
+    assert.equal(f.calls.length,4);
+    assert.equal(durable.keys().length,1);
+
+    // Existing 120s TTL and environment isolation both remain hard bounds.
+    const saved=JSON.parse(durable.read(key));
+    durable.setItem(key,JSON.stringify({...saved,createdAt:Date.now()-121_000}));
+    globalThis.sessionStorage=memoryStorage();
+    await loadExerciseCatalog(base);
+    assert.equal(f.calls.length,6);
+    globalThis.__IBERFIT_M26_RUNTIME__.url='https://pjhmrhejsoofmouedavw.supabase.co';
+    await loadExerciseCatalog(base);
+    assert.equal(f.calls.length,8);
+    assert.equal(durable.keys().length,2);
+  }finally{f.restore();}
+});
+test('blocked persistent storage safely falls back to session-only public cache',async()=>{
+  const f=browserFixture();
+  try{
+    globalThis.localStorage={
+      getItem(){throw Error('browser denied durable cache');},
+      setItem(){throw Error('browser denied durable cache');},
+      removeItem(){throw Error('browser denied durable cache');},
+    };
+    await loadExerciseCatalog(base);
+    await loadExerciseCatalog(base);
+    assert.equal(f.calls.length,2);
+    assert.equal(f.store.keys().length,1);
+    await loadExerciseCatalog(base,{forceRemoteRefresh:true});
+    assert.equal(f.calls.length,4);
+  }finally{f.restore();}
+});
+test('malformed shared public cache does not spoof success or suppress remote revalidation',async()=>{
+  const f=browserFixture(),durable=memoryStorage();
+  try{
+    globalThis.localStorage=durable;
+    await loadExerciseCatalog(base);
+    const [key]=durable.keys();
+    durable.setItem(key,'{broken');
+    globalThis.sessionStorage=memoryStorage();
+    await loadExerciseCatalog(base);
+    assert.equal(f.calls.length,4);
+    assert.equal(JSON.parse(durable.read(key)).schema,'iberfit.public-catalog.v1');
+  }finally{f.restore();}
+});
+
+test('new deployment invalidates one stable public cache slot without unbounded keys per SHA',async()=>{
+  const f=browserFixture(),durable=memoryStorage();
+  try{
+    globalThis.localStorage=durable;
+    await loadExerciseCatalog(base);
+    assert.equal(f.calls.length,2);
+    assert.equal(durable.keys().length,1);
+    const [key]=durable.keys();
+    const original=JSON.parse(durable.read(key));
+    assert.equal(original.version,'26.test');
+    globalThis.__IBERFIT_M26_RUNTIME__.version='26.test-next-sha';
+    await loadExerciseCatalog(base);
+    assert.equal(f.calls.length,4,'A new source version must revalidate public data');
+    assert.equal(durable.keys().length,1,'Never leak one cache key per deployment');
+    const revised=JSON.parse(durable.read(key));
+    assert.equal(revised.version,'26.test-next-sha');
+    assert.ok(revised.createdAt>=original.createdAt);
   }finally{f.restore();}
 });
