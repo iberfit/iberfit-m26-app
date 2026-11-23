@@ -1,3 +1,8 @@
+# IBERFIT 23-NOV-2026 · M1/U72 cutover readiness: request a fresh encrypted
+# PROD PostgreSQL+Auth snapshot and Storage archive with isolated PG17 restore
+# via this EXISTING protected postmerge workflow. No SQL, RLS, Edge, Auth,
+# credential, permission or rollback-gate changes; FULL platform recovery
+# remains NO-GO until separately proven. Refresh is read-only against PROD.
 # REAL TRAINING 360 · 20-NOV-2026: on the single protected Canary merge of
 # the PROD migration-ledger 227 reconciliation, refresh exactly one genuine
 # encrypted PROD DB+Storage M44 backup + isolated PG17 restore, including the
