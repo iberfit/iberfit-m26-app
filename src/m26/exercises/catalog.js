@@ -28,7 +28,10 @@ function publicCatalogStorages(){
   return stores;
 }
 function catalogCacheKey(runtime){
-  return 'iberfit-public-catalog-v1:'+runtime.origin+':'+runtime.version;
+  // One bounded slot per public Supabase origin. Runtime version is checked
+  // inside the payload, so new releases replace old bytes instead of filling
+  // persistent localStorage with an unbounded key per SHA.
+  return 'iberfit-public-catalog-v1:'+runtime.origin;
 }
 function getCachedPublicCatalog(runtime){
   const key=catalogCacheKey(runtime);
