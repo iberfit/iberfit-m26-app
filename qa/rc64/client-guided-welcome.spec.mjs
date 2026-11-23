@@ -1,5 +1,6 @@
 import {mkdir} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {
   CANARY_ORIGIN,
   QA_PROJECT_REF,
@@ -194,6 +195,7 @@ test('Client Genie guides a Client-only first run, can pause and completes its j
       'Unexpected console errors; only server-confirmed absent private avatars may be exempt').toEqual([]);
     expect(pageErrors).toEqual([]);
   }finally{
+    console.log('M26_QA_SESSION_CLEANUP:'+await releaseQaSessionBeforeContextClose(page));
     await context.close().catch(()=>{});
   }
 });
