@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {
@@ -87,6 +88,11 @@ async function calendar(page){
   return page.locator('[data-u60-panel] [data-iberdates-action="u60-open"]')
     .evaluateAll(nodes=>nodes.map(n=>String(n.dataset.u60Id||'')).filter(Boolean));
 }
+test.afterEach(async({page},testInfo)=>{
+  const result=await releaseQaSessionBeforeContextClose(page);
+  console.log('U60_QA_PAGE_AUTH_RELEASE='+result);
+  if(testInfo.status==='passed')expect(['released','no-session']).toContain(result);
+});
 test('QA U60 client real private calendar and player, no writes',async({page,context},info)=>{
     const width=info.project.use.viewport?.width;
     expect([1440,1024,390,320]).toContain(width);
@@ -147,10 +153,12 @@ test('QA U60 Client B never inherits Client A rendered occurrence cards',async({
   const idsA=new Set(await calendar(page));
   expect(idsA.size).toBeGreaterThan(0);
   const ctxB=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:'block'});
+  let other=null,secondaryCleanup=null,secondaryAuthenticated=false;
   try{
     const b=await sealNetwork(ctxB);
-    const other=await ctxB.newPage();
+    other=await ctxB.newPage();
     await login(other,'B');
+    secondaryAuthenticated=true;
     await other.locator('[data-iberdates-action="u60-calendar"]').click();
     await expect(other.locator('[data-u60-panel]')).toContainText('Calendario confirmado:',{timeout:20000});
     const idsB=await other.locator('[data-u60-panel] [data-iberdates-action="u60-open"]')
@@ -159,5 +167,13 @@ test('QA U60 Client B never inherits Client A rendered occurrence cards',async({
     expect(a.failedWrites).toEqual([]);
     expect(b.failedWrites).toEqual([]);
     expect(b.httpFailures).toEqual([]);
-  }finally{await ctxB.close();}
+  }finally{
+    try{
+      if(other){
+        secondaryCleanup=await releaseQaSessionBeforeContextClose(other);
+        console.log('U60_QA_SECONDARY_AUTH_RELEASE='+secondaryCleanup);
+      }
+    }finally{await ctxB.close();}
+  }
+  if(secondaryAuthenticated)expect(['released','no-session']).toContain(secondaryCleanup);
 });

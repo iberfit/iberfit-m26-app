@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {readFileSync} from 'node:fs';
 import {
  CANARY_ORIGIN,QA_PROJECT_REF,SUPABASE_ORIGIN,
@@ -68,6 +69,11 @@ async function login(page,suffix){
  await expect(page.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25000});
  await expect(page.locator('[data-u60-panel]')).toBeVisible({timeout:15000});
 }
+test.afterEach(async({page},testInfo)=>{
+  const result=await releaseQaSessionBeforeContextClose(page);
+  console.log('U74_QA_PAGE_AUTH_RELEASE='+result);
+  if(testInfo.status==='passed')expect(['released','no-session']).toContain(result);
+});
 test('U74 real Client touch UI: signed date, pause, resume, each series, finish and cross-owner denial',async({page,context,browser})=>{
  test.setTimeout(420000);
  const f=signedFixture(),blocked=[],errors=[],serverFaults=[],writes=[],acks=[];
@@ -158,16 +164,26 @@ test('U74 real Client touch UI: signed date, pause, resume, each series, finish 
  expect(errors).toEqual([]);
  // Client B gets a fresh real JWT and must never see the other owner's date.
  const other=await browser.newContext({serviceWorkers:'block'});
+ let b=null,secondaryCleanup=null,secondaryAuthenticated=false;
  try{
   const blockedB=[];
   await installCurrentSourceQaNetworkPolicy(other,{
    readOnlyRpcs:READS,onBlocked:label=>blockedB.push(label),
   });
-  const b=await other.newPage();
+  b=await other.newPage();
   await login(b,'B');
+  secondaryAuthenticated=true;
   await b.locator('[data-iberdates-action="u60-calendar"]').click();
   await expect(b.locator('[data-u60-panel]')).toContainText('Calendario confirmado:',{timeout:25000});
   await expect(b.locator('[data-u60-id="'+f.occurrenceId+'"]')).toHaveCount(0);
   expect(blockedB).toEqual([]);
- }finally{await other.close();}
+ }finally{
+  try{
+    if(b){
+      secondaryCleanup=await releaseQaSessionBeforeContextClose(b);
+      console.log('U74_QA_SECONDARY_AUTH_RELEASE='+secondaryCleanup);
+    }
+  }finally{await other.close();}
+ }
+ if(secondaryAuthenticated)expect(['released','no-session']).toContain(secondaryCleanup);
 });

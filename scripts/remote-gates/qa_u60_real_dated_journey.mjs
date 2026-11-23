@@ -6,6 +6,7 @@
  * All operations carry deterministic IDs to diagnose partial ACK/retry.
  */
 import {createHash} from 'node:crypto';
+import {releaseQaAuthSessions} from './release_qa_auth_sessions.mjs';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {buildAppointmentCommand,buildConfirmAppointmentCommand,santiagoAppointmentInstant} from '../../src/m26/workflows/agenda-workflow.js';
 const QA='gjztkdwfmunnzhtvxrsu';
@@ -247,7 +248,7 @@ function context(mode){
   'NON_EXPLICIT_ATTEMPT');
  const key=e.M26_SUPABASE_PUBLISHABLE_KEY;
  assert(key.length>20&&!/service.?role|sb_secret/i.test(key),'PRIVILEGED_KEY_DENIED');
- return {e,key,branch,autonomous};
+ return {e,key,branch,autonomous,sessions:[]};
 }
 async function currentSha(ctx){
  const res=await fetch('https://api.github.com/repos/'+REPO+'/git/ref/heads/'+
@@ -304,7 +305,13 @@ export async function boundedHostedAuth522Recovery(request,wait=async()=>new Pro
 async function login(ctx,email,password){
  const r=await boundedHostedAuth522Recovery(()=>http(ctx,'/auth/v1/token?grant_type=password',{email,password}));
  assert(r.status===200&&typeof r.body?.access_token==='string','AUTHENTICATION_HTTP_'+r.status);
- return {jwt:r.body.access_token,actor:r.body.user?.id};
+ const actualEmail=String(r.body?.user?.email||'').trim().toLowerCase();
+ const token=r.body.access_token;
+ assert(actualEmail===String(email).trim().toLowerCase()
+   &&/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u.test(token)
+   &&token.length>=100&&token.length<=16384,'QA_AUTH_FIXTURE_IDENTITY_MISMATCH');
+ ctx.sessions.push({email:actualEmail,token});
+ return {jwt:token,actor:r.body.user?.id};
 }
 const rpc=(ctx,jwt,name,params)=>http(ctx,'/rest/v1/rpc/'+name,params,jwt);
 const u60=(ctx,jwt,action,payload)=>rpc(ctx,jwt,'iberfit_occurrence_api_u60_v1',{p_action:action,p_payload:payload});
@@ -494,8 +501,10 @@ async function verifyBrowserWorkout(ctx){
 async function main(){
  const mode=process.argv[2];
  assert(['preflight','apply','preflight-browser','prepare-browser','verify-browser'].includes(mode),'STAGE_INVALID');
- const ctx=context(mode);await currentSha(ctx);
- if(mode==='verify-browser')return verifyBrowserWorkout(ctx);
+ const ctx=context(mode);
+ try{
+ await currentSha(ctx);
+ if(mode==='verify-browser')return await verifyBrowserWorkout(ctx);
  // Read prior clock/date BEFORE any authenticated fetch; never pick a new slot
  // for attempt 2. If the certified slot is no longer future, fail without writes.
  const original=['apply','prepare-browser'].includes(mode)
@@ -759,6 +768,20 @@ async function main(){
  proof.status='QA_HOSTED_AUTHENTICATED_E2E_SUCCESS';proof.writesApplied=true;
  await save(proof);
  process.stdout.write('IBERFIT_U71_QA_HOSTED_COACH_CLIENT_COACH_DATED_E2E_PASS\n');
+ }finally{
+   // Close ONLY JWTs minted by this QA run. This never revokes another
+   // process's synthetic fixture, nor mutates PROD or training records.
+   const issued=ctx.sessions.length;
+   if(issued>0){
+     const result=await releaseQaAuthSessions({
+       sessions:ctx.sessions,base:BASE,key:ctx.key,projectRef:QA,
+       qaOnly:ctx.e.M26_QA_ONLY,
+     });
+     process.stdout.write('U71_QA_NODE_AUTH_RELEASE='+result.released+'/'+issued+'\n');
+     if(result.failed!==0||result.skipped!==0||result.released!==issued)
+       throw Error('U71_QA_AUTH_CLEANUP_INCOMPLETE');
+   }
+ }
 }
 if(process.argv[1]?.endsWith('/qa_u60_real_dated_journey.mjs')){
  main().catch(error=>{

@@ -82,7 +82,7 @@ test('U74 requires exact source, explicit second attempt, least privilege and no
  assert.doesNotMatch(workflow,/workflow_dispatch|SUPABASE_SERVICE_ROLE_KEY|IBERFIT_PROD_DATABASE_URL/u);
  assert.match(source,/proof\.status='QA_BROWSER_FIXTURE_READY'/u);
  assert.match(source,/proof\.status='QA_BROWSER_HOSTED_E2E_SUCCESS'/u);
- assert.match(source,/if\(mode==='verify-browser'\)return verifyBrowserWorkout\(ctx\)/u);
+ assert.match(source,/if\(mode==='verify-browser'\)return await verifyBrowserWorkout\(ctx\)/u);
  assert.match(source,/currentSha\(ctx\)/u);
  assert.match(source,/original\.runId===ctx\.e\.GITHUB_RUN_ID/u);
  assert.match(policy,/allowQaSyntheticWrite\(request\)===true/u);
