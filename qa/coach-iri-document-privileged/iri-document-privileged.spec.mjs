@@ -1,6 +1,7 @@
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from '../rc64/qa-session-cleanup.mjs';
 import {certifyM44VerifiedAssuranceBoundary} from '../m44/verified-webauthn-readonly.mjs';
 import {certifyM44PositiveEvolutionPdf} from '../m44/positive-webauthn-issued-pdf.mjs';
 import {isAuthorizedQaAvatarRead} from './qa-avatar-traffic-policy.mjs';
@@ -493,6 +494,7 @@ test('real Coach WebAuthn assurance validates v2, grants photo publication, emit
     await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
     await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
     await cdp.send('WebAuthn.disable').catch(()=>{});
+    console.log('M26_QA_SESSION_CLEANUP_IRI:'+await releaseQaSessionBeforeContextClose(page));
     await context.close().catch(()=>{});
   }
 
