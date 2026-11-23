@@ -1,5 +1,6 @@
 import {localiseExerciseForDisplay} from './castellano.js';
 import {exerciseSearchNames} from './names.js';
+import {publicResourceCacheStores} from '../app/public-resource-cache-storage.js';
 const CATALOG_FETCH_TIMEOUT_MS=5_000;
 const TRUSTED_EXERCISE_MEDIA_ORIGINS=new Set(['https://pjhmrhejsoofmouedavw.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co']);
 const DYNAMIC_PUBLIC_CATALOG_RPC='iberfit_exercise_catalog_public_v1';
@@ -15,18 +16,6 @@ const publicCatalogInFlight=new Map();
 // Public RPC responses only: localStorage shares one 120-second copy between
 // the user's tabs and browser restarts. Login, roles, JWTs, workouts and other
 // private responses MUST NOT use this cache. Storage can be denied or full.
-function publicCatalogStorages(){
-  const stores=[];
-  for(const key of ['localStorage','sessionStorage']){
-    try{
-      const store=globalThis[key];
-      if(store&&typeof store.getItem==='function'&&
-        typeof store.setItem==='function'&&typeof store.removeItem==='function')
-        stores.push(store);
-    }catch{} // Safari private browsing/blocked storage: live RPC fallback.
-  }
-  return stores;
-}
 function catalogCacheKey(runtime){
   // One bounded slot per public Supabase origin. Runtime version is checked
   // inside the payload, so new releases replace old bytes instead of filling
@@ -35,7 +24,7 @@ function catalogCacheKey(runtime){
 }
 function getCachedPublicCatalog(runtime){
   const key=catalogCacheKey(runtime);
-  for(const store of publicCatalogStorages()){
+  for(const store of publicResourceCacheStores()){
     try{
       const raw=store.getItem(key);
       if(!raw||raw.length>PUBLIC_CATALOG_CACHE_MAX_CHARS)continue;
@@ -60,14 +49,14 @@ function cachePublicCatalog(runtime,{remoteRows,measurementProfiles}){
     if(raw.length>PUBLIC_CATALOG_CACHE_MAX_CHARS)return;
     // Persist once where possible; fall back to tab-only storage if the
     // browser denies cross-tab storage. No duplicated private data or RPC.
-    for(const store of publicCatalogStorages()){
+    for(const store of publicResourceCacheStores()){
       try{store.setItem(catalogCacheKey(runtime),raw);return;}
       catch{} // Quota/private mode: continue to next store or live fetch.
     }
   }catch{} // No cache write may block the application.
 }
 function clearCachedPublicCatalog(runtime){
-  for(const store of publicCatalogStorages()){
+  for(const store of publicResourceCacheStores()){
     try{store.removeItem(catalogCacheKey(runtime));}catch{}
   }
 }
