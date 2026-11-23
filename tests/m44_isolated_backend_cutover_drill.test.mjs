@@ -294,7 +294,7 @@ test('both closed and active restored production snapshots require exact fingerp
  ])assert.ok(s.includes(key),key);
  const beforeRole=s.slice(state,role);
  assert.ok(beforeRole.includes("has_function_privilege('authenticated','public.iberfit_occurrence_api_u60_v1"));
- assert.ok(beforeRole.includes("NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1"));
+ assert.ok(s.slice(gate,state).includes("NOT has_function_privilege('anon','public.iberfit_occurrence_api_u60_v1"));
  assert.ok(!beforeRole.includes('UPDATE public.'));
  assert.ok(!beforeRole.includes('GRANT EXECUTE'));
  assert.ok(!beforeRole.includes('DROP FUNCTION'));
