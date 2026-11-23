@@ -55,6 +55,21 @@ export function datedWorkoutPhaseUiState(view){
     label:labels[phase]||'Comprobando estado privado de la fecha…',
   });
 }
+// The focus is selected before the private network read. Never paint an
+// execution snapshot for a different date or client while it is in flight.
+export function datedWorkoutViewForFocus(view,focus){
+  if(!focus)return null;
+  if(view?.clientId!==focus.clientId||view?.occurrenceId!==focus.occurrenceId)
+    return Object.freeze({phase:'idle'});
+  return view;
+}
+// A settled service view is not necessarily a successful server ACK.
+export function requireDatedWorkoutReceipt(view,{phases=['active'],allowUnsaved=false}={}){
+  if(!view||!phases.includes(view.phase)||view.busy!==false||
+    view.hasUncertain||view.error||(!allowUnsaved&&view.unsavedWork))
+    fail('RECOVERY_REQUIRED');
+  return view;
+}
 const localDate=date=>{
   const f=new Intl.DateTimeFormat('en-US',{timeZone:ZONE,
     year:'numeric',month:'2-digit',day:'2-digit'});
@@ -355,7 +370,7 @@ export function createDatedOccurrenceQaUi({
     return scope;
   }
   function workoutView(){
-    return focus?runtime.workout.view():null;
+    return datedWorkoutViewForFocus(runtime.workout.view(),focus);
   }
   // Restoration is permitted only for the SAME authenticated role/client,
   // occurrence and exact server-derived execution step/revisions. Never
@@ -374,7 +389,7 @@ export function createDatedOccurrenceQaUi({
   function hasBlockingWorkout(){
     if(!focus)return false;
     const v=workoutView();
-    return Boolean(v?.busy||v?.hasUncertain||v?.unsavedWork||
+    return Boolean(busy||v?.busy||v?.hasUncertain||v?.unsavedWork||
       ['ready','active','pending-recovery'].includes(v?.phase));
   }
   function dateRows(scope){
@@ -414,7 +429,7 @@ export function createDatedOccurrenceQaUi({
        '<button type="button" data-iberdates-action="u60-unlock">Desbloquear recuperación cifrada</button>'+
        '<p class="m26-field-help">Guarda esta frase por tu cuenta: se pedirá de nuevo al volver a entrar y nunca se almacena. Si la pierdes, una operación local aún no confirmada puede quedar bloqueada.</p></div>'
       :'<p class="m26-field-help">Recuperación cifrada desbloqueada para esta cuenta y dispositivo.</p>';
-    const controls='<div class="m26-inline-actions"><button type="button" data-iberdates-action="u60-calendar">Consultar fechas confirmadas</button></div>';
+    const controls=view?'':'<div class="m26-inline-actions"><button type="button" data-iberdates-action="u60-calendar">Consultar fechas confirmadas</button></div>';
     let body='';
     if(view&&focus?.clientId===scope.clientId){
       const phaseState=datedWorkoutPhaseUiState(view);
@@ -561,6 +576,16 @@ export function createDatedOccurrenceQaUi({
       (busy?'<p class="m26-field-help" role="status" aria-live="polite" data-u60-saving>Confirmando operación en el servidor. No repitas la acción.</p>':'')+
       guardDatedBusyActions(lockedMarkup+controls+body,busy)+'</section>';
   }
+  // Calendar rows are not a live execution receipt. If the private date
+  // changed, invalidate the projection rather than resurrect a stale start
+  // button or invent a linked appointment's state. No automatic extra RPC.
+  function invalidateChangedWorkoutCalendar(view){
+    const row=rows.find(item=>uid(item.id)===view?.occurrenceId);
+    if(!row||view?.phase==='needs-refresh'||view?.phase==='pending-recovery'||
+      row.revision!==view?.occurrenceRevision){
+      loadedFor='';rows=[];preview=null;
+    }
+  }
   function verifiedRow(id,scope){
     const rowsFor=dateRows(scope);
     const matches=rowsFor.filter(row=>uid(row.id)===uid(id));
@@ -687,7 +712,11 @@ export function createDatedOccurrenceQaUi({
       message='Clave privada desbloqueada. No se ha almacenado.';
       return;
     }
-    if(action==='u60-calendar'){await load(scope);return;}
+    if(action==='u60-calendar'){
+      if(focus?.clientId===scope.clientId&&focus?.role===scope.role)
+        fail('ACTIVE_WORKOUT_NAVIGATION_FORBIDDEN');
+      await load(scope);return;
+    }
     if(!vault.isUnlocked())fail('OWNER_KEY_LOCKED');
     if(action==='u60-prev-period'||action==='u60-next-period'){
       if(focus)fail('ACTIVE_WORKOUT_NAVIGATION_FORBIDDEN');
@@ -800,7 +829,8 @@ export function createDatedOccurrenceQaUi({
       catch(error){
         // When the encrypted journal holds an uncertain remote command,
         // keep the exact date selected so the operator can reconcile it.
-        if(runtime.workout.view().phase!=='pending-recovery')focus=null;
+        const failedView=workoutView();
+        if(!['pending-recovery','needs-refresh'].includes(failedView?.phase))focus=null;
         throw error;
       }
       message='Estado individual verificado mediante lectura privada.';
@@ -811,6 +841,7 @@ export function createDatedOccurrenceQaUi({
     if(action==='u60-close'){
       if(runtime.workout.view().hasUncertain||
         runtime.workout.view().unsavedWork)fail('UNSAVED_WORKOUT');
+      invalidateChangedWorkoutCalendar(workoutView());
       focus=null;message='Calendario disponible.';return;
     }
     if(action==='u60-save-close'){
@@ -823,12 +854,15 @@ export function createDatedOccurrenceQaUi({
         const receipt=await runtime.workout.save();
         if(receipt.phase!=='active'||receipt.hasUncertain||receipt.unsavedWork)
           fail('RECOVERY_REQUIRED');
+        requireDatedWorkoutReceipt(receipt);
       }
+      invalidateChangedWorkoutCalendar(workoutView());
       focus=null;message='Progreso confirmado en servidor.';return;
     }
     if(action==='u60-start'){
       const reply=await runtime.workout.start();
       if(reply.phase!=='active')fail('START_NOT_ACKNOWLEDGED');
+      requireDatedWorkoutReceipt(reply);
       message='Inicio confirmado por el servidor.';
       return;
     }
@@ -837,6 +871,7 @@ export function createDatedOccurrenceQaUi({
       const reply=await runtime.workout.pause();
       if(reply.phase!=='active'||reply.executionStatus!=='paused'||
         reply.hasUncertain||reply.unsavedWork)fail('RECOVERY_REQUIRED');
+      requireDatedWorkoutReceipt(reply);
       message='Entrenamiento en pausa. Tu progreso está confirmado.';
       return;
     }
@@ -845,6 +880,7 @@ export function createDatedOccurrenceQaUi({
       const reply=await runtime.workout.resume();
       if(reply.phase!=='active'||reply.executionStatus!=='active'||
         reply.hasUncertain)fail('RECOVERY_REQUIRED');
+      requireDatedWorkoutReceipt(reply);
       message='Entrenamiento reanudado y confirmado por el servidor.';
       return;
     }
@@ -853,7 +889,7 @@ export function createDatedOccurrenceQaUi({
       // Never leave a recorded set at an unadvanceable step after a crash.
       await runtime.workout.recordAndAdvance(payload.result);
       const receipt=await runtime.workout.save();
-      if(receipt.hasUncertain||receipt.unsavedWork)fail('RECOVERY_REQUIRED');
+      requireDatedWorkoutReceipt(receipt);
       message='Serie registrada, siguiente paso y progreso confirmados.';
       return;
     }
@@ -861,13 +897,13 @@ export function createDatedOccurrenceQaUi({
       if(!payload.reason||payload.reason.length<3)fail('SKIP_REASON_REQUIRED');
       await runtime.workout.skip(payload.reason);
       const receipt=await runtime.workout.save();
-      if(receipt.hasUncertain||receipt.unsavedWork)fail('RECOVERY_REQUIRED');
+      requireDatedWorkoutReceipt(receipt);
       message='Omisión con motivo guardada y confirmada.';
       return;
     }
     if(action==='u60-save'){
       const receipt=await runtime.workout.save();
-      if(receipt.hasUncertain||receipt.unsavedWork)fail('RECOVERY_REQUIRED');
+      requireDatedWorkoutReceipt(receipt);
       message='Progreso confirmado en servidor.';
       return;
     }
@@ -877,6 +913,7 @@ export function createDatedOccurrenceQaUi({
       const reply=await runtime.workout.complete();
       if(reply.phase!=='completed'||reply.hasUncertain)
         fail('COMPLETION_NOT_CONFIRMED');
+      requireDatedWorkoutReceipt(reply,{phases:['completed']});
       message='Entrenamiento de esta fecha finalizado y confirmado.';
       return;
     }
@@ -885,12 +922,14 @@ export function createDatedOccurrenceQaUi({
       const receipt=await runtime.workout.complete();
       if(receipt.phase!=='completed'||receipt.hasUncertain)
         fail('COMPLETION_NOT_CONFIRMED');
+      requireDatedWorkoutReceipt(receipt,{phases:['completed']});
       message='Entrenamiento de esta fecha finalizado y confirmado.';
       return;
     }
     if(action==='u60-reconcile'){
-      await runtime.workout.reconcile();
-      message='Operación original reconciliada y estado verificado.';
+      const receipt=await runtime.workout.reconcile();
+      requireDatedWorkoutReceipt(receipt,{phases:['ready','active','completed','cancelled'],allowUnsaved:true});
+      message=receipt.unsavedWork?'Lectura privada actualizada.':'Operación original reconciliada y estado verificado.';
       return;
     }
     if(action==='u60-reopen'){
@@ -1042,7 +1081,8 @@ export function createDatedOccurrenceQaUi({
     const originalDraftScope=draftScopeSignature();
     let failed=false;
     let payload={phrase:''};
-    busy=true;failure='';
+    busy=true;failure='';message='';
+    const actionGeneration=generation;
     try{
       // Validate/capture BEFORE rebuilding the DOM, including sport-specific
       // units, recovery secret and closeout. Even invalid input must be caught.
@@ -1070,7 +1110,10 @@ export function createDatedOccurrenceQaUi({
       await perform(action,button,payload);
     }catch(error){failed=true;failure=humanError(error);}
     finally{
-      payload.phrase='';busy=false;repaint();
+      payload.phrase='';busy=false;visibleOwner();
+      // Never surface a previous client's asynchronous status in this workspace.
+      if(generation!==actionGeneration){message='';failure='';}
+      repaint();
       // No cross-owner, stale-step or uncertain-write drafts, and never a
       // recovery phrase. Only restore editable fields after a failed action.
       if(failed&&!disposed&&originalDraftScope===draftScopeSignature())
