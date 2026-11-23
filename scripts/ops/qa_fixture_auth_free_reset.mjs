@@ -2,8 +2,9 @@
 // Never touches SQL/Storage, prod, non-fixture identities, MFA credentials or business records.
 export const QA_ORIGIN='https://gjztkdwfmunnzhtvxrsu.supabase.co';
 export const FIXTURES=Object.freeze([
-  {label:'coach',email:'qa.rc74.coach@iberfit.cl',envEmail:'M26_QA_COACH_EMAIL',envPassword:'M26_QA_COACH_PASSWORD'},
+  // Lowest historical fixture count first; fail before larger resets if recovery fails.
   {label:'client_a',email:'qa.rc74.client-a@iberfit.cl',envEmail:'M26_QA_CLIENT_A_EMAIL',envPassword:'M26_QA_CLIENT_A_PASSWORD'},
+  {label:'coach',email:'qa.rc74.coach@iberfit.cl',envEmail:'M26_QA_COACH_EMAIL',envPassword:'M26_QA_COACH_PASSWORD'},
   {label:'client_b',email:'qa.rc74.client-b@iberfit.cl',envEmail:'M26_QA_CLIENT_B_EMAIL',envPassword:'M26_QA_CLIENT_B_PASSWORD'},
 ]);
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu;
@@ -107,16 +108,17 @@ export async function qaFixtureGlobalReset({env,fetchImpl=globalThis.fetch}){
       throw Error('QA_RESET_DUPLICATE_IDENTITY');
     const repeat=await qaResetQuiet({env,fetchImpl});
     if(!repeat.ready)return {status:'skipped',reason:repeat.reason,busyRuns:repeat.activeRuns};
-    for(const lease of sessions){
+    // Verify recovery after EACH fixture before proceeding to the next. An
+    // unresponsive GoTrue gateway cannot cause further bulk invalidations.
+    let reloginOk=0;
+    for(let i=0;i<sessions.length;i++){
+      const lease=sessions[i];
+      const fixture=FIXTURES[i];
       if(!await logout(env,fetchImpl,lease.token,'global'))
         throw Error('QA_RESET_GLOBAL_LOGOUT_FAILED:'+lease.label);
       revocations++;
-    }
-    // Reauthenticate immediately: never trade database capacity for an
-    // inability to run real Coach->Client E2E on next build.
-    let reloginOk=0;
-    for(const fixture of FIXTURES){
       const fresh=await passwordLogin(env,fetchImpl,fixture);
+      if(fresh.uid!==lease.uid)throw Error('QA_RESET_POSTCHECK_IDENTITY_MISMATCH:'+fixture.label);
       if(!await logout(env,fetchImpl,fresh.token,'local'))
         throw Error('QA_RESET_POSTCHECK_LOGOUT_FAILED:'+fixture.label);
       reloginOk++;

@@ -67,12 +67,14 @@ test('QA reset authenticates ALL three exact fixtures before first global logout
   const firstGlobal=auth.findIndex(x=>x.scope==='global');
   assert.equal(firstGlobal,3);
   assert.equal(auth.filter(x=>x.scope==='global').length,3);
+  assert.equal(auth[firstGlobal+1].url.includes('grant_type=password'),true);
+  assert.equal(auth[firstGlobal+2].scope,'local');
   assert.equal(auth.filter(x=>x.url.includes('grant_type=password')).length,6);
   assert.equal(auth.filter(x=>x.scope==='local').length,6);
   assert.ok(auth.every(x=>x.url.startsWith(QA_ORIGIN+'/auth/v1/')));
 });
 test('QA reset never globally revokes any account after a failed preflight',async()=>{
-  const f=fake({broken:1});
+  const f=fake({broken:0});
   await assert.rejects(qaFixtureGlobalReset({env,fetchImpl:f.fetchImpl}),/QA_RESET_AUTH_PRECHECK_FAILED:client_a/u);
   assert.equal(f.calls.filter(x=>x.scope==='global').length,0);
   assert.equal(f.calls.filter(x=>x.scope==='local').length,1);
