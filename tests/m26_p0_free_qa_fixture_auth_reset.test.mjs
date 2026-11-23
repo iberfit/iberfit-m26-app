@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {FIXTURES,QA_ORIGIN,validateQaFixtureReset,qaResetQuiet,qaFixtureGlobalReset} from '../scripts/ops/qa_fixture_auth_free_reset.mjs';
 
-const fixture=Object.fromEntries(FIXTURES.flatMap(f=>[[f.envEmail,f.email],[f.envPassword,'fixture-not-a-secret']]));
+const fixture=Object.fromEntries(FIXTURES.flatMap(f=>[[f.envEmail,f.email],[f.passEnvName,'fixture-not-a-secret']]));
 const env={GITHUB_ACTIONS:'true',GITHUB_REPOSITORY:'iberfit/iberfit-m26-app',
   GITHUB_REF:'refs/heads/canary/rc74-4',GITHUB_SHA:'f'.repeat(40),
   GITHUB_RUN_ID:'123456789012',GITHUB_TOKEN:'github-test-'+'x'.repeat(30),

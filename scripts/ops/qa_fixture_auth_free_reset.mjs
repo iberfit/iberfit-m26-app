@@ -3,9 +3,9 @@
 export const QA_ORIGIN='https://gjztkdwfmunnzhtvxrsu.supabase.co';
 export const FIXTURES=Object.freeze([
   // Lowest historical fixture count first; fail before larger resets if recovery fails.
-  {label:'client_a',email:'qa.rc74.client-a@iberfit.cl',envEmail:'M26_QA_CLIENT_A_EMAIL',envPassword:'M26_QA_CLIENT_A_PASSWORD'},
-  {label:'coach',email:'qa.rc74.coach@iberfit.cl',envEmail:'M26_QA_COACH_EMAIL',envPassword:'M26_QA_COACH_PASSWORD'},
-  {label:'client_b',email:'qa.rc74.client-b@iberfit.cl',envEmail:'M26_QA_CLIENT_B_EMAIL',envPassword:'M26_QA_CLIENT_B_PASSWORD'},
+  {label:'client_a',email:'qa.rc74.client-a@iberfit.cl',envEmail:'M26_QA_CLIENT_A_EMAIL',passEnvName:'M26_QA_CLIENT_A_PASSWORD'},
+  {label:'coach',email:'qa.rc74.coach@iberfit.cl',envEmail:'M26_QA_COACH_EMAIL',passEnvName:'M26_QA_COACH_PASSWORD'},
+  {label:'client_b',email:'qa.rc74.client-b@iberfit.cl',envEmail:'M26_QA_CLIENT_B_EMAIL',passEnvName:'M26_QA_CLIENT_B_PASSWORD'},
 ]);
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu;
 const API_KEY=/^(?:sb_publishable_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_.-]+)$/u;
@@ -30,7 +30,7 @@ export function validateQaFixtureReset(env){
   if(!safe)throw Error('QA_FIXTURE_RESET_SCOPE_DENIED');
   for(const fixture of FIXTURES){
     if(String(env[fixture.envEmail]||'').trim().toLowerCase()!==fixture.email
-      ||String(env[fixture.envPassword]||'').length<8)
+      ||String(env[fixture.passEnvName]||'').length<8)
       throw Error('QA_FIXTURE_RESET_IDENTITY_DENIED:'+fixture.label);
   }
   return true;
@@ -79,7 +79,7 @@ async function authRequest(env,fetchImpl,path,{token=null,password=null,email=nu
 }
 async function passwordLogin(env,fetchImpl,fixture){
   const resp=await authRequest(env,fetchImpl,'/auth/v1/token?grant_type=password',{
-    email:fixture.email,password:env[fixture.envPassword],
+    email:fixture.email,password:env[fixture.passEnvName],
   });
   if(!resp.ok)throw Error('QA_RESET_AUTH_PRECHECK_FAILED:'+fixture.label);
   const body=await resp.json();
