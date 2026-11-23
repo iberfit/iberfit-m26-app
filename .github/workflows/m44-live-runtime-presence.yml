@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/ops/m44_live_runtime_secret_presence.mjs'
       - 'tests/m44_live_runtime_secret_presence.test.mjs'
+      - 'scripts/ops/m44_external_escrow_digest_parity.mjs'
+      - 'tests/m44_external_escrow_digest_parity.test.mjs'
       - '.github/workflows/m44-live-runtime-presence.yml'
 permissions:
   contents: read
@@ -27,6 +29,13 @@ jobs:
         with:
           node-version: '22'
       - name: Test fail-closed metadata handling and runtime identity
-        run: node --test tests/m44_live_runtime_secret_presence.test.mjs tests/m44_hosted_auth_config_archive.test.mjs
-      - name: Inspect configured PROD secret names and deployed Edge identity (read-only)
+        run: node --test tests/m44_live_runtime_secret_presence.test.mjs tests/m44_external_escrow_digest_parity.test.mjs tests/m44_hosted_auth_config_archive.test.mjs
+      - name: Compare protected independent secret escrow digests with LIVE PROD (read-only)
+        env:
+          IBERFIT_M44_RECOVERY_GEMINI_API_KEY: ${{ secrets.IBERFIT_M44_RECOVERY_GEMINI_API_KEY }}
+          IBERFIT_M44_RECOVERY_GOOGLE_API_KEY: ${{ secrets.IBERFIT_M44_RECOVERY_GOOGLE_API_KEY }}
+          IBERFIT_M44_RECOVERY_WEB_PUSH_VAPID_PRIVATE_KEY: ${{ secrets.IBERFIT_M44_RECOVERY_WEB_PUSH_VAPID_PRIVATE_KEY }}
+          IBERFIT_M44_RECOVERY_WEB_PUSH_VAPID_PUBLIC_KEY: ${{ secrets.IBERFIT_M44_RECOVERY_WEB_PUSH_VAPID_PUBLIC_KEY }}
+          IBERFIT_M44_RECOVERY_WEB_PUSH_VAPID_SUBJECT: ${{ secrets.IBERFIT_M44_RECOVERY_WEB_PUSH_VAPID_SUBJECT }}
+          IBERFIT_M44_RECOVERY_SMTP_PASSWORD: ${{ secrets.IBERFIT_M44_RECOVERY_SMTP_PASSWORD }}
         run: node scripts/ops/m44_live_runtime_secret_presence.mjs
