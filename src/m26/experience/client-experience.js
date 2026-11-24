@@ -31,6 +31,11 @@ export const CLIENT_EXPERIENCE_STAGES=Object.freeze({
     label:'Seguimiento activo',
     priority:5,
   }),
+  paused:Object.freeze({
+    key:'paused',
+    label:'Entrenamiento en pausa',
+    priority:6,
+  }),
 });
 
 function bodyOf(record){
@@ -116,7 +121,8 @@ export function deriveClientExperience(summary={}){
   const iriRecommended=!iriDeferred;
   const iriBlocking=false;
   const cycleReady=Boolean(summary?.cycle);
-  const nextAppointmentReady=Boolean(summary?.nextAppointment);
+  const servicePaused=trainingServiceStatus==='paused';
+  const nextAppointmentReady=trainingServiceStatus==='active'&&Boolean(summary?.nextAppointment);
   // A published, executable autonomous workout does not require a fabricated appointment.
   // Paused services never satisfy execution readiness even when old sessions remain published.
   const autonomousSessionReady=trainingServiceStatus==='active'&&Boolean(summary?.autonomousSessionReady);
@@ -128,7 +134,9 @@ export function deriveClientExperience(summary={}){
 
   let stage;
 
-  if(!profileReady){
+  if(servicePaused){
+    stage=CLIENT_EXPERIENCE_STAGES.paused;
+  }else if(!profileReady){
     stage=CLIENT_EXPERIENCE_STAGES.onboarding;
   }else if(!trainingService){
     stage=CLIENT_EXPERIENCE_STAGES.evaluation;
@@ -146,11 +154,12 @@ export function deriveClientExperience(summary={}){
   if(iriDeferred&&!iri.confirmed)attention.push('iri_deferred');
   else if(!iri.exists)attention.push('iri_missing');
   else if(!iri.confirmed)attention.push('iri_incomplete');
-  if(trainingService&&!cycleReady)attention.push('planning');
-  if(trainingService&&!nextTrainingReady)attention.push('appointment');
+  if(trainingService&&!servicePaused&&!cycleReady)attention.push('planning');
+  if(trainingService&&!servicePaused&&!nextTrainingReady)attention.push('appointment');
 
+  // Keep existing planning history; scheduling is not an open task in a pause.
   const processSteps=trainingService
-    ?[profileReady,cycleReady,nextTrainingReady]
+    ?(servicePaused?[profileReady,cycleReady]:[profileReady,cycleReady,nextTrainingReady])
     :[profileReady,iri.confirmed];
 
   const completedSteps=
@@ -195,6 +204,21 @@ export function experienceNextAction(
 
   const normalizedRole=
     String(role||'coach').trim().toLowerCase();
+
+  if(current.trainingServiceStatus==='paused'){
+    if(normalizedRole==='client')return action(
+      'view_paused_history','Ver mi evolución','progreso',
+      'Tu entrenamiento está en pausa. Tu historial sigue disponible; consulta con tu Coach cuándo retomar.'
+    );
+    if(normalizedRole==='admin')return action(
+      'review_paused_service','Revisar estado del servicio','admin-clientes',
+      'El servicio está en pausa. Revisa su estado antes de programar nuevas citas.'
+    );
+    return action(
+      'review_paused_service','Revisar pausa del entrenamiento','expediente',
+      'El servicio está en pausa. Conserva el historial y revisa las condiciones para retomar.'
+    );
+  }
 
   if(current.serviceKind!=='training'){
     return action(

@@ -172,7 +172,7 @@ function itemFromEntry(entry={}){
     tr('coach.stage.active')
   );
 
-  const processPending=stage!=='active';
+  const processPending=stage!=='active'&&stage!=='paused';
 
   let kind='clear';
   let reason=tr('coach.reason.clear');

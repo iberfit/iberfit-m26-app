@@ -752,3 +752,15 @@ test('U60 late Coach calendar response never displays previous-client status in 
     assert.match(after,/Consulta el calendario autorizado/u);
   }finally{h.close();}
 });
+
+test('Dated training shows the actual strength, swimming and running prescription with no fabricated targets',async()=>{
+  const {datedPrescriptionSummary}=await import('../src/m26/workflows/occurrence-qa-ui.js');
+  assert.equal(datedPrescriptionSummary(null),'');
+  const strength=datedPrescriptionSummary({exerciseId:'strength-1',prescription:{reps:'8–10',plannedLoad:'20 kg',restSeconds:0,targetRpe:7,targetRir:2,tempo:'3-1-1'}},{name_es:'Sentadilla'});
+  assert.match(strength,/8–10/);assert.match(strength,/Carga 20 kg/);assert.match(strength,/Descanso 0 s/);assert.match(strength,/RPE objetivo 7/);assert.match(strength,/RIR objetivo 2/);
+  const swim=datedPrescriptionSummary({exerciseId:'swim-1',prescription:{measurementProfile:'endurance',plannedDistanceM:200,plannedPacePer100M:'2:15',targetRpe:6}},{name_es:'Natación'});
+  assert.match(swim,/200 m/);assert.match(swim,/2:15 min\/100 m/);assert.doesNotMatch(swim,/min\/km|Carga|RIR/);
+  const run=datedPrescriptionSummary({exerciseId:'running-1',prescription:{measurementProfile:'intervals',plannedDistanceKm:5,plannedPace:'5:30',intervalWorkSeconds:60,intervalRecoverySeconds:0,intervalRepetitions:5}},{name_es:'Carrera'});
+  assert.match(run,/5 km/);assert.match(run,/5:30 min\/km/);assert.match(run,/Trabajo 60 s/);assert.match(run,/Recuperación 0 s/);
+  assert.equal(datedPrescriptionSummary({exerciseId:'strength-1',prescription:{targetRpe:null,targetRir:'',restSeconds:null}}),'');
+});
