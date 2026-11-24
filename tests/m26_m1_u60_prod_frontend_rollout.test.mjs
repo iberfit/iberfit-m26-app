@@ -98,7 +98,9 @@ test('M1 rollout never authorizes execution through frontend configuration alone
   const ui=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
   assert.match(ui,/\['u60-preview','u60-publish','u60-confirm','u60-start'\]/u);
   assert.match(ui,/newStartsEnabled!==true/u);
-  assert.match(ui,/if\(receipt\.hasUncertain\|\|receipt\.unsavedWork\)/u);
+  assert.match(ui,/requireDatedWorkoutReceipt\(receipt\)/u);
+  assert.match(ui,/view\.hasUncertain\|\|view\.error\|\|\(!allowUnsaved&&view\.unsavedWork\)/u);
+  assert.match(ui,/view\.busy!==false/u);
   assert.match(ui,/await runtime\.workout\.complete\(\)/u);
   assert.match(app,/if\(datedQa\|\|datedProd\)/u);
   assert.match(app,/const datedPanel=\(runtime\.qaOnly===true\|\|runtime\.datedTrainingProductionReleased===true\)&&/u,

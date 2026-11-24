@@ -1082,7 +1082,7 @@ export function createDatedOccurrenceQaUi({
     let failed=false;
     let payload={phrase:''};
     busy=true;failure='';message='';
-    const actionGeneration=generation;
+    const actionGeneration=generation,actionScopeKey=visibleScopeKey;
     try{
       // Validate/capture BEFORE rebuilding the DOM, including sport-specific
       // units, recovery secret and closeout. Even invalid input must be caught.
@@ -1112,7 +1112,13 @@ export function createDatedOccurrenceQaUi({
     finally{
       payload.phrase='';busy=false;visibleOwner();
       // Never surface a previous client's asynchronous status in this workspace.
-      if(generation!==actionGeneration){message='';failure='';}
+      if(generation!==actionGeneration){
+        message='';
+        // An ABA return to the original workspace warrants a generic retry
+        // notice, never a success or details from the invalidated operation.
+        failure=visibleScopeKey===actionScopeKey&&actionScopeKey
+          ?humanError(new Error('ACTOR_CHANGED')):'';
+      }
       repaint();
       // No cross-owner, stale-step or uncertain-write drafts, and never a
       // recovery phrase. Only restore editable fields after a failed action.

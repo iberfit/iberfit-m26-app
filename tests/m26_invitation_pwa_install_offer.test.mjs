@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   INSTALL_OFFER_DISMISSAL_KEY,INSTALL_OFFER_DISMISSAL_MS,
   selectInstallOfferMode,shouldOfferPwaInstall,
-  readInstallOfferDismissal,dismissInstallOffer,
+  readInstallOfferDismissal,dismissInstallOffer,isTrainingOrDialogInProgress,
 } from '../src/m26/experience/invitation-install-offer.js';
 
 test('PWA invitation offers native Chromium installation only when a real browser prompt exists',()=>{
@@ -44,4 +44,19 @@ test('PWA installation offer cannot encode or persist invitation tokens or ident
   const src=String(selectInstallOfferMode)+String(shouldOfferPwaInstall)+
     String(readInstallOfferDismissal)+String(dismissInstallOffer);
   for(const marker of sensitiveMarkers)assert.equal(src.includes(marker),false,marker);
+});
+
+test('PWA invitation stays off all dated player states and busy date operations',()=>{
+  // DOM-contract selector matching, without a browser prompt or network.
+  const documentFor=selector=>({querySelector:selectors=>
+    selectors.split(',').includes(selector)?{}:null});
+  for(const selector of ['[data-u60-workout]','[data-u60-panel][aria-busy="true"]',
+    '.m26-session-live-v3','[data-session-live-state="active"]',
+    '[role="dialog"][aria-modal="true"]']){
+    const blocked=isTrainingOrDialogInProgress(documentFor(selector));
+    assert.equal(blocked,true,selector);
+    assert.equal(shouldOfferPwaInstall({mode:'native',ready:true,sessionActive:blocked}),false);
+  }
+  assert.equal(isTrainingOrDialogInProgress(documentFor('[data-u60-panel]')),false,
+    'an idle calendar alone must not suppress installation');
 });

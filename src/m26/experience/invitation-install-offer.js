@@ -56,10 +56,13 @@ function isReadyForInvitationOffer(documentLike){
   return Boolean(documentLike.querySelector?.('.m26-shell[data-m26-role="client"]'));
 }
 
-function isTrainingOrDialogInProgress(documentLike){
+export function isTrainingOrDialogInProgress(documentLike){
   return Boolean(
     documentLike.querySelector?.(
       '.m26-session-live-v3,[data-session-live-state="active"],[data-session-live-state="rest"],'+
+      // Dated player has its own state machine, including private-read loading,
+      // pause, feedback and recovery. Never overlay any of those states.
+      '[data-u60-workout],[data-u60-panel][aria-busy="true"],'+
       '[role="dialog"][aria-modal="true"],[data-m26-overlay="open"],'+
       '.m26-client-bottom-nav-more[open],details.m26-settings-menu[open]'
     )
@@ -145,6 +148,13 @@ export function mountInvitationInstallOffer({
     removeListeners();
   };
   const onInstall=async()=>{
+    // Recheck synchronously: a workout or modal may have opened before the
+    // MutationObserver gets its callback. Do not consume a stale touch.
+    if(!panel||panel.hidden||hasAuthCallback(target.location)||
+      isTrainingOrDialogInProgress(documentLike)||!isReadyForInvitationOffer(documentLike)||
+      documentLike.visibilityState==='hidden'){
+      syncSurfaceVisibility();return;
+    }
     const primary=panel?.querySelector?.('[data-m26-install-accept]');
     const guide=panel?.querySelector?.('[data-m26-install-guide]');
     const feedback=panel?.querySelector?.('[data-m26-install-feedback]');
@@ -254,7 +264,8 @@ export function mountInvitationInstallOffer({
       subtree:true,childList:true,attributes:true,
       // Opening a native <details> More menu must immediately conceal the
       // floating install offer, otherwise its buttons intercept menu taps.
-      attributeFilter:['data-auth-state','data-auth-mode','data-m26-role','aria-busy','open'],
+      attributeFilter:['data-auth-state','data-auth-mode','data-m26-role','aria-busy','open',
+        'data-u60-phase','data-session-live-state','data-m26-overlay','aria-modal'],
     });
   }
   // Keep the watcher until dismissed/installed: account invitations can require MFA.
