@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {runQaStageWithCleanup} from '../scripts/remote-gates/release_qa_auth_sessions.mjs';
 const read=path=>readFileSync(path,'utf8');
 const U60='qa/rc64/u60-dated-ui-readonly.spec.mjs';
 const U74='qa/rc64/u74-dated-ui-write.spec.mjs';
@@ -18,12 +19,13 @@ test('U60 and U74 real QA browser suites close each own Auth lease even on test 
 });
 test('Node U71 two-attempt QA authenticated training always revokes three current-run local tokens',()=>{
  const source=read(NODE);
- assert.match(source,/import \{releaseQaAuthSessions\} from '\.\/release_qa_auth_sessions\.mjs'/u);
+ assert.match(source,/import \{releaseQaAuthSessions,runQaStageWithCleanup\} from '\.\/release_qa_auth_sessions\.mjs'/u);
  assert.match(source,/sessions:\[\]/u);
  assert.match(source,/actualEmail===String\(email\)\.trim\(\)\.toLowerCase\(\)/u);
  assert.match(source,/ctx\.sessions\.push\(\{email:actualEmail,token\}\)/u);
  assert.match(source,/if\(mode==='verify-browser'\)return await verifyBrowserWorkout\(ctx\)/u);
- assert.match(source,/finally\{\s*\/\/ Close ONLY JWTs minted by this QA run/u);
+ assert.match(source,/await runQaStageWithCleanup\(\s*\(\)=>runStage\(ctx,mode\),\s*\(\)=>releaseCurrentRun\(ctx\)/u);
+ assert.match(source,/async function releaseCurrentRun\(ctx\)\{\s*\/\/ Close ONLY JWTs minted by this QA run/u);
  assert.match(source,/sessions:ctx\.sessions,base:BASE,key:ctx\.key,projectRef:QA/u);
  assert.match(source,/qaOnly:ctx\.e\.M26_QA_ONLY/u);
  assert.match(source,/U71_QA_AUTH_CLEANUP_INCOMPLETE/u);
@@ -40,4 +42,22 @@ test('current source mandatory workflow path filters retain full signed dated E2
   assert.match(text,/environment: m26-canary-readonly/u);
   assert.doesNotMatch(text,/IBERFIT_PROD_DATABASE_URL|SUPABASE_SERVICE_ROLE_KEY/u);
  }
+});
+
+test('QA stage cleanup runs once on success and returns the original result',async()=>{
+ let calls=0;
+ assert.equal(await runQaStageWithCleanup(async()=>42,async()=>{calls++;}),42);
+ assert.equal(calls,1);
+});
+test('QA cleanup failure after successful stage fails the gate',async()=>{
+ let calls=0;
+ await assert.rejects(runQaStageWithCleanup(async()=>42,async()=>{calls++;throw Error('cleanup');}),/cleanup/);
+ assert.equal(calls,1);
+});
+test('QA stage failure still cleans up and preserves the primary error even if cleanup fails',async()=>{
+ const primary=Error('primary');let calls=0,reported=0;
+ await assert.rejects(runQaStageWithCleanup(async()=>{throw primary;},async()=>{calls++;throw Error('cleanup');},()=>{reported++;}),e=>e===primary);
+ assert.equal(calls,1);assert.equal(reported,1);
+ await assert.rejects(runQaStageWithCleanup(async()=>{throw primary;},async()=>{calls++;}),e=>e===primary);
+ assert.equal(calls,2);
 });

@@ -6,7 +6,7 @@
  * All operations carry deterministic IDs to diagnose partial ACK/retry.
  */
 import {createHash} from 'node:crypto';
-import {releaseQaAuthSessions} from './release_qa_auth_sessions.mjs';
+import {releaseQaAuthSessions,runQaStageWithCleanup} from './release_qa_auth_sessions.mjs';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {buildAppointmentCommand,buildConfirmAppointmentCommand,santiagoAppointmentInstant} from '../../src/m26/workflows/agenda-workflow.js';
 const QA='gjztkdwfmunnzhtvxrsu';
@@ -502,7 +502,13 @@ async function main(){
  const mode=process.argv[2];
  assert(['preflight','apply','preflight-browser','prepare-browser','verify-browser'].includes(mode),'STAGE_INVALID');
  const ctx=context(mode);
- try{
+ await runQaStageWithCleanup(
+   ()=>runStage(ctx,mode),
+   ()=>releaseCurrentRun(ctx),
+   ()=>process.stderr.write('U71_QA_AUTH_CLEANUP_INCOMPLETE_AFTER_STAGE_FAILURE\n'),
+ );
+}
+async function runStage(ctx,mode){
  await currentSha(ctx);
  if(mode==='verify-browser')return await verifyBrowserWorkout(ctx);
  // Read prior clock/date BEFORE any authenticated fetch; never pick a new slot
@@ -768,7 +774,8 @@ async function main(){
  proof.status='QA_HOSTED_AUTHENTICATED_E2E_SUCCESS';proof.writesApplied=true;
  await save(proof);
  process.stdout.write('IBERFIT_U71_QA_HOSTED_COACH_CLIENT_COACH_DATED_E2E_PASS\n');
- }finally{
+ }
+async function releaseCurrentRun(ctx){
    // Close ONLY JWTs minted by this QA run. This never revokes another
    // process's synthetic fixture, nor mutates PROD or training records.
    const issued=ctx.sessions.length;
@@ -781,7 +788,6 @@ async function main(){
      if(result.failed!==0||result.skipped!==0||result.released!==issued)
        throw Error('U71_QA_AUTH_CLEANUP_INCOMPLETE');
    }
- }
 }
 if(process.argv[1]?.endsWith('/qa_u60_real_dated_journey.mjs')){
  main().catch(error=>{
