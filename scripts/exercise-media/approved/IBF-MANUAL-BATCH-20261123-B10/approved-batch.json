@@ -1,0 +1,476 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-SENTADILLA-GOBLET-CON-PAUSA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-bfdc798a36e1.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: d5a7d17a197b945c894808c9ac0fc55b8e9ff788a26a17fc72a2c92184b1a580"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-GOBLET-CON-PAUSA/movement-bfdc798a36e1.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "bfdc798a36e13ee8d7025126b3b96fd5a72505f799b2257cec5a4c38d5e33161"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-GOBLET-TEMPO-3-1-1",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-35e324f07116.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: c4e75d04a77542e07f95b0df5fc65aa1e555d02d3f6a02760c15e5da78497393"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-GOBLET-TEMPO-3-1-1/movement-35e324f07116.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "35e324f0711686b9384650d308021d05edae04c8e21624dea0ce075b0ff91ee1"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-ZERCHER",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-4b691dd238e1.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: 234e47d35bc86ac45d29563c650ed676c2763911c00e74799f03919ec5bb8843"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-ZERCHER/movement-4b691dd238e1.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "4b691dd238e12685e1cc95e88645f806bc10ce260c4649ba40890c96c95669ec"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-CON-CONTRAPESO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-22cf3ac9b9f8.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: 37d303121e838a35b9b522e84fa466aaa26675a24c46a0738e99eddb026860fc"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-CON-CONTRAPESO/movement-22cf3ac9b9f8.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "22cf3ac9b9f8075952f64c9893dc977e85992ae04cba73596ab7f6600db4ae6c"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-ESPANOLA-ISOMETRICA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-8facc6fe47de.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: 1c84ab0f03f38605313f6345b72746db501cf01240a77723b3ba15eaab70c609"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-ESPANOLA-ISOMETRICA/movement-8facc6fe47de.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "8facc6fe47deeda2e2c4d88bd23dfd4f314374f6065be388df795c5ed38b39fa"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-LANDMINE",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-8e0cd91dc6c7.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: 8f282da5a586f2fc925819df8d522c79aa810de1c3086970071aeee6842514cf"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-LANDMINE/movement-8e0cd91dc6c7.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "8e0cd91dc6c76dbfba667cc1e311aa6119e0d8e8931eb593f8321341ff7ab67a"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-LANDMINE-A-CAJON",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-d2ee9427587f.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: 166243c75425c59376386790a9cdc57557ac27a55124899f7f66a349104591fa"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-LANDMINE-A-CAJON/movement-d2ee9427587f.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "d2ee9427587f8ec874d1f26a2be3b96044cdc3211f440fb1c92e528b0c19d237"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-TRASERA-CON-BARRA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-d3770fd92951.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: 50ee817badb945134efe3ae0a1579ba4f0990daf739d576870abc7d8be5d6b82"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-TRASERA-CON-BARRA/movement-d3770fd92951.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "d3770fd92951a0a7a0cb074374f5010e3606c66fcc9f9e8a87d764eeffb8bc1f"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-EN-MULTIPOWER",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-74bd8e48ef42.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: 40df9ad43a57a06ec649278c0e4dd314b68b9191f06beeb37bfb53f31934d224"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-EN-MULTIPOWER/movement-74bd8e48ef42.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "74bd8e48ef42997bb9f6974173f43e782ad5f60d9ae76e319ed37ac1845173e5"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SENTADILLA-SUMO-CON-MANCUERNA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261123-B10/movement-6faeb7610e3d.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-23",
+        "note": "Aprobación explícita del propietario en conversación. Original SHA256: 7e399106f6cd3b9c176f31383aebe22423f2a8cdf2c9e6f27d813c2f4ded1bf7"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-SUMO-CON-MANCUERNA/movement-6faeb7610e3d.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "6faeb7610e3df615f88e5be29d08382baa96c9dff745905ef87545d41ab81238"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "cuádriceps",
+            "glúteos"
+          ],
+          "secondary": [
+            "aductores",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
