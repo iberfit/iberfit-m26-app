@@ -39,3 +39,20 @@ export async function releaseQaAuthSessions({
   for(const status of outcomes)result[status]++;
   return result;
 }
+
+/** Run bounded QA cleanup after success or failure without masking the primary error. */
+export async function runQaStageWithCleanup(run,cleanup,onCleanupFailure=()=>{}){
+  let result;
+  try{
+    result=await run();
+  }catch(primaryError){
+    try{
+      await cleanup();
+    }catch{
+      onCleanupFailure();
+    }
+    throw primaryError;
+  }
+  await cleanup();
+  return result;
+}
