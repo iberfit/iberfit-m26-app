@@ -4863,3 +4863,46 @@
   outline-color:Highlight;
  }
 }
+
+/* IBERFIT Guided Session 360 — scoped to the dated player; no fixed overlays. */
+.m26-shell [data-u60-workout] [data-u60-entry],
+.m26-shell [data-u60-workout] [data-u60-feedback-entry]{
+  min-width:0;gap:var(--iberfit-space-3,12px);
+}
+.m26-shell [data-u60-workout] :is(input:not([type="checkbox"]),textarea){
+  min-width:0;max-width:100%;min-height:var(--iberfit-size-touch-target-comfortable,48px);
+  box-sizing:border-box;
+}
+.m26-shell [data-u60-workout] :is(button,summary){
+  min-height:var(--iberfit-size-touch-target-comfortable,48px);
+  min-width:0;overflow-wrap:anywhere;touch-action:manipulation;
+}
+.m26-shell [data-u60-workout] [data-iberdates-action="u60-record"]{
+  grid-column:1/-1;width:100%;white-space:normal;
+}
+.m26-shell [data-u60-workout] .m26-session-coach-rpe-quick{
+  grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:var(--iberfit-space-2,8px);min-width:0;
+}
+.m26-shell [data-u60-workout] .m26-session-coach-rpe-quick>span{grid-column:1/-1}
+.m26-shell [data-u60-workout] [data-u60-quick-rpe][aria-pressed="true"]{
+  border-color:var(--iberfit-color-accent-strong,#D7BA7C);
+  color:var(--iberfit-color-forest-950,#0B1310);
+  background:var(--iberfit-color-accent-strong,#D7BA7C);
+}
+.m26-shell [data-u60-workout] :is(button,summary,input,textarea):focus-visible{
+  outline:2px solid var(--iberfit-color-focus,#D7BA7C);outline-offset:2px;
+}
+.m26-shell [data-u60-workout] [data-u60-skip-details]>summary{
+  display:flex;align-items:center;cursor:pointer;
+}
+.m26-shell [data-u60-workout] [data-u60-skip-details][open]>.m26-field-grid{margin-top:var(--iberfit-space-2,8px)}
+@media(max-width:480px){
+  .m26-shell [data-u60-workout] :is([data-u60-entry],[data-u60-feedback-entry], [data-u60-additional-metrics]>.m26-field-grid,[data-u60-skip-details]>.m26-field-grid){
+    grid-template-columns:minmax(0,1fr);
+  }
+  .m26-shell [data-u60-workout] :is(input:not([type="checkbox"]),textarea){font-size:16px}
+  .m26-shell [data-u60-workout] .m26-session-coach-rpe-quick{
+    grid-template-columns:repeat(auto-fit,minmax(44px,1fr));
+  }
+}
