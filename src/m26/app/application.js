@@ -1659,6 +1659,7 @@ export async function createM26Application({root=document.querySelector('#app'),
           newStartsEnabled:datedQa||runtime.datedTrainingProductionStartsEnabled===true,
           root,ownerId,projectRef:runtime.projectRef,transport,
           getState:()=>store.getDatedTrainingSnapshot(),onRender:render,
+          getMediaMap:()=>mediaMap,getCatalogExercise:id=>catalog?.get?.(id)||null,
           getAuthContext:async()=>{
             await refreshSessionIfNeeded();
             const identity=store.getSessionActorSnapshot().identity||{};

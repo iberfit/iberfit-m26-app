@@ -2237,6 +2237,15 @@ m26-evolution-explorer .m26-data-metric-card[hidden] {
   }
 }
 
+/* IBERFIT Exercise Media 360 · independent image/video selection */
+m26-exercise-media-choice{display:grid;min-width:0;}
+m26-exercise-media-choice [hidden]{display:none!important;}
+.m26-exercise-media-choice-controls{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
+.m26-exercise-media-choice-controls button{flex:1 1 auto;min-height:44px;border:1px solid var(--iberfit-color-border);border-radius:var(--iberfit-radius-md);padding:.5rem .7rem;background:var(--iberfit-color-surface-raised);color:var(--iberfit-color-text);font:inherit;}
+.m26-exercise-media-choice-controls button[aria-pressed="true"]{border-color:#C5A059;box-shadow:inset 0 -2px 0 #C5A059;font-weight:600;}
+.m26-exercise-media-choice-controls button:focus-visible{outline:2px solid #C5A059;outline-offset:2px;}
+[data-exercise-choice-image],[data-exercise-choice-video]{min-width:0;max-width:100%;}
+[data-exercise-choice-video] video{max-height:65vh;}
 /* IBERFIT RC63.1 · Exercise Media Native Player */
 .m26-exercise-media-experience{
   display:grid;

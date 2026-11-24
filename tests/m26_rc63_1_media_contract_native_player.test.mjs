@@ -18,7 +18,7 @@ import {
   renderNativeExerciseVideo,
   renderExerciseTechnicalGuidance,
 } from '../src/m26/library/exercise-video-player.js';
-import {renderExerciseMedia} from '../src/m26/library/exercise-media-ui.js';
+import {renderExerciseMedia,renderLibraryExerciseCard,selectExerciseMediaMode} from '../src/m26/library/exercise-media-ui.js';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
 const json=(path)=>JSON.parse(read(path));
@@ -77,7 +77,7 @@ test('RC63.1 keeps legacy IBERFIT v1 valid and adds a separate v2 rich-media con
   assert.equal(rich.source.provider,'IBERFIT');
   assert.equal(rich.policy.automaticPublication,false);
   assert.equal(rich.policy.technicalVideoHumanApprovalRequired,true);
-  assert.deepEqual(rich.items,[]);
+  assert.ok(Array.isArray(rich.items));
 });
 
 test('RC63.1 approved rich media resolves video poster captions and written guidance',()=>{
@@ -185,11 +185,23 @@ test('RC63.1 library media renderer composes rich video with legacy visual fallb
   assert.match(html,/RepDB \(repdb\.co\)/u);
 });
 
-test('RC63.1 production rich manifest contains no fabricated approved video assets',()=>{
-  assert.equal(rich.summary.approved,0);
-  assert.equal(rich.summary.published,0);
-  assert.equal(rich.summary.video,0);
-  assert.deepEqual(rich.items,[]);
+test('Production rich manifest never references an unapproved or missing video asset',()=>{
+  const ids=new Set(json('baseline_m25_2/exercise-catalog-m25.json').items?.map(row=>row.id)||[]);
+  let published=0;
+  for(const item of rich.items){
+    if(!item.technical_video||item.published!==true)continue;
+    assert.equal(item.review_status,'approved');
+    if(ids.size)assert.ok(ids.has(item.exercise_id));
+    const media=resolveExerciseMediaExperience(rich,item.exercise_id,{role:item.client_visible?'client':'coach'});
+    assert.ok(media?.video);
+    const path=media.video.src.slice(1);
+    assert.ok(fs.existsSync(path),'Published video must exist in the deployment tree');
+    const size=fs.statSync(path).size;
+    assert.ok(size>0&&size<=25*1024*1024,'Cloudflare Pages file size limit');
+    assert.ok(media.cues.length,'Published video must retain written guidance');
+    published++;
+  }
+  assert.equal(rich.summary.video,published);
 });
 
 test('RC63.1 keeps Plyr out until real approved video UX can be evaluated',()=>{
@@ -226,4 +238,50 @@ test('RC63.1 preserves durable native media foundation closeout and cross-cuttin
   assert.match(roadmap,/RC63_1=CLOSED_MEDIA_CONTRACT_NATIVE_PLAYER/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
+});
+test('Media 360: all three roles get image/video/both with an inert video template',()=>{
+  const manifest=createExerciseMediaBundle({iberfitRich:richMap([richItem()]),repdb});
+  const exercise={id:sample.iberfit_id,name_es:'Ejercicio técnico'};
+  for(const role of ['client','coach','admin']){
+    const html=renderLibraryExerciseCard(exercise,manifest,{role});
+    assert.match(html,/data-exercise-media-mode="image" aria-pressed="true"/);
+    assert.match(html,/data-exercise-media-mode="video" aria-pressed="false"/);
+    assert.match(html,/data-exercise-media-mode="both" aria-pressed="false"/);
+    assert.match(html,/<div data-exercise-choice-video hidden><\/div><template data-exercise-choice-template><figure/);
+    assert.equal(html.indexOf('<video'),html.indexOf('<video',html.indexOf('<template data-exercise-choice-template>')));
+  }
+  const preview=renderExerciseMedia({manifest,exercise,compact:true});
+  assert.doesNotMatch(preview,/data-exercise-media-mode|<video/);
+  const noVideo=renderExerciseMedia({manifest:repdb,exercise});
+  assert.doesNotMatch(noVideo,/data-exercise-media-mode|<video/);
+  const videoOnly=renderExerciseMedia({manifest:richMap([richItem()]),exercise});
+  assert.match(videoOnly,/Ver vídeo/);
+  assert.doesNotMatch(videoOnly,/data-exercise-media-mode="both"/);
+});
+test('Media 360: selection creates the native video only on explicit intent and pauses it when hidden',()=>{
+  let video=null,clones=0,pauses=0;
+  const image={hidden:false},panel={hidden:true,
+    querySelector:()=>video,
+    append(){video={pause(){pauses++;}};},
+    replaceChildren(){video=null;},
+  };
+  const template={content:{cloneNode(deep){assert.equal(deep,true);clones++;return {};}}};
+  const buttons=['image','video','both'].map(mode=>({dataset:{exerciseMediaMode:mode},setAttribute(key,value){this[key]=value;}}));
+  const host={querySelector:selector=>({'[data-exercise-choice-image]':image,'[data-exercise-choice-video]':panel,'template[data-exercise-choice-template]':template}[selector]),querySelectorAll:()=>buttons};
+  assert.equal(selectExerciseMediaMode(host,'both'),true);
+  assert.equal(clones,1);assert.equal(image.hidden,false);assert.equal(panel.hidden,false);
+  assert.equal(selectExerciseMediaMode(host,'video'),true);
+  assert.equal(clones,1);assert.equal(image.hidden,true);
+  assert.equal(selectExerciseMediaMode(host,'image'),true);
+  assert.equal(pauses,1);assert.equal(video,null);assert.equal(panel.hidden,true);assert.equal(image.hidden,false);
+  assert.equal(buttons[0]['aria-pressed'],'true');
+  assert.equal(selectExerciseMediaMode(host,'invalid'),false);
+});
+test('Media 360: dated execution uses the shared renderer and canonical authorized exercise ID',()=>{
+  const dated=read('src/m26/workflows/occurrence-qa-ui.js');
+  const app=read('src/m26/app/application.js');
+  assert.match(dated,/stepMedia=step\?\.exerciseId&&\['ready','active'\]\.includes\(phase\)/);
+  assert.match(dated,/id:step\.exerciseId/);
+  assert.match(dated,/stepMarkup\+stepMedia\+buttons/);
+  assert.match(app,/getMediaMap:\(\)=>mediaMap,getCatalogExercise:id=>catalog\?\.get/);
 });

@@ -108,3 +108,25 @@ provenance -> technical review -> publication -> role visibility.
 
 The absence of fabricated assets is a safety property, not an assertion that
 the content library is complete.
+## Media 360 · image and video per canonical exercise
+
+The existing image and rich-media manifests share the exact canonical exercise
+ID. Approved videos are delivered by Cloudflare Pages, not the Supabase
+authenticated bootstrap or Storage. The original image remains the default;
+the same shared component provides Imagen / Vídeo / Ambos in Coach/Admin
+library and guided legacy/dated workouts. Thumbnails remain lightweight.
+The native video element is created only after explicit choice, paused and
+removed when returning to the image. No autoplay, no new RPC, no extra
+runtime dependency, no speculative preloading of upcoming exercises.
+
+For each manually approved video, place the MP4 (H.264, broadly compatible,
+prefer a short silent full repetition, fast-start, target <=4 MiB) or WebM
+in `public/iberfit/exercises/video/<exact-exercise-id>/technical-v1.mp4`.
+Append a v2 item with the exact ID, technical_video.src, optional verified
+poster/captions, approved written cues, asset_provenance and explicit approved
+review/publication/role flags. Increment summary counts in the same protected
+commit as the real asset. Never associate by translated name or fabricate an
+approved asset. A review of the actual video, correct movement, visual match,
+equipment and ownership is mandatory. Existing image publication stays
+independent. Batch new approved content through protected releases without
+creating a second exercise catalog or a paid video service.
