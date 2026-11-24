@@ -1,6 +1,7 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {performance} from 'node:perf_hooks';
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {
   CANARY_ORIGIN,
   QA_PROJECT_REF,
@@ -139,6 +140,12 @@ async function expectTouchTarget(locator,touch){
   expect(metrics.fontSize).toBeGreaterThanOrEqual(16);
 }
 
+test.afterEach(async({page},testInfo)=>{
+  const cleanup=await releaseQaSessionBeforeContextClose(page);
+  console.log('AUTH_INTERACTION_QA_SESSION_CLEANUP='+cleanup);
+  // A passed journey remains authenticated, so a missing session is not proof.
+  if(testInfo.status==='passed')expect(cleanup).toBe('released');
+});
 test('authenticated Client-only QA keeps inputs textarea selects and mobile More usable after pointer release',async({page,context},testInfo)=>{
   const missing=REQUIRED.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);

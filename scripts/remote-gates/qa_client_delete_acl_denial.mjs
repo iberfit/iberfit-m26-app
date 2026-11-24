@@ -1,4 +1,5 @@
 import {mkdir,writeFile} from 'node:fs/promises';
+import {createQaAuthLease,runQaStageWithCleanup} from './release_qa_auth_sessions.mjs';
 
 // Non-mutating negative security gate: SQL ACL denies DELETE before row matching.
 // The only target is a reserved synthetic UUID, prechecked absent in QA.
@@ -27,14 +28,22 @@ const request=async(path,options={})=>{
   const payload=await response.json().catch(()=>null);
   return {status:response.status,payload};
 };
+const qaLease=createQaAuthLease({
+  base:process.env.M26_SUPABASE_URL,key:apiKey,projectRef:QA_REF,qaOnly:process.env.M26_QA_ONLY,
+  tag:'P0_CLIENT_DELETE',fixtures:{
+    'qa.rc74.coach@iberfit.cl':process.env.M26_QA_COACH_EMAIL,
+    'qa.rc74.client-a@iberfit.cl':process.env.M26_QA_CLIENT_A_EMAIL,
+  },
+});
 const QA_TRANSIENT_AUTH_STATUSES=new Set([502,503,504,520,521,522,523,524]);
 const auth=async(email,password)=>{
   for(let attempt=0;attempt<2;attempt++){
     const r=await request('/auth/v1/token?grant_type=password',{
       method:'POST',headers,body:JSON.stringify({email,password}),
     });
-    if(r.status===200&&r.payload?.access_token&&r.payload?.user?.id)
-      return r.payload.access_token;
+    if(r.status===200&&r.payload?.access_token&&r.payload?.user?.id){
+      return qaLease.track(r.payload,email);
+    }
     if(attempt===0&&QA_TRANSIENT_AUTH_STATUSES.has(r.status)){
       // Exactly one bounded retry for gateway errors. Never retry bad credentials,
       // revoked accounts or 429, and never log identifiers or bearer tokens.
@@ -57,6 +66,7 @@ const attempt=async(roleName,token)=>{
   }
   return {roleName,status:r.status,sqlstate:r.payload.code,denied:true};
 };
+async function runDenial(){
 const coachToken=await auth(process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD);
 const clientToken=await auth(process.env.M26_QA_CLIENT_A_EMAIL,process.env.M26_QA_CLIENT_A_PASSWORD);
 const outcome=[
@@ -74,3 +84,6 @@ const evidence=Object.freeze({
 await mkdir('recovery/p0-client-delete-boundary',{recursive:true});
 await writeFile('recovery/p0-client-delete-boundary/qa-denial.json',JSON.stringify(evidence,null,2)+'\n');
 console.log('P0_CLIENT_DIRECT_DELETE_QA_DENIED:'+JSON.stringify(evidence));
+
+}
+await runQaStageWithCleanup(runDenial,qaLease.release,()=>console.error('P0_CLIENT_DELETE_QA_AUTH_CLEANUP_FAILED_AFTER_STAGE_FAILURE'));

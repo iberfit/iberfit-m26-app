@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {createQaAuthLease,runQaStageWithCleanup} from './release_qa_auth_sessions.mjs';
 import {createHash} from 'node:crypto';
 import {File} from 'node:buffer';
 import {
@@ -14,6 +15,12 @@ for(const key of REQUIRED)if(!String(process.env[key]||'').trim())throw new Erro
 
 const base=String(process.env.M26_SUPABASE_URL).replace(/\/$/u,'');
 const key=String(process.env.M26_SUPABASE_PUBLISHABLE_KEY);
+const qaLease=createQaAuthLease({
+  base,key,projectRef:process.env.M26_PROJECT_REF,qaOnly:process.env.M26_QA_ONLY,
+  tag:'IRI_DOCUMENT_FIXTURE',fixtures:{
+    'qa.rc74.coach@iberfit.cl':process.env.M26_QA_COACH_EMAIL,
+  },
+});
 const clientId='57f56a87-d04e-47d5-b1cc-8d4939d7c804';
 const assessmentId='7a000000-0000-4000-8000-000000000001';
 const evidencePath='recovery/iri-report-emission/qa-fixture-evidence.json';
@@ -34,11 +41,11 @@ async function login(){
   const response=await fetch(`${base}/auth/v1/token?grant_type=password`,{
     method:'POST',headers:{apikey:key,'content-type':'application/json'},
     body:JSON.stringify({email:process.env.M26_QA_COACH_EMAIL,password:process.env.M26_QA_COACH_PASSWORD}),
-    signal:AbortSignal.timeout(30_000),
+    redirect:'error',signal:AbortSignal.timeout(30_000),
   });
   const body=await response.json().catch(()=>({}));
   if(!response.ok||!body?.access_token)throw new Error(`IRI_DOCUMENT_FIXTURE_AUTH_FAILED:${response.status}`);
-  return body.access_token;
+  return qaLease.track(body,process.env.M26_QA_COACH_EMAIL);
 }
 
 const landmarks=Object.freeze({
@@ -62,6 +69,7 @@ const dimensionsByView=Object.freeze({
   left:{widthPx:180,heightPx:360},right:{widthPx:180,heightPx:360},
 });
 
+async function runFixture(){
 const token=await login();
 const service=createIriPhotogrammetryService({runtime});
 let state=await service.state(token,{assessmentId});
@@ -122,3 +130,6 @@ fs.mkdirSync(path.dirname(evidencePath),{recursive:true});
 fs.writeFileSync(evidencePath,JSON.stringify(evidence,null,2)+'\n');
 console.log('IRI_DOCUMENT_QA_FIXTURE=GREEN');
 console.log(JSON.stringify(evidence));
+
+}
+await runQaStageWithCleanup(runFixture,qaLease.release,()=>console.error('IRI_DOCUMENT_FIXTURE_QA_AUTH_CLEANUP_FAILED_AFTER_STAGE_FAILURE'));
