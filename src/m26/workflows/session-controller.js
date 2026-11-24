@@ -672,6 +672,11 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   function syncPendingNextControls(){
     const proxies=[...(root.querySelectorAll?.('[data-session-focus-proxy]')||[])];
     const targets=new Set(root.querySelectorAll?.('[data-session-action="next"]')||[]);
+    // Rest adjustments are remote mutations too. Keep both targets disabled
+    // across optimistic rerenders until the preceding action settles.
+    for(const action of ['rest-minus','rest-plus']){
+      for(const button of root.querySelectorAll?.('[data-session-action="'+action+'"]')||[])targets.add(button);
+    }
     const pairs=[];
     for(const proxy of proxies){
       const selector=String(proxy.getAttribute?.('data-session-focus-target')||'').trim();
@@ -1640,6 +1645,7 @@ async function click(event){
     // A stale DOM control, accessibility activation or double tap after ACK
     // must never send another SESION_INICIAR for an already-active execution.
     if(action==='start'&&context?.execution?.status!=='ready')return;
+    const wasDisabled=button.disabled;
     sessionActionPending=true;
     pendingSessionAction=action;
     // Dock rerenders cannot overrule the actual controller's write lock.
@@ -1654,7 +1660,7 @@ async function click(event){
     let completedAction=false;
     if(action==='add-live-exercise')liveAddPending=true;
     if(action==='finish')finishPending=true;
-    const actionState=context.actionState;let failureFocusSelector=null,builderFocusBlockId=null,builderFocusAction=null,builderFocusScroll=false,builderFocusAlways=false;const builderInsertContext=['add-exercise','add-group','duplicate-block'].includes(action)&&context?.draft?{activeGroupId:String(context.draft.activeGroupId||'').trim()||null,blockIds:new Set((context.draft.blocks||[]).map((item)=>item?.id).filter(Boolean))}:null;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
+    const actionState=context.actionState;let failureFocusSelector=null,builderFocusBlockId=null,builderFocusAction=null,builderFocusScroll=false,builderFocusAlways=false;const builderInsertContext=['add-exercise','add-group','duplicate-block'].includes(action)&&context?.draft?{activeGroupId:String(context.draft.activeGroupId||'').trim()||null,blockIds:new Set((context.draft.blocks||[]).map((item)=>item?.id).filter(Boolean))}:null;button.setAttribute('aria-busy','true');button.disabled=true;
     const task=async()=>{if(action==='publish'){try{await flushAutosave(context);}catch{/* El servidor puede confirmar aunque falle el guardado auxiliar; no crear un segundo envío. */}}else if(action==='start'){try{await flushAutosave(context);}catch{startRecoveryStorageWarning=true;}}else if(!['preview','edit-preview'].includes(action))await flushAutosave(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='start'){try{await flushExecutionDraft(context);}catch{startRecoveryStorageWarning=true;}}else await flushExecutionDraft(context);if(action==='finish'&&context?.commandBus&&context?.execution){await settlePriorExecutionWrites(context.commandBus,context.execution);if(!sameLiveExecutionOwner(context,getContext()))throw new Error('M26_SESSION_ACTION_OWNER_CHANGED');}if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='discard-draft'){if(!context.discardDraft)throw new Error('M26_SESSION_DRAFT_DISCARD_UNAVAILABLE');return await context.discardDraft();}if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}if(action==='restore-template-load'){if(!context.restoreTemplateLoad)throw new Error('M26_SESSION_TEMPLATE_UNDO_UNAVAILABLE');return await context.restoreTemplateLoad();}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,durationMinutes:button.getAttribute('data-duration-minutes')||undefined,...fieldValues(root)};if(action==='reuse-exercise-memory'){const rawSets=button.getAttribute('data-reference-sets');payload.suggestion={sets:rawSets?Number(rawSets):null,reps:button.getAttribute('data-reference-reps')||'',plannedLoad:button.getAttribute('data-reference-load')||''};}if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
     if(action==='repeat-previous-set'){
       // One tap is truthful only if Coach explicitly confirms the displayed prior RPE.
