@@ -100,6 +100,7 @@ export const FINAL_RESIDUAL_SURFACE_ROWS=Object.freeze([
 ['El entrenamiento está en pausa o finalizado. Puedes consultar el historial, pero debes reanudar el servicio antes de iniciar una nueva sesión.','Training is paused or ended. You can review history, but you must resume the service before starting a new session.','L’entraînement est en pause ou terminé. Vous pouvez consulter l’historique, mais vous devez reprendre le service avant de démarrer une nouvelle séance.','O treino está em pausa ou terminado. Pode consultar o histórico, mas deve retomar o serviço antes de iniciar uma nova sessão.'],
 // Daily Use Excellence 360: dated prescription and service status.
 ["Otras métricas","Other metrics","Autres mesures","Outras métricas"],
+["Última referencia histórica","Latest historical reference","Dernière référence historique","Última referência histórica"],
 ["Sostén","Hold","Maintien","Sustentação"],
 ["Según indicación del Coach","As prescribed by your Coach","Selon les indications du Coach","Conforme indicação do Coach"],
 ["Objetivo prescrito","Prescribed target","Objectif prescrit","Objetivo prescrito"],
