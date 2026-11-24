@@ -14,7 +14,7 @@ import {setPendingSessionEntry,peekPendingSessionEntry,consumePendingSessionEntr
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
 import {createM26Id} from '../platform/id.js';
-import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
+import {executionElapsedMs,formatDuration,restRemainingSeconds,coachRestTransitionEligible} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
 import {renderSessionLibraryResults} from './session-ui.js';
@@ -821,7 +821,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   function scheduleCoachRestAutoAdvance(context=getContext()){
     if(coachRestAdvancePending)return;
     const execution=context?.execution;
-    if(!isCoachContext(context)||execution?.status!=='active'||execution?.syncStatus!=='clean'){
+    if(!coachRestTransitionEligible(context,{hidden:visibilityTarget?.visibilityState==='hidden',busy:sessionActionPending||startPending||exitPending})){
       cancelCoachRestAutoAdvance();
       return;
     }
@@ -857,8 +857,14 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       }
       // Network uncertainty must defer auto-advance, not disable it for this rest forever.
       // A later reconciliation render will reschedule the already-expired rest immediately.
-      if(latest?.execution?.syncStatus!=='clean')return;
+      if(!mounted||!coachRestTransitionEligible(latest,{busy:sessionActionPending||startPending||exitPending}))return;
+      const latestStep=currentStep(latest.execution,latest.session);
+      if(!latestStep||!executionResultForStep(latest.execution,latestStep)||!hasNextExecutionStep(latest.execution))return;
       coachRestAdvancePending=true;
+      sessionActionPending=true;
+      pendingSessionAction='rest-expired-auto';
+      if(root.dataset)root.dataset.m26SessionActionPending='true';
+      syncPendingNextControls();
       try{
         const result=dispatchSessionAction({
           ...latest,
@@ -866,15 +872,22 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
           payload:{nowMs:Date.now()},
         });
         await settleProgressMutation(result,latest);
+        if(!mounted||!sameLiveExecutionOwner(latest,getContext()))return;
         await persistContext(getContext());
         renderSession();
       }catch(error){
         coachRestSuppressedSignature=signature;
         onError(error);
-        await persistContext(getContext()).catch(()=>{});
-        renderSession();
+        if(mounted&&sameLiveExecutionOwner(latest,getContext())){
+          await persistContext(getContext()).catch(()=>{});
+          renderSession();
+        }
       }finally{
         coachRestAdvancePending=false;
+        sessionActionPending=false;
+        pendingSessionAction=null;
+        if(root.dataset)delete root.dataset.m26SessionActionPending;
+        if(mounted){syncPendingNextControls();scheduleCoachRestAutoAdvance(getContext());}
       }
     },Math.max(0,delay+25));
   }
@@ -1202,7 +1215,8 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     }
     void persistContext(context,{recoveryCheckpoint}).catch(onError);
   }
-  function pagehide(){persistLifecycleContext();}
+  function pagehide(){stopSessionClockTicker();cancelCoachRestAutoAdvance();persistLifecycleContext();}
+  function pageshow(){if(!mounted||visibilityTarget?.visibilityState==='hidden')return;ensureSessionClockTicker(getContext());scheduleCoachRestAutoAdvance(getContext());}
   function visibilitychange(){
     if(visibilityTarget?.visibilityState==='hidden'){
       stopSessionClockTicker();
@@ -1803,7 +1817,9 @@ async function click(event){
             next?.click?.();
           });
         }
-      }}}
+      }
+      if(mounted)scheduleCoachRestAutoAdvance(getContext());
+    }}
   function input(event){const context=getContext();
     const notes=event.target.closest?.('[data-session-capture-input]');
     if(notes){
@@ -1888,7 +1904,7 @@ async function click(event){
     if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());
     if(event.target.closest?.('[data-session-feedback-pain]'))syncFeedbackPainControl();
   }
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);lifecycleTarget?.addEventListener?.('pageshow',pageshow);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;
       // All delegated click/input/change handlers must exist BEFORE the app
       // advertises its first interactive paint. Avoid a forced full-page layout
       // (sticky topbar measurement) and 8 redundant DOM scans when there is
@@ -1903,5 +1919,5 @@ async function click(event){
         syncFinishControl(active);syncManualSyncControl(active);
         syncQuickRpeControl();syncRecoveryReviewControl(active);
         scheduleCoachRestAutoAdvance(active);ensureSessionClockTicker(active);
-      }},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);captureState=null;mounted=false;unmountSessionStickyTop();stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
+      }},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);lifecycleTarget?.removeEventListener?.('pageshow',pageshow);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);captureState=null;mounted=false;unmountSessionStickyTop();stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
 }
