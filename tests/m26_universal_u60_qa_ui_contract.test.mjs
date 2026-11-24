@@ -8,6 +8,7 @@ import {guardDatedBusyActions,
   suggestedConfirmedDatedAppointments,datedCoachPreviewMatchesForm,
   appendCoachDatedDateLine,
   captureDatedUnsubmittedFields,restoreDatedUnsubmittedFields,
+  datedObservationMetricGroups,renderDatedObservationMetrics,
 } from '../src/m26/workflows/occurrence-qa-ui.js';
 import {M26_ACTION_REGISTRY} from '../src/m26/ui/interactive-audit.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
@@ -763,4 +764,39 @@ test('Dated training shows the actual strength, swimming and running prescriptio
   const run=datedPrescriptionSummary({exerciseId:'running-1',prescription:{measurementProfile:'intervals',plannedDistanceKm:5,plannedPace:'5:30',intervalWorkSeconds:60,intervalRecoverySeconds:0,intervalRepetitions:5}},{name_es:'Carrera'});
   assert.match(run,/5 km/);assert.match(run,/5:30 min\/km/);assert.match(run,/Trabajo 60 s/);assert.match(run,/Recuperación 0 s/);
   assert.equal(datedPrescriptionSummary({exerciseId:'strength-1',prescription:{targetRpe:null,targetRir:'',restSeconds:null}}),'');
+});
+
+
+test('Dated observation fields are sport-first, never discarded or duplicated',()=>{
+  const all=["u60Reps","u60Seconds","u60DistanceKm","u60DistanceM","u60Load","u60Rir","u60Pace","u60PaceSwim"];
+  const cases=[
+    [{name_es:'Sentadilla'},['u60Reps','u60Load','u60Rir']],
+    [{name_es:'Carrera'},['u60DistanceKm','u60Seconds','u60Pace']],
+    [{name_es:'Natación'},['u60DistanceM','u60Seconds','u60PaceSwim']],
+    [{name_es:'Plancha'},['u60Seconds','u60Load']],
+    [{name_es:'Farmer carry'},['u60DistanceM','u60Load','u60Seconds']],
+    [{name_es:'Movilidad'},['u60Reps','u60Seconds']],
+    [{name_es:'Ciclismo'},['u60Seconds','u60DistanceKm','u60DistanceM']],
+  ];
+  for(const [exercise,expected] of cases){
+    const {primary,additional}=datedObservationMetricGroups({},exercise);
+    assert.deepEqual(primary,expected);
+    assert.deepEqual([...primary,...additional].sort(),[...all].sort());
+    const html=renderDatedObservationMetrics({},exercise);
+    const [front,extra]=html.split('<details');
+    assert.ok(extra.includes('Otras métricas'));
+    for(const name of primary)assert.ok(front.includes('name="'+name+'"'));
+    for(const name of additional)assert.ok(extra.includes('name="'+name+'"'));
+    for(const name of all)assert.equal(html.split('name="'+name+'"').length,2);
+    assert.doesNotMatch(html,/ disabled| value="/u);
+  }
+  const mixed=datedObservationMetricGroups({prescription:{measurementProfile:'intervals',reps:'8',plannedLoad:'20 kg'}},{name_es:'Carrera'});
+  assert.ok(mixed.primary.includes('u60Reps')&&mixed.primary.includes('u60Load'));
+});
+
+test('Dated supplementary observation is visible again when restoring an invalid draft',()=>{
+  const details={open:false},input={value:'',type:'number',closest:()=>details};
+  const panel={querySelector:name=>name==='[name="u60DistanceM"]'?input:null};
+  restoreDatedUnsubmittedFields(panel,{u60DistanceM:'125'});
+  assert.equal(input.value,'125');assert.equal(details.open,true);
 });
