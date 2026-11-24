@@ -366,6 +366,17 @@ export function captureDatedUnsubmittedFields(panel){
   }
   return values;
 }
+// Keep the quick selection visually and semantically in sync with the
+// actual editable RPE, including fractional or invalid manual values.
+export function syncDatedQuickRpe(panel){
+  const input=panel?.querySelector?.('[name="u60Rpe"]');
+  const raw=String(input?.value??'').trim();
+  const value=raw?Number(raw):NaN;
+  for(const button of panel?.querySelectorAll?.('[data-u60-quick-rpe]')||[]){
+    const candidate=Number(button.getAttribute?.('data-u60-quick-rpe'));
+    button.setAttribute?.('aria-pressed',Number.isFinite(value)&&[6,7,8,9,10].includes(candidate)&&candidate===value?'true':'false');
+  }
+}
 export function restoreDatedUnsubmittedFields(panel,values){
   if(!values||typeof values!=='object'||Array.isArray(values))return 0;
   let count=0;
@@ -378,10 +389,12 @@ export function restoreDatedUnsubmittedFields(panel,values){
     }else if(element.type!=='checkbox'&&typeof values[name]==='string'){
       element.value=values[name].slice(0,2048);count++;
       // Reopen supplementary fields containing a restored draft after an error.
-      const details=element.closest?.('[data-u60-additional-metrics]');
+      const details=element.closest?.('[data-u60-additional-metrics]')||
+        element.closest?.('[data-u60-skip-details]');
       if(details&&element.value.trim())details.open=true;
     }
   }
+  syncDatedQuickRpe(panel);
   return count;
 }
 
@@ -557,9 +570,10 @@ export function createDatedOccurrenceQaUi({
            [6,7,8,9,10].map(value=>'<button type="button" data-u60-quick-rpe="'+value+'" aria-label="RPE '+value+'" aria-pressed="false">'+value+'</button>').join('')+
            '</div>':'')+
          '<label class="m26-wide">Observación<input name="u60Notes" maxlength="1000"></label>'+
-         '<button type="button" data-iberdates-action="u60-record">Registrar serie, avanzar y sincronizar</button>'+
-         '<label class="m26-wide">Motivo para omitir<input name="u60SkipReason" maxlength="300"></label>'+
-         '<button type="button" data-iberdates-action="u60-skip">Omitir serie y sincronizar</button></div>'
+         '<button type="button" class="m26-primary-action m26-wide" data-iberdates-action="u60-record">Registrar serie, avanzar y sincronizar</button>'+
+         '<details class="m26-wide m26-session-options" data-u60-skip-details><summary>Omitir esta serie</summary>'+
+         '<div class="m26-field-grid"><label class="m26-wide">Motivo para omitir<input name="u60SkipReason" maxlength="300"></label>'+
+         '<button type="button" class="m26-wide" data-iberdates-action="u60-skip">Omitir serie y sincronizar</button></div></details></div>'
         :'';
       const feedbackForm=phase==='active'&&view.executionStatus==='awaiting_feedback'
         ?'<div class="m26-field-grid" data-u60-feedback-entry><label>RPE de la sesión<input name="u60FinalRpe" type="number" min="1" max="10" step="0.5" required></label>'+
@@ -1047,6 +1061,11 @@ export function createDatedOccurrenceQaUi({
     }
   }
   function onCoachDateInput(event){
+    if(event?.target?.name==='u60Rpe'&&!disposed){
+      const panel=event.target.closest?.('[data-u60-panel]');
+      if(panel&&root.contains(panel))syncDatedQuickRpe(panel);
+      return;
+    }
     if(!['u60Session','u60Dates','u60AddDate','u60AddTime']
       .includes(String(event?.target?.name||''))||disposed)return;
     const panel=event.target.closest?.('[data-u60-panel]');
@@ -1144,8 +1163,7 @@ export function createDatedOccurrenceQaUi({
       const input=panel?.querySelector?.('[name="u60Rpe"]');
       if(!input)return;
       input.value=String(chosen);
-      for(const button of panel.querySelectorAll?.('[data-u60-quick-rpe]')||[])
-        button.setAttribute?.('aria-pressed',button===quick?'true':'false');
+      syncDatedQuickRpe(panel);
       return;
     }
     const button=event?.target?.closest?.('[data-iberdates-action]');
