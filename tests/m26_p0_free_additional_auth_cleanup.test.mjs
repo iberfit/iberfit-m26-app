@@ -15,3 +15,29 @@ test('client DELETE denial gate releases only verified fixture tokens without ch
  assert.match(source,/result\.released!==issuedSessions\.length/u);
  assert.doesNotMatch(source,/scope=global|sb_secret_|pjhmrhejsoofmouedavw/u);
 });
+
+test('IRI fixture and immutable emission gates fence QA scope and release only current-run credentials',()=>{
+ for(const [file,stage] of [
+  ['scripts/remote-gates/prepare_qa_iri_document_fixture.mjs','runFixture'],
+  ['scripts/remote-gates/run_qa_iri_report_emission_gate.mjs','runEmission'],
+ ]){
+  const source=readFileSync(file,'utf8');
+  assert.match(source,/base!==QA_ORIGIN\|\|process\.env\.M26_PROJECT_REF!==QA_REF\|\|process\.env\.M26_QA_ONLY!=='true'/u);
+  assert.match(source,/issuedSessions\.push\(\{email,token\}\)/u);
+  assert.match(source,/email!==String\(expectedEmail\|\|''\)\.trim\(\)\.toLowerCase\(\)/u);
+  assert.match(source,new RegExp('await runQaStageWithCleanup\\('+stage+',releaseIssuedSessions','u'));
+  assert.match(source,/result\.released!==issuedSessions\.length/u);
+  assert.doesNotMatch(source,/scope=global|pjhmrhejsoofmouedavw/u);
+ }
+ const emission=readFileSync('scripts/remote-gates/run_qa_iri_report_emission_gate.mjs','utf8');
+ assert.match(emission,/const coach=await login\([\s\S]*?const client=await login\(/u);
+ assert.match(emission,/clientHistoryPrivateMetadataHidden:true/u);
+ assert.match(emission,/withdrawalRequiresPrivilegedAssurance:true/u);
+ const workflow=readFileSync('.github/workflows/qa-real-write-cert.yml','utf8');
+ for(const name of ['Prepare synthetic private IRI document fixture','Certify immutable IRI PDF emission end to end in QA']){
+  const block=workflow.slice(workflow.indexOf('- name: '+name)).split(/\n      - name:/u)[0];
+  assert.match(block,/M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu/u);
+  assert.match(block,/M26_QA_ONLY: 'true'/u);
+  assert.match(block,/steps\.iri-impact\.outputs\.run_iri == 'true'/u);
+ }
+});

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {releaseQaAuthSessions,runQaStageWithCleanup} from './release_qa_auth_sessions.mjs';
 
 const REQUIRED=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
@@ -10,6 +11,34 @@ for(const key of REQUIRED)if(!String(process.env[key]||'').trim())throw new Erro
 
 const base=String(process.env.M26_SUPABASE_URL).replace(/\/$/u,'');
 const key=String(process.env.M26_SUPABASE_PUBLISHABLE_KEY);
+const QA_REF='gjztkdwfmunnzhtvxrsu';
+const QA_ORIGIN='https://'+QA_REF+'.supabase.co';
+const issuedSessions=[];
+const fixtureEmails=new Set(["qa.rc74.coach@iberfit.cl","qa.rc74.client-a@iberfit.cl"]);
+if(base!==QA_ORIGIN||process.env.M26_PROJECT_REF!==QA_REF||process.env.M26_QA_ONLY!=='true'||
+   key.length<10||key.length>16384||!/^(?:sb_publishable_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_.-]+)$/u.test(key)){
+  throw Error('IRI_REPORT_QA_SCOPE_DENIED');
+}
+if(String(process.env.M26_QA_COACH_EMAIL||'').trim().toLowerCase()!=='qa.rc74.coach@iberfit.cl')throw Error('IRI_REPORT_QA_FIXTURE_DENIED');
+if(String(process.env.M26_QA_CLIENT_A_EMAIL||'').trim().toLowerCase()!=='qa.rc74.client-a@iberfit.cl')throw Error('IRI_REPORT_QA_FIXTURE_DENIED');
+function trackQaSession(body,expectedEmail){
+  const email=String(body?.user?.email||'').trim().toLowerCase();
+  const token=body?.access_token;
+  if(email!==String(expectedEmail||'').trim().toLowerCase()||!fixtureEmails.has(email)||
+     typeof token!=='string'||token.length<100||token.length>16384||
+     !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u.test(token)){
+    throw Error('IRI_REPORT_QA_FIXTURE_IDENTITY_MISMATCH');
+  }
+  issuedSessions.push({email,token});
+  return token;
+}
+async function releaseIssuedSessions(){
+  if(issuedSessions.length===0)return;
+  const result=await releaseQaAuthSessions({sessions:issuedSessions,base,key,projectRef:QA_REF,qaOnly:process.env.M26_QA_ONLY});
+  console.log('IRI_REPORT_QA_AUTH_RELEASE='+result.released+'/'+issuedSessions.length);
+  if(result.released!==issuedSessions.length||result.failed!==0||result.skipped!==0)
+    throw Error('IRI_REPORT_QA_AUTH_CLEANUP_INCOMPLETE');
+}
 const origin='https://m26-canary.iberfit.cl';
 const assessmentId='7a000000-0000-4000-8000-000000000001';
 const endpoint=`${base}/functions/v1/iberfit-iri-report-emission-v1`;
@@ -24,7 +53,7 @@ async function request(url,init={},attempts=2){
   let last;
   for(let i=0;i<attempts;i+=1){
     try{
-      const response=await fetch(url,{...init,signal:AbortSignal.timeout(190_000)});
+      const response=await fetch(url,{...init,redirect:'error',signal:AbortSignal.timeout(190_000)});
       if(i===0&&[502,503,504].includes(response.status)){await new Promise(r=>setTimeout(r,750));continue;}
       return response;
     }catch(error){last=error;if(i===0){await new Promise(r=>setTimeout(r,750));continue;}throw error;}
@@ -39,7 +68,7 @@ async function login(email,password){
   });
   const body=await response.json().catch(()=>({}));
   if(!response.ok||!body?.access_token||!body?.user?.id)throw new Error(`IRI_REPORT_QA_AUTH_FAILED:${response.status}`);
-  return {token:body.access_token,userId:body.user.id};
+  return {token:trackQaSession(body,email),userId:body.user.id};
 }
 function authHeaders(token){
   return {apikey:key,authorization:`Bearer ${token}`,'content-type':'application/json',origin};
@@ -53,10 +82,9 @@ async function action(token,actionName,payload={}){
 }
 function assert(condition,code){if(!condition)throw new Error(code);}
 
-const [coach,client]=await Promise.all([
-  login(process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD),
-  login(process.env.M26_QA_CLIENT_A_EMAIL,process.env.M26_QA_CLIENT_A_PASSWORD),
-]);
+async function runEmission(){
+const coach=await login(process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD);
+const client=await login(process.env.M26_QA_CLIENT_A_EMAIL,process.env.M26_QA_CLIENT_A_PASSWORD);
 
 const health=await action(coach.token,'health');
 assert(health.status===200&&health.body?.ok===true,'IRI_REPORT_QA_HEALTH_FAILED');
@@ -189,3 +217,6 @@ fs.writeFileSync(coachPdfPath,coachPdfBytes);
 fs.writeFileSync(evidencePath,JSON.stringify(evidence,null,2)+'\n');
 console.log('IRI_REPORT_QA_EMISSION=GREEN');
 console.log(JSON.stringify(evidence));
+
+}
+await runQaStageWithCleanup(runEmission,releaseIssuedSessions,()=>console.error('IRI_REPORT_QA_AUTH_CLEANUP_FAILED_AFTER_STAGE_FAILURE'));

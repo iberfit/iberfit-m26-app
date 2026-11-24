@@ -344,6 +344,8 @@ jobs:
       - name: Prepare synthetic private IRI document fixture
         if: ${{ steps.iri-impact.outputs.run_iri == 'true' }}
         env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
@@ -377,6 +379,8 @@ jobs:
       - name: Certify immutable IRI PDF emission end to end in QA
         if: ${{ steps.iri-impact.outputs.run_iri == 'true' }}
         env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
