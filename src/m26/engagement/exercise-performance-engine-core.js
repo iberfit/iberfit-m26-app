@@ -230,6 +230,15 @@ export function normalizeExerciseLoad(row={}){
   });
 }
 
+// Retain only observed metrics, not prescribed pace or distance.
+function observedDistance(value,max){
+  const n=numeric(value);
+  return Number.isFinite(n)&&n>=0&&n<=max?n:null;
+}
+function observedPace(value){
+  const text=String(value??'').trim();
+  return /^\d{1,2}:[0-5]\d$/u.test(text)&&Number(text.split(':')[0])*60+Number(text.split(':')[1])>0?text:null;
+}
 function normalizeSet(row,index){
   const exerciseId=String(
     first(
@@ -299,6 +308,10 @@ function normalizeSet(row,index){
     setNumber,
     reps:Number.isFinite(reps)?reps:null,
     seconds:Number.isFinite(seconds)?seconds:null,
+    distanceKm:observedDistance(first(row,'distanceKm','distance_km'),1000),
+    distanceM:observedDistance(first(row,'distanceM','distance_m'),100000),
+    paceMinPerKm:observedPace(first(row,'paceMinPerKm','pace_min_per_km')),
+    pacePer100M:observedPace(first(row,'pacePer100M','pace_per_100m')),
     load:normalizeExerciseLoad(row),
     rpe:Number.isFinite(rpe)?rpe:null,
     rir:Number.isFinite(rir)?rir:null,
@@ -1649,6 +1662,10 @@ export function assessExercisePerformance(
     evidence,
   );
 }
+function sharedObservedNumber(value){
+  return value!==null&&value!==undefined&&String(value).trim()!==''&&Number.isFinite(Number(value))
+    ?Number(value):null;
+}
 function exercisePerformanceSharedLoad(load){
   if(!load){
     return null;
@@ -1656,10 +1673,7 @@ function exercisePerformanceSharedLoad(load){
 
   return Object.freeze({
     raw:load.raw??null,
-    value:
-      Number.isFinite(Number(load.value))
-        ?Number(load.value)
-        :null,
+    value:sharedObservedNumber(load.value),
     unit:load.unit??null,
     comparableKey:load.comparableKey??null,
   });
@@ -1675,28 +1689,17 @@ function exercisePerformanceSharedExposure(exposure){
       .map(
         (row)=>
           Object.freeze({
-            setNumber:
-              Number.isFinite(Number(row?.setNumber))
-                ?Number(row.setNumber)
-                :null,
-            reps:
-              Number.isFinite(Number(row?.reps))
-                ?Number(row.reps)
-                :null,
-            seconds:
-              Number.isFinite(Number(row?.seconds))
-                ?Number(row.seconds)
-                :null,
+            setNumber:sharedObservedNumber(row?.setNumber),
+            reps:sharedObservedNumber(row?.reps),
+            seconds:sharedObservedNumber(row?.seconds),
+            distanceKm:observedDistance(row?.distanceKm,1000),
+            distanceM:observedDistance(row?.distanceM,100000),
+            paceMinPerKm:observedPace(row?.paceMinPerKm),
+            pacePer100M:observedPace(row?.pacePer100M),
             load:
               exercisePerformanceSharedLoad(row?.load),
-            rpe:
-              Number.isFinite(Number(row?.rpe))
-                ?Number(row.rpe)
-                :null,
-            rir:
-              Number.isFinite(Number(row?.rir))
-                ?Number(row.rir)
-                :null,
+            rpe:sharedObservedNumber(row?.rpe),
+            rir:sharedObservedNumber(row?.rir),
           }),
       );
 
