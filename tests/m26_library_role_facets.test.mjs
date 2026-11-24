@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {createExerciseSearchIndex} from '../src/m26/exercises/search.js';
 import {
   libraryCardMatchesFacets,
+  libraryMediaMatches,
   libraryFacetValues,
   normalizeLibraryFacet,
   renderExerciseLibraryGroups,
@@ -123,4 +124,23 @@ test('los grupos siempre incluyen el controlador de facetas del rol',()=>{
   const empty=renderExerciseLibraryGroups([],null,{role:'client'});
   assert.match(empty,/data-library-role="client"/);
   assert.match(empty,/No hay coincidencias/);
+});
+
+test('Media 360 discovery uses approved role-visible video, not merely manifest presence',()=>{
+  const id=exercises[0].id;
+  const item={exercise_id:id,review_status:'approved',published:true,coach_visible:true,client_visible:false,
+    technical_video:{src:'/public/iberfit/exercises/video/'+id+'/technical-v1.mp4'},
+    asset_provenance:{rights_basis:'iberfit_owned',source_ref:'TEST-APPROVED',license_label:'IBERFIT',reviewed_at:'2026-11-24T00:00:00Z'}};
+  const rich={schemaVersion:2,source:{provider:'IBERFIT'},items:[item]};
+  const images={schemaVersion:1,source:{provider:'IBERFIT'},items:[{exercise_id:id,review_status:'approved',published:true,coach_visible:true,client_visible:true,image_paths:['/public/iberfit/exercises/images/'+id+'/main.webp']}]};
+  const manifest={kind:'IBERFIT_EXERCISE_MEDIA_BUNDLE',iberfit:images,iberfitRich:rich};
+  assert.equal(libraryMediaMatches(manifest,id,'with-video','coach'),true);
+  assert.equal(libraryMediaMatches(manifest,id,'with-both','admin'),true);
+  assert.equal(libraryMediaMatches(manifest,id,'with-video','client'),false);
+  assert.equal(libraryMediaMatches(manifest,id,'without-video','client'),true);
+  assert.equal(libraryMediaMatches(manifest,id,'with-image','client'),true);
+  assert.equal(libraryMediaMatches(rich,id,'with-both','coach'),false);
+  assert.equal(libraryMediaMatches({...rich,items:[{...item,published:false}]},id,'with-video','coach'),false);
+  assert.equal(libraryMediaMatches({...rich,items:[{...item,technical_video:{src:'https://unsafe.invalid/video.mp4'}}]},id,'with-video','coach'),false);
+  assert.equal(libraryMediaMatches(null,id,'without-image','admin'),true);
 });

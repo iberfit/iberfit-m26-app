@@ -5,6 +5,7 @@
 // encrypted U51 checkpoint and the independent U31/U32 CAS executor.
 // A frontend switch is NEVER an alternative to backend JWT/ACL/RLS + M44.
 import {renderExerciseMedia} from '../library/exercise-media-ui.js';
+import {exerciseMeasurementProfile,metricPrescriptionSummary} from '../exercises/measurement-profiles.js';
 import {createTraining360OccurrenceRuntime} from './occurrence-runtime.js';
 import {createOccurrenceOwnerKeyVault} from './occurrence-owner-key.js';
 import {createAtomicOccurrenceIndexedDbStore} from './occurrence-indexeddb-store.js';
@@ -78,6 +79,34 @@ const localDate=date=>{
     .filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
   return p.year+'-'+p.month+'-'+p.day;
 };
+// Present the same prescription evidence as the standard guided player.
+// Preserve zero as an explicit value; missing metrics are never fabricated.
+export function datedPrescriptionSummary(step,exercise={}){
+  const p=step?.prescription;
+  if(!p||typeof p!=='object'||Array.isArray(p))return '';
+  const profile=exerciseMeasurementProfile({...exercise,id:step.exerciseId,measurementProfile:p.measurementProfile});
+  const present=v=>v!==undefined&&v!==null&&String(v).trim()!=='';
+  const bounded=(v,min,max)=>present(v)&&Number.isFinite(Number(v))&&Number(v)>=min&&Number(v)<=max;
+  const parts=[];
+  if(profile.cardio||profile.kind==='carry'){
+    const summary=metricPrescriptionSummary(p,{...exercise,id:step.exerciseId,measurementProfile:profile.kind});
+    if(summary!=='Objetivo por concretar')parts.push(summary);
+  }else if(present(p.reps)||present(p.duration)){
+    const target=String(p.reps??'').trim()||String(p.duration??'').trim();
+    parts.push(profile.kind==='isometric'?'Sostén '+target:target);
+  }
+  if(!profile.cardio&&present(p.plannedLoad))parts.push('Carga '+String(p.plannedLoad));
+  if(bounded(p.restSeconds,0,3600))parts.push('Descanso '+p.restSeconds+' s');
+  if(!profile.cardio&&present(p.tempo))parts.push('Tempo '+String(p.tempo));
+  if(bounded(p.targetRpe,1,10))parts.push('RPE objetivo '+p.targetRpe);
+  if(!profile.cardio&&bounded(p.targetRir,0,10))parts.push('RIR objetivo '+p.targetRir);
+  if(profile.kind==='intervals'){
+    if(bounded(p.intervalWorkSeconds,1,86400))parts.push('Trabajo '+p.intervalWorkSeconds+' s');
+    if(bounded(p.intervalRecoverySeconds,0,86400))parts.push('Recuperación '+p.intervalRecoverySeconds+' s');
+  }
+  return parts.join(' · ');
+}
+
 // Explicit editing aid: only unambiguous prescription values may be copied.
 // This never creates a performed set, RPE/RIR observation, or remote write.
 export function plannedDatedSetDraft(step){
@@ -437,23 +466,27 @@ export function createDatedOccurrenceQaUi({
       const phaseState=datedWorkoutPhaseUiState(view);
       const phase=phaseState.phase;
       const step=view.currentStep;
-      const stepLabel=step?.exercise?.nameEs||step?.exercise?.name||step?.exerciseId||'Ejercicio';
+      const catalogExercise=step?.exerciseId?getCatalogExercise(step.exerciseId):null;
+      const stepLabel=step?.exercise?.nameEs||step?.exercise?.name_es||step?.exercise?.name||catalogExercise?.name_es||step?.exerciseId||'Ejercicio';
+      const exercise={...catalogExercise,...step?.exercise,id:step?.exerciseId,name_es:stepLabel};
+      const objective=datedPrescriptionSummary(step,exercise);
+      const coachingNote=String(step?.prescription?.prescriptionNotes||'').trim().slice(0,1000);
+      const stepUnit=step?.roundNumber!=null?'ronda':'serie';
       const summary='<p'+(phaseState.loading?' role="status" aria-live="polite"':'')+
         '><strong>'+escape(phaseState.label)+'</strong>'+
         (view.localDate?' · '+escape(view.localDate):'')+'</p>';
       const stepMarkup=step
-        ?'<p><strong>'+escape(stepLabel)+'</strong> · serie '+escape(step.setNumber)+' de '+escape(step.totalSets)+'</p>'+
-         '<p class="m26-field-help">'+escape(
-           step.prescription?.reps||step.prescription?.duration||'Registra el resultado real, no el objetivo'
-         )+'</p>'
+        ?'<p><strong>'+escape(stepLabel)+'</strong> · '+stepUnit+' '+escape(step.setNumber)+' de '+escape(step.totalSets)+'</p>'+
+         (['ready','active'].includes(phase)
+           ?'<div data-u60-prescription class="m26-panel-soft m26-dated-prescription"><p><strong>Objetivo prescrito</strong> · '+escape(objective||'Según indicación del Coach')+'</p>'+
+             (coachingNote?'<p class="m26-field-help">Indicaciones del Coach: '+escape(coachingNote)+'</p>':'')+
+             '<p class="m26-field-help">Registra el resultado real, no el objetivo.</p></div>':'')
         :view.executionStatus==='awaiting_feedback'
           ?'<p>Series registradas. Añade el feedback antes de finalizar.</p>'
           :'';
       const stepMedia=step?.exerciseId&&['ready','active'].includes(phase)
-        ?renderExerciseMedia({manifest:getMediaMap(),exercise:{
-          ...getCatalogExercise(step.exerciseId),id:step.exerciseId,
-          name_es:getCatalogExercise(step.exerciseId)?.name_es||stepLabel,
-        },role:scope.role,showCredit:true,fallback:false,enableViewer:true})
+        ?renderExerciseMedia({manifest:getMediaMap(),exercise:{...exercise,id:step.exerciseId},
+          role:scope.role,showCredit:true,fallback:false,enableViewer:true})
         :'';
       const plannedDraft=coach?plannedDatedSetDraft(step):{};
       const hasPlannedDraft=Object.keys(plannedDraft).length>0;

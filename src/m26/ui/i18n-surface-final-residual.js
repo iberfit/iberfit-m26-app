@@ -98,4 +98,18 @@ export const FINAL_RESIDUAL_SURFACE_ROWS=Object.freeze([
 ['Sin servicio de entrenamiento activo no se exige frecuencia ni duración de entrenamiento.','Without an active training service, training frequency and duration are not required.','Sans service d’entraînement actif, la fréquence et la durée d’entraînement ne sont pas requises.','Sem serviço de treino ativo, não são exigidas frequência nem duração do treino.'],
 ['Puedes consultar planificación, historial y contexto. Reanuda el servicio antes de iniciar una nueva sesión.','You can review planning, history and context. Resume the service before starting a new session.','Vous pouvez consulter la planification, l’historique et le contexte. Reprenez le service avant de démarrer une nouvelle séance.','Pode consultar planeamento, histórico e contexto. Retome o serviço antes de iniciar uma nova sessão.'],
 ['El entrenamiento está en pausa o finalizado. Puedes consultar el historial, pero debes reanudar el servicio antes de iniciar una nueva sesión.','Training is paused or ended. You can review history, but you must resume the service before starting a new session.','L’entraînement est en pause ou terminé. Vous pouvez consulter l’historique, mais vous devez reprendre le service avant de démarrer une nouvelle séance.','O treino está em pausa ou terminado. Pode consultar o histórico, mas deve retomar o serviço antes de iniciar uma nova sessão.'],
+// Daily Use Excellence 360: dated prescription and service status.
+["Sostén","Hold","Maintien","Sustentação"],
+["Según indicación del Coach","As prescribed by your Coach","Selon les indications du Coach","Conforme indicação do Coach"],
+["Objetivo prescrito","Prescribed target","Objectif prescrit","Objetivo prescrito"],
+["Indicaciones del Coach:","Coach instructions:","Consignes du Coach :","Indicações do Coach:"],
+["Registra el resultado real, no el objetivo.","Record the actual result, not the target.","Enregistrez le résultat réel, pas l’objectif.","Registe o resultado real, não o objetivo."],
+["Con vídeo aprobado","With approved video","Avec vidéo approuvée","Com vídeo aprovado"],
+["Sin vídeo disponible","No video available","Sans vidéo disponible","Sem vídeo disponível"],
+["Con imagen y vídeo","With image and video","Avec image et vidéo","Com imagem e vídeo"],
+["Revisar estado del servicio","Review service status","Vérifier l’état du service","Rever estado do serviço"],
+["Revisar pausa del entrenamiento","Review training pause","Vérifier la pause d’entraînement","Rever pausa do treino"],
+["Tu entrenamiento está en pausa. Tu historial sigue disponible; consulta con tu Coach cuándo retomar.","Your training is paused. Your history remains available; check with your Coach about resuming.","Votre entraînement est en pause. Votre historique reste disponible ; voyez avec votre Coach quand reprendre.","O treino está em pausa. O histórico continua disponível; consulte o seu Coach sobre quando retomar."],
+["El servicio está en pausa. Revisa su estado antes de programar nuevas citas.","The service is paused. Review its status before scheduling new appointments.","Le service est en pause. Vérifiez son état avant de planifier de nouveaux rendez-vous.","O serviço está em pausa. Reveja o estado antes de marcar novas sessões."],
+["El servicio está en pausa. Conserva el historial y revisa las condiciones para retomar.","The service is paused. Keep the history and review the conditions for resuming.","Le service est en pause. Conservez l’historique et vérifiez les conditions de reprise.","O serviço está em pausa. Preserve o histórico e reveja as condições para retomar."],
 ]);

@@ -22,8 +22,7 @@ import {mutationFeedback,publicationActionKey} from '../workflows/mutation-feedb
 import {actorCanExecuteSession,sessionHasExecutableBlocks,sessionReadyToStart,legacyStartNeedsOccurrence} from '../rc39/session-policy.js';
 import {buildApproveReportDraftCommand,syncPremiumReportApprovalButton} from '../workflows/report-workflow.js';
 import {reportDraftScope,legacyReportDraftScope,restoreReportDraft,reportApprovalDecision,prepareLocalReportDraft,localReportDraftCompatibleWithAssessment} from '../workflows/report-draft-safety.js';
-import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
-import {resolveExerciseMedia} from '../library/exercise-media.js';
+import {renderExerciseLibraryGroups,libraryMediaMatches} from '../library/exercise-media-ui.js';
 import {
   CLIENT_ONBOARDING_DRAFT_SCOPE,CLIENT_ONBOARDING_LOCAL_ID,
   legacyClientDraftPayload,createdClientResultId,clientDraftEmail,validateClientOnboardingDraft,
@@ -163,7 +162,7 @@ function foldSearch(value){return String(value??'').normalize('NFD').replace(/[\
 function libraryCards(items,mediaMap,role){return renderExerciseLibraryGroups(items,mediaMap,{role})||'<p class="m26-empty-copy">No hay coincidencias.</p>';}
 function libraryFilterState(root){const out={};for(const node of root.querySelectorAll?.('[data-library-filter]')||[])out[node.getAttribute('data-library-filter')]=foldSearch(node.value);return out;}
 function clientFilterState(root){const out={};for(const node of root.querySelectorAll?.('[data-client-filter]')||[])out[node.getAttribute('data-client-filter')]=foldSearch(node.value);return out;}
-function filterLibraryItems(items,filters,mediaMap,role){return items.filter((item)=>{const equipment=foldSearch(item.equipment);const pattern=foldSearch(item.pattern);if(filters.equipment&&!equipment.includes(filters.equipment))return false;if(filters.pattern&&!pattern.includes(filters.pattern))return false;if(filters.visual){const has=Boolean(resolveExerciseMedia(mediaMap,item.id,{role}));if(filters.visual==='with-image'&&!has)return false;if(filters.visual==='without-image'&&has)return false;}return true;});}
+function filterLibraryItems(items,filters,mediaMap,role){return items.filter((item)=>{const equipment=foldSearch(item.equipment);const pattern=foldSearch(item.pattern);if(filters.equipment&&!equipment.includes(filters.equipment))return false;if(filters.pattern&&!pattern.includes(filters.pattern))return false;return libraryMediaMatches(mediaMap,item.id,filters.visual,role);});}
 function recordBody(record={}){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;}
 function clientRecordId(value){return createdClientResultId(value);}
 function clientEmail(record){return clientDraftEmail(record);}
