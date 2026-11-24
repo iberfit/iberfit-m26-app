@@ -109,7 +109,36 @@ export function createExerciseCatalog(records=[]){
  for(const raw of records){const ex=freezeExercise(raw);if(!ex)continue;if(map.has(ex.id))throw new Error(`M26_EXERCISE_DUPLICATE:${ex.id}`);map.set(ex.id,ex);}
  const list=Object.freeze([...map.values()]);
  const facets=Object.freeze({patterns:Object.freeze([...new Set(list.map(x=>x.pattern).filter(Boolean))].sort()),equipment:Object.freeze([...new Set(list.map(x=>x.equipment).filter(Boolean))].sort()),difficulty:Object.freeze([...new Set(list.map(x=>x.difficulty).filter(Boolean))].sort()),intent:Object.freeze([...new Set(list.map(x=>x.intent).filter(Boolean))].sort())});
- function search(query='',filters={}){const q=norm(query);return list.filter(ex=>{const hay=norm([...exerciseSearchNames(ex),ex.pattern,ex.intent,ex.equipment,ex.difficulty,...ex.primary_muscles,...ex.secondary_muscles,...ex.tags,...ex.aliases].join(' '));if(q&&!hay.includes(q))return false;for(const [key,value] of Object.entries(filters||{})){if(value==null||value===''||(Array.isArray(value)&&!value.length))continue;const expected=Array.isArray(value)?value:[value];const actual=Array.isArray(ex[key])?ex[key].join(' '):ex[key];if(!expected.some(v=>norm(actual).includes(norm(v))))return false;}return true;});}
+ // The catalog is immutable. Compute normalized public search text only once
+ // per record, on first nonempty search, not during login or empty browsing.
+ const searchCache=new WeakMap();
+ function searchParts(ex){
+  let parts=searchCache.get(ex);
+  if(parts)return parts;
+  const names=exerciseSearchNames(ex);
+  parts={names:names.map(norm),hay:norm([...names,ex.pattern,ex.intent,ex.equipment,ex.difficulty,...ex.primary_muscles,...ex.secondary_muscles,...ex.tags,...ex.aliases].join(' '))};
+  searchCache.set(ex,parts);return parts;
+ }
+ function search(query='',filters={},options={}){
+  const q=norm(query);
+  const active=Object.entries(filters||{}).filter(([,value])=>value!=null&&value!==''&&!(Array.isArray(value)&&!value.length))
+   .map(([key,value])=>[key,(Array.isArray(value)?value:[value]).map(norm)]);
+  if(!q&&!active.length)return [...list];
+  const prioritize=q&&options?.prioritizeNames===true;
+  const exact=[],prefix=[],other=[];
+  for(const ex of list){
+   if(active.some(([key,expected])=>{
+    const actual=norm(Array.isArray(ex[key])?ex[key].join(' '):ex[key]);
+    return !expected.some(value=>actual.includes(value));
+   }))continue;
+   const parts=q?searchParts(ex):null;
+   if(q&&!parts.hay.includes(q))continue;
+   if(prioritize&&parts.names.includes(q))exact.push(ex);
+   else if(prioritize&&parts.names.some(name=>name.startsWith(q)))prefix.push(ex);
+   else other.push(ex);
+  }
+  return exact.concat(prefix,other);
+ }
  return Object.freeze({count:list.length,list:()=>list,get:id=>map.get(String(id))||null,has:id=>map.has(String(id)),search,facets});
 }
 export function mergeExerciseCatalogRecords(baseCatalog,remoteRows=[],{mediaOrigin='',measurementProfiles=[]}={}){
