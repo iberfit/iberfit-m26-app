@@ -107,7 +107,11 @@ export const FROZEN_INERT_CUTOVER_SQL_BLOBS=Object.freeze({
   // M1 autonomous date-only SQL is inert source in the PAGES-only release.
   // Backend must already be independently certified; no SQL is run here.
   "supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.sql": "97ab01d06d474fcad94d65efd751ae4b325f8f25",
-  "supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.rollback.sql": "07e3456a0e01663bbdeeed62348c464cc3a500ad"
+  "supabase/release-procedures/20261121_m1_autonomous_dates_guarded_overlay_v1.rollback.sql": "07e3456a0e01663bbdeeed62348c464cc3a500ad",
+  // PR #1462: reviewed dormant IRI history v2 candidate and rollback. Only
+  // these two immutable source blobs; no SQL execution, migration or grants.
+  "supabase/release-procedures/free_iri_report_history_pagination_v2.sql": "639d24299aefd06f2d2c2d8984ed822279f664e3",
+  "supabase/release-procedures/free_iri_report_history_pagination_v2.rollback.sql": "8934d30f546d2608346925e70d659cc8f3493698"
 });
 export function verifyFrozenInertCutoverSql({sourceSha,changedPaths,blobAtSource}={}){
  if(!SHA.test(sourceSha||'')||!Array.isArray(changedPaths))
