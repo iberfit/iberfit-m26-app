@@ -37,6 +37,21 @@ export function formatDatedElapsed(milliseconds){
   return hh?digits(hh)+':'+digits(minutes%60)+':'+digits(seconds%60)
     :digits(minutes)+':'+digits(seconds%60);
 }
+export function renderDatedCompletionSummary(view){
+  const summary=view?.completionSummary;
+  if(view?.phase!=='completed'||view.hasUncertain||view.unsavedWork||!summary)return '';
+  const cell=(label,value)=>'<div><span>'+escape(label)+'</span><strong>'+escape(value)+'</strong></div>';
+  return '<section data-u60-completion-summary aria-label="Resumen del entrenamiento confirmado">'+
+    '<h4>Resumen del entrenamiento confirmado</h4><div class="m26-session-completion-grid">'+
+    cell('Series registradas',summary.recorded+' / '+summary.total)+
+    cell('Series omitidas',summary.omitted)+
+    (summary.missing?cell('Series sin registro',summary.missing):'')+
+    (summary.activeMs!==null?cell('Tiempo activo',formatDatedElapsed(summary.activeMs)):'')+
+    cell('RPE de sesión',summary.sessionRpe!==null?summary.sessionRpe+'/10':'Sin dato registrado')+
+    '</div>'+(summary.pain===true?'<p class="m26-field-help">Molestias registradas para seguimiento</p>':
+      summary.pain===false?'<p class="m26-field-help">Sin molestias registradas</p>':'')+
+    '</section>';
+}
 const fail=code=>{throw new Error('U60_UI_'+code);};
 // A selected date is not a confirmed workout while its private read is in
 // flight. Expose that transient state as busy, never as an executable session.
@@ -576,8 +591,8 @@ export function createDatedOccurrenceQaUi({
       body='<section class="m26-panel" data-u60-workout data-u60-phase="'+escape(phase)+'"'+
         (phaseState.loading?' aria-busy="true"':'')+'><h3>Fecha independiente</h3>'+
         summary+(phaseState.loading?'<p class="m26-field-help">Verificando autorización, fecha y estado con el servidor. Todavía no se ha iniciado ningún entrenamiento.</p>':'')+
-        stepMarkup+stepMedia+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
-        (view.startedAt?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'">'+escape(formatDatedElapsed(Number(view.accumulatedActiveMs||0)+(view.executionStatus==='active'&&view.activeSince?Math.max(0,Date.now()-Date.parse(view.activeSince)):0)))+'</strong></p>':'')+
+        renderDatedCompletionSummary(view)+stepMarkup+stepMedia+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
+        (view.startedAt&&!(phase==='completed'&&view.completionSummary?.activeMs!=null)?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'">'+escape(formatDatedElapsed(Number(view.accumulatedActiveMs||0)+(view.executionStatus==='active'&&view.activeSince?Math.max(0,Date.now()-Date.parse(view.activeSince)):0)))+'</strong></p>':'')+
         '<p role="alert" data-u60-input-warning hidden></p>'+
         (phase==='active'&&['active','awaiting_feedback','paused'].includes(view.executionStatus)
           ?'<button type="button" data-iberdates-action="u60-save-close">Guardar y salir</button>'
