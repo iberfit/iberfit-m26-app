@@ -114,6 +114,34 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     }):null});
   }
 
+  // Dated training requires only an actor and, for Coach, the selected
+  // client's planning records. Do not clone completed executions, events,
+  // health records or other clients merely to mount the date controls.
+  function getDatedTrainingSnapshot(){
+    const {identity}=getSessionActorSnapshot();
+    const selectedClientId=state.selectedClientId||null;
+    const collections={clients:[],sessions:[],trainingCycles:[],appointments:[]};
+    const normalize=value=>String(value||'').trim().toLowerCase();
+    const selected=normalize(selectedClientId);
+    if(identity?.role==='coach'&&selected){
+      const visible=(state.collections?.clients||[]).some(row=>normalize(row.id)===selected);
+      if(visible){
+        collections.clients=[{id:selected}];
+        const belongs=row=>{
+          const body=row?.body&&typeof row.body==='object'&&!Array.isArray(row.body)?row.body:{};
+          for(const key of ['clientId','client_id']){
+            const value=row?.[key]??body[key];
+            if(value!==undefined&&value!==null&&value!=='')return normalize(value)===selected;
+          }
+          return false;
+        };
+        for(const key of ['sessions','trainingCycles','appointments'])
+          collections[key]=clone((state.collections?.[key]||[]).filter(belongs));
+      }
+    }
+    return {identity,selectedClientId,collections};
+  }
+
   // Onboarding needs verified role/app-choice only. Never clone multi-MB
   // Client/Coach histories to inspect these bounded access claims.
   function getOnboardingAccessSnapshot(){
@@ -274,5 +302,5 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return ()=>selectionListeners.delete(listener);
   }
 
-  return Object.freeze({ setHydrationFast, hydrateFast, getState, getRenderSnapshot, getNavigationSnapshot, getSessionActorSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection, getOnboardingAccessSnapshot, getCoachLaunchJourney });
+  return Object.freeze({ setHydrationFast, hydrateFast, getState, getRenderSnapshot, getNavigationSnapshot, getSessionActorSnapshot, getDatedTrainingSnapshot, getRouteAuthorizationSnapshot, setHydration, hydrate, incorporateClientCompletedHistory, reset, selectClient, selectIriAssessment, navigate, navigateFast, projectOperations, acknowledge, subscribe, subscribeInvalidation, subscribeSelection, getOnboardingAccessSnapshot, getCoachLaunchJourney });
 }
