@@ -121,4 +121,7 @@ export const FINAL_RESIDUAL_SURFACE_ROWS=Object.freeze([
 ["El esfuerzo observado aumentó sin una mejora clara del rendimiento. Revisa el contexto antes de ajustar.","Observed effort increased without a clear improvement in performance. Review the context before adjusting.","L’effort observé a augmenté sans amélioration nette de la performance. Vérifiez le contexte avant tout ajustement.","O esforço observado aumentou sem melhoria clara do desempenho. Reveja o contexto antes de ajustar."],
 ["Valorar mantener la prescripción","Consider maintaining the prescription","Envisager de maintenir la prescription","Considerar manter a prescrição"],
 ["Rendimiento comparable sin cambios relevantes. Mantener puede ser adecuado según el objetivo.","Comparable performance without meaningful changes. Maintaining the prescription may be appropriate for the goal.","Performance comparable sans changement notable. Le maintien peut être adapté à l’objectif.","Desempenho comparável sem alterações relevantes. Manter pode ser adequado ao objetivo."],
+["Resumen del entrenamiento confirmado","Confirmed workout summary","Résumé de l’entraînement confirmé","Resumo do treino confirmado"],
+["Series sin registro","Unrecorded sets","Séries non enregistrées","Séries não registadas"],
+["Sin dato registrado","No data recorded","Aucune donnée enregistrée","Sem dados registados"],
 ]); 
