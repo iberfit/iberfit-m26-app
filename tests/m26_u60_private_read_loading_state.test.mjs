@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {datedWorkoutPhaseUiState} from '../src/m26/workflows/occurrence-qa-ui.js';
+import {datedWorkoutPhaseUiState,datedWorkoutViewForFocus,requireDatedWorkoutReceipt} from '../src/m26/workflows/occurrence-qa-ui.js';
 
 test('U60 private read is explicitly loading and never relabelled ready before server evidence',()=>{
   for(const input of [undefined,null,{phase:'idle'}]){
@@ -37,4 +37,26 @@ test('U60 loading state and private-read notice are fully localized in EN/FR/PT'
     assert.notEqual(translated,label,language+' missing translation: '+label);
     assert.ok(translated.length>=10);
   }
+});
+
+test('U60 focus never exposes another date or client private result',()=>{
+ const focus={clientId:'c1',occurrenceId:'date2'};
+ const view={clientId:'c1',occurrenceId:'date1',phase:'active',currentStep:{private:true}};
+ assert.deepEqual(datedWorkoutViewForFocus(view,focus),{phase:'idle'});
+ assert.deepEqual(datedWorkoutViewForFocus({...view,clientId:'c2',occurrenceId:'date2'},focus),{phase:'idle'});
+ assert.equal(datedWorkoutViewForFocus(view,null),null);
+ const matching={...view,occurrenceId:'date2'};
+ assert.equal(datedWorkoutViewForFocus(matching,focus),matching);
+});
+test('U60 success copy requires a settled confirmed receipt, not a refusal or stale view',()=>{
+ const ok={phase:'active',busy:false,hasUncertain:false,unsavedWork:false,error:null};
+ assert.equal(requireDatedWorkoutReceipt(ok),ok);
+ for(const bad of [null,{...ok,phase:'needs-refresh'},{...ok,phase:'pending-recovery'},
+   {...ok,busy:true},{...ok,error:'REVISION_MISMATCH'},{...ok,hasUncertain:true},
+   {...ok,unsavedWork:true}]){
+  assert.throws(()=>requireDatedWorkoutReceipt(bad),/RECOVERY_REQUIRED/);
+ }
+ assert.throws(()=>requireDatedWorkoutReceipt(ok,{phases:['completed']}),/RECOVERY_REQUIRED/);
+ assert.equal(requireDatedWorkoutReceipt({...ok,phase:'completed'},{phases:['completed']}).phase,'completed');
+ assert.equal(requireDatedWorkoutReceipt({...ok,unsavedWork:true},{allowUnsaved:true}).unsavedWork,true);
 });

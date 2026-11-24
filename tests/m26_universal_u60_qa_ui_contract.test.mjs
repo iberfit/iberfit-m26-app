@@ -729,3 +729,26 @@ test('U74 busy dated actions are disabled across every re-render until server AC
  assert.match(browser,/acks\.filter\(x=>x==='OCURRENCIA_GUARDAR_PROGRESO'\)/u);
  assert.match(browser,/not\.toHaveAttribute\('aria-busy','true'/u);
 });
+
+test('U60 late Coach calendar response never displays previous-client status in a new workspace',async()=>{
+  const h=createHarness('coach');
+  const second='20000000-0000-4000-8000-000000000002';
+  try{
+    let enterRemote,releaseRemote;
+    const entered=new Promise(resolve=>{enterRemote=resolve;});
+    const remote=new Promise(resolve=>{releaseRemote=resolve;});
+    h.transport.occurrenceCalendar=async()=>{enterRemote();return remote;};
+    const button={disabled:false,dataset:{},getAttribute:()=> 'u60-calendar',closest:()=>null};
+    const reading=h.listeners.get('click')({target:{closest:()=>button},preventDefault(){},stopPropagation(){}});
+    await entered;
+    h.state.collections.clients.push({id:second});h.state.selectedClientId=second;
+    h.ui.renderPanel();
+    releaseRemote({kind:'calendar',clientId:CLIENT,count:1,hasMore:false,
+      occurrences:[{id:OCC,clientId:CLIENT,sessionId:SESSION,localDate:queryDate(),
+        timeZone:'America/Santiago',status:'planificada',revision:0,title:'Sesión privada anterior'}]});
+    await reading;
+    const after=h.ui.renderPanel();
+    assert.doesNotMatch(after,/Sesión privada anterior|No se pudo confirmar el cambio|Calendario confirmado/u);
+    assert.match(after,/Consulta el calendario autorizado/u);
+  }finally{h.close();}
+});

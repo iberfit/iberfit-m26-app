@@ -57,12 +57,17 @@ export function createOccurrenceWorkoutService({
     currentStep:current?.execution?
       structuredClone(currentStep(current.execution,current.session)):null,
   });
+  // Return a settled snapshot: finally releases the operation lock before the
+  // caller resumes. A successful result must not report a stale busy=true.
+  const settledView=()=>Object.freeze({...view(),busy:false});
   async function open({clientId,occurrenceId}={}){
     requireEnabled();
     if(busy||pending)fail('RECOVERY_REQUIRED');
-    if(dirty&&!stale)fail('UNSAVED_WORKOUT_BLOCKED');
     const target={clientId:uid(clientId),occurrenceId:uid(occurrenceId)};
-    busy=true;
+    if(dirty&&(!stale||scope?.clientId!==target.clientId||
+      scope?.occurrenceId!==target.occurrenceId))fail('UNSAVED_WORKOUT_BLOCKED');
+    // A new private read never exposes the previous date's execution.
+    scope=target;current=null;stale=false;error=null;busy=true;
     try{
       if(await coordinator.hasUncertain(target)){
         scope=target;current=null;pending=true;
@@ -171,7 +176,7 @@ export function createOccurrenceWorkoutService({
         checkpointEtag=null;dirty=false;
       }
       scope=target;current=next;stale=false;error=null;
-      return view();
+      return settledView();
     }catch(e){
       if(!pending){stale=true;current=null;error=String(e?.message||'U49_READ_FAILED');}
       throw e;
@@ -195,11 +200,11 @@ export function createOccurrenceWorkoutService({
         // journal if durable cleanup failed after receiving the response.
         pending=Boolean(response.localRecoveryPending);
         stale=true;error=String(response.reason||'U49_REJECTED');
-        return view();
+        return settledView();
       }
       if(response.localRecoveryPending){
         error='U49_RECOVERY_CLEANUP_REQUIRED';
-        return view(); // Never assume the durable pending journal was cleared.
+        return settledView(); // Never assume the durable pending journal was cleared.
       }
       applyOccurrenceWorkoutAck(current,command,response);
       if(dirty){
@@ -209,7 +214,7 @@ export function createOccurrenceWorkoutService({
         checkpointEtag=null;dirty=false;
       }
       pending=false;
-      return view();
+      return settledView();
     }catch(e){
       // Distinguish a genuinely uncertain network send from a local validation
       // or pre-dispatch denial. Without a pending journal there is nothing to
@@ -234,11 +239,16 @@ export function createOccurrenceWorkoutService({
       if(receipt.kind!=='ack'||receipt.localRecoveryPending){
         pending=Boolean(receipt.localRecoveryPending);
         stale=true;error=String(receipt.reason||'U49_RECOVERY_NOT_CONFIRMED');
-        return view();
+        return settledView();
       }
       pending=false;stale=true;current=null;error=null;
     }catch(e){
-      pending=true;error=String(e?.message||'U49_RECOVERY_FAILED');
+      // Another tab may already have released the exact journal. Do not trap
+      // the player behind a recovery button for an operation that no longer
+      // exists. Only a verified absence permits a fresh private read.
+      try{pending=Boolean(await coordinator.hasUncertain(target));}
+      catch{pending=true;}
+      stale=!pending;error=String(e?.message||'U49_RECOVERY_FAILED');
       throw e;
     }finally{busy=false;}
     // The read is authoritative. No optimistic local start/completion on an
@@ -254,7 +264,7 @@ export function createOccurrenceWorkoutService({
       fn(next.execution,next.session);
       const nextEtag=await checkpoint.writeCheckpoint(scope,next,checkpointEtag);
       current=next;checkpointEtag=nextEtag;dirty=true;error=null;
-      return view();
+      return settledView();
     }catch(e){
       // Includes IndexedDB readback/CAS failure, key loss, quota and eviction.
       stale=true;error=String(e?.message||'U49_CHECKPOINT_FAILED');

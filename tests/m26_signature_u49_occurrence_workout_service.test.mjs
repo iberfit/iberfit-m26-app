@@ -309,3 +309,62 @@ test('U49 atomic recording never shows success if durable combined write fails',
  assert.equal(await cp.readCheckpoint(scope),null);
  assert.equal(sent.length,1,'failed local CAS must never dispatch remote progress');
 });
+
+test('U49 settled lifecycle receipts release busy and reject false progress success',async()=>{
+ const {service,coordinator}=setup();
+ const scope={clientId:CLIENT,occurrenceId:OCC};
+ assert.equal((await service.open(scope)).busy,false);
+ assert.equal((await service.start()).busy,false);
+ coordinator.send=async()=>({kind:'conflict',reason:'REVISION_MISMATCH'});
+ const refusal=await service.save();
+ assert.equal(refusal.busy,false);
+ assert.equal(refusal.phase,'needs-refresh');
+ assert.equal(refusal.error,'REVISION_MISMATCH');
+ assert.equal(refusal.hasUncertain,false);
+ assert.equal(refusal.unsavedWork,false);
+});
+test('U49 absent recovery journal does not create an endless recovery loop',async()=>{
+ const {service,coordinator}=setup({offlineOnce:true});
+ const scope={clientId:CLIENT,occurrenceId:OCC};
+ await service.open(scope);
+ await assert.rejects(service.start(),/network_unknown_after_commit/);
+ coordinator.retryUncertain=async()=>{throw Error('NO_PENDING_COMMAND');};
+ coordinator.hasUncertain=async()=>false;
+ await assert.rejects(service.reconcile(),/NO_PENDING_COMMAND/);
+ assert.equal(service.view().phase,'needs-refresh');
+ assert.equal(service.view().hasUncertain,false);
+ assert.equal((await service.open(scope)).phase,'ready');
+});
+test('U49 still fails closed when the recovery journal cannot be inspected',async()=>{
+ const {service,coordinator}=setup({offlineOnce:true});
+ const scope={clientId:CLIENT,occurrenceId:OCC};
+ await service.open(scope);
+ await assert.rejects(service.start(),/network_unknown_after_commit/);
+ coordinator.retryUncertain=async()=>{throw Error('JOURNAL_UNAVAILABLE');};
+ coordinator.hasUncertain=async()=>{throw Error('JOURNAL_UNAVAILABLE');};
+ await assert.rejects(service.reconcile(),/JOURNAL_UNAVAILABLE/);
+ assert.equal(service.view().phase,'pending-recovery');
+ assert.equal(service.view().hasUncertain,true);
+});
+test('U49 stale encrypted work cannot be abandoned for another date',async()=>{
+ const {service,coordinator}=setup();
+ const scope={clientId:CLIENT,occurrenceId:OCC};
+ await service.open(scope);await service.start();
+ await service.recordAndAdvance({reps:8,rpe:7,rir:3,load:20});
+ coordinator.send=async()=>({kind:'conflict',reason:'REVISION_MISMATCH'});
+ await service.save();
+ assert.equal(service.view().unsavedWork,true);
+ await assert.rejects(service.open({clientId:CLIENT,occurrenceId:OPS[2]}),
+  /U49_UNSAVED_WORKOUT_BLOCKED/);
+ assert.equal(service.view().occurrenceId,OCC);
+ assert.equal(service.view().unsavedWork,true);
+});
+test('U49 failed private read clears previous execution from the selected scope',async()=>{
+ const {service}=setup();
+ await service.open({clientId:CLIENT,occurrenceId:OCC});await service.start();
+ await assert.rejects(service.open({clientId:CLIENT,occurrenceId:OPS[2]}),
+   /U49_PRIVATE_READ_SCOPE_MISMATCH/);
+ assert.equal(service.view().occurrenceId,OPS[2]);
+ assert.equal(service.view().currentStep,null);
+ assert.equal(service.view().phase,'needs-refresh');
+});

@@ -1658,10 +1658,10 @@ export async function createM26Application({root=document.querySelector('#app'),
           enabled:true,productionReleased:datedProd,
           newStartsEnabled:datedQa||runtime.datedTrainingProductionStartsEnabled===true,
           root,ownerId,projectRef:runtime.projectRef,transport,
-          getState:()=>store.getState(),onRender:render,
+          getState:()=>store.getDatedTrainingSnapshot(),onRender:render,
           getAuthContext:async()=>{
             await refreshSessionIfNeeded();
-            const identity=store.getState().identity||{};
+            const identity=store.getSessionActorSnapshot().identity||{};
             if(!session?.user?.id||String(session.user.id)!==String(ownerId))
               throw new Error('M26_U60_AUTH_IDENTITY_CHANGED');
             return {userId:ownerId,role:String(identity.role||'').toLowerCase(),

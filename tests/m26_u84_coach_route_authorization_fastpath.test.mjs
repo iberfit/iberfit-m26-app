@@ -86,3 +86,43 @@ test('U84: shell retains real route guard, identity/role CAS, and full-state fal
   assert.match(qa,/throw error;/u);
   assert.doesNotMatch(qa,/dispatchEvent\(|force:true/u);
 });
+
+test('Dated player startup and authorization do not copy private history or unrelated clients',()=>{
+  const base=sample('coach');
+  base.collections.clients.push({id:'client-b',name:'Other client'});
+  base.collections.sessions=[
+    {id:'own',body:{clientId:'client-a',blocks:[{name:'Squat'}]}},
+    {id:'other',client_id:'client-b',body:{blocks:[{name:'Private other'}]}},
+    {id:'missing-owner'},
+  ];
+  base.collections.trainingCycles=[{id:'cycle',client_id:'CLIENT-A'},{id:'other-cycle',clientId:'client-b'}];
+  base.collections.appointments=[{id:'appt',body:{client_id:'client-a'}},{id:'other-appt',clientId:'client-b'}];
+  base.collections.domainEvents=Array.from({length:2200},(_,i)=>({id:String(i),summary:'X'.repeat(1000)}));
+  const coach=createCanonicalStore(base);
+  const client=createCanonicalStore({...base,identity:{id:'user-b',role:'client',clientId:'client-b'}});
+  const admin=createCanonicalStore({...base,identity:{id:'admin',role:'admin'}});
+  const forbidden=createCanonicalStore({...base,selectedClientId:'foreign'});
+  const original=globalThis.structuredClone;
+  let clones=0;
+  try{
+    globalThis.structuredClone=value=>{
+      assert.ok(!value?.collections,'full state must never be copied');
+      assert.ok(!Array.isArray(value)||!value.some(row=>String(row.id).startsWith('other')),'foreign data must never be copied');
+      clones++;
+      return original(value);
+    };
+    for(const actor of [client,admin,forbidden]){
+      assert.deepEqual(actor.getDatedTrainingSnapshot().collections,{clients:[],sessions:[],trainingCycles:[],appointments:[]});
+    }
+    assert.equal(clones,0,'non-Coach and unverified selection require no collection copy');
+    const view=coach.getDatedTrainingSnapshot();
+    assert.equal(view.selectedClientId,'client-a');
+    assert.deepEqual(view.collections.clients,[{id:'client-a'}]);
+    assert.deepEqual(view.collections.sessions.map(row=>row.id),['own']);
+    assert.deepEqual(view.collections.trainingCycles.map(row=>row.id),['cycle']);
+    assert.deepEqual(view.collections.appointments.map(row=>row.id),['appt']);
+    assert.equal(clones,3);
+    view.collections.sessions[0].body.blocks[0].name='tampered';
+    assert.equal(coach.getDatedTrainingSnapshot().collections.sessions[0].body.blocks[0].name,'Squat');
+  }finally{globalThis.structuredClone=original;}
+});
