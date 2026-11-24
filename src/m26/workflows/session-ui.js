@@ -20,6 +20,7 @@ function previousSetSummary(values){
     values?.seconds?`${values.seconds} s`:null,
     values?.distanceKm?`${values.distanceKm} km`:null,
     values?.distanceM?`${values.distanceM} m`:null,
+    values?.paceMinPerKm?`${values.paceMinPerKm} min/km`:null,
     values?.pacePer100M?`${values.pacePer100M} min/100 m (medido)`:null,
     values?.load||null,
     values?.rpe?`RPE ${values.rpe}`:null,
@@ -440,7 +441,7 @@ function nextSessionPreparation(execution,catalog,mediaMap,role){
     </div>
   </div>`;
 }
-function exerciseMemorySetText(set){
+export function exerciseMemorySetText(set){
   const parts=[];
 
   if(set?.load?.raw){
@@ -455,6 +456,10 @@ function exerciseMemorySetText(set){
     parts.push(`${set.seconds} s`);
   }
 
+  if(Number.isFinite(set?.distanceKm))parts.push(`${set.distanceKm} km`);
+  if(Number.isFinite(set?.distanceM))parts.push(`${set.distanceM} m`);
+  if(set?.paceMinPerKm)parts.push(`${set.paceMinPerKm} min/km`);
+  if(set?.pacePer100M)parts.push(`${set.pacePer100M} min/100 m (medido)`);
   if(Number.isFinite(set?.rpe)){
     parts.push(`RPE ${set.rpe}`);
   }
@@ -466,6 +471,12 @@ function exerciseMemorySetText(set){
   return parts.join(' · ')||'Serie confirmada';
 }
 
+export function latestExerciseMemoryReference(memory){
+  const rows=Array.isArray(memory?.latest?.sets)?memory.latest.sets:[];
+  const last=rows.at(-1);
+  if(last)return exerciseMemorySetText(last);
+  return memory?.latest?.lastLoad?.raw||null;
+}
 function exerciseMemoryDate(memory){
   const value=memory?.latest?.completedAt;
 
@@ -1320,7 +1331,7 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
 
   const previous=previousSet
     ?previousSetSummary(previousSet)
-    :exerciseMemory?.latest?.lastLoad?.raw||null;
+    :latestExerciseMemoryReference(exerciseMemory);
 
   return `<section
     class="m26-session-set-focus${restActive?' is-rest':''}"
@@ -1336,7 +1347,7 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
       <strong>${e(target)}</strong>
     </div>
     <div>
-      <span>Referencia anterior</span>
+      <span>${previousSet?'Serie anterior':'Última referencia histórica'}</span>
       <strong>${e(previous||'Sin referencia confirmada')}</strong>
     </div>
     ${explicitSessionEffort(planned?.restSeconds,{min:0,max:3600})!==null?`<div><span>Descanso previsto</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}
