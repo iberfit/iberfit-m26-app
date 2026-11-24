@@ -106,9 +106,9 @@ test('the previously deployed Edge source is allowed only as a frozen inert blob
  assert.throws(()=>verifyFrozenPreactivatedEdge({sourceSha:TARGET,
    changedPaths:[entries[0][0]]}),/FRONTEND_ONLY_EDGE_BLOB_READER_REQUIRED/u);
 });
-test('only eleven exact immutable dormant SQL and QA rollout blobs are inert in Pages scope',()=>{
+test('only thirteen exact immutable dormant SQL and QA rollout blobs are inert in Pages scope',()=>{
  const entries=Object.entries(FROZEN_INERT_CUTOVER_SQL_BLOBS);
- assert.equal(entries.length,11);
+ assert.equal(entries.length,13);
  assert.ok(entries.every(([path,sha])=>path.endsWith('.sql')&&/^[a-f0-9]{40}$/u.test(sha)));
  const paths=entries.map(([path])=>path);
  const proof=evaluateFrontendOnlyChanges({sourceSha:TARGET,
@@ -273,4 +273,23 @@ test('M1 release procedures are NOT deployed as SQL in frontend-only mode and re
  }
  const script=fs.readFileSync(new URL('../scripts/release/verify_frontend_only_promotion.mjs',import.meta.url),'utf8');
  assert.match(script,/stagedM1SqlProceduresVerified:m1Procedures\.verified/u);
+});
+
+
+test('FREE IRI v2 candidate is dormant, exact-blob only, never packaged as Pages or executed by frontend promotion',()=>{
+ const path='supabase/release-procedures/free_iri_report_history_pagination_v2.sql';
+ const rollback='supabase/release-procedures/free_iri_report_history_pagination_v2.rollback.sql';
+ assert.equal(FROZEN_INERT_CUTOVER_SQL_BLOBS[path],'639d24299aefd06f2d2c2d8984ed822279f664e3');
+ assert.equal(FROZEN_INERT_CUTOVER_SQL_BLOBS[rollback],'8934d30f546d2608346925e70d659cc8f3493698');
+ const changedPaths=[path,rollback];
+ const scope=evaluateFrontendOnlyChanges({sourceSha:TARGET,expectedPreviousLiveSha:BASE,changedPaths});
+ assert.equal(scope.productionSqlApplied,false);
+ assert.equal(scope.backendServicesDeployed,false);
+ assert.deepEqual(verifyFrozenInertCutoverSql({sourceSha:TARGET,changedPaths,blobAtSource:(s,p)=>FROZEN_INERT_CUTOVER_SQL_BLOBS[p]}).paths,changedPaths);
+ assert.throws(()=>verifyFrozenInertCutoverSql({sourceSha:TARGET,changedPaths,blobAtSource:(s,p)=>p===path?BASE:FROZEN_INERT_CUTOVER_SQL_BLOBS[p]}),/FRONTEND_ONLY_INERT_SQL_SOURCE_DRIFT/);
+ assert.throws(()=>evaluateFrontendOnlyChanges({sourceSha:TARGET,expectedPreviousLiveSha:BASE,changedPaths:[path.replace('_v2.sql','_v3.sql')]}),/FRONTEND_ONLY_BACKEND_CHANGED/);
+ const build=fs.readFileSync(new URL('../qa/rc64/build-current-surface.mjs',import.meta.url),'utf8');
+ assert.doesNotMatch(build,/['"]supabase(?:\/|['"])/);
+ const workflow=fs.readFileSync(new URL('../.github/workflows/production-promote.yml',import.meta.url),'utf8');
+ assert.doesNotMatch(workflow,/free_iri_report_history_pagination_v2/);
 });
