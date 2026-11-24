@@ -1,5 +1,6 @@
 import { currentExerciseSubstitutionScope,executionStructureUndoState,currentStep,nextExecutionStep,executionResultForStep,skippedSetForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
 import {exerciseMemoryDraftSuggestion,validateSessionDraft} from './session-builder.js';
+import {coachProgressionReview} from './coach-progression-review.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
@@ -520,7 +521,7 @@ function exerciseMemoryChange(memory){
   return `${sign}${delta.value}${unit}${percent}`;
 }
 
-function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false}={}){
+function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false,role,exercise={}}={}){
   const latest=memory?.latest;
   if(!latest)return '';
   const load=
@@ -535,6 +536,7 @@ function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false}={}){
     .map(exerciseMemorySetText)
     .join(' · ');
   const suggestion=exerciseMemoryDraftSuggestion(memory);
+  const review=role==='coach'?coachProgressionReview(memory,exercise):null;
   const action=suggestion&&blockId&&exerciseId
     ?`<div class="m26-session-repeat-actions">
         <button
@@ -571,6 +573,7 @@ function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false}={}){
       <span>Cambio vs. anterior</span>
       <strong>${e(exerciseMemoryChange(memory))}</strong>
     </div>
+    ${review?`<div class="m26-field m26-wide" data-coach-progression-review="${e(review.kind)}"><span>Apoyo a la decisión</span><strong>${e(review.label)}</strong><small>${e(review.detail)}</small></div>`:''}
   </div>`;
 }
 
@@ -656,7 +659,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,tota
         <button type="button" data-session-action="remove-block" data-block-id="${e(block.id)}">Eliminar</button>
       </div>
     </header>
-    ${renderExerciseMemoryInline(memory,{blockId:block.id,exerciseId:block.exerciseId})}
+    ${renderExerciseMemoryInline(memory,{blockId:block.id,exerciseId:block.exerciseId,role,exercise:{...exercise,measurementProfile:block.measurementProfile}})}
     <div class="m26-field-grid m26-builder-core-prescription">
       ${prescriptionWorkFields(block.id,'',exercise,block)}
     </div>
@@ -678,7 +681,7 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
   const memory=exerciseMemoryFor?.(exerciseId)||null;
   return `<section class="m26-group-prescription">
     <div class="m26-group-prescription-heading">${visual}<h4>${e(exerciseDisplayName(exercise))}</h4></div>
-    ${renderExerciseMemoryInline(memory,{blockId:group.id,exerciseId,group:true})}
+    ${renderExerciseMemoryInline(memory,{blockId:group.id,exerciseId,group:true,role,exercise:{...exercise,measurementProfile:p.measurementProfile}})}
     <div class="m26-field-grid m26-builder-core-prescription">
       ${prescriptionWorkFields(group.id,exerciseId,exercise,p,true)}
     </div>
