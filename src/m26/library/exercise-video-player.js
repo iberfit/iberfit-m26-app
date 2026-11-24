@@ -22,6 +22,7 @@ const MEDIA_EVENTS=Object.freeze([
   'loadedmetadata',
   'canplay',
   'playing',
+  'pause',
   'waiting',
   'stalled',
   'error',
@@ -67,6 +68,7 @@ function mediaStateForEvent(type,{online=true}={}){
     case 'loadedmetadata':
     case 'canplay':return 'ready';
     case 'playing':return 'playing';
+    case 'pause':return 'ready';
     case 'waiting':
     case 'stalled':return 'buffering';
     case 'error':return 'error';
@@ -117,6 +119,23 @@ function canUsePictureInPicture(video,documentRef=globalThis.document){
     typeof video?.requestPictureInPicture==='function'&&
     typeof documentRef?.exitPictureInPicture==='function'
   );
+}
+
+// The browser owns playback. Never reload or autoplay on a network event.
+export function recoveredExerciseVideoState(video,{attempted=false}={}){
+  if(video?.ended)return 'ended';
+  if(video?.error||Number(video?.networkState)===3)return 'error';
+  if(Number(video?.readyState||0)>=3)return video?.paused===false?'playing':'ready';
+  return attempted?'error':'idle';
+}
+
+export function stopExerciseVideo(video){
+  if(!video)return;
+  video.pause?.();
+  const doc=video.ownerDocument;
+  if(doc?.pictureInPictureElement!==video)return;
+  // A browser may revoke PiP while the exercise is being removed.
+  try{void doc.exitPictureInPicture?.()?.catch?.(()=>{});}catch{/* already closed */}
 }
 
 function renderProvenance(provenance){
@@ -201,7 +220,14 @@ export function createExerciseVideoExperienceController({
     if(!video)return;
     const figure=figureFor(video);
     const online=networkState(navigatorRef)==='online';
-    const state=mediaStateForEvent(event.type,{online});
+    let state=mediaStateForEvent(event.type,{online});
+    if(event.type==='pause'){
+      if(video.ended)state='ended';
+      else if(video.error)state=online?'error':'offline';
+      else if(!online&&Number(video.readyState||0)<3)state='offline';
+    }
+    if(event.type==='canplay'&&video.paused===false&&
+      figure?.getAttribute?.('data-video-state')==='playing')state='playing';
     let latencyBucket='none';
 
     if(event.type==='loadstart'){
@@ -280,7 +306,7 @@ export function createExerciseVideoExperienceController({
       if(network==='offline'&&current!=='playing'&&Number(video?.readyState||0)<3){
         updateFigure(figure,'offline');
       }else if(network==='online'&&current==='offline'){
-        updateFigure(figure,'idle');
+        updateFigure(figure,recoveredExerciseVideoState(video,{attempted:loadStarted.has(video)}));
       }else{
         updateFigure(figure,current);
       }
