@@ -757,7 +757,7 @@ function builderActiveFilterCount(filters={}){
   return ['pattern','equipment','difficulty','intent'].reduce((count,key)=>count+(String(filters?.[key]||'').trim()?1:0),0);
 }
 export function renderSessionLibraryResults({draft,catalog,query='',filters={},mediaMap,role='coach',visibleLimit=24}={}){
-  const matchingExercises=catalog.search(query,filters);
+  const matchingExercises=catalog.search(query,filters,{prioritizeNames:true});
   // Render only the visible page. Previously hundreds of hidden cards (with
   // media) were rebuilt on every prefix keystroke, slowing Coach sessions.
   // Every match remains reachable through progressive pages, without truncation.
