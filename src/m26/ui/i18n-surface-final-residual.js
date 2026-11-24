@@ -124,4 +124,5 @@ export const FINAL_RESIDUAL_SURFACE_ROWS=Object.freeze([
 ["Resumen del entrenamiento confirmado","Confirmed workout summary","Résumé de l’entraînement confirmé","Resumo do treino confirmado"],
 ["Series sin registro","Unrecorded sets","Séries non enregistrées","Séries não registadas"],
 ["Sin dato registrado","No data recorded","Aucune donnée enregistrée","Sem dados registados"],
+["Omitir esta serie","Skip this set","Ignorer cette série","Omitir esta série"],
 ]); 
