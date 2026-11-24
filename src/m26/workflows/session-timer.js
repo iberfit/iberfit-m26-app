@@ -35,3 +35,11 @@ export function recoverExecutionTimers(execution,at=Date.now()){
   execution.recoveredAt=iso(current);return execution;
 }
 export function formatDuration(ms){const total=Math.max(0,Math.floor(accumulated(ms)/1000));const minutes=Math.floor(total/60);const seconds=total%60;return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;}
+// Shared predicate for scheduling and firing a Coach-only rest transition.
+export function coachRestTransitionEligible(context,{hidden=false,busy=false}={}){
+  const role=String(context?.actor?.role||'').trim().toLowerCase();
+  const execution=context?.execution;
+  return !hidden&&!busy&&['coach','entrenador'].includes(role)&&
+    execution?.status==='active'&&execution?.syncStatus==='clean'&&
+    !execution.reviewingHistory&&!execution.pendingOperationIds?.length;
+}
