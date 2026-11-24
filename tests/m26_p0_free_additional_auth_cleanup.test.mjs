@@ -8,11 +8,9 @@ test('authenticated interaction always releases the real QA browser lease before
 });
 test('client DELETE denial gate releases only verified fixture tokens without changing the negative ACL assertion',()=>{
  const source=readFileSync('scripts/remote-gates/qa_client_delete_acl_denial.mjs','utf8');
- assert.match(source,/actual!==String\(email\)\.trim\(\)\.toLowerCase\(\)/u);
- assert.match(source,/issuedSessions\.push\(\{email:actual,token\}\)/u);
- assert.match(source,/await runQaStageWithCleanup\(runDenial,releaseIssuedSessions/u);
+ assert.match(source,/qaLease\.track\(r\.payload,email\)/u);
+ assert.match(source,/await runQaStageWithCleanup\(runDenial,qaLease\.release/u);
  assert.match(source,/r\.status!==403\|\|r\.payload\?\.code!=='42501'/u);
- assert.match(source,/result\.released!==issuedSessions\.length/u);
  assert.doesNotMatch(source,/scope=global|sb_secret_|pjhmrhejsoofmouedavw/u);
 });
 
@@ -22,11 +20,9 @@ test('IRI fixture and immutable emission gates fence QA scope and release only c
   ['scripts/remote-gates/run_qa_iri_report_emission_gate.mjs','runEmission'],
  ]){
   const source=readFileSync(file,'utf8');
-  assert.match(source,/base!==QA_ORIGIN\|\|process\.env\.M26_PROJECT_REF!==QA_REF\|\|process\.env\.M26_QA_ONLY!=='true'/u);
-  assert.match(source,/issuedSessions\.push\(\{email,token\}\)/u);
-  assert.match(source,/email!==String\(expectedEmail\|\|''\)\.trim\(\)\.toLowerCase\(\)/u);
-  assert.match(source,new RegExp('await runQaStageWithCleanup\\('+stage+',releaseIssuedSessions','u'));
-  assert.match(source,/result\.released!==issuedSessions\.length/u);
+  assert.match(source,/createQaAuthLease\(\{[\s\S]*?projectRef:process\.env\.M26_PROJECT_REF,qaOnly:process\.env\.M26_QA_ONLY/u);
+  assert.match(source,/qaLease\.track\(body,/u);
+  assert.match(source,new RegExp('await runQaStageWithCleanup\\('+stage+',qaLease\\.release','u'));
   assert.doesNotMatch(source,/scope=global|pjhmrhejsoofmouedavw/u);
  }
  const emission=readFileSync('scripts/remote-gates/run_qa_iri_report_emission_gate.mjs','utf8');
