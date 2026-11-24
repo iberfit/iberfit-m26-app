@@ -7,7 +7,7 @@ import {
   buildOccurrenceWorkoutCommand,applyOccurrenceWorkoutAck,
 } from './occurrence-workout-draft.js';
 import {
-  recordSet,skipExecutionSet,advanceExecution,finishExecution,currentStep,
+  recordSet,skipExecutionSet,advanceExecution,finishExecution,currentStep,executionResultForStep,skippedSetForStep,
 } from './session-execution.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
@@ -15,6 +15,35 @@ const fail=code=>{throw new Error('U49_'+code);};
 function uid(value){
   if(typeof value!=='string'||!UUID.test(value))fail('IDENTITY_INVALID');
   return value.toLowerCase();
+}
+// A minimal read-only projection, never expose private raw results or notes
+// through the terminal view. Count only entries belonging to the frozen queue.
+export function datedCompletionSummary(execution){
+  if(!execution||!['completed','completada'].includes(execution.status))return null;
+  const queue=execution.queue;
+  if(!Array.isArray(queue)||!queue.length||queue.some(item=>!item?.exerciseId||
+    !Number.isInteger(item.sets)||item.sets<1||item.sets>100))return null;
+  let total=0,recorded=0,omitted=0;
+  for(const item of queue){
+    for(let number=1;number<=item.sets;number++){
+      total++;
+      const step={...item,setNumber:number,totalSets:item.sets};
+      const result=executionResultForStep(execution,step,number);
+      const skipped=skippedSetForStep(execution,step,number);
+      if(result&&typeof result==='object'&&!Array.isArray(result)&&
+        [result.reps,result.seconds,result.distanceKm,result.distanceM,result.intervalsCompleted].some(value=>
+          (typeof value==='number'||typeof value==='string'&&value.trim()!=='')&&
+          Number.isFinite(Number(value))&&Number(value)>=0))recorded++;
+      else if(!result&&skipped&&typeof skipped==='object'&&!Array.isArray(skipped))omitted++;
+    }
+  }
+  const feedback=execution.feedback||{};
+  const rpe=feedback.sessionRpe;
+  const duration=execution.accumulatedActiveMs;
+  return Object.freeze({total,recorded,omitted,missing:total-recorded-omitted,
+    sessionRpe:typeof rpe==='number'&&Number.isFinite(rpe)&&rpe>=1&&rpe<=10?rpe:null,
+    activeMs:Number.isSafeInteger(duration)&&duration>=0&&duration<=604800000?duration:null,
+    pain:typeof feedback.pain==='boolean'?feedback.pain:null});
 }
 export function createOccurrenceWorkoutService({
   enabled=false,coordinator,readPrivateOccurrence,checkpoint,
@@ -54,6 +83,8 @@ export function createOccurrenceWorkoutService({
     pausedAt:current?.execution?.pausedAt??null,
     accumulatedActiveMs:current?.execution?.accumulatedActiveMs??0,
     busy,hasUncertain:pending,unsavedWork:dirty,error,
+    completionSummary:current?.phase==='completed'&&!pending&&!stale&&!dirty
+      ?current.completionSummary??datedCompletionSummary(current.execution):null,
     currentStep:current?.execution?
       structuredClone(currentStep(current.execution,current.session)):null,
   });
@@ -116,6 +147,7 @@ export function createOccurrenceWorkoutService({
           occurrenceRevision:o.revision,
           executionRevision:completed?b.revision:null,
           phase:completed?'completed':'cancelled',
+          completionSummary:completed?datedCompletionSummary(b):null,
           execution:null,session:null,
         };
       }else fail('STATE_NOT_EXECUTABLE');
