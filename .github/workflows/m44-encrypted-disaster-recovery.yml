@@ -1,3 +1,8 @@
+# 24-NOV-2026: Daily Use Excellence final protected integration requests ONE
+# fresh encrypted PROD database + Storage archive and independent isolated restore.
+# Previous frontend-only promotion was correctly blocked by M44_OFFSITE_RUN_TOO_OLD.
+# Trigger-only comment: unchanged jobs, scopes, permissions, credentials, retention,
+# safety and two-hour freshness gate. No production data mutation.
 # IBERFIT 23-NOV-2026 · M1/U72 cutover readiness: request a fresh encrypted
 # PROD PostgreSQL+Auth snapshot and Storage archive with isolated PG17 restore
 # via this EXISTING protected postmerge workflow. No SQL, RLS, Edge, Auth,
