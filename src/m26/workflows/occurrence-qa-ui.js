@@ -4,6 +4,7 @@
 // All writes use U60 authenticated private read + U40 idempotent journal,
 // encrypted U51 checkpoint and the independent U31/U32 CAS executor.
 // A frontend switch is NEVER an alternative to backend JWT/ACL/RLS + M44.
+import {renderExerciseMedia} from '../library/exercise-media-ui.js';
 import {createTraining360OccurrenceRuntime} from './occurrence-runtime.js';
 import {createOccurrenceOwnerKeyVault} from './occurrence-owner-key.js';
 import {createAtomicOccurrenceIndexedDbStore} from './occurrence-indexeddb-store.js';
@@ -303,6 +304,7 @@ export function createDatedOccurrenceQaUi({
   enabled=false,productionReleased=false,newStartsEnabled=true,
   root,ownerId,projectRef,transport,getAuthContext,
   getState,onRender=()=>{},cryptoImpl=globalThis.crypto,
+  getMediaMap=()=>null,getCatalogExercise=()=>null,
 }={}){
   if(enabled!==true)return Object.freeze({
     enabled:false,mount:()=>{},destroy:()=>{},renderPanel:()=>'',hasBlockingWorkout:()=>false,
@@ -447,6 +449,12 @@ export function createDatedOccurrenceQaUi({
         :view.executionStatus==='awaiting_feedback'
           ?'<p>Series registradas. Añade el feedback antes de finalizar.</p>'
           :'';
+      const stepMedia=step?.exerciseId&&['ready','active'].includes(phase)
+        ?renderExerciseMedia({manifest:getMediaMap(),exercise:{
+          ...getCatalogExercise(step.exerciseId),id:step.exerciseId,
+          name_es:getCatalogExercise(step.exerciseId)?.name_es||stepLabel,
+        },role:scope.role,showCredit:true,fallback:false,enableViewer:true})
+        :'';
       const plannedDraft=coach?plannedDatedSetDraft(step):{};
       const hasPlannedDraft=Object.keys(plannedDraft).length>0;
       const recordForm=phase==='active'&&view.executionStatus==='active'&&step
@@ -501,7 +509,7 @@ export function createDatedOccurrenceQaUi({
       body='<section class="m26-panel" data-u60-workout data-u60-phase="'+escape(phase)+'"'+
         (phaseState.loading?' aria-busy="true"':'')+'><h3>Fecha independiente</h3>'+
         summary+(phaseState.loading?'<p class="m26-field-help">Verificando autorización, fecha y estado con el servidor. Todavía no se ha iniciado ningún entrenamiento.</p>':'')+
-        stepMarkup+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
+        stepMarkup+stepMedia+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
         (view.startedAt?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'">'+escape(formatDatedElapsed(Number(view.accumulatedActiveMs||0)+(view.executionStatus==='active'&&view.activeSince?Math.max(0,Date.now()-Date.parse(view.activeSince)):0)))+'</strong></p>':'')+
         '<p role="alert" data-u60-input-warning hidden></p>'+
         (phase==='active'&&['active','awaiting_feedback','paused'].includes(view.executionStatus)

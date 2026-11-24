@@ -168,7 +168,8 @@ export function createExerciseVideoExperienceController({
     figure.setAttribute?.('data-video-state',state);
     figure.setAttribute?.('data-video-network',network);
     const status=figure.querySelector?.('[data-exercise-video-status]');
-    if(status)status.textContent=statusText(state,network);
+    const nextText=statusText(state,network);
+    if(status&&status.textContent!==nextText)status.textContent=nextText;
     const retry=figure.querySelector?.('[data-exercise-video-retry]');
     if(retry)retry.hidden=!['error','offline'].includes(state);
   }
