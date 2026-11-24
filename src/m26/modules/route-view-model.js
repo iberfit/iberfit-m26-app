@@ -264,7 +264,7 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date(),prog
     experience,
     { role }
   );
-  const adaptiveContext=experience.serviceKind==='training'&&state&&client.id
+  const adaptiveContext=experience.serviceKind==='training'&&experience.trainingServiceStatus==='active'&&state&&client.id
     ?buildAdaptiveSessionContext(state,client.id,{now,summary:progressSummary,alerts:adherenceAlerts})
     :null;
   const adaptiveExperience=deriveAdaptiveExperience({

@@ -152,7 +152,7 @@ function removeAdminFacetControls(controls){
 
 function allowedFilterKeys(role){
   if(role==='admin')return new Set(['equipment','pattern','difficulty','intent','visual']);
-  if(role==='coach')return new Set(['equipment','pattern']);
+  if(role==='coach')return new Set(['equipment','pattern','visual']);
   return new Set();
 }
 
@@ -182,6 +182,23 @@ function bindFacetState(controls){
     if(!event.target?.closest?.('[data-library-clear]'))return;
     for(const key of ADMIN_FACET_KEYS)adminFacetState[key]='';
   });
+}
+
+// Use the exact published, role-visible media resolver for discovery. A
+// pending, hidden or unsafe clip must not count as available to a Coach.
+export function libraryMediaMatches(manifest,id,filter='',role='coach'){
+  if(!filter)return true;
+  if(filter==='with-image'||filter==='without-image'){
+    const has=Boolean(resolveExerciseMedia(manifest,id,{role}));
+    return filter==='with-image'?has:!has;
+  }
+  if(['with-video','without-video','with-both'].includes(filter)){
+    const hasVideo=Boolean(resolveExerciseMediaExperience(manifest,id,{role})?.video);
+    if(filter==='with-video')return hasVideo;
+    if(filter==='without-video')return !hasVideo;
+    return hasVideo&&Boolean(resolveExerciseMedia(manifest,id,{role}));
+  }
+  return true;
 }
 
 export function libraryCardMatchesFacets(dataset={},filters={}){

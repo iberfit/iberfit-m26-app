@@ -136,3 +136,24 @@ test('Cliente nunca recibe como siguiente acción completar el IRI del Coach',()
   assert.equal(next.area,'actividad');
   assert.doesNotMatch(next.label,/IRI/i);
 });
+
+test('Paused service with a cached appointment is not active, nor an unfinished scheduling task',()=>{
+  for(const nextAppointment of [{id:'old-appointment'},null]){
+    const e=deriveClientExperience({client:{trainingServiceStatus:'paused'},profile:{completeness:100},
+      cycle:{id:'cycle'},nextAppointment,autonomousSessionReady:true,counts:{executions:8}});
+    assert.equal(e.stage,'paused');
+    assert.equal(e.stageLabel,'Entrenamiento en pausa');
+    assert.equal(e.readiness.nextAppointment,false);
+    assert.equal(e.readiness.autonomousSession,false);
+    assert.equal(e.readiness.executions,8);
+    assert.ok(!e.attention.includes('appointment'));
+    assert.ok(!e.attention.includes('planning'));
+    for(const role of ['coach','admin','client']){
+      const next=experienceNextAction(e,{role});
+      assert.notEqual(next.key,'schedule_appointment');
+      assert.notEqual(next.key,'view_next_appointment');
+      assert.notEqual(next.key,'open_autonomous_workout');
+    }
+    assert.equal(experienceNextAction(e,{role:'client'}).area,'progreso');
+  }
+});
