@@ -294,16 +294,24 @@ export function createOccurrenceWorkoutService({
     requireEditable();
     busy=true;
     try{
-      // Copy first. Do not show a successful set before ciphertext is durable.
+      // Domain validation is performed on an isolated copy. A typo or an
+      // incomplete form cannot invalidate the last durable workout.
       const next=structuredClone(current);
-      fn(next.execution,next.session);
-      const nextEtag=await checkpoint.writeCheckpoint(scope,next,checkpointEtag);
-      current=next;checkpointEtag=nextEtag;dirty=true;error=null;
+      try{fn(next.execution,next.session);}
+      catch(e){
+        error=String(e?.message||'U49_WORKOUT_INPUT_INVALID');
+        throw e;
+      }
+      // Fail closed only when persistence actually fails. Do not clear or
+      // replace the previous checkpoint until the new ciphertext is verified.
+      try{
+        const nextEtag=await checkpoint.writeCheckpoint(scope,next,checkpointEtag);
+        current=next;checkpointEtag=nextEtag;dirty=true;error=null;
+      }catch(e){
+        stale=true;error=String(e?.message||'U49_CHECKPOINT_FAILED');
+        throw e;
+      }
       return settledView();
-    }catch(e){
-      // Includes IndexedDB readback/CAS failure, key loss, quota and eviction.
-      stale=true;error=String(e?.message||'U49_CHECKPOINT_FAILED');
-      throw e;
     }finally{busy=false;}
   }
   const record=input=>mutate((execution,session)=>recordSet(execution,session,input));

@@ -72,6 +72,15 @@ export function sessionExecutionDate(record){
   );
 }
 
+// Strict reporting chronology: never substitute creation, schedule or save timestamps.
+export function sessionExecutionCompletionDate(record){
+  const item=unwrap(record);
+  const summary=item?.summary&&typeof item.summary==='object'?item.summary:{};
+  return first(item,'completedAt','completed_at')
+    ||first(summary,'completedAt','completed_at')
+    ||first(item,'localClosedAt','local_closed_at','endedAt','ended_at','executedAt','executed_at');
+}
+
 export function unconfirmedSessionExecutionIds(state){
   const ids=new Set();
 

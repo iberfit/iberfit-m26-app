@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {clientContentView} from '../src/m26/publication/client-content.js';
 const load=async(path)=>readFile(new URL('../'+path,import.meta.url),'utf8');
 
 test('M44 canonical reports remain private while the client receives an explicitly whitelisted publication',async()=>{
@@ -31,4 +32,20 @@ test('M44 publication protections are installed atomically without DROP TRIGGER 
  assert.match(sql,/create or replace trigger trg_m44_report_client_safe_projection/);
  assert.match(sql,/m44_report_private_policy_precondition/);
  assert.doesNotMatch(sql,/drop trigger|drop policy/i);
+});
+
+
+test('client document refuses invalid canonical chart data without turning missing values into zero',()=>{
+  const report={id:'r1',status:'publicado',audience:'cliente',reportType:'weekly',periodStart:'2026-09-07',periodEnd:'2026-09-13',summary:'Informe',conclusions:'Interpretación',recommendations:'Revisar',coachComment:'NOTA PRIVADA',evidence:[{label:'Sesiones',text:'3',source:'sessionExecutions'}],activitySeries:[{from:'2026-09-07',to:'2026-09-09',count:0},{from:'2026-09-10',to:'2026-09-13',count:3}]};
+  const valid=clientContentView('report',report);
+  assert.equal(valid.reportDocument.activitySeries[0].count,0);
+  assert.doesNotMatch(JSON.stringify(valid),/NOTA PRIVADA/);
+  for(const invalid of [null,'0',false,[],1.5,-1]){
+    const projection=clientContentView('report',{...report,activitySeries:[{from:'2026-09-07',to:'2026-09-13',count:invalid}]});
+    assert.equal(projection.reportDocument,null);
+    assert.equal(projection.summary,'Informe');
+  }
+  assert.equal(clientContentView('report',{...report,audience:'coach'}).reportDocument,null);
+  assert.equal(clientContentView('report',{...report,periodEnd:'2026-09-31'}).reportDocument,null);
+  assert.equal(clientContentView('report',{...report,activitySeries:[{from:'2026-09-07',to:'2026-09-10',count:1},{from:'2026-09-10',to:'2026-09-13',count:2}]}).reportDocument,null);
 });

@@ -118,3 +118,21 @@ test('autorización del adjunto distingue Cliente de Coach/Admin',()=>{
   assert.match(app,/variant==='coach'\?iriExternalReports\.coachReportForPdf/);
   assert.match(workflow,/getIriExternalReport\(draft\.assessmentId,\{variant\}\)/);
 });
+
+
+test('IRI PDF distinguishes missing numeric evidence from an observed zero',()=>{
+  const {number,ratioBar,symmetryRow,compositionDonut,fileSize}=__iriReportInternals;
+  for(const missing of [null,undefined,'','   ',false,true,[],{},NaN,Infinity]){
+    assert.equal(number(missing),'—');
+    assert.equal(fileSize(missing),'—');
+    assert.match(ratioBar('Prueba',missing,40,'',' rep'),/<strong>—<\/strong>/);
+    assert.match(symmetryRow('Movilidad',missing,8,' cm'),/<b>—<\/b>/);
+    assert.match(compositionDonut({bodyFatPercent:missing}),/sin dato válido/);
+  }
+  assert.equal(number(0),'0');
+  assert.equal(number('0'),'0');
+  assert.equal(fileSize(0),'0 B');
+  assert.match(ratioBar('Prueba',0,40,'',' rep'),/<strong>0 rep<\/strong>/);
+  assert.match(compositionDonut({bodyFatPercent:23}),/donut-value/);
+  assert.match(compositionDonut({bodyFatPercent:101}),/sin dato válido/);
+});

@@ -85,13 +85,14 @@ export function buildIberfitDecisionBrief({
 
   const signals=[];
   const limitations=[];
-  let evidenceCount=0;
+  let evidenceCount=0,contextCount=0;
 
   if(topAlert?.title){
     signals.push(
       `Señal prioritaria: ${String(topAlert.title)}.`
     );
     evidenceCount+=1;
+    contextCount+=1;
   }
 
   const plannedCount=validCount(safeSummary.plannedSessions);
@@ -159,6 +160,7 @@ export function buildIberfitDecisionBrief({
     );
 
     evidenceCount+=1;
+    contextCount+=1;
   }else if(wearableAvailableDays>0){
     limitations.push(
       `Hay ${wearableAvailableDays} día${wearableAvailableDays===1?'':'s'} con datos de dispositivo, pero su frescura (${String(wearable.freshness||'no confirmada')}) no permite tratarlos como evidencia actual.`
@@ -210,7 +212,7 @@ export function buildIberfitDecisionBrief({
     ),
     confidence:confidenceFor(
       safeSummary,
-      evidenceCount
+      evidenceCount-contextCount
     ),
     signals:Object.freeze(
       signals.slice(0,6)
@@ -220,6 +222,8 @@ export function buildIberfitDecisionBrief({
     ),
     nextStep,
     evidenceCount,
+    primaryEvidenceCount:evidenceCount-contextCount,
+    contextualEvidenceCount:contextCount,
     safetyNote:'Apoyo a la decisión: no diagnostica, no modifica cargas, no publica sesiones y no sustituye el criterio profesional.',
   });
 }

@@ -31,6 +31,7 @@ export function isInitialIriAssessment(record){
 
 
 function finite(value){
+  if(typeof value!=='number'&&(typeof value!=='string'||!value.trim()))return null;
   const n=Number(value);
   return Number.isFinite(n)?n:null;
 }
@@ -185,7 +186,7 @@ export function iri2SnapshotFromDraft(draft={}){
 }
 
 function comparable(previous,current){
-  if(previous?.value===null||current?.value===null)return false;
+  if(finite(previous?.value)===null||finite(current?.value)===null)return false;
   if(previous.comparison==='protocol'||current.comparison==='protocol'){
     if(previous.valid===false||current.valid===false)return false;
     const p=clean(previous.protocol,500),c=clean(current.protocol,500);
@@ -200,8 +201,10 @@ function compareMetric(previous,current){
     comparable:false,
     reason:'protocol_or_value_not_comparable',
   });
-  const delta=Number((current.value-previous.value).toFixed(3));
-  const relative=previous.value===0?null:Number(((delta/Math.abs(previous.value))*100).toFixed(1));
+  const previousValue=finite(previous.value),currentValue=finite(current.value);
+  const delta=Number((currentValue-previousValue).toFixed(3));
+  const ratio=previousValue===0?null:(delta/Math.abs(previousValue))*100;
+  const relative=Number.isFinite(ratio)?Number(ratio.toFixed(1)):null;
   const trend=Math.abs(delta)<0.0005?'stable':delta>0?'up':'down';
   return Object.freeze({
     id:current.id,
@@ -209,8 +212,8 @@ function compareMetric(previous,current){
     unit:current.unit,
     domain:current.domain,
     comparable:true,
-    previous:previous.value,
-    current:current.value,
+    previous:previousValue,
+    current:currentValue,
     delta,
     relative,
     trend,

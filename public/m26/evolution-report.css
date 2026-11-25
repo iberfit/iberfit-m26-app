@@ -125,3 +125,6 @@ body{margin:0;padding:25px 10px 40px;background:#142a1e;font-family:'Inter Varia
 
 .m44-activity-date{font-family:'Inter Variable',Arial,sans-serif;font-size:11px;fill:#405548;font-variant-numeric:tabular-nums}
 .m44-activity-guide{stroke:#bfc9bf;stroke-dasharray:3 5;stroke-width:1}
+.m44-activity-axis-label{font-family:'Inter Variable',Arial,sans-serif;font-size:11px;fill:#405548;font-variant-numeric:tabular-nums}
+.m44-section-lead{overflow-wrap:anywhere}
+.m44-cover h1 span{max-width:135mm;overflow-wrap:anywhere}

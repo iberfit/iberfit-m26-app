@@ -1,4 +1,7 @@
 export const ADMIN_SURFACE_ROWS=Object.freeze([
+['Seguimiento pendiente de cargar','Follow-up data not yet loaded','Données de suivi non encore chargées','Dados de acompanhamento ainda não carregados'],
+['No hay datos suficientes para confirmar el estado de los recorridos.','There is not enough data to confirm the status of client journeys.','Les données sont insuffisantes pour confirmer l’état des parcours clients.','Não há dados suficientes para confirmar o estado dos percursos.'],
+['Estado no disponible','Status unavailable','État indisponible','Estado indisponível'],
 // U108 · Singular administrative decision badge: verified client count, no fake statuses.
 ['1 cliente por revisar','1 client to review','1 client à examiner','1 cliente por rever'],
 

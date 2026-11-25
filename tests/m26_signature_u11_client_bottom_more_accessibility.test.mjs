@@ -42,3 +42,24 @@ test('menú acotado a 320 px, pantalla baja y safe areas, sin interferir con el 
  assert.match(nav,/@media \(max-width:\s*370px\)/u);
  assert.doesNotMatch(nav,/\.m26-client-bottom-nav-spark/u);
 });
+
+
+test('Arrow keys enter the closed Client More disclosure without a second listener',async()=>{
+ const events=new Map(),attrs=new Map(),focused=[];
+ const items=[{focus(){focused.push('first')}},{focus(){focused.push('last')}}];
+ const details={open:false,isConnected:true,querySelectorAll:()=>items};
+ const summary={closest:s=>s==='details.m26-client-bottom-nav-more'?details:null,setAttribute:(k,v)=>attrs.set(k,v)};
+ const doc={addEventListener:(k,f)=>events.set(k,f),querySelector:()=>null};
+ bindShellDisclosureDismissSupport(doc);
+ let prevented=0;
+ events.get('keydown')({key:'ArrowDown',target:{closest:()=>summary},preventDefault(){prevented++}});
+ await Promise.resolve();
+ assert.equal(details.open,true);
+ assert.equal(attrs.get('aria-expanded'),'true');
+ assert.deepEqual(focused,['first']);
+ details.open=false;
+ events.get('keydown')({key:'ArrowUp',target:{closest:()=>summary},preventDefault(){prevented++}});
+ await Promise.resolve();
+ assert.deepEqual(focused,['first','last']);
+ assert.equal(prevented,2);
+});

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-import {buildPremiumReportPortfolio,PREMIUM_REPORT_MODEL_VERSION,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,normalizeReportDraft,premiumReportUiCandidates,installPremiumReportUi,validateReportDraft,syncPremiumReportApprovalButton} from '../src/m26/workflows/report-workflow.js';
+import {buildPremiumReportPortfolio,PREMIUM_REPORT_MODEL_VERSION,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,normalizeReportDraft,premiumReportUiCandidates,installPremiumReportUi,premiumReportNeedsRefresh,validateReportDraft,syncPremiumReportApprovalButton} from '../src/m26/workflows/report-workflow.js';
 
 const NOW=new Date('2026-09-06T12:00:00Z');
 
@@ -374,4 +374,73 @@ test('P1: approval eligibility recomputes after reset, restored drafts and IRI c
   assert.equal(syncPremiumReportApprovalButton(form),true,'Legacy linked IRI editor remains usable');
   fields.reportType='reassessment';
   assert.equal(syncPremiumReportApprovalButton(form),false,'Uncertified reassessment stays disabled');
+});
+
+
+test('reportes: fecha civil Santiago conserva el día local y excluye ejecuciones futuras',()=>{
+  const state=stateWithHistory();
+  state.collections.sessionExecutions.push(
+    {id:'local-yesterday',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-07T01:00:00Z',title:'Última sesión local'},
+    {id:'future-same-day',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-07T02:30:00Z',title:'Futura'});
+  const reports=buildPremiumReportPortfolio(state,'c1',{now:new Date('2026-09-07T02:00:00Z')});
+  const post=reports.find(x=>x.id==='post-session');
+  const weekly=reports.find(x=>x.id==='weekly');
+  assert.equal(post.sourceId,'local-yesterday');
+  assert.equal(post.periodEnd,'2026-09-06');
+  assert.equal(weekly.periodStart,'2026-08-31');
+  assert.equal(weekly.periodEnd,'2026-09-06');
+  assert.equal(weekly.activitySeries.reduce((n,row)=>n+row.count,0),2);
+});
+
+test('reportes: cada evidencia pertenece a su propia ventana y comparación anterior equivalente',()=>{
+  const state=stateWithHistory();
+  state.collections.appointments=[];
+  state.collections.sessionExecutions=[{id:'e-current',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-03T11:00:00Z',title:'Actual'}];
+  state.collections.checkins=[{id:'edge-30',clientId:'c1',createdAt:'2026-08-08T12:00:00Z',energy:7},{id:'edge-90',clientId:'c1',createdAt:'2026-07-01T12:00:00Z',energy:6}];
+  let reports=buildPremiumReportPortfolio(state,'c1',{now:NOW});
+  let monthly=reports.find(x=>x.id==='monthly');
+  assert.equal(monthly.ready,true);
+  assert.match(monthly.evidence.find(x=>x.label==='Bienestar').text,/^1 registro en el periodo/);
+  assert.match(monthly.evidence.find(x=>x.label==='Periodo anterior equivalente').text,/2026-07-09 a 2026-08-07/);
+  state.collections.checkins.shift();
+  reports=buildPremiumReportPortfolio(state,'c1',{now:NOW});
+  monthly=reports.find(x=>x.id==='monthly');
+  assert.equal(monthly.ready,false,'a July checkin cannot unlock a September monthly report');
+  state.collections.sessionExecutions.push({id:'previous',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-08-07T11:00:00Z',title:'Anterior'});
+  state.collections.checkins.push({id:'recent',clientId:'c1',createdAt:'2026-09-02T10:00:00Z',energy:8});
+  monthly=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='monthly');
+  assert.match(monthly.evidence.find(x=>x.label==='Periodo anterior equivalente').text,/1 sesión confirmada; periodo actual: 1/);
+});
+
+
+test('reportes: el postentrenamiento selecciona la última hora real incluso el mismo día',()=>{
+  const state=stateWithHistory();
+  state.collections.sessionExecutions.push(
+    {id:'early',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-05T10:00:00Z',title:'Temprana'},
+    {id:'late',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-05T22:00:00Z',title:'Tardía'});
+  const post=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='post-session');
+  assert.equal(post.sourceId,'late');
+});
+
+
+test('reportes periódicos incluyen contexto individual y próximos pasos según evidencia disponible',()=>{
+  const state=stateWithHistory();
+  const monthly=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='monthly');
+  assert.equal(monthly.ready,true);
+  assert.match(monthly.summary,/Última sesión: Fuerza C/);
+  assert.ok(monthly.evidence.some(x=>x.label==='Días con entrenamiento confirmado'));
+  assert.match(monthly.recommendations,/registros de bienestar/);
+  assert.ok(monthly.evidence.length<=12);
+  state.collections.checkins=[];
+  const noCheckin=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='monthly');
+  assert.equal(noCheckin.ready,true);
+  assert.match(noCheckin.recommendations,/Completar el seguimiento de bienestar/);
+});
+
+
+test('report editor ignores its own generated card and status mutations without suppressing external changes',()=>{
+ const inside={closest:()=>({})},outside={closest:()=>null};
+ assert.equal(premiumReportNeedsRefresh([{target:inside},{target:inside}]),false);
+ assert.equal(premiumReportNeedsRefresh([{target:inside},{target:outside}]),true);
+ assert.equal(premiumReportNeedsRefresh([]),false);
 });

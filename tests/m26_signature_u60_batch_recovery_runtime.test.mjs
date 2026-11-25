@@ -178,3 +178,13 @@ test('U60 full runtime is off unless explicitly supplied backend and crypto capa
  assert.throws(()=>createTraining360OccurrenceRuntime({enabled:true}),
    /U60_RUNTIME_DEPENDENCIES_REQUIRED/);
 });
+
+
+test('U60 batch rejects duplicate occurrence identities across distinct confirmed dates and retains the journal',async()=>{
+ const next={...preview.occurrences[0],localDate:'2026-11-07',startsAt:'2026-11-07T13:00:00.000Z',endsAt:'2026-11-07T14:00:00.000Z'};
+ const multi={...args,preview:{...preview,count:2,occurrences:[preview.occurrences[0],next]}};
+ const {svc,entries,history}=setup({send:async()=>({...ack,count:2,occurrences:[{id:OCC,localDate:'2026-11-06'},{id:OCC.toUpperCase(),localDate:'2026-11-07'}]})});
+ await assert.rejects(svc.publish(multi),/U60_BATCH_ACK_DATES_INVALID/);
+ assert.equal(entries.size,1);
+ assert.deepEqual(history,['write','remote']);
+});

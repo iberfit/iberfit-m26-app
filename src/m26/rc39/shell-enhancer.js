@@ -84,6 +84,22 @@ export function bindShellDisclosureDismissSupport(documentLike=globalThis.docume
       }
       return;
     }
+    // From the closed Client disclosure, arrows open and enter its existing
+    // menu. Native Enter/Space and normal Tab navigation remain unchanged.
+    if(['ArrowDown','ArrowUp'].includes(event?.key)){
+      const launcher=event.target?.closest?.('summary');
+      const details=launcher?.closest?.('details.m26-client-bottom-nav-more');
+      if(details&&!details.open){
+        const items=[...(details.querySelectorAll?.('.m26-client-bottom-nav-menu [role="menuitem"]:not([disabled])')||[])];
+        if(items.length){
+          event.preventDefault?.();
+          details.open=true;
+          launcher.setAttribute?.('aria-expanded','true');
+          queueFocus(()=>{if(details.open&&details.isConnected!==false)items[event.key==='ArrowDown'?0:items.length-1]?.focus?.();});
+        }
+        return;
+      }
+    }
     if(event?.key!=='Escape')return;
     if(dismissOpenShellDisclosure(documentLike))event.preventDefault?.();
   });

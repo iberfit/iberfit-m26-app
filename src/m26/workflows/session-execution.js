@@ -377,7 +377,7 @@ export function updateFinalFeedbackDraft(execution,input={}){
     values:{
       sessionRpe:draftValue(input.sessionRpe,32),
       comment:draftValue(input.comment,2000),
-      pain:Boolean(input.pain),
+      pain:[true,1,'1','true','on','yes','si','sí'].includes(input.pain),
       painNotes:draftValue(input.painNotes,1000),
     },
     ...(previous?.needsReview?{
@@ -450,33 +450,37 @@ function replaceSkippedStepWithCompletion(execution,step,actor=null){
   return previous.value;
 }
 function measuredNumber(value,min,max,code,integer=false){
- if(value===undefined||value===null||String(value).trim()==='')return null;
- const n=Number(String(value).trim().replace(',','.'));
+ if(value===undefined||value===null)return null;
+ if(typeof value!=='number'&&typeof value!=='string')throw new Error(code);
+ const raw=String(value).trim().replace(',','.');
+ if(!raw)return null;
+ if(!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/iu.test(raw))throw new Error(code);
+ const n=Number(raw);
  if(!Number.isFinite(n)||n<min||n>max||(integer&&!Number.isInteger(n)))throw new Error(code);
  return n;
 }
 function validatedSetResult(step,input={},previous=null){
-  const rawReps=input.reps??null,rawSeconds=input.seconds??null,load=input.load==null?null:String(input.load).trim().slice(0,80),rpe=Number(input.rpe),rir=input.rir==null||input.rir===''?null:Number(input.rir);
+  const load=input.load==null?null:String(input.load).trim().slice(0,80);
+  const rpe=measuredNumber(input.rpe,1,10,'M26_EXECUTION_RPE_INVALID');
+  const rir=measuredNumber(input.rir,0,10,'M26_EXECUTION_RIR_INVALID');
   const profile=exerciseResultProfile(step);
   const minutes=measuredNumber(input.durationMinutes,0,1440,'M26_EXECUTION_DURATION_INVALID');
   const distanceKm=measuredNumber(input.distanceKm,0,1000,'M26_EXECUTION_DISTANCE_INVALID');
   const distanceM=measuredNumber(input.distanceM,0,100000,'M26_EXECUTION_DISTANCE_INVALID');
   const avgSpeedKmh=measuredNumber(input.avgSpeedKmh,0,140,'M26_EXECUTION_SPEED_INVALID');
-  const reps=rawReps==null||rawReps===''?null:Number(rawReps),explicitSeconds=rawSeconds==null||rawSeconds===''?null:Number(rawSeconds);
+  const reps=measuredNumber(input.reps,0,10000,'M26_EXECUTION_REPS_INVALID');
+  const explicitSeconds=measuredNumber(input.seconds,0,86400,'M26_EXECUTION_SECONDS_INVALID');
+  const intervalsCompleted=measuredNumber(input.intervalsCompleted,1,1000,'M26_EXECUTION_INTERVALS_INVALID',true);
   if(minutes!==null&&explicitSeconds!==null&&Math.abs(explicitSeconds-minutes*60)>0.01)throw new Error('M26_EXECUTION_DURATION_AMBIGUOUS');
   const seconds=explicitSeconds??(minutes===null?null:Math.round(minutes*60));
-  if(reps===null&&seconds===null&&!((profile.cardio||profile.kind==='carry')&&(distanceKm>0||distanceM>0))&&!(profile.kind==='intervals'&&Number(input.intervalsCompleted)>0))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
-  if(reps!==null&&(!Number.isFinite(reps)||reps<0||reps>10000))throw new Error('M26_EXECUTION_REPS_INVALID');
-  if(seconds!==null&&(!Number.isFinite(seconds)||seconds<0||seconds>86400))throw new Error('M26_EXECUTION_SECONDS_INVALID');
-  if(!Number.isFinite(rpe)||rpe<1||rpe>10)throw new Error('M26_EXECUTION_RPE_INVALID');
-  if(rir!==null&&(!Number.isFinite(rir)||rir<0||rir>10))throw new Error('M26_EXECUTION_RIR_INVALID');
+  if(reps===null&&seconds===null&&!((profile.cardio||profile.kind==='carry')&&(distanceKm>0||distanceM>0))&&!(profile.kind==='intervals'&&intervalsCompleted>0))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
+  if(rpe===null)throw new Error('M26_EXECUTION_RPE_INVALID');
   const avgHeartRateBpm=measuredNumber(input.avgHeartRateBpm,30,250,'M26_EXECUTION_HEART_RATE_INVALID',true);
   const cadenceRpm=measuredNumber(input.cadenceRpm,0,250,'M26_EXECUTION_CADENCE_INVALID');
   const powerWatts=measuredNumber(input.powerWatts,0,2500,'M26_EXECUTION_POWER_INVALID');
   const elevationGainM=measuredNumber(input.elevationGainM,0,15000,'M26_EXECUTION_ELEVATION_INVALID');
-  const intervalsCompleted=measuredNumber(input.intervalsCompleted,1,1000,'M26_EXECUTION_INTERVALS_INVALID',true);
   const paceMinPerKm=String(input.paceMinPerKm??'').trim();
-  if(paceMinPerKm&&!/^[0-9]{1,2}:[0-5][0-9]$/.test(paceMinPerKm))throw new Error('M26_EXECUTION_PACE_INVALID');
+  if(paceMinPerKm&&(!/^[0-9]{1,2}:[0-5][0-9]$/.test(paceMinPerKm)||/^0{1,2}:00$/.test(paceMinPerKm)))throw new Error('M26_EXECUTION_PACE_INVALID');
   // Prescribed and observed metrics are typed by sport. A stale form, an
   // old tab or a programmatic client must not silently relabel kilometres
   // as pool metres (or record a running pace during a swim).
@@ -894,7 +898,7 @@ export function addExecutionExercise(execution,{exerciseId,catalog,sets,reps,res
 }
 export function finishExecution(execution,feedback={}, {actor=null}={}){
   if(execution.status!=='awaiting_feedback')throw new Error('M26_EXECUTION_NOT_COMPLETE');
-  const sessionRpe=Number(feedback.sessionRpe||0);if(!Number.isFinite(sessionRpe)||sessionRpe<1||sessionRpe>10)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
+  const sessionRpe=measuredNumber(feedback.sessionRpe,1,10,'M26_EXECUTION_SESSION_RPE_REQUIRED');if(sessionRpe===null)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
   if(!String(feedback.comment||'').trim())throw new Error('M26_EXECUTION_FEEDBACK_REQUIRED');
   const painRaw=feedback.pain;
   const painPositive=[true,1,'1','true','on','yes','si','sí'].includes(painRaw);

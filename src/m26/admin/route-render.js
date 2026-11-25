@@ -212,13 +212,16 @@ function renderAudit(vm){
     </section>
   </div>`;
 }
+function confirmedAdminCount(value){
+  return typeof value==='number'&&Number.isSafeInteger(value)&&value>=0?value:'—';
+}
 function renderHome(vm){
   const cc=vm.commandCenter||{summary:{},priorities:[],coachLoad:[]};
   const s=cc.summary||{};
   const triage=vm.operationTriage||deriveAdminOperationsTriage({
     tasks:vm.tasks||[],timeZone:vm.organization?.timezone||'America/Santiago',
   });
-  const urgent=triage.open.filter((item)=>item.priorityRank<=1||item.overdue);
+  const urgent=triage.open.filter((item)=>item.priorityRank<=1||item.overdue||item.dueToday);
   const urgentRows=urgent.slice(0,3).map((item)=>{
     const task=item.task||{};
     const context=[item.priorityLabel,item.overdue?'Vencida':item.dueToday?'Vence hoy':null,item.ownerLabel].filter(Boolean).join(' · ');
@@ -233,7 +236,8 @@ function renderHome(vm){
       ?{area:'admin-clientes',kind:'unassigned'}
       :{area:'admin-operaciones',kind:'routine'};
   const clientCount=cc.priorities?.length||0;
-  const priorities=clientCount?cc.priorities.slice(0,8).map(commandPriority).join(''):empty('Recorridos sin alertas','No hay recorridos de cliente que requieran una decisión administrativa.');
+  const hasClientPriorities=Array.isArray(vm.commandCenter?.priorities);
+  const priorities=clientCount?cc.priorities.slice(0,8).map(commandPriority).join(''):hasClientPriorities?empty('Recorridos sin alertas','No hay recorridos de cliente que requieran una decisión administrativa.'):empty('Seguimiento pendiente de cargar','No hay datos suficientes para confirmar el estado de los recorridos.');
   const loads=cc.coachLoad?.length?cc.coachLoad.map(coachLoadCard).join(''):empty('Sin carga registrada','La capacidad del equipo aparecerá aquí cuando exista información.');
   const tasks=triage.open.slice(0,12).map((item)=>{
     const task=item.task||{};
@@ -252,19 +256,19 @@ function renderHome(vm){
       <button type="button" class="m26-primary-action" data-m26-area="${e(adminNext.area)}">Abrir gestión</button>
     </nav>
     <section class="m26-admin-panel m26-admin-command m30-admin-decision-center" data-admin-priority-center aria-labelledby="m30-admin-priority-title">
-      <div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Decisiones</p><h3 id="m30-admin-priority-title">Qué requiere atención ahora</h3><p>Incidencias abiertas por gravedad y plazo; después, recorridos de cliente por etapa y asignación.</p></div>${badge(clientCount===1?'1 cliente por revisar':clientCount>1?String(clientCount)+' clientes por revisar':'Clientes al día')}</div>
+      <div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Decisiones</p><h3 id="m30-admin-priority-title">Qué requiere atención ahora</h3><p>Incidencias abiertas por gravedad y plazo; después, recorridos de cliente por etapa y asignación.</p></div>${badge(clientCount===1?'1 cliente por revisar':clientCount>1?String(clientCount)+' clientes por revisar':hasClientPriorities?'Clientes al día':'Estado no disponible')}</div>
       ${urgency}
       <div class="m26-admin-command-client-heading"><h4>Seguimiento de clientes</h4>${clientCount>8?'<span>Primeros 8 de '+clientCount+'</span>':''}</div>
       <div class="m26-admin-priority-list">${priorities}</div>
       ${clientCount>8?'<p class="m26-admin-command-more">El resto de clientes está disponible en CRM y clientes.</p>':''}
     </section>
     <section class="m26-admin-stats m30-admin-kpis" aria-label="Indicadores de operación">
-      ${stat('Clientes activos',s.activeClients??vm.summary?.activeClients??0)}
-      ${stat('En pausa',s.pausedClients??0)}
-      ${stat('Sin Coach',s.unassignedClients??0)}
-      ${stat('IRI pendientes',s.iriPending??0)}
-      ${stat('Planificaciones',s.planningPending??0)}
-      ${stat('Sin próxima cita',s.schedulingPending??0)}
+      ${stat('Clientes activos',confirmedAdminCount(s.activeClients??vm.summary?.activeClients))}
+      ${stat('En pausa',confirmedAdminCount(s.pausedClients))}
+      ${stat('Sin Coach',confirmedAdminCount(s.unassignedClients))}
+      ${stat('IRI pendientes',confirmedAdminCount(s.iriPending))}
+      ${stat('Planificaciones',confirmedAdminCount(s.planningPending))}
+      ${stat('Sin próxima cita',confirmedAdminCount(s.schedulingPending))}
     </section>
     <section class="m26-admin-grid m30-admin-operations-grid">
       <article class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Equipo</p><h3>Capacidad de Coaches</h3></div><button type="button" data-m26-area="admin-equipo">Ver equipo</button></div><div class="m26-admin-load-list">${loads}</div></article>

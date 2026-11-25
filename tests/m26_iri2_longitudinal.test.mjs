@@ -239,3 +239,25 @@ test('IRI 2.0 structured priorities remain backward compatible and detect factua
   assert.equal(log.entries[1].label,'Plan revisado');
   assert.equal(log.entries[1].priorityRecords[0].target,'22 repeticiones comparables.');
 });
+
+
+test('longitudinal snapshots preserve missing evidence and valid zero without false comparisons',()=>{
+  const base={assessmentId:'base-null',clientId:'CLIENT-SYNTHETIC',assessmentDate:'2026-09-01',bodyComposition:{weightKg:null,waistCm:''},mobility:{ankle:{leftBest:0,rightBest:'  '}}};
+  const later={assessmentId:'later-null',clientId:'CLIENT-SYNTHETIC',assessmentDate:'2026-10-01',bodyComposition:{weightKg:70,waistCm:80},mobility:{ankle:{leftBest:2,rightBest:5}}};
+  const snapshot=iri2SnapshotFromDraft(base);
+  assert.equal(snapshot.metrics.weightKg.value,null);
+  assert.equal(snapshot.metrics.waistCm.value,null);
+  assert.equal(snapshot.metrics.ankleRightCm.value,null);
+  assert.equal(snapshot.metrics.ankleLeftCm.value,0);
+  const profile=buildIri2LongitudinalProfile({current:later,history:[base]});
+  assert.equal(profile.comparison.comparableCount,1);
+  assert.equal(profile.comparison.headline[0].delta,2);
+  assert.equal(profile.comparison.headline[0].relative,null);
+});
+
+
+test('longitudinal comparison normalizes numeric string zero without infinite relative variation',async()=>{
+ const {__iri2LongitudinalInternals:{compareMetric}}=await import('../src/m26/workflows/iri-2-longitudinal.js');
+ const row=compareMetric({id:'x',value:'0'},{id:'x',value:'2'});
+ assert.equal(row.previous,0);assert.equal(row.current,2);assert.equal(row.delta,2);assert.equal(row.relative,null);
+});

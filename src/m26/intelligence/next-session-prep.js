@@ -1,8 +1,9 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {confirmedScheduledCompletion,reusableConfirmedSummary} from '../engagement/progress-continuity.js';
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
+import {reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
-import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionCompletionDate,sessionExecutionId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
 import {isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
 import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
@@ -124,10 +125,12 @@ function sessionForPreparation(state,clientId,appointment){
   }
   return newestPublished||newestAny;
 }
-function latestExecution(state,clientId){
+function latestExecution(state,clientId,now){
+  const today=reportCivilDate(now);
+  if(!today)return null;
   return latestRecord(confirmedSessionExecutionsForClient(
     state,clientId,{requireCompleted:true,requireDate:false},
-  ),sessionExecutionDate);
+  ).filter(record=>isWithinCivilPeriod(sessionExecutionCompletionDate(record),'0001-01-01',today,now)),sessionExecutionCompletionDate);
 }
 function latestIri(state,clientId){
   return latestRecord(
@@ -325,26 +328,15 @@ function reviewReasons({progress,outcomes,feedback,session,wellbeingTrend}={}){
   for(const signal of (wellbeingTrend?.signals||[]).slice(0,2))reasons.push(Object.freeze({kind:'wellbeing-shift',label:signal.label}));
   if(Number(progress?.unconfirmedExecutions||0)>0)reasons.push(Object.freeze({kind:'data',label:'Hay ejecuciones sin confirmación que no se usan para decidir.'}));
   if(progress?.dataQuality==='limitada')reasons.push(Object.freeze({kind:'data',label:'La ventana reciente tiene evidencia limitada; evita inferencias amplias.'}));
-  return Object.freeze(reasons);
+  // Review safety and integrity before routine administrative tasks. The
+  // original ordering remains stable within each priority.
+  const priority={pain:0,wellbeing:0,'wellbeing-shift':1,'decision-overdue':2,decision:3,'session-unpublished':4,session:4,data:5};
+  return Object.freeze(reasons.sort((a,b)=>(priority[a.kind]??6)-(priority[b.kind]??6)));
 }
 
 // Life360 professional review is longitudinal follow-up, never a second IRI.
-const REVIEW_DAY_FORMAT=new Intl.DateTimeFormat('en-US',{
-  timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit',
-});
-function reviewCivilDay(value){
-  const date=safeDate(value);
-  if(!date)return null;
-  const parts=Object.fromEntries(REVIEW_DAY_FORMAT.formatToParts(date)
-    .filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
-  return parts.year+'-'+parts.month+'-'+parts.day;
-}
-function confirmedExecutionDay(record){
-  // createdAt, planned appointments and server ACK are NOT execution dates.
-  return reviewCivilDay(field(record,
-    'completedAt','completed_at','localClosedAt','local_closed_at',
-    'endedAt','ended_at','executedAt','executed_at'));
-}
+function reviewCivilDay(value){return reportCivilDate(value);}
+function confirmedExecutionDay(record){return reviewCivilDay(sessionExecutionCompletionDate(record));}
 export function buildTrainingSinceLastCoachReview(state,clientId,{now=new Date(),outcomes=null}={}){
   const owner=String(clientId||'').trim(),today=reviewCivilDay(now);
   const missing=(reason)=>Object.freeze({available:false,reason,clientId:owner,
@@ -377,10 +369,10 @@ export function buildTrainingSinceLastCoachReview(state,clientId,{now=new Date()
   const seen=new Set();
   let confirmedSessions=0,latestSessionAt=null;
   for(const execution of confirmedSessionExecutionsForClient(state,owner,{
-    requireCompleted:true,requireDate:true,
+    requireCompleted:true,requireDate:false,
   })){
     const id=sessionExecutionId(execution),day=confirmedExecutionDay(execution);
-    if(!id||seen.has(id)||!day||day<=latestReview.reviewedAt||day>today)continue;
+    if(!id||seen.has(id)||!day||day<=latestReview.reviewedAt||!isWithinCivilPeriod(sessionExecutionCompletionDate(execution),latestReview.reviewedAt,today,now))continue;
     seen.add(id);
     confirmedSessions++;
     if(!latestSessionAt||day>latestSessionAt)latestSessionAt=day;
@@ -403,7 +395,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
     ??computeProgressSummary(state,safeClientId,{now,days:28});
   const appointment=nextAppointment(state,safeClientId,now);
   const session=sessionForPreparation(state,safeClientId,appointment);
-  const execution=latestExecution(state,safeClientId);
+  const execution=latestExecution(state,safeClientId,now);
   const feedback=feedbackOf(execution);
   const outcomes=summarizeActionOutcomes(state?.collections?.m26Entities||[],safeClientId,{now});
   const sinceLastReview=buildTrainingSinceLastCoachReview(state,safeClientId,{now,outcomes});
@@ -470,7 +462,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
     lastExecution:execution?Object.freeze({
       id:idOf(execution)||null,
       sessionId:String(field(execution,'sessionId','session_id')||'').trim()||null,
-      completedAt:sessionExecutionDate(execution)||null,
+      completedAt:sessionExecutionCompletionDate(execution)||null,
       feedback,
       seriesEvidence:summarizeConfirmedSessionSets(execution),
     }):null,

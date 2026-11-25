@@ -159,3 +159,20 @@ test('Timeline 360 excludes provisional completion with a pending local command'
   assert.equal(buildClientTimeline360(source,'client-1',{now:NOW,days:90,limit:30})
     .some(row=>row.kind==='execution'),false);
 });
+
+
+test('Timeline does not expose professional reports or infer completion from ACK or creation date',()=>{
+  const s=state();
+  s.identity={role:'client'};
+  s.collections.reports.push(
+    {id:'private',clientId:'client-1',status:'publicado',audience:'coach',visibleToClient:true,publishedAt:'2026-09-05T10:00:00Z',title:'Privado contradictorio'},
+    {id:'unknown',clientId:'client-1',status:'publicado',publishedAt:'2026-09-05T10:00:00Z',title:'Visibilidad no confirmada'},
+    {id:'valid',clientId:'client-1',status:'publicado',audience:'cliente',publishedAt:'2026-09-05T10:00:00Z',title:'Visible confirmado'});
+  s.collections.sessionExecutions.push(
+    {id:'ack',clientId:'client-1',status:'completed',syncStatus:'clean',remoteConfirmedAt:'2026-09-05T10:00:00Z',title:'ACK sin fecha'},
+    {id:'summary',clientId:'client-1',status:'completed',syncStatus:'clean',summary:{completedAt:'2026-09-05T10:00:00Z'},title:'Cierre real',feedback:{pain:true,painNotes:'Contexto propio'}});
+  const rows=buildClientTimeline360(s,'client-1',{now:NOW,days:90,limit:30});
+  assert.equal(rows.some(row=>['Privado contradictorio','Visibilidad no confirmada','ACK sin fecha'].includes(row.title)),false);
+  assert.ok(rows.some(row=>row.title==='Visible confirmado'));
+  assert.match(rows.find(row=>row.executionId==='summary').detail,/Contexto propio/);
+});
