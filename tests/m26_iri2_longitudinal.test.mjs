@@ -254,3 +254,10 @@ test('longitudinal snapshots preserve missing evidence and valid zero without fa
   assert.equal(profile.comparison.headline[0].delta,2);
   assert.equal(profile.comparison.headline[0].relative,null);
 });
+
+
+test('longitudinal comparison normalizes numeric string zero without infinite relative variation',async()=>{
+ const {__iri2LongitudinalInternals:{compareMetric}}=await import('../src/m26/workflows/iri-2-longitudinal.js');
+ const row=compareMetric({id:'x',value:'0'},{id:'x',value:'2'});
+ assert.equal(row.previous,0);assert.equal(row.current,2);assert.equal(row.delta,2);assert.equal(row.relative,null);
+});

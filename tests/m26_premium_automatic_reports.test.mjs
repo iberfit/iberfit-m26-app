@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-import {buildPremiumReportPortfolio,PREMIUM_REPORT_MODEL_VERSION,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,normalizeReportDraft,premiumReportUiCandidates,installPremiumReportUi,validateReportDraft,syncPremiumReportApprovalButton} from '../src/m26/workflows/report-workflow.js';
+import {buildPremiumReportPortfolio,PREMIUM_REPORT_MODEL_VERSION,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,normalizeReportDraft,premiumReportUiCandidates,installPremiumReportUi,premiumReportNeedsRefresh,validateReportDraft,syncPremiumReportApprovalButton} from '../src/m26/workflows/report-workflow.js';
 
 const NOW=new Date('2026-09-06T12:00:00Z');
 
@@ -435,4 +435,12 @@ test('reportes periódicos incluyen contexto individual y próximos pasos según
   const noCheckin=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='monthly');
   assert.equal(noCheckin.ready,true);
   assert.match(noCheckin.recommendations,/Completar el seguimiento de bienestar/);
+});
+
+
+test('report editor ignores its own generated card and status mutations without suppressing external changes',()=>{
+ const inside={closest:()=>({})},outside={closest:()=>null};
+ assert.equal(premiumReportNeedsRefresh([{target:inside},{target:inside}]),false);
+ assert.equal(premiumReportNeedsRefresh([{target:inside},{target:outside}]),true);
+ assert.equal(premiumReportNeedsRefresh([]),false);
 });

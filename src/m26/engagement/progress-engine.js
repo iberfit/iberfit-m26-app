@@ -358,7 +358,7 @@ function executionTime(record,window){
   return safeDate(window.civilPeriod?sessionExecutionCompletionDate(record):dateOf(record))?.getTime()||0;
 }
 
-export function computeProgressSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false}={}){
+export function computeProgressSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false,reportEvidenceOnly=false}={}){
   if(!clientId)return null;
   const window=progressWindow({now,days,civilPeriod}),{start,end}=window;
   const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>withinWindow(civilPeriod?first(item,'scheduledAt','scheduled_at','startAt','start_at','date','fecha'):dateOf(item),window));
@@ -378,13 +378,10 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
       &&!executionIsConfirmed(item,blockedExecutionIds)).length
     +conflictedRows.filter(group=>group.some(record=>
       executionIsCompleted(record,{allowDatedFallback:false}))).length;
-  const completedExecutions=confirmedSessionExecutionsForClient(
-    state,
-    clientId,
-    {requireCompleted:true,requireDate:!civilPeriod},
-  )
-    .map(unwrap)
-    .filter((item)=>executionWithinWindow(item,window));
+  // Reuse the exact canonical reconciliation above rather than rebuilding
+  // the same owner/revision/conflict index for every report period.
+  const completedExecutions=executionRows.filter(item=>
+    executionIsConfirmed(item,blockedExecutionIds)&&executionIsCompleted(item));
   const verifiedAdherence=confirmedAdherenceEvidence({appointments,executions:completedExecutions});
   const adherenceEvidence=Object.freeze({
     ...verifiedAdherence,
@@ -415,13 +412,13 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
       })))
     :Object.freeze([]);
   const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window)).sort(byDateDesc);
-  const wearable=summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
+  const wearable=reportEvidenceOnly?null:summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
   const checkinSeries=checkins.map(checkinValues);
-  const iriBaselineRecordValue=iriBaselineRecord(state,clientId);
+  const iriBaselineRecordValue=reportEvidenceOnly?null:iriBaselineRecord(state,clientId);
   const iri=iriBaselineRecordValue?[unwrap(iriBaselineRecordValue)]:[];
   const iriCoverage=iri.map(iriDomainCoverage);
   const iriDelta=null;
-  const iriBaseline=iriBaselineProgressSummary(state,clientId);
+  const iriBaseline=reportEvidenceOnly?null:iriBaselineProgressSummary(state,clientId);
   const evolution=iriBaseline;
   const iri2=iriBaseline;
   const sortedExecutions=[...completedExecutions].sort((a,b)=>executionTime(b,window)-executionTime(a,window));

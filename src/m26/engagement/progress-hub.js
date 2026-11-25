@@ -72,7 +72,7 @@ function trendEvidence(memories=[],{loadDirectionForExercise=null}={}){
 // Report evidence is computed only for the declared civil period. Reuse the
 // same canonical progress and exercise comparators as the interactive hub.
 export function buildPeriodProgressEvidence(state,clientId,{now,days,executions=[]}={}){
-  const summary=computeProgressSummary(state,clientId,{now,days,civilPeriod:true});
+  const summary=computeProgressSummary(state,clientId,{now,days,civilPeriod:true,reportEvidenceOnly:true});
   if(!summary)return Object.freeze([]);
   const scoped={...state,collections:{...state.collections,sessionExecutions:executions.map(record=>{
     const completion=sessionExecutionCompletionDate(record);

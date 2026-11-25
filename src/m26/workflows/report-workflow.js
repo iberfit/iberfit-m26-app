@@ -37,7 +37,7 @@ function timestamp(date){return date?new Date(`${date}T00:00:00Z`).getTime():NaN
 // The canonic execution table may store its actual date inside summary.completedAt.
 function executionDate(record){return reportCivilDate(sessionExecutionCompletionDate(record));}
 function sortNewest(records,dateOf=recordDate){return [...records].sort((a,b)=>(timestamp(dateOf(b))||0)-(timestamp(dateOf(a))||0));}
-function uniqueConfirmedExecutions(records){const seen=new Set();return [...records].sort((a,b)=>(timestamp(executionDate(b))||0)-(timestamp(executionDate(a))||0)||(parseDateValue(sessionExecutionCompletionDate(b))?.getTime()||0)-(parseDateValue(sessionExecutionCompletionDate(a))?.getTime()||0)).filter((record)=>{const id=sessionExecutionId(record);if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;});}
+function uniqueConfirmedExecutions(records){const seen=new Set();return records.map(record=>({record,day:timestamp(executionDate(record))||0,instant:parseDateValue(sessionExecutionCompletionDate(record))?.getTime()||0})).sort((a,b)=>b.day-a.day||b.instant-a.instant).filter(({record})=>{const id=sessionExecutionId(record);if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;}).map(({record})=>record);}
 function dateOffset(endDate,days){const time=timestamp(endDate);if(!Number.isFinite(time))return null;return new Date(time-(Math.max(1,days)-1)*DAY_MS).toISOString().slice(0,10);}
 function inWindow(record,start,end){const date=executionDate(record);return Boolean(date&&date>=start&&date<=end);}
 function confirmedIri(record){const status=String(recordValue(record,'status','estado')||'').toLowerCase();return Boolean(recordValue(record,'firstSessionCompletedAt','first_session_completed_at'))||/(?:complet|confirmad|approved|aprob)/i.test(status);}
@@ -50,7 +50,8 @@ function confirmedActivitySeries(executions,start,end,spanDays){
   if(!start||!end||!Number.isInteger(spanDays)||spanDays<1)return Object.freeze([]);
   const last=timestamp(end),firstDate=timestamp(start);
   if(!Number.isFinite(last)||!Number.isFinite(firstDate)||last<firstDate)return Object.freeze([]);
-  const dated=executions.map(executionDate).filter(date=>date&&date>=start&&date<=end);
+  const counts=new Map();
+  for(const record of executions){const date=executionDate(record);if(!date||date<start||date>end)continue;const bucket=Math.floor((timestamp(date)-firstDate)/(spanDays*DAY_MS));counts.set(bucket,(counts.get(bucket)||0)+1);}
   const buckets=[];
   for(let since=firstDate;since<=last;since+=spanDays*DAY_MS){
     const until=Math.min(last,since+(spanDays-1)*DAY_MS);
@@ -58,7 +59,7 @@ function confirmedActivitySeries(executions,start,end,spanDays){
     const toDate=new Date(until).toISOString().slice(0,10);
     buckets.push(Object.freeze({
       from:fromDate,to:toDate,
-      count:dated.filter(date=>date>=fromDate&&date<=toDate).length,
+      count:counts.get(buckets.length)||0,
     }));
   }
   return Object.freeze(buckets);
@@ -191,7 +192,7 @@ export function premiumReportUiCandidates(state,role,clientId,options={}){const 
 function premiumEvidenceSignature(candidate){return JSON.stringify({modelVersion:PREMIUM_REPORT_MODEL_VERSION,id:candidate?.id||null,assessmentId:candidate?.id==='iri'?(candidate?.assessmentId||null):null,assessmentRevision:candidate?.id==='iri'?normalizedRevision(candidate?.assessmentRevision):null,sourceType:candidate?.sourceType||null,sourceId:candidate?.sourceId||null,periodStart:candidate?.periodStart||null,periodEnd:candidate?.periodEnd||null,evidence:(candidate?.evidence||[]).map((row)=>[row.label,row.text,row.source,row.quality]),activitySeries:(candidate?.activitySeries||[]).map(row=>[row.from,row.to,row.count])});}
 function premiumPortfolioSignature(portfolio){return JSON.stringify((portfolio||[]).map((candidate)=>[candidate.id,candidate.ready,candidate.periodStart,candidate.periodEnd,candidate.reason,premiumEvidenceSignature(candidate)]));}
 const PREMIUM_REPORT_UI_STYLE_ID='m26-premium-report-ui-style';
-function browserReportContext(scope=globalThis){const app=scope?.__IBERFIT_M26_APP__;const state=app?.getState?.()||null;const role=String(state?.identity?.role||'').trim().toLowerCase();const clientId=role==='client'?state?.identity?.clientId:state?.selectedClientId;return {state,role,clientId:String(clientId||'').trim()};}
+function browserReportContext(scope=globalThis){const app=scope?.__IBERFIT_M26_APP__;const state=app?.getRenderSnapshot?.()||app?.getState?.()||null;const role=String(state?.identity?.role||'').trim().toLowerCase();const clientId=role==='client'?state?.identity?.clientId:state?.selectedClientId;return {state,role,clientId:String(clientId||'').trim()};}
 function reportFormValue(form,name){return String(form?.elements?.namedItem?.(name)?.value||'').trim();}
 function setReportFormValue(form,name,value){const field=form?.elements?.namedItem?.(name);if(!field)return false;field.value=value==null?'':String(value);const EventCtor=form?.ownerDocument?.defaultView?.Event||globalThis.Event;if(typeof EventCtor==='function')field.dispatchEvent?.(new EventCtor('input',{bubbles:true}));return true;}
 function premiumMetadataFromActiveEditor(draft,scope=globalThis){
@@ -252,6 +253,11 @@ function prefillPremiumReport(form,candidate){
   // Switching candidates always starts a new report identity; never reuse an older report ID.
   setReportFormValue(form,'entityId','');
   setReportFormValue(form,'reportType',candidate.id);setReportFormValue(form,'premiumEvidenceSignature',premiumEvidenceSignature(candidate));setReportFormValue(form,'assessmentId',candidate.assessmentId);setReportFormValue(form,'title',candidate.title);setReportFormValue(form,'periodStart',candidate.periodStart);setReportFormValue(form,'periodEnd',candidate.periodEnd);setReportFormValue(form,'summary',candidate.summary);setReportFormValue(form,'conclusions',candidate.conclusions);setReportFormValue(form,'recommendations',candidate.recommendations);setReportFormValue(form,'coachComment','');const review=form.elements?.namedItem?.('reviewAccepted');if(review)review.checked=false;const status=form.ownerDocument?.querySelector?.('[data-workflow-status="report"]');if(status){status.textContent=`${candidate.label} preparado con evidencia canónica. Revisa el contenido y añade tu comentario antes de aprobar.`;status.dataset.status='info';}syncPremiumReportApprovalButton(form);form.scrollIntoView?.({behavior:'smooth',block:'start'});form.querySelector?.('[name="summary"]')?.focus?.({preventScroll:true});
+}
+export function premiumReportNeedsRefresh(records=[]){
+  // Child mutations inside the generated cards or the report status cannot
+  // change canonical evidence. Structural changes elsewhere still refresh.
+  return records.some(record=>!record.target?.closest?.('[data-premium-report-candidates],[data-workflow-status="report"]'));
 }
 export function installPremiumReportUi({scope=globalThis,root=scope?.document?.querySelector?.('#app')}={}){
   const document=scope?.document;if(!document?.createElement||!root?.addEventListener||typeof scope.MutationObserver!=='function')return null;if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__)return scope.__IBERFIT_M26_PREMIUM_REPORT_UI__;ensurePremiumReportStyles(document);let destroyed=false,selectionVersion=0;
@@ -338,8 +344,14 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     }
     prefillPremiumReport(form,fresh);
   }
-  const observer=new scope.MutationObserver(()=>enhance());observer.observe(root,{childList:true,subtree:true});root.addEventListener('click',onClick);for(const delay of [0,250,1000,2500])scope.setTimeout?.(()=>enhance(),delay);
-  const api=Object.freeze({refresh:enhance,destroy(){destroyed=true;observer.disconnect();root.removeEventListener('click',onClick);if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__===api)scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=null;}});scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=api;return api;
+  // Own card/status changes cannot invalidate the portfolio. Coalesce external
+  // mutations into one refresh, while clicks and approval always use fresh data.
+  let scheduled=false;
+  const schedule=()=>{if(destroyed||scheduled)return;scheduled=true;const run=()=>{scheduled=false;if(!destroyed)enhance();};if(typeof scope.queueMicrotask==='function')scope.queueMicrotask(run);else Promise.resolve().then(run);};
+  const observer=new scope.MutationObserver(records=>{if(premiumReportNeedsRefresh(records))schedule();});
+  observer.observe(root,{childList:true,subtree:true});root.addEventListener('click',onClick);
+  const startupTimers=[0,250,1000,2500].map(delay=>scope.setTimeout?.(schedule,delay));
+  const api=Object.freeze({refresh:enhance,destroy(){destroyed=true;observer.disconnect();for(const timer of startupTimers)if(timer!=null)scope.clearTimeout?.(timer);root.removeEventListener('click',onClick);if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__===api)scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=null;}});scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=api;return api;
 }
 if(typeof globalThis.document!=='undefined'&&typeof globalThis.MutationObserver==='function')globalThis.queueMicrotask?.(()=>{try{installPremiumReportUi();}catch{}});
 
@@ -384,7 +396,7 @@ export function normalizeReportDraft(draft={}){
     }
     if(type!=='iri'&&Array.isArray(draft.activitySeries)){
       const series=draft.activitySeries;
-      if(series.length>13||series.some(row=>!validDate(row?.from)||!validDate(row?.to)||row.from>row.to||!Number.isInteger(row?.count)||row.count<0))
+      if(series.length>13||series.some((row,index)=>!validDate(row?.from)||!validDate(row?.to)||row.from>row.to||row.from<normalized.periodStart||row.to>normalized.periodEnd||!Number.isSafeInteger(row?.count)||row.count<0||(index>0&&series[index-1].to>=row.from)))
         throw new Error('M44_REPORT_ACTIVITY_SERIES_INVALID');
       normalized.activitySeries=series.map(row=>({from:row.from,to:row.to,count:row.count}));
     }

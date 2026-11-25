@@ -201,8 +201,10 @@ function compareMetric(previous,current){
     comparable:false,
     reason:'protocol_or_value_not_comparable',
   });
-  const delta=Number((current.value-previous.value).toFixed(3));
-  const relative=previous.value===0?null:Number(((delta/Math.abs(previous.value))*100).toFixed(1));
+  const previousValue=finite(previous.value),currentValue=finite(current.value);
+  const delta=Number((currentValue-previousValue).toFixed(3));
+  const ratio=previousValue===0?null:(delta/Math.abs(previousValue))*100;
+  const relative=Number.isFinite(ratio)?Number(ratio.toFixed(1)):null;
   const trend=Math.abs(delta)<0.0005?'stable':delta>0?'up':'down';
   return Object.freeze({
     id:current.id,
@@ -210,8 +212,8 @@ function compareMetric(previous,current){
     unit:current.unit,
     domain:current.domain,
     comparable:true,
-    previous:previous.value,
-    current:current.value,
+    previous:previousValue,
+    current:currentValue,
     delta,
     relative,
     trend,
