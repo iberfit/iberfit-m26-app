@@ -131,9 +131,26 @@ test('U74 real Client touch UI: signed date, pause, resume, each series, finish 
  for(let i=0;i<f.stepsExpected;i++){
   const record=player.locator('[data-iberdates-action="u60-record"]');
   await expect(record,'each set needs its own real server ACK').toBeVisible({timeout:25000});
-  await player.locator('[name="u60Reps"]').fill('8');
-  await player.locator('[name="u60Load"]').fill('20');
-  await player.locator('[name="u60Rpe"]').fill('7');
+  // The signed candidate is not guaranteed to be a strength exercise.
+  // Use the actual primary fields for each exercise, never a hidden
+  // supplementary metric or a forced click. Keep all real ACK assertions.
+  const entry=player.locator('[data-u60-entry]');
+  const primary=name=>entry.locator(':scope > label > input[name="'+name+'"]');
+  const samples={u60Reps:'8',u60Load:'20',u60Seconds:'60',
+    u60DistanceKm:'0.2',u60DistanceM:'100',u60Rir:'2',
+    u60Pace:'5:00',u60PaceSwim:'1:00'};
+  const bothDistances=await primary('u60DistanceKm').count()&&await primary('u60DistanceM').count();
+  let observed=0;
+  for(const [name,value] of Object.entries(samples)){
+   if(bothDistances&&['u60DistanceKm','u60DistanceM'].includes(name))continue;
+   const field=primary(name);
+   if(!await field.count())continue;
+   await expect(field).toBeVisible({timeout:10000});
+   await field.fill(value,{timeout:10000});
+   observed++;
+  }
+  expect(observed,'each synthetic set records at least one primary metric').toBeGreaterThan(0);
+  await primary('u60Rpe').fill('7',{timeout:10000});
   await expect(record).toBeEnabled({timeout:25000});
   await record.click();
   // Playwright.click resolves before the async server CAS finishes. A

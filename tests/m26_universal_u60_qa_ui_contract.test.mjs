@@ -795,6 +795,10 @@ test('Dated observation fields are sport-first, never discarded or duplicated',(
   }
   const mixed=datedObservationMetricGroups({prescription:{measurementProfile:'intervals',reps:'8',plannedLoad:'20 kg'}},{name_es:'Carrera'});
   assert.ok(mixed.primary.includes('u60Reps')&&mixed.primary.includes('u60Load'));
+  const range={prescription:{measurementProfile:'intervals',reps:'8–12'}};
+  assert.ok(datedObservationMetricGroups(range,{name_es:'Carrera'}).primary.includes('u60Reps'));
+  assert.equal(plannedDatedSetDraft(range).reps,undefined,'ranges are not copied as actual reps');
+  assert.ok(!datedObservationMetricGroups({prescription:{reps:'30 s'}},{name_es:'Plancha'}).primary.includes('u60Reps'));
 });
 
 test('Dated supplementary observation is visible again when restoring an invalid draft',()=>{

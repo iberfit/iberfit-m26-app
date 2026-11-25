@@ -201,9 +201,11 @@ export function datedObservationMetricGroups(step,exercise={}){
   else if(profile.kind==='isometric')primary=['u60Seconds','u60Load'];
   else if(profile.kind==='mobility')primary=['u60Reps','u60Seconds'];
   else primary=['u60Reps','u60Load','u60Rir'];
-  // Explicit planned reps or load must remain visible even for mixed profiles.
+  // A numeric rep range is a prescription too, but is never copied as an
+  // observed value. Time-based reps such as "30 s" are not a repetition count.
   const planned=plannedDatedSetDraft(step);
-  if(planned.reps!==undefined&&!primary.includes('u60Reps'))primary.push('u60Reps');
+  const repRange=/^\d{1,5}\s*[-–]\s*\d{1,5}$/u.test(String(step?.prescription?.reps??'').trim());
+  if((planned.reps!==undefined||repRange)&&!primary.includes('u60Reps'))primary.push('u60Reps');
   if(planned.load!==undefined&&!primary.includes('u60Load'))primary.push('u60Load');
   return Object.freeze({primary:Object.freeze(primary),
     additional:Object.freeze(Object.keys(DATED_OBSERVATION_MARKUP).filter(name=>!primary.includes(name)))});
