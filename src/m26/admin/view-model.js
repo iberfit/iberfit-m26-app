@@ -5,7 +5,7 @@ import {deriveClientExperience,experienceNextAction} from '../experience/client-
 import {hasTrainingService,trainingServiceActive,trainingServiceStatusFrom} from '../domain/training-service.js';
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {deriveAdaptiveExperience} from '../experience/adaptive-experience.js';
-import {deriveAdminCommandCenter} from './command-center.js';
+import {coachCapacityEvidence,deriveAdminCommandCenter} from './command-center.js';
 import {deriveAdminOperationsTriage} from './operation-triage.js';
 import {deriveAdminAuditTimeline} from './audit-experience.js';
 import {readIberfitExperiencePreferences} from '../ui/preferences.js';
@@ -286,9 +286,7 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
       .sort((a,b)=>(a.timestamp??Number.MAX_SAFE_INTEGER)-(b.timestamp??Number.MAX_SAFE_INTEGER));
     const upcomingSessions=Object.freeze(sessions.filter((session)=>session.timestamp!=null&&session.timestamp>=safeNow.getTime()&&!/cancel/i.test(session.status)).slice(0,8));
     const recentSessions=Object.freeze([...sessions].filter((session)=>session.timestamp!=null&&session.timestamp<safeNow.getTime()).sort((a,b)=>(b.timestamp??0)-(a.timestamp??0)).slice(0,6));
-    const capacityHours=Number.isFinite(Number(coach?.capacityHours))?Number(coach.capacityHours):null;
-    const assignedHours=Number.isFinite(Number(coach?.assignedHours))?Number(coach.assignedHours):null;
-    const loadPercent=capacityHours&&assignedHours!=null?Math.max(0,Math.round((assignedHours/capacityHours)*100)):null;
+    const {capacityHours,assignedHours,loadPercent}=coachCapacityEvidence(coach);
     const launchJourney=deriveCoachLaunchJourney({coach,user,assignments:ownAssignments,planningSessions:coachPlanningSessions,sessionExecutions:coachExecutions});
     return Object.freeze({
       id:recordId(coach?.id||user?.id||coachId),

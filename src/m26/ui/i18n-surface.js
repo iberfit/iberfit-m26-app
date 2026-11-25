@@ -5,6 +5,9 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  ['Citas cumplidas','Appointments fulfilled','Rendez-vous honorés','Marcações cumpridas'],
+  ['El estado de atención de la cartera aún no está disponible.','The portfolio review status is not available yet.','Le statut de suivi du portefeuille n’est pas encore disponible.','O estado de acompanhamento da carteira ainda não está disponível.'],
+  ['Horas asignadas sin confirmar','Assigned hours not confirmed','Heures attribuées non confirmées','Horas atribuídas por confirmar'],
   // Administrative intake does not implicitly grant Coach training.
   ['Crear expediente sin IRI','Create record without IRI','Créer le dossier sans IRI','Criar processo sem IRI'],
   ['Crea el expediente sin completar ahora el IRI; el entrenamiento requiere asignar un Coach.','Create the record without completing IRI now; training requires assigning a Coach.','Créez le dossier sans terminer le diagnostic IRI maintenant ; l’entraînement nécessite l’affectation d’un Coach.','Crie o processo sem realizar agora o IRI; o treino requer a atribuição de um Coach.'],

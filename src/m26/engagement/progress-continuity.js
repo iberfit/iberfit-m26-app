@@ -2,6 +2,20 @@ import {computeProgressSummary} from './progress-engine.js';
 
 export const M26_ADHERENCE_WINDOWS=Object.freeze([7,28,90]);
 
+/** Presentation contract: explicit booked attendance is not total activity. */
+export function confirmedScheduledCompletion(summary){
+  const planned=summary?.plannedSessions,completed=summary?.scheduledCompletedSessions;
+  const adherence=summary?.adherence;
+  if(!Number.isSafeInteger(planned)||planned<=0||!Number.isSafeInteger(completed)||completed<0||completed>planned
+    ||typeof adherence!=='number'||!Number.isFinite(adherence)||adherence<0||adherence>1
+    ||Math.abs(adherence-completed/planned)>0.00050001)return null;
+  return Object.freeze({planned,completed,adherence});
+}
+export function scheduledCompletionCopy(summary){
+  const counts=confirmedScheduledCompletion(summary);
+  return counts?`Citas cumplidas: ${counts.completed} / ${counts.planned}`:'Sin base suficiente para calcular adherencia';
+}
+
 function normalizedWindows(windows){
   const source=Array.isArray(windows)&&windows.length?windows:M26_ADHERENCE_WINDOWS;
   const values=[];

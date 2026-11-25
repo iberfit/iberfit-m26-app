@@ -19,6 +19,7 @@ import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {progressSummaryHasEvolutionEvidence} from '../engagement/progress-engine.js';
+import {confirmedScheduledCompletion,scheduledCompletionCopy} from '../engagement/progress-continuity.js';
 import {renderIberfitIcon} from '../design/icons.js';
 import {renderAthleticClientEvidence} from '../design/athletic-client-evidence.js';
 import {renderPosthogConsentPanel} from '../analytics/posthog-manual.js';
@@ -288,16 +289,17 @@ function renderCoachHoyRoute(vm) {
     return clients.find((item)=>String(item?.id||'').trim()===clientId)||null;
   };
 
+  const attentionVerified=Number.isSafeInteger(cockpit?.attentionCount)&&cockpit.attentionCount>=0;
   let primary={
-    tone:'success',
-    eyebrow:'Todo al día',
-    title:'Tu cartera está al día',
+    tone:attentionVerified?'success':'neutral',
+    eyebrow:attentionVerified?'Todo al día':'Seguimiento',
+    title:attentionVerified?'Tu cartera está al día':'Revisar seguimiento',
     copy:clients.length
-      ?'Continúa con la próxima sesión o prepara trabajo futuro.'
+      ?attentionVerified?'Continúa con la próxima sesión o prepara trabajo futuro.':'El estado de atención de la cartera aún no está disponible.'
       :'Cuando tengas clientes asignados, su siguiente acción aparecerá aquí.',
-    area:clients.length?'agenda':'clientes',
+    area:clients.length&&attentionVerified?'agenda':'clientes',
     clientId:null,
-    label:clients.length?'Abrir agenda':'Abrir clientes',
+    label:clients.length&&attentionVerified?'Abrir agenda':'Abrir clientes',
   };
 
   if(vm.operations?.conflicts){
@@ -402,12 +404,12 @@ function renderCoachHoyRoute(vm) {
       <div class="m26-stack">${coachPriorityCard(heroAttentionItem)}</div>
     </details>`:'';
 
-  const attentionCount=Number(cockpit?.attentionCount||0);
-  const attentionStatus=attentionCount
+  const attentionCount=attentionVerified?cockpit.attentionCount:null;
+  const attentionStatus=attentionCount===null?'Sin datos':attentionCount
     ?countLabel(attentionCount,'requiere atención','requieren atención')
     :'Cartera al día';
   const portfolioCount=Number(cockpit?.totalClients??clients.length);
-  const attentionMeter=Number.isFinite(portfolioCount)&&portfolioCount>0&&Number.isFinite(attentionCount)&&attentionCount>=0
+  const attentionMeter=attentionVerified&&Number.isFinite(portfolioCount)&&portfolioCount>0
     ?`<progress max="${escapeHtml(portfolioCount)}" value="${escapeHtml(Math.min(attentionCount,portfolioCount))}" aria-label="${escapeHtml(attentionStatus)}">${escapeHtml(attentionStatus)}</progress>`
     :'';
   const operationStatus=vm.operations?.pending
@@ -446,8 +448,12 @@ function renderCoachHoyRoute(vm) {
           <div><strong>Cartera al día</strong><small>Sin revisiones prioritarias.</small></div>
         </div>`;
 
+  // Put clients with upcoming appointments first, retaining the original order for everyone else.
+  const clientById=new Map(clients.filter(item=>item?.id).map(item=>[String(item.id),item]));
+  const scheduledClientIds=new Set(upcoming.map(item=>String(item?.clientId||'')).filter(id=>clientById.has(id)));
+  const quickClients=[...Array.from(scheduledClientIds,id=>clientById.get(id)),...clients.filter(item=>!scheduledClientIds.has(String(item?.id||'')))];
   const clientsBody=clients.length
-    ?clients.slice(0,6).map(coachHomeClientCard).join('')
+    ?quickClients.slice(0,6).map(coachHomeClientCard).join('')
     :`<div class="m26-coach-home-clear">
         <span aria-hidden="true">+</span>
         <div><strong>Sin clientes asignados</strong><small>Tu cartera aparecerá aquí.</small></div>
@@ -1397,7 +1403,7 @@ export function renderClientsRoute(vm) {
             const adherence=Number.isFinite(follow.adherence)?`${Math.round(follow.adherence*100)}% adherencia`:'Adherencia sin dato';
             const reason=follow.topAlert?.title||(
               follow.plannedSessions>0
-                ? `${follow.completedSessions} de ${follow.plannedSessions} sesiones completadas`
+                ? scheduledCompletionCopy(follow)
                 : 'Sin sesiones planificadas en la ventana'
             );
             return `<button type="button" class="m26-followup-row is-${escapeHtml(level)}" data-m26-select-client="${escapeHtml(item.id)}" aria-label="Abrir seguimiento de ${escapeHtml(item.name)}">
@@ -2919,10 +2925,7 @@ export function renderExpedienteRoute(vm) {
         :'Sin RPE confirmado'
       :'No existe una ejecución confirmada en la ventana';
 
-  const adherenceNote=
-    Number.isFinite(progress.adherence)
-      ?`${progress.completedSessions} completadas sobre ${progress.plannedSessions} registradas en el periodo`
-      :'Sin base suficiente para calcular adherencia';
+  const adherenceNote=scheduledCompletionCopy(progress);
 
   const volumeTrend=
     Number.isFinite(progress.volumeDelta)
@@ -3736,7 +3739,7 @@ export function clientProgressPresentationStage(summary,{timelineLength=0,exerci
   const completed=Math.max(0,Number(summary.completedSessions||0));
   const checkins=Math.max(0,Number(summary.checkins||0));
   const wearableDays=Math.max(0,Number(summary.wearable?.daysWithData||0));
-  if(completed===0&&checkins===0&&wearableDays===0&&timelineLength===0&&exerciseCount===0){
+  if(completed===0&&checkins===0&&wearableDays===0&&timelineLength===0&&exerciseCount===0&&!confirmedScheduledCompletion(summary)){
     return Object.freeze({
       stage:'starting',
       noHistory:true,
@@ -3790,16 +3793,15 @@ export function clientProgressPresentationStage(summary,{timelineLength=0,exerci
 
 function renderClientProgressStage(vm,stage){
   const summary=vm.summary||{};
-  const adherence=Number.isFinite(summary.adherence)
-    ?formatPercent(summary.adherence)
-    :null;
+  const scheduled=confirmedScheduledCompletion(summary);
+  const adherence=scheduled?formatPercent(scheduled.adherence):null;
   const milestones=[
     ['Sesiones confirmadas',Number(summary.completedSessions||0)],
     ['Registros de bienestar',Number(summary.checkins||0)],
     // A provisional IRI row is not a confirmed initial diagnostic baseline.
     ['Punto de partida IRI',summary.iriBaseline?.baselineAssessmentId?'Confirmado':'Sin diagnóstico confirmado'],
   ];
-  if(adherence!==null&&Number(summary.plannedSessions||0)>0){
+  if(adherence!==null){
     milestones.push(['Continuidad confirmada',adherence]);
   }
   return `<section class="m26-client-progress-stage is-${escapeHtml(stage.stage)}${stage.noHistory?' is-empty':''}" data-client-progress-stage="${escapeHtml(stage.stage)}" aria-labelledby="m26-client-progress-stage-title">
@@ -3830,7 +3832,8 @@ export function renderProgressRoute(vm){
   if(!summary)return `<div class="m26-route">${clientContextBar}${emptyState('Sin expediente disponible','No existe un cliente autorizado para calcular progreso.')}</div>`;
   const timeline=vm.timeline.length?vm.timeline.map(timelineItem).join(''):emptyState('Sin eventos de progreso','Los datos ausentes se mantienen como ausentes y no se convierten en cero.');
   const adherenceDays=Number.isInteger(summary.days)&&summary.days>0?summary.days:28;
-  const adherenceVisual=Number.isFinite(summary.adherence)?`<section class="m26-panel m26-progress-overview" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>${formatPercent(summary.adherence)}</strong></div><meter min="0" max="1" value="${escapeHtml(Math.max(0,Math.min(1,summary.adherence)))}">${formatPercent(summary.adherence)}</meter><small>${escapeHtml(summary.completedSessions)} de ${escapeHtml(summary.plannedSessions)} sesiones confirmadas en los últimos ${escapeHtml(adherenceDays)} días.</small></section>`:'';
+  const scheduledCompletion=confirmedScheduledCompletion(summary);
+  const adherenceVisual=scheduledCompletion?`<section class="m26-panel m26-progress-overview" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>${formatPercent(scheduledCompletion.adherence)}</strong></div><meter min="0" max="1" value="${escapeHtml(scheduledCompletion.adherence)}">${formatPercent(scheduledCompletion.adherence)}</meter><small>${escapeHtml(scheduledCompletionCopy(summary))} · ${escapeHtml(adherenceDays)} días</small></section>`:'';
   const wearable=summary.wearable||{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'};
   const unconfirmedCount=Number(summary.unconfirmedExecutions||0);
   const volumeTrend=Number.isFinite(summary.volumeDelta)
@@ -3914,7 +3917,7 @@ export function renderProgressRoute(vm){
     ${professionalProgressNav}
     ${renderPeriodizationBoard(vm.periodization,{role:vm.role,compact:true})}
     <section id="m26-progress-summary" data-m26-progress-section="summary" class="m26-stat-grid">
-      ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
+      ${stat('Adherencia',formatPercent(scheduledCompletion?.adherence),scheduledCompletionCopy(summary))}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
       ${stat('Volumen medio',metricValue(summary.volume),'Carga × repeticiones cuando existe')}
       ${stat('Diagnóstico IRI',summary.iriBaseline?.baselineAssessmentId?'Punto de partida confirmado':'Sin diagnóstico confirmado','Punto de partida inicial · el seguimiento longitudinal se presenta por separado')}
@@ -4760,7 +4763,7 @@ function renderNextSessionPreparation(prep,{canStartSession=true,role='coach',pu
       <article>
         <span>Adherencia · 28 días</span>
         <strong>${escapeHtml(adherence)}</strong>
-        <small>${escapeHtml(`${prep.progress.completedSessions} completadas de ${prep.progress.plannedSessions} planificadas`)}</small>
+        <small>${escapeHtml(scheduledCompletionCopy(prep.progress))}</small>
       </article>
       <article>
         <span>Calidad de contexto</span>

@@ -284,7 +284,7 @@ test('Actividad prioriza bienestar y hábitos; dispositivos quedan compactos y s
   assert.match(activity,/Sin datos de dispositivos confirmados/);assert.match(activity,/El entrenador recibe únicamente resúmenes confirmados/);
   assert.doesNotMatch(activity,/OAuth|canje de tokens|backend|Arquitectura preparada/);
   assert.doesNotMatch(activity,/Función disponible:/);
-  const progress=renderProgressRoute({summary:{days:28,dataQuality:'limitada',checkins:1,adherence:.5,completedSessions:2,plannedSessions:4,averageRpe:7,volume:120,iriCurrent:null,iriDelta:null,checkinAverage:{energy:8,sleep:7,stress:3,pain:1},wearable:{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'}},timeline:[],alerts:[],signal:{label:'Seguimiento',level:'neutral'}});
+  const progress=renderProgressRoute({summary:{days:28,dataQuality:'limitada',checkins:1,adherence:.5,completedSessions:5,scheduledCompletedSessions:2,plannedSessions:4,averageRpe:7,volume:120,iriCurrent:null,iriDelta:null,checkinAverage:{energy:8,sleep:7,stress:3,pain:1},wearable:{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'}},timeline:[],alerts:[],signal:{label:'Seguimiento',level:'neutral'}});
   assert.match(progress,/Resumen visual de adherencia/);assert.match(progress,/<meter min="0" max="1" value="0.5"/);assert.match(progress,/Promedio de bienestar/);assert.match(progress,/Actividad de dispositivo · sin datos confirmados/);
 });
 

@@ -701,6 +701,7 @@ function buildClientFollowUpSummary(summary,state,now){
       }):null,
       adherence:trainingActive?(Number.isFinite(progress?.adherence)?progress.adherence:null):null,
       completedSessions:trainingActive?Number(progress?.completedSessions||0):null,
+      scheduledCompletedSessions:trainingActive?progress?.scheduledCompletedSessions??null:null,
       plannedSessions:trainingActive?Number(progress?.plannedSessions||0):null,
       dataQuality:trainingActive?(progress?.dataQuality||null):null,
     }),

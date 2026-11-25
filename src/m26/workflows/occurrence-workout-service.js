@@ -21,7 +21,7 @@ function uid(value){
 export function datedCompletionSummary(execution){
   if(!execution||!['completed','completada'].includes(execution.status))return null;
   const queue=execution.queue;
-  if(!Array.isArray(queue)||!queue.length||queue.some(item=>!item?.exerciseId||
+  if(!Array.isArray(queue)||!queue.length||queue.length>500||queue.some(item=>!item?.exerciseId||
     !Number.isInteger(item.sets)||item.sets<1||item.sets>100))return null;
   let total=0,recorded=0,omitted=0;
   for(const item of queue){
@@ -30,11 +30,14 @@ export function datedCompletionSummary(execution){
       const step={...item,setNumber:number,totalSets:item.sets};
       const result=executionResultForStep(execution,step,number);
       const skipped=skippedSetForStep(execution,step,number);
-      if(result&&typeof result==='object'&&!Array.isArray(result)&&
+      const hasResult=result&&typeof result==='object'&&!Array.isArray(result)&&
         [result.reps,result.seconds,result.distanceKm,result.distanceM,result.intervalsCompleted].some(value=>
           (typeof value==='number'||typeof value==='string'&&value.trim()!=='')&&
-          Number.isFinite(Number(value))&&Number(value)>=0))recorded++;
-      else if(!result&&skipped&&typeof skipped==='object'&&!Array.isArray(skipped))omitted++;
+          Number.isFinite(Number(value))&&Number(value)>=0);
+      const hasSkip=skipped&&typeof skipped==='object'&&!Array.isArray(skipped);
+      if(hasResult&&hasSkip)return null;
+      if(hasResult)recorded++;
+      else if(!result&&hasSkip)omitted++;
     }
   }
   const feedback=execution.feedback||{};

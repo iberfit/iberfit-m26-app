@@ -450,6 +450,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
     progress:Object.freeze({
       plannedSessions:Number(progress?.plannedSessions||0),
       completedSessions:Number(progress?.completedSessions||0),
+      scheduledCompletedSessions:progress?.scheduledCompletedSessions??null,
       adherence:finite(progress?.adherence),
       adherencePercent,
       averageRpe:finite(progress?.averageRpe),

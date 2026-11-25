@@ -77,8 +77,8 @@ function commandPriority(item){
   return `<article class="m26-admin-priority is-${e(item.kind||'process')}"><div><p class="m26-eyebrow">${e(item.stageLabel||'Seguimiento')}</p><h3>${e(item.clientName||'Cliente')}</h3><p>${e(action.reason||'Revisión pendiente')}</p><small>${e(item.coachNames?.length?`Coach: ${item.coachNames.join(', ')}`:'Sin Coach asignado')}</small></div><button type="button" data-m26-area="${e(action.area||'admin-clientes')}">${e(action.label||'Revisar')}</button></article>`;
 }
 function coachLoadCard(item){
-  const value=item.loadPercent==null?'Sin capacidad definida':`${item.loadPercent}%`;
-  const detail=item.capacityHours==null?`${item.clientCount} clientes`:`${item.assignedHours} de ${item.capacityHours} h · ${item.clientCount} clientes`;
+  const value=item.loadPercent==null?(item.capacityHours==null||item.capacityHours<=0?'Sin capacidad definida':'Sin datos'):`${item.loadPercent}%`;
+  const detail=item.capacityHours==null||item.capacityHours<=0||item.assignedHours==null?`${item.clientCount} clientes`:`${item.assignedHours} de ${item.capacityHours} h · ${item.clientCount} clientes`;
   // A gauge is only rendered for a recorded finite load: no synthetic score
   // and no inferred availability when the capacity denominator is missing.
   const load=Number(item.loadPercent);
@@ -97,8 +97,8 @@ function coachSessionList(items=[],emptyTitle='Sin sesiones programadas'){
     :empty(emptyTitle,'La agenda del Coach no contiene sesiones visibles en este periodo.');
 }
 function coach360Card(coach={}){
-  const load=coach.loadPercent==null?'Capacidad sin definir':`${coach.loadPercent}% de carga`;
-  const hours=coach.capacityHours==null?'Horas no configuradas':`${coach.assignedHours??0} / ${coach.capacityHours} h asignadas`;
+  const load=coach.loadPercent==null?(coach.capacityHours==null||coach.capacityHours<=0?'Capacidad sin definir':'Sin datos'):`${coach.loadPercent}% de carga`;
+  const hours=coach.capacityHours==null||coach.capacityHours<=0?'Horas no configuradas':coach.assignedHours==null?'Horas asignadas sin confirmar':`${coach.assignedHours} / ${coach.capacityHours} h asignadas`;
   const initial=String(coach.name||'C').trim().slice(0,1).toUpperCase();
   const progress=coach.loadPercent==null?'':`<progress class="m26-admin-coach360-progress" max="100" value="${e(Math.min(100,Math.max(0,coach.loadPercent)))}">${e(coach.loadPercent)}%</progress>`;
   return `<details class="m26-admin-coach360" data-admin-coach-id="${e(coach.coachId||coach.id||'')}">
