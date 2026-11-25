@@ -125,3 +125,21 @@ test('Adaptive Session Context derives history only from canonical confirmed com
   assert.equal(context.evidence.historyExerciseCount,1);
   assert.equal(context.evidence.historyExposureCount,1);
 });
+
+
+test('adaptive history rejects ACK-only, future and ambiguous load data without inventing poor recovery',()=>{
+  const state=stateFixture();
+  state.collections.sessionExecutions.push(
+    execution({id:'future',completedAt:'2026-09-07T12:00:00Z',loadKg:200}),
+    {...execution({id:'ack-only',loadKg:250}),remoteConfirmedAt:'2026-09-05T12:00:00Z'},
+    {id:'ambiguous',clientId:CLIENT,status:'completed',syncStatus:'clean',completedAt:'2026-09-05T10:00:00Z',results:[{exerciseId:'bench',load:'20-30 kg',reps:false,rpe:null,rir:[]},{exerciseId:'bench',load:'50 lb'}]},
+  );
+  const context=buildAdaptiveSessionContext(state,CLIENT,{now:NOW});
+  assert.equal(context.previousLoads.squat,20);
+  assert.equal(context.previousLoads.bench,undefined);
+  assert.equal(context.performanceHistory.bench[0].totalReps,null);
+  assert.equal(context.performanceHistory.bench[0].averageRpe,null);
+  assert.equal(context.performanceHistory.bench[0].averageRir,null);
+  assert.equal(context.decision.reason,'insufficient_or_neutral_data');
+  assert.equal(context.decision.progressionAllowed,false);
+});

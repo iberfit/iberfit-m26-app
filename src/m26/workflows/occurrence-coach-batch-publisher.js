@@ -41,12 +41,13 @@ function verifyReply(reply,command){
    ||reply.remoteRevision!==command.baseRevision)
    fail('ACK_MISMATCH');
  const expected=new Set(command.payload.dates.map(row=>row.localDate));
- const seen=new Set();
+ const seen=new Set(),seenIds=new Set();
  for(const o of reply.occurrences){
    if(!o||!UUID.test(String(o.id||''))
-     ||!expected.has(o.localDate)||seen.has(o.localDate))
+     ||!expected.has(o.localDate)||seen.has(o.localDate)||seenIds.has(String(o.id).toLowerCase()))
      fail('ACK_DATES_INVALID');
    seen.add(o.localDate);
+   seenIds.add(String(o.id).toLowerCase());
  }
  return Object.freeze({...reply,localRecoveryPending:false});
 }

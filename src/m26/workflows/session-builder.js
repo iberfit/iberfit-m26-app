@@ -5,10 +5,10 @@ import {normalizeAppointmentModality} from '../domain/modality.js';
 import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile,initialExercisePrescription,metricValueValid,hasCardioPrescription} from '../exercises/measurement-profiles.js';
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
 function positiveInt(value,fallback,{min=1,max=100}={}){
-  if(value===null||value===undefined||(typeof value==='string'&&!value.trim()))return fallback;
+  if((typeof value!=='number'&&typeof value!=='string')||(typeof value==='string'&&!value.trim()))return fallback;
   const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
 function boundedNumber(value,fallback,{min=0,max=10}={}){
-  if(value===null||value===undefined||(typeof value==='string'&&!value.trim()))return fallback;
+  if((typeof value!=='number'&&typeof value!=='string')||(typeof value==='string'&&!value.trim()))return fallback;
   const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
 function text(value,fallback='',max=120){const out=String(value??fallback).trim();return out.slice(0,max)||String(fallback);}
 function optionalText(input,fallback='',max=500){
@@ -38,7 +38,7 @@ function draftSeedClientId(record){
   return String(item.clientId??item.client_id??'').trim();
 }
 function confirmedSessionDuration(value){
-  if(value===null||value===undefined||value===''||typeof value==='boolean')return null;
+  if((typeof value!=='number'&&typeof value!=='string')||(typeof value==='string'&&!value.trim()))return null;
   const number=Number(value);
   return Number.isInteger(number)&&number>=10&&number<=240?number:null;
 }
@@ -75,7 +75,7 @@ export function sessionDraftDefaultsFromState(state,clientId,{now=new Date()}={}
 }
 export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50,deliveryModality='guiada_en_app'}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');const delivery=normalizeAppointmentModality(deliveryModality);if(!['presencial','guiada_en_app'].includes(delivery))throw new Error('M28_SESSION_DELIVERY_INVALID');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),deliveryModality:delivery,status:'draft',previewAccepted:false,blocks:[],revision:0};}
 function hasObservedQuantity(value,{integer=false}={}){
-  if(value===undefined||value===null||String(value).trim()==='')return false;
+  if((typeof value!=='number'&&typeof value!=='string')||(typeof value==='string'&&!value.trim()))return false;
   const quantity=Number(value);
   return Number.isFinite(quantity)&&quantity>=0&&(!integer||Number.isInteger(quantity));
 }

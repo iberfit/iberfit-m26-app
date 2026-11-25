@@ -10,17 +10,17 @@ export const SESSION_TEMPLATE_MAX_VERSIONS=5;
 const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
 
 function text(value,max=160){return String(value??'').trim().slice(0,max);}
-function positiveInt(value,fallback,{min=1,max=1000}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
-function number(value,fallback,{min=0,max=10}={}){const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
+function numeric(value){if(typeof value!=='number'&&typeof value!=='string')return null;if(typeof value==='string'&&!value.trim())return null;const n=Number(value);return Number.isFinite(n)?n:null;}
+function positiveInt(value,fallback,{min=1,max=1000}={}){const n=numeric(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
+function number(value,fallback,{min=0,max=10}={}){const n=numeric(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
 function recordBody(record={}){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;}
 function normalizeName(value){return text(value,60).normalize('NFD').replace(/[\u0300-\u036f]/gu,'').toLowerCase().replace(/\s+/gu,' ');}
 
 function safePrescription(input={},exercise={}){
   const profile=exerciseMeasurementProfile({...exercise,measurementProfile:input.measurementProfile});
-  const hasReps=Object.prototype.hasOwnProperty.call(input,'reps');
   const supportsNonRepWork=['endurance','intervals','carry'].includes(profile.kind);
   // Do not silently invent strength repetitions for running/cycling or intervals.
-  const reps=hasReps&&String(input.reps??'').trim()===''&&supportsNonRepWork
+  const reps=String(input.reps??'').trim()===''&&supportsNonRepWork
     ?'':text(input.reps||'8–12',40)||'8–12';
   return {
     measurementProfile:profile.kind,

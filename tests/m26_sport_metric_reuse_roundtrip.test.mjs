@@ -189,3 +189,15 @@ test('observed metrics reject coercible non-numbers and preserve explicit zero, 
  assert.throws(()=>correctSet(execution,draft,{reps:8,rpe:true}),/RPE_INVALID/);
  assert.deepEqual(Object.values(execution.results)[0],previous);
 });
+
+
+test('legacy endurance snapshots without a reps field remain non-repetition work and reject false numeric defaults',()=>{
+ const source={title:'Running',durationMinutes:50,blocks:[{id:'run',type:'exercise',exerciseId:'IBF-CARRERA-SUAVE',name:'Carrera suave',measurementProfile:'endurance',sets:1,plannedDistanceKm:'5',targetRir:false,restSeconds:[]}]};
+ const snapshot=sessionTemplateSnapshot(source);
+ assert.equal(snapshot.blocks[0].reps,'');
+ assert.equal(snapshot.blocks[0].targetRir,3);
+ assert.equal(snapshot.blocks[0].restSeconds,60);
+ const copy=createReusableSessionDraft(source,{clientId:'next-client',catalog});
+ assert.equal(copy.blocks[0].reps,'');
+ assert.equal(copy.blocks[0].plannedDistanceKm,'5');
+});

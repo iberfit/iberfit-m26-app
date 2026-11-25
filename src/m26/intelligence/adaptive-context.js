@@ -1,6 +1,7 @@
-import { confirmedSessionExecutionsForClient,sessionExecutionDate } from '../domain/session-execution-truth.js';
+import { confirmedSessionExecutionsForClient,sessionExecutionCompletionDate } from '../domain/session-execution-truth.js';
 import { computeProgressSummary,deriveAdherenceAlerts } from '../engagement/index.js';
 import {reusableConfirmedSummary} from '../engagement/progress-continuity.js';
+import {reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
@@ -16,31 +17,39 @@ function setRows(execution){
   return [];
 }
 function exerciseId(row){return first(row,'exerciseId','exercise_id','idEjercicio','exercise');}
-function numeric(value){const n=Number(value);return Number.isFinite(n)?n:null;}
-function load(value){
-  if(value===null||value===undefined||value==='')return null;
-  if(typeof value==='number')return Number.isFinite(value)&&value>=0?value:null;
-  const match=String(value).trim().replace(',','.').match(/-?\d+(?:\.\d+)?/);
-  if(!match)return null;
-  const n=Number(match[0]);
-  return Number.isFinite(n)&&n>=0?n:null;
+function numeric(value,min=-Infinity,max=Infinity){
+  if(typeof value!=='number'&&typeof value!=='string')return null;
+  const raw=String(value).trim().replace(',','.');
+  if(!raw||!/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)$/u.test(raw))return null;
+  const n=Number(raw);
+  return Number.isFinite(n)&&n>=min&&n<=max?n:null;
 }
-function metric(row,...keys){return numeric(first(row,...keys));}
-function latestExecutions(state,clientId,limit=8){
+function load(value){
+  if(typeof value==='number')return numeric(value,0,1500);
+  if(typeof value!=='string')return null;
+  // Do not interpret a range, resistance band, assisted load or pounds as kg.
+  const match=value.trim().match(/^(\d+(?:[.,]\d+)?)\s*(?:kg)?$/iu);
+  return match?numeric(match[1],0,1500):null;
+}
+function metric(row,min,max,...keys){return numeric(first(row,...keys),min,max);}
+function latestExecutions(state,clientId,now,limit=8){
+  const today=reportCivilDate(now);
+  if(!today)return [];
   return confirmedSessionExecutionsForClient(state,clientId,{
     requireCompleted:true,
-    requireDate:true,
+    requireDate:false,
   })
+    .filter(record=>isWithinCivilPeriod(sessionExecutionCompletionDate(record),'0001-01-01',today,now))
     .map(unwrap)
-    .sort((a,b)=>(safeDate(sessionExecutionDate(b))?.getTime()||0)-(safeDate(sessionExecutionDate(a))?.getTime()||0))
+    .sort((a,b)=>(safeDate(sessionExecutionCompletionDate(b))?.getTime()||0)-(safeDate(sessionExecutionCompletionDate(a))?.getTime()||0))
     .slice(0,limit);
 }
 function exposureFor(execution,id,exerciseRows){
   const loads=exerciseRows.map((row)=>load(first(row,'loadKg','load_kg','load','weightKg','weight_kg'))).filter((value)=>value!==null);
-  const rpes=exerciseRows.map((row)=>metric(row,'rpe','RPE')).filter((value)=>value!==null);
-  const rirs=exerciseRows.map((row)=>metric(row,'rir','RIR')).filter((value)=>value!==null);
-  const reps=exerciseRows.map((row)=>metric(row,'reps','repetitions')).filter((value)=>value!==null);
-  const completedAt=sessionExecutionDate(execution);
+  const rpes=exerciseRows.map((row)=>metric(row,1,10,'rpe','RPE')).filter((value)=>value!==null);
+  const rirs=exerciseRows.map((row)=>metric(row,0,10,'rir','RIR')).filter((value)=>value!==null);
+  const reps=exerciseRows.map((row)=>metric(row,0,10000,'reps','repetitions')).filter((value)=>value!==null);
+  const completedAt=sessionExecutionCompletionDate(execution);
   return Object.freeze({
     exerciseId:id,
     loadKg:loads.length?Math.max(...loads):null,
@@ -79,7 +88,7 @@ export function extractSessionHistory(executions=[]){
 }
 function deriveDecision(summary,alerts){
   const checkin=summary?.latestCheckin||{};
-  const pain=Number(checkin.pain),sleep=Number(checkin.sleep),energy=Number(checkin.energy),stress=Number(checkin.stress);
+  const pain=numeric(checkin.pain,0,10),sleep=numeric(checkin.sleep,0,10),energy=numeric(checkin.energy,0,10),stress=numeric(checkin.stress,0,10);
   const criticalPain=Number.isFinite(pain)&&pain>=7;
   const limitedRecovery=(Number.isFinite(sleep)&&sleep<=4)||(Number.isFinite(energy)&&energy<=4)||(Number.isFinite(stress)&&stress>=8)||(Number.isFinite(pain)&&pain>=5);
   const lowAdherence=Number.isFinite(summary?.adherence)&&summary.plannedSessions>=3&&summary.adherence<0.6;
@@ -116,7 +125,7 @@ export function buildAdaptiveSessionContext(state,clientId,{now=new Date(),summa
   const alerts=reused&&Array.isArray(providedAlerts)
     ?providedAlerts
     :deriveAdherenceAlerts(state,clientId,{now,summary});
-  const executions=latestExecutions(state,clientId);
+  const executions=latestExecutions(state,clientId,now);
   const history=extractSessionHistory(executions);
   const decision=deriveDecision(summary,alerts);
   const profile=profileContext(state,clientId);
