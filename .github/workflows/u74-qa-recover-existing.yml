@@ -37,14 +37,16 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
-        with: {persist-credentials: false, fetch-depth: 2}
+        with: {persist-credentials: false, fetch-depth: 3}
       - uses: actions/setup-node@v4
         with: {node-version: '22', cache: npm}
       - name: Install pinned dependencies
         run: npm ci
       - name: Guard exact reviewed application source and owner scope
         run: |
-          test "$(git rev-parse HEAD^)" = "0072a643c02a467aca28572a44a9d86a6563e11b"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD~2)" = "0072a643c02a467aca28572a44a9d86a6563e11b"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/u74-qa-recover-existing.yml"
           node --test tests/m26_u74_existing_recovery.test.mjs
       - name: Recover immutable failed U74 QA browser fixture (no secrets)
         uses: actions/download-artifact@v4
