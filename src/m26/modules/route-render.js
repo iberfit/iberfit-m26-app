@@ -3739,7 +3739,7 @@ export function clientProgressPresentationStage(summary,{timelineLength=0,exerci
   const completed=Math.max(0,Number(summary.completedSessions||0));
   const checkins=Math.max(0,Number(summary.checkins||0));
   const wearableDays=Math.max(0,Number(summary.wearable?.daysWithData||0));
-  if(completed===0&&checkins===0&&wearableDays===0&&timelineLength===0&&exerciseCount===0){
+  if(completed===0&&checkins===0&&wearableDays===0&&timelineLength===0&&exerciseCount===0&&!confirmedScheduledCompletion(summary)){
     return Object.freeze({
       stage:'starting',
       noHistory:true,
@@ -3793,16 +3793,15 @@ export function clientProgressPresentationStage(summary,{timelineLength=0,exerci
 
 function renderClientProgressStage(vm,stage){
   const summary=vm.summary||{};
-  const adherence=Number.isFinite(summary.adherence)
-    ?formatPercent(summary.adherence)
-    :null;
+  const scheduled=confirmedScheduledCompletion(summary);
+  const adherence=scheduled?formatPercent(scheduled.adherence):null;
   const milestones=[
     ['Sesiones confirmadas',Number(summary.completedSessions||0)],
     ['Registros de bienestar',Number(summary.checkins||0)],
     // A provisional IRI row is not a confirmed initial diagnostic baseline.
     ['Punto de partida IRI',summary.iriBaseline?.baselineAssessmentId?'Confirmado':'Sin diagnóstico confirmado'],
   ];
-  if(adherence!==null&&Number(summary.plannedSessions||0)>0){
+  if(adherence!==null){
     milestones.push(['Continuidad confirmada',adherence]);
   }
   return `<section class="m26-client-progress-stage is-${escapeHtml(stage.stage)}${stage.noHistory?' is-empty':''}" data-client-progress-stage="${escapeHtml(stage.stage)}" aria-labelledby="m26-client-progress-stage-title">

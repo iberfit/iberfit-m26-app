@@ -532,6 +532,9 @@ if(globalThis.customElements&&globalThis.HTMLElement&&!globalThis.customElements
         selectExerciseMediaMode(this,button.dataset.exerciseMediaMode);
       };
       this.addEventListener('click',this.__iberfitMediaChoiceClick);
+      // Restore only an explicit, caller-scoped selection. Video remains manual and preload-free.
+      const initialMode=this.getAttribute('data-exercise-media-initial-mode');
+      if(initialMode==='video'||initialMode==='both')selectExerciseMediaMode(this,initialMode);
     }
     disconnectedCallback(){
       this.removeEventListener('click',this.__iberfitMediaChoiceClick);
@@ -542,10 +545,11 @@ if(globalThis.customElements&&globalThis.HTMLElement&&!globalThis.customElements
   globalThis.customElements.define(MEDIA_CHOICE_TAG,ExerciseMediaChoiceElement);
 }
 
-function renderExerciseMediaChoice({visual,video,guidance,exerciseId}){
+function renderExerciseMediaChoice({visual,video,guidance,exerciseId,initialMode}){
   const modes=visual?[['image','Imagen'],['video','Vídeo'],['both','Ambos']]:[['video','Ver vídeo']];
   const controls=modes.map(([mode,label])=>`<button type="button" data-exercise-media-mode="${mode}" aria-pressed="${mode==='image'}">${label}</button>`).join('');
-  return `<${MEDIA_CHOICE_TAG} class="m26-exercise-media-experience" data-exercise-media-experience="${e(exerciseId)}"><div class="m26-exercise-media-choice-controls" role="group" aria-label="Demostración del ejercicio">${controls}</div>${visual?`<div data-exercise-choice-image>${visual}</div>`:''}<div data-exercise-choice-video hidden></div><template data-exercise-choice-template>${video}</template>${guidance}</${MEDIA_CHOICE_TAG}>`;
+  const restore=modes.some(([mode])=>mode===initialMode)&&initialMode!=='image'?` data-exercise-media-initial-mode="${e(initialMode)}"`:'';
+  return `<${MEDIA_CHOICE_TAG} class="m26-exercise-media-experience" data-exercise-media-experience="${e(exerciseId)}"${restore}><div class="m26-exercise-media-choice-controls" role="group" aria-label="Demostración del ejercicio">${controls}</div>${visual?`<div data-exercise-choice-image>${visual}</div>`:''}<div data-exercise-choice-video hidden></div><template data-exercise-choice-template>${video}</template>${guidance}</${MEDIA_CHOICE_TAG}>`;
 }
 
 export function renderExerciseMedia({
@@ -560,6 +564,7 @@ export function renderExerciseMedia({
   priority=!compact,
   enableViewer=false,
   selectable=!compact||enableViewer,
+  initialMode=null,
 }={}){
   const media=resolveExerciseMedia(manifest,exerciseId,{role});
   const experience=resolveExerciseMediaExperience(manifest,exerciseId,{role});
@@ -604,7 +609,7 @@ export function renderExerciseMedia({
     ?renderNativeExerciseVideo({video:experience.video,title:experience.title,alt:experience.alt,provenance:experience.provenance})
     :'';
   const guidance=renderExerciseTechnicalGuidance(experience);
-  if(video)return renderExerciseMediaChoice({visual,video,guidance,exerciseId});
+  if(video)return renderExerciseMediaChoice({visual,video,guidance,exerciseId,initialMode});
   return `<div class="m26-exercise-media-experience" data-exercise-media-experience="${e(exerciseId)}">${visual}${guidance}</div>`;
 }
 

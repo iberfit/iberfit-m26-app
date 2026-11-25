@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {confirmedScheduledCompletion,scheduledCompletionCopy} from '../src/m26/engagement/progress-continuity.js';
 import {renderAthleticClientEvidence} from '../src/m26/design/athletic-client-evidence.js';
 import {deriveClientDayNextAction} from '../src/m26/experience/client-day-context.js';
-import {renderHoyRoute} from '../src/m26/modules/route-render.js';
+import {renderHoyRoute,clientProgressPresentationStage} from '../src/m26/modules/route-render.js';
+import {datedExerciseMediaScope} from '../src/m26/workflows/occurrence-qa-ui.js';
 import {coachCapacityEvidence,deriveAdminCommandCenter} from '../src/m26/admin/command-center.js';
 import {buildCoach360Rows} from '../src/m26/admin/view-model.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
@@ -78,4 +79,20 @@ test('Booked adherence and standalone activity stay separate across summaries',(
   for(const language of ['en','fr','pt']){
     assert.notEqual(iberfitSurfaceTranslate('Citas cumplidas: 1 / 2 · 28 días',{language}),'Citas cumplidas: 1 / 2 · 28 días');
   }
+});
+
+
+test('confirmed booked attendance is evidence even with no completed training',()=>{
+ const summary={completedSessions:0,checkins:0,plannedSessions:2,scheduledCompletedSessions:0,adherence:0};
+ assert.notEqual(clientProgressPresentationStage(summary).noHistory,true);
+ assert.equal(clientProgressPresentationStage({...summary,scheduledCompletedSessions:null}).noHistory,true);
+});
+test('dated media scope survives sets but never crosses owner, occurrence, role or exercise block',()=>{
+ const view={phase:'active',clientId:'c',occurrenceId:'o',currentStep:{blockId:'b',exerciseId:'e',setNumber:1}};
+ const key=datedExerciseMediaScope(view,'client');
+ assert.ok(key);
+ assert.equal(datedExerciseMediaScope({...view,currentStep:{...view.currentStep,setNumber:2}},'client'),key);
+ for(const altered of [{clientId:'other'},{occurrenceId:'other'},{currentStep:{...view.currentStep,blockId:'other'}},{currentStep:{...view.currentStep,exerciseId:'other'}}])assert.notEqual(datedExerciseMediaScope({...view,...altered},'client'),key);
+ assert.notEqual(datedExerciseMediaScope(view,'coach'),key);
+ assert.equal(datedExerciseMediaScope({...view,phase:'completed'},'client'),null);
 });

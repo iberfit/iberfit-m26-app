@@ -128,7 +128,8 @@ test('Client progress becomes comparable only with confirmed comparison evidence
 
 test('Client mature progress keeps full evidence available without forcing it open',()=>{
   const progressSummary=summary({
-    completedSessions:6,
+    completedSessions:8,
+    scheduledCompletedSessions:6,
     plannedSessions:7,
     adherence:6/7,
     dataQuality:'alta',
@@ -165,24 +166,27 @@ test('Client mature progress keeps full evidence available without forcing it op
 test('Client evolution never calls an IRI draft a confirmed initial baseline and exposes adherence window',()=>{
   const pending=render('client',summary({
     iriAssessmentCount:1,iriBaseline:null,
-    completedSessions:1,plannedSessions:2,adherence:0.5,days:28,
+    completedSessions:3,scheduledCompletedSessions:1,plannedSessions:2,adherence:0.5,days:28,
   }));
   assert.match(pending,/<span>Punto de partida IRI<\/span><strong>Sin diagnóstico confirmado<\/strong>/u);
   assert.doesNotMatch(pending,/<span>Punto de partida IRI<\/span><strong>Confirmado<\/strong>/u);
-  assert.match(pending,/1 de 2 sesiones confirmadas en los últimos 28 días\./u);
+  assert.match(pending,/Citas cumplidas: 1 \/ 2 · 28 días/u);
+  assert.match(pending,/<meter min="0" max="1" value="0.5"/u);
+  assert.doesNotMatch(pending,/Citas cumplidas: 3 \/ 2/u);
   assert.doesNotMatch(pending,/ventana seleccionada/u,'do not imply the Client selected a date range');
   const confirmed=render('client',summary({
     iriAssessmentCount:1,iriBaseline:{baselineAssessmentId:'iri-confirmed'},
-    completedSessions:2,plannedSessions:3,adherence:2/3,days:7,
+    completedSessions:4,scheduledCompletedSessions:2,plannedSessions:3,adherence:2/3,days:7,
   }));
   assert.match(confirmed,/<span>Punto de partida IRI<\/span><strong>Confirmado<\/strong>/u);
-  assert.match(confirmed,/2 de 3 sesiones confirmadas en los últimos 7 días\./u);
+  assert.match(confirmed,/Citas cumplidas: 2 \/ 3 · 7 días/u);
   assert.match(confirmed,/data-iri-baseline/u,'confirmed initial diagnostic remains available as separate context');
 });
 
 test('Coach keeps the professional full-depth progress surface unchanged in hierarchy',()=>{
   const html=render('coach',summary({
-    completedSessions:2,
+    completedSessions:4,
+    scheduledCompletedSessions:2,
     plannedSessions:3,
     adherence:2/3,
     dataQuality:'media',

@@ -75,6 +75,12 @@ export function datedWorkoutPhaseUiState(view){
 }
 // The focus is selected before the private network read. Never paint an
 // execution snapshot for a different date or client while it is in flight.
+// An exercise selection survives set/revision changes only within the same dated block.
+export function datedExerciseMediaScope(view,role){
+  const step=view?.currentStep;
+  if(!['ready','active'].includes(view?.phase)||!view?.clientId||!view?.occurrenceId||!step?.blockId||!step?.exerciseId||!['coach','client','cliente'].includes(role))return null;
+  return JSON.stringify([role,view.clientId,view.occurrenceId,step.blockId,step.exerciseId]);
+}
 export function datedWorkoutViewForFocus(view,focus){
   if(!focus)return null;
   if(view?.clientId!==focus.clientId||view?.occurrenceId!==focus.occurrenceId)
@@ -432,7 +438,7 @@ export function createDatedOccurrenceQaUi({
   });
   let mounted=false,disposed=false,busy=false,ticker=null,loadedFor='',rows=[],
     focus=null,preview=null,coachDraft=null,message='',failure='',generation=0,visibleScopeKey='',
-    calendarOffset=0;
+    calendarOffset=0,mediaSelection=null;
   const repaint=()=>{if(!disposed)onRender();};
   // The U33 calendar differs by signed-in role, even for one client UUID.
   // A Coach projection must never be reused by Client after changing area.
@@ -466,7 +472,7 @@ export function createDatedOccurrenceQaUi({
       // Read-only in-memory projection only. Never delete encrypted recovery
       // journals/checkpoints or active workouts when a workspace changes.
       loadedFor='';rows=[];preview=null;coachDraft=null;message='';failure='';
-      calendarOffset=0; // never carry calendar browsing to a different owner/role
+      calendarOffset=0;mediaSelection=null; // never carry browsing or media choice across owner/role
     }
     return scope;
   }
@@ -521,6 +527,8 @@ export function createDatedOccurrenceQaUi({
     const entries=dateRows(scope);
     const view=focus?.clientId===scope.clientId&&focus?.role===scope.role
       ?workoutView():null;
+    const mediaScope=datedExerciseMediaScope(view,scope.role);
+    if(!mediaScope||mediaSelection?.key!==mediaScope)mediaSelection=null;
     const locked=!vault.isUnlocked();
     const status=failure
       ?'<p role="alert" class="m26-form-status is-error">'+escape(failure)+'</p>'
@@ -546,7 +554,7 @@ export function createDatedOccurrenceQaUi({
         '><strong>'+escape(phaseState.label)+'</strong>'+
         (view.localDate?' · '+escape(view.localDate):'')+'</p>';
       const stepMarkup=step
-        ?'<p><strong>'+escape(stepLabel)+'</strong> · '+stepUnit+' '+escape(step.setNumber)+' de '+escape(step.totalSets)+'</p>'+
+        ?'<div class="m26-dated-exercise-context"><h4>'+escape(stepLabel)+'</h4><p>'+stepUnit+' '+escape(step.setNumber)+' de '+escape(step.totalSets)+'</p></div>'+
          (['ready','active'].includes(phase)
            ?'<div data-u60-prescription class="m26-panel-soft m26-dated-prescription"><p><strong>Objetivo prescrito</strong> · '+escape(objective||'Según indicación del Coach')+'</p>'+
              (coachingNote?'<p class="m26-field-help">Indicaciones del Coach: '+escape(coachingNote)+'</p>':'')+
@@ -556,7 +564,7 @@ export function createDatedOccurrenceQaUi({
           :'';
       const stepMedia=step?.exerciseId&&['ready','active'].includes(phase)
         ?renderExerciseMedia({manifest:getMediaMap(),exercise:{...exercise,id:step.exerciseId},
-          role:scope.role,showCredit:true,fallback:false,enableViewer:true})
+          role:scope.role,showCredit:true,fallback:false,enableViewer:true,initialMode:mediaSelection?.mode??null})
         :'';
       const plannedDraft=coach?plannedDatedSetDraft(step):{};
       const hasPlannedDraft=Object.keys(plannedDraft).length>0;
@@ -1076,6 +1084,16 @@ export function createDatedOccurrenceQaUi({
     captureCoachDateDraft(panel,scope); // in-memory only, zero network/DB calls
   }
   async function onClick(event){
+    const mediaButton=event?.target?.closest?.('[data-exercise-media-mode]');
+    if(mediaButton&&root.contains(mediaButton)&&!disposed){
+      const panel=mediaButton.closest?.('[data-u60-workout]');
+      const scope=visibleOwner();
+      const view=scope&&focus?.clientId===scope.clientId&&focus?.role===scope.role?workoutView():null;
+      const key=datedExerciseMediaScope(view,scope?.role);
+      const mode=mediaButton.dataset?.exerciseMediaMode;
+      if(panel&&key&&['image','video','both'].includes(mode)&&mediaButton.getAttribute?.('aria-pressed')==='true')mediaSelection={key,mode};
+      return; // local preference, never an operation or network mutation
+    }
     const addDateButton=event?.target?.closest?.('[data-u60-add-date]');
     if(addDateButton?.hasAttribute?.('data-u60-add-date')&&
       root.contains(addDateButton)&&!disposed&&!busy&&!addDateButton.disabled){
@@ -1271,7 +1289,7 @@ export function createDatedOccurrenceQaUi({
     root.removeEventListener('input',onCoachDateInput);
     root.removeEventListener('change',onCoachDateInput);
     vault.destroy();persistence.close();
-    rows=[];preview=null;coachDraft=null;focus=null;
+    rows=[];preview=null;coachDraft=null;focus=null;mediaSelection=null;
   }
   return Object.freeze({enabled:true,mount,destroy,renderPanel,hasBlockingWorkout,verifySessionRetirement});
 }
