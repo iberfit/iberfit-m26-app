@@ -1,5 +1,6 @@
 import { currentExerciseSubstitutionScope,executionStructureUndoState,currentStep,nextExecutionStep,executionResultForStep,skippedSetForStep,hasNextExecutionStep,previousSetDraftValues,plannedSetDraftValues } from './session-execution.js';
 import {exerciseMemoryDraftSuggestion,validateSessionDraft} from './session-builder.js';
+import {coachProgressionReview} from './coach-progression-review.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
@@ -20,6 +21,7 @@ function previousSetSummary(values){
     values?.seconds?`${values.seconds} s`:null,
     values?.distanceKm?`${values.distanceKm} km`:null,
     values?.distanceM?`${values.distanceM} m`:null,
+    values?.paceMinPerKm?`${values.paceMinPerKm} min/km`:null,
     values?.pacePer100M?`${values.pacePer100M} min/100 m (medido)`:null,
     values?.load||null,
     values?.rpe?`RPE ${values.rpe}`:null,
@@ -440,7 +442,7 @@ function nextSessionPreparation(execution,catalog,mediaMap,role){
     </div>
   </div>`;
 }
-function exerciseMemorySetText(set){
+export function exerciseMemorySetText(set){
   const parts=[];
 
   if(set?.load?.raw){
@@ -455,6 +457,10 @@ function exerciseMemorySetText(set){
     parts.push(`${set.seconds} s`);
   }
 
+  if(Number.isFinite(set?.distanceKm))parts.push(`${set.distanceKm} km`);
+  if(Number.isFinite(set?.distanceM))parts.push(`${set.distanceM} m`);
+  if(set?.paceMinPerKm)parts.push(`${set.paceMinPerKm} min/km`);
+  if(set?.pacePer100M)parts.push(`${set.pacePer100M} min/100 m (medido)`);
   if(Number.isFinite(set?.rpe)){
     parts.push(`RPE ${set.rpe}`);
   }
@@ -466,6 +472,12 @@ function exerciseMemorySetText(set){
   return parts.join(' · ')||'Serie confirmada';
 }
 
+export function latestExerciseMemoryReference(memory){
+  const rows=Array.isArray(memory?.latest?.sets)?memory.latest.sets:[];
+  const last=rows.at(-1);
+  if(last)return exerciseMemorySetText(last);
+  return memory?.latest?.lastLoad?.raw||null;
+}
 function exerciseMemoryDate(memory){
   const value=memory?.latest?.completedAt;
 
@@ -509,7 +521,7 @@ function exerciseMemoryChange(memory){
   return `${sign}${delta.value}${unit}${percent}`;
 }
 
-function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false}={}){
+function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false,role,exercise={}}={}){
   const latest=memory?.latest;
   if(!latest)return '';
   const load=
@@ -524,6 +536,7 @@ function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false}={}){
     .map(exerciseMemorySetText)
     .join(' · ');
   const suggestion=exerciseMemoryDraftSuggestion(memory);
+  const review=role==='coach'?coachProgressionReview(memory,exercise):null;
   const action=suggestion&&blockId&&exerciseId
     ?`<div class="m26-session-repeat-actions">
         <button
@@ -560,6 +573,7 @@ function renderExerciseMemoryInline(memory,{blockId,exerciseId,group=false}={}){
       <span>Cambio vs. anterior</span>
       <strong>${e(exerciseMemoryChange(memory))}</strong>
     </div>
+    ${review?`<div class="m26-field m26-wide" data-coach-progression-review="${e(review.kind)}"><span>Apoyo a la decisión</span><strong>${e(review.label)}</strong><small>${e(review.detail)}</small></div>`:''}
   </div>`;
 }
 
@@ -645,7 +659,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,tota
         <button type="button" data-session-action="remove-block" data-block-id="${e(block.id)}">Eliminar</button>
       </div>
     </header>
-    ${renderExerciseMemoryInline(memory,{blockId:block.id,exerciseId:block.exerciseId})}
+    ${renderExerciseMemoryInline(memory,{blockId:block.id,exerciseId:block.exerciseId,role,exercise:{...exercise,measurementProfile:block.measurementProfile}})}
     <div class="m26-field-grid m26-builder-core-prescription">
       ${prescriptionWorkFields(block.id,'',exercise,block)}
     </div>
@@ -667,7 +681,7 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
   const memory=exerciseMemoryFor?.(exerciseId)||null;
   return `<section class="m26-group-prescription">
     <div class="m26-group-prescription-heading">${visual}<h4>${e(exerciseDisplayName(exercise))}</h4></div>
-    ${renderExerciseMemoryInline(memory,{blockId:group.id,exerciseId,group:true})}
+    ${renderExerciseMemoryInline(memory,{blockId:group.id,exerciseId,group:true,role,exercise:{...exercise,measurementProfile:p.measurementProfile}})}
     <div class="m26-field-grid m26-builder-core-prescription">
       ${prescriptionWorkFields(group.id,exerciseId,exercise,p,true)}
     </div>
@@ -757,7 +771,7 @@ function builderActiveFilterCount(filters={}){
   return ['pattern','equipment','difficulty','intent'].reduce((count,key)=>count+(String(filters?.[key]||'').trim()?1:0),0);
 }
 export function renderSessionLibraryResults({draft,catalog,query='',filters={},mediaMap,role='coach',visibleLimit=24}={}){
-  const matchingExercises=catalog.search(query,filters);
+  const matchingExercises=catalog.search(query,filters,{prioritizeNames:true});
   // Render only the visible page. Previously hundreds of hidden cards (with
   // media) were rebuilt on every prefix keystroke, slowing Coach sessions.
   // Every match remains reachable through progressive pages, without truncation.
@@ -1320,7 +1334,7 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
 
   const previous=previousSet
     ?previousSetSummary(previousSet)
-    :exerciseMemory?.latest?.lastLoad?.raw||null;
+    :latestExerciseMemoryReference(exerciseMemory);
 
   return `<section
     class="m26-session-set-focus${restActive?' is-rest':''}"
@@ -1336,7 +1350,7 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
       <strong>${e(target)}</strong>
     </div>
     <div>
-      <span>Referencia anterior</span>
+      <span>${previousSet?'Serie anterior':'Última referencia histórica'}</span>
       <strong>${e(previous||'Sin referencia confirmada')}</strong>
     </div>
     ${explicitSessionEffort(planned?.restSeconds,{min:0,max:3600})!==null?`<div><span>Descanso previsto</span><strong>${e(planned.restSeconds)} s</strong></div>`:''}

@@ -360,7 +360,7 @@ test('Session Live V2 pone la serie actual y la referencia antes que el contexto
   assert.match(html,/data-session-touch-focus/u);
   assert.match(html,/Serie actual/u);
   assert.match(html,/Objetivo/u);
-  assert.match(html,/Referencia anterior/u);
+  assert.match(html,/Última referencia histórica/u);
   assert.match(html,/Descanso previsto/u);
   assert.match(html,/aria-label="Registro de la serie actual"/u);
   assert.match(html,/aria-label="Contexto del ejercicio actual"/u);
@@ -398,8 +398,9 @@ test('Session Live V2 muestra referencia histórica sin autocompletar la carga',
     exerciseMemoryFor:(id)=>id===exerciseId?memory:null,
   });
 
-  assert.match(html,/Referencia anterior/u);
+  assert.match(html,/Última referencia histórica/u);
   assert.match(html,/24 kg/u);
+  assert.doesNotMatch(html,/<span>Serie anterior<\/span>/u);
   assert.match(html,/data-set-field="load">/u);
   assert.doesNotMatch(html,/data-set-field="load"[^>]*value="24 kg"/u);
 });

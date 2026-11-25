@@ -99,6 +99,8 @@ export const FINAL_RESIDUAL_SURFACE_ROWS=Object.freeze([
 ['Puedes consultar planificación, historial y contexto. Reanuda el servicio antes de iniciar una nueva sesión.','You can review planning, history and context. Resume the service before starting a new session.','Vous pouvez consulter la planification, l’historique et le contexte. Reprenez le service avant de démarrer une nouvelle séance.','Pode consultar planeamento, histórico e contexto. Retome o serviço antes de iniciar uma nova sessão.'],
 ['El entrenamiento está en pausa o finalizado. Puedes consultar el historial, pero debes reanudar el servicio antes de iniciar una nueva sesión.','Training is paused or ended. You can review history, but you must resume the service before starting a new session.','L’entraînement est en pause ou terminé. Vous pouvez consulter l’historique, mais vous devez reprendre le service avant de démarrer une nouvelle séance.','O treino está em pausa ou terminado. Pode consultar o histórico, mas deve retomar o serviço antes de iniciar uma nova sessão.'],
 // Daily Use Excellence 360: dated prescription and service status.
+["Otras métricas","Other metrics","Autres mesures","Outras métricas"],
+["Última referencia histórica","Latest historical reference","Dernière référence historique","Última referência histórica"],
 ["Sostén","Hold","Maintien","Sustentação"],
 ["Según indicación del Coach","As prescribed by your Coach","Selon les indications du Coach","Conforme indicação do Coach"],
 ["Objetivo prescrito","Prescribed target","Objectif prescrit","Objetivo prescrito"],
@@ -112,4 +114,15 @@ export const FINAL_RESIDUAL_SURFACE_ROWS=Object.freeze([
 ["Tu entrenamiento está en pausa. Tu historial sigue disponible; consulta con tu Coach cuándo retomar.","Your training is paused. Your history remains available; check with your Coach about resuming.","Votre entraînement est en pause. Votre historique reste disponible ; voyez avec votre Coach quand reprendre.","O treino está em pausa. O histórico continua disponível; consulte o seu Coach sobre quando retomar."],
 ["El servicio está en pausa. Revisa su estado antes de programar nuevas citas.","The service is paused. Review its status before scheduling new appointments.","Le service est en pause. Vérifiez son état avant de planifier de nouveaux rendez-vous.","O serviço está em pausa. Reveja o estado antes de marcar novas sessões."],
 ["El servicio está en pausa. Conserva el historial y revisa las condiciones para retomar.","The service is paused. Keep the history and review the conditions for resuming.","Le service est en pause. Conservez l’historique et vérifiez les conditions de reprise.","O serviço está em pausa. Preserve o histórico e reveja as condições para retomar."],
-]);
+["Apoyo a la decisión","Decision support","Aide à la décision","Apoio à decisão"],
+["Valorar progresión","Consider progression","Envisager une progression","Considerar progressão"],
+["Mejora comparable respaldada por la tendencia reciente. Revisa técnica, recuperación y objetivo antes de ajustar.","Comparable improvement supported by the recent trend. Review technique, recovery and goals before adjusting.","Amélioration comparable confirmée par la tendance récente. Vérifiez la technique, la récupération et l’objectif avant tout ajustement.","Melhoria comparável sustentada pela tendência recente. Reveja técnica, recuperação e objetivo antes de ajustar."],
+["Revisar recuperación y exigencia","Review recovery and training demand","Revoir la récupération et les exigences","Rever recuperação e exigência"],
+["El esfuerzo observado aumentó sin una mejora clara del rendimiento. Revisa el contexto antes de ajustar.","Observed effort increased without a clear improvement in performance. Review the context before adjusting.","L’effort observé a augmenté sans amélioration nette de la performance. Vérifiez le contexte avant tout ajustement.","O esforço observado aumentou sem melhoria clara do desempenho. Reveja o contexto antes de ajustar."],
+["Valorar mantener la prescripción","Consider maintaining the prescription","Envisager de maintenir la prescription","Considerar manter a prescrição"],
+["Rendimiento comparable sin cambios relevantes. Mantener puede ser adecuado según el objetivo.","Comparable performance without meaningful changes. Maintaining the prescription may be appropriate for the goal.","Performance comparable sans changement notable. Le maintien peut être adapté à l’objectif.","Desempenho comparável sem alterações relevantes. Manter pode ser adequado ao objetivo."],
+["Resumen del entrenamiento confirmado","Confirmed workout summary","Résumé de l’entraînement confirmé","Resumo do treino confirmado"],
+["Series sin registro","Unrecorded sets","Séries non enregistrées","Séries não registadas"],
+["Sin dato registrado","No data recorded","Aucune donnée enregistrée","Sem dados registados"],
+["Omitir esta serie","Skip this set","Ignorer cette série","Omitir esta série"],
+]); 

@@ -14,7 +14,7 @@ import {setPendingSessionEntry,peekPendingSessionEntry,consumePendingSessionEntr
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
 import {createM26Id} from '../platform/id.js';
-import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
+import {executionElapsedMs,formatDuration,restRemainingSeconds,coachRestTransitionEligible} from './session-timer.js';
 import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget,sessionCommandFailureOutcome,sessionRejectedSyncOutcome} from './session-sync-recovery-ui.js';
 import {fillEmptyControls} from '../ui/guided-input.js';
 import {renderSessionLibraryResults} from './session-ui.js';
@@ -672,6 +672,11 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   function syncPendingNextControls(){
     const proxies=[...(root.querySelectorAll?.('[data-session-focus-proxy]')||[])];
     const targets=new Set(root.querySelectorAll?.('[data-session-action="next"]')||[]);
+    // Rest adjustments are remote mutations too. Keep both targets disabled
+    // across optimistic rerenders until the preceding action settles.
+    for(const action of ['rest-minus','rest-plus']){
+      for(const button of root.querySelectorAll?.('[data-session-action="'+action+'"]')||[])targets.add(button);
+    }
     const pairs=[];
     for(const proxy of proxies){
       const selector=String(proxy.getAttribute?.('data-session-focus-target')||'').trim();
@@ -821,7 +826,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   function scheduleCoachRestAutoAdvance(context=getContext()){
     if(coachRestAdvancePending)return;
     const execution=context?.execution;
-    if(!isCoachContext(context)||execution?.status!=='active'||execution?.syncStatus!=='clean'){
+    if(!coachRestTransitionEligible(context,{hidden:visibilityTarget?.visibilityState==='hidden',busy:sessionActionPending||startPending||exitPending})){
       cancelCoachRestAutoAdvance();
       return;
     }
@@ -857,8 +862,14 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       }
       // Network uncertainty must defer auto-advance, not disable it for this rest forever.
       // A later reconciliation render will reschedule the already-expired rest immediately.
-      if(latest?.execution?.syncStatus!=='clean')return;
+      if(!mounted||!coachRestTransitionEligible(latest,{busy:sessionActionPending||startPending||exitPending}))return;
+      const latestStep=currentStep(latest.execution,latest.session);
+      if(!latestStep||!executionResultForStep(latest.execution,latestStep)||!hasNextExecutionStep(latest.execution))return;
       coachRestAdvancePending=true;
+      sessionActionPending=true;
+      pendingSessionAction='rest-expired-auto';
+      if(root.dataset)root.dataset.m26SessionActionPending='true';
+      syncPendingNextControls();
       try{
         const result=dispatchSessionAction({
           ...latest,
@@ -866,15 +877,22 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
           payload:{nowMs:Date.now()},
         });
         await settleProgressMutation(result,latest);
+        if(!mounted||!sameLiveExecutionOwner(latest,getContext()))return;
         await persistContext(getContext());
         renderSession();
       }catch(error){
         coachRestSuppressedSignature=signature;
         onError(error);
-        await persistContext(getContext()).catch(()=>{});
-        renderSession();
+        if(mounted&&sameLiveExecutionOwner(latest,getContext())){
+          await persistContext(getContext()).catch(()=>{});
+          renderSession();
+        }
       }finally{
         coachRestAdvancePending=false;
+        sessionActionPending=false;
+        pendingSessionAction=null;
+        if(root.dataset)delete root.dataset.m26SessionActionPending;
+        if(mounted){syncPendingNextControls();scheduleCoachRestAutoAdvance(getContext());}
       }
     },Math.max(0,delay+25));
   }
@@ -1202,7 +1220,8 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     }
     void persistContext(context,{recoveryCheckpoint}).catch(onError);
   }
-  function pagehide(){persistLifecycleContext();}
+  function pagehide(){stopSessionClockTicker();cancelCoachRestAutoAdvance();persistLifecycleContext();}
+  function pageshow(){if(!mounted||visibilityTarget?.visibilityState==='hidden')return;ensureSessionClockTicker(getContext());scheduleCoachRestAutoAdvance(getContext());}
   function visibilitychange(){
     if(visibilityTarget?.visibilityState==='hidden'){
       stopSessionClockTicker();
@@ -1626,6 +1645,7 @@ async function click(event){
     // A stale DOM control, accessibility activation or double tap after ACK
     // must never send another SESION_INICIAR for an already-active execution.
     if(action==='start'&&context?.execution?.status!=='ready')return;
+    const wasDisabled=button.disabled;
     sessionActionPending=true;
     pendingSessionAction=action;
     // Dock rerenders cannot overrule the actual controller's write lock.
@@ -1640,7 +1660,7 @@ async function click(event){
     let completedAction=false;
     if(action==='add-live-exercise')liveAddPending=true;
     if(action==='finish')finishPending=true;
-    const actionState=context.actionState;let failureFocusSelector=null,builderFocusBlockId=null,builderFocusAction=null,builderFocusScroll=false,builderFocusAlways=false;const builderInsertContext=['add-exercise','add-group','duplicate-block'].includes(action)&&context?.draft?{activeGroupId:String(context.draft.activeGroupId||'').trim()||null,blockIds:new Set((context.draft.blocks||[]).map((item)=>item?.id).filter(Boolean))}:null;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
+    const actionState=context.actionState;let failureFocusSelector=null,builderFocusBlockId=null,builderFocusAction=null,builderFocusScroll=false,builderFocusAlways=false;const builderInsertContext=['add-exercise','add-group','duplicate-block'].includes(action)&&context?.draft?{activeGroupId:String(context.draft.activeGroupId||'').trim()||null,blockIds:new Set((context.draft.blocks||[]).map((item)=>item?.id).filter(Boolean))}:null;button.setAttribute('aria-busy','true');button.disabled=true;
     const task=async()=>{if(action==='publish'){try{await flushAutosave(context);}catch{/* El servidor puede confirmar aunque falle el guardado auxiliar; no crear un segundo envío. */}}else if(action==='start'){try{await flushAutosave(context);}catch{startRecoveryStorageWarning=true;}}else if(!['preview','edit-preview'].includes(action))await flushAutosave(context);if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='start'){try{await flushExecutionDraft(context);}catch{startRecoveryStorageWarning=true;}}else await flushExecutionDraft(context);if(action==='finish'&&context?.commandBus&&context?.execution){await settlePriorExecutionWrites(context.commandBus,context.execution);if(!sameLiveExecutionOwner(context,getContext()))throw new Error('M26_SESSION_ACTION_OWNER_CHANGED');}if((action==='add-live-exercise'&&liveAddTimedOut)||(action==='finish'&&finishTimedOut))throw sessionActionTimeout();if(action==='discard-draft'){if(!context.discardDraft)throw new Error('M26_SESSION_DRAFT_DISCARD_UNAVAILABLE');return await context.discardDraft();}if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}if(action==='restore-template-load'){if(!context.restoreTemplateLoad)throw new Error('M26_SESSION_TEMPLATE_UNDO_UNAVAILABLE');return await context.restoreTemplateLoad();}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,durationMinutes:button.getAttribute('data-duration-minutes')||undefined,...fieldValues(root)};if(action==='reuse-exercise-memory'){const rawSets=button.getAttribute('data-reference-sets');payload.suggestion={sets:rawSets?Number(rawSets):null,reps:button.getAttribute('data-reference-reps')||'',plannedLoad:button.getAttribute('data-reference-load')||''};}if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
     if(action==='repeat-previous-set'){
       // One tap is truthful only if Coach explicitly confirms the displayed prior RPE.
@@ -1803,7 +1823,9 @@ async function click(event){
             next?.click?.();
           });
         }
-      }}}
+      }
+      if(mounted)scheduleCoachRestAutoAdvance(getContext());
+    }}
   function input(event){const context=getContext();
     const notes=event.target.closest?.('[data-session-capture-input]');
     if(notes){
@@ -1888,7 +1910,7 @@ async function click(event){
     if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());
     if(event.target.closest?.('[data-session-feedback-pain]'))syncFeedbackPainControl();
   }
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);lifecycleTarget?.addEventListener?.('pageshow',pageshow);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;
       // All delegated click/input/change handlers must exist BEFORE the app
       // advertises its first interactive paint. Avoid a forced full-page layout
       // (sticky topbar measurement) and 8 redundant DOM scans when there is
@@ -1903,5 +1925,5 @@ async function click(event){
         syncFinishControl(active);syncManualSyncControl(active);
         syncQuickRpeControl();syncRecoveryReviewControl(active);
         scheduleCoachRestAutoAdvance(active);ensureSessionClockTicker(active);
-      }},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);captureState=null;mounted=false;unmountSessionStickyTop();stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
+      }},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);lifecycleTarget?.removeEventListener?.('pageshow',pageshow);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);captureState=null;mounted=false;unmountSessionStickyTop();stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);clearTimeout(pendingExecutionSyncTimer);pendingExecutionSyncTimer=null;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
 }

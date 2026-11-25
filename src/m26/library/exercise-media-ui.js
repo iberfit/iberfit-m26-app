@@ -1,5 +1,5 @@
 import {resolveExerciseMedia,resolveExerciseMediaExperience,resolveExerciseMediaMetadata,REPDB_MEDIA_ATTRIBUTION} from './exercise-media.js';
-import {renderNativeExerciseVideo,renderExerciseTechnicalGuidance} from './exercise-video-player.js';
+import {renderNativeExerciseVideo,renderExerciseTechnicalGuidance,stopExerciseVideo} from './exercise-video-player.js';
 import {exerciseDisplayName,exerciseSearchNames} from '../exercises/names.js';
 import {exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
 
@@ -510,11 +510,7 @@ export function selectExerciseMediaMode(host,mode){
   if(image)image.hidden=mode==='video';
   if(mode==='image'){
     const video=panel.querySelector('video');
-    if(video){
-      video.pause?.();
-      const doc=video.ownerDocument;
-      if(doc?.pictureInPictureElement===video)void doc.exitPictureInPicture?.()?.catch?.(()=>{});
-    }
+    stopExerciseVideo(video);
     panel.replaceChildren();
     panel.hidden=true;
   }else{
@@ -540,7 +536,7 @@ if(globalThis.customElements&&globalThis.HTMLElement&&!globalThis.customElements
     disconnectedCallback(){
       this.removeEventListener('click',this.__iberfitMediaChoiceClick);
       this.__iberfitMediaChoiceClick=null;
-      this.querySelector('video')?.pause?.();
+      stopExerciseVideo(this.querySelector('video'));
     }
   }
   globalThis.customElements.define(MEDIA_CHOICE_TAG,ExerciseMediaChoiceElement);

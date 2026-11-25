@@ -37,6 +37,21 @@ export function formatDatedElapsed(milliseconds){
   return hh?digits(hh)+':'+digits(minutes%60)+':'+digits(seconds%60)
     :digits(minutes)+':'+digits(seconds%60);
 }
+export function renderDatedCompletionSummary(view){
+  const summary=view?.completionSummary;
+  if(view?.phase!=='completed'||view.hasUncertain||view.unsavedWork||!summary)return '';
+  const cell=(label,value)=>'<div><span>'+escape(label)+'</span><strong>'+escape(value)+'</strong></div>';
+  return '<section data-u60-completion-summary aria-label="Resumen del entrenamiento confirmado">'+
+    '<h4>Resumen del entrenamiento confirmado</h4><div class="m26-session-completion-grid">'+
+    cell('Series registradas',summary.recorded+' / '+summary.total)+
+    cell('Series omitidas',summary.omitted)+
+    (summary.missing?cell('Series sin registro',summary.missing):'')+
+    (summary.activeMs!==null?cell('Tiempo activo',formatDatedElapsed(summary.activeMs)):'')+
+    cell('RPE de sesión',summary.sessionRpe!==null?summary.sessionRpe+'/10':'Sin dato registrado')+
+    '</div>'+(summary.pain===true?'<p class="m26-field-help">Molestias registradas para seguimiento</p>':
+      summary.pain===false?'<p class="m26-field-help">Sin molestias registradas</p>':'')+
+    '</section>';
+}
 const fail=code=>{throw new Error('U60_UI_'+code);};
 // A selected date is not a confirmed workout while its private read is in
 // flight. Expose that transient state as busy, never as an executable session.
@@ -139,6 +154,44 @@ export function applyPlannedDatedSetDraft(step,panel){
   // No RPE/RIR inferred. The real observed series is saved only on ACK.
   return filled;
 }
+// Show relevant observation inputs first; all previous metrics remain available.
+// The presentation never changes readResult, permissions, or persisted observations.
+const DATED_OBSERVATION_MARKUP=Object.freeze({
+  "u60Reps": "<label>Repeticiones<input name=\"u60Reps\" type=\"number\" min=\"0\" max=\"10000\" inputmode=\"decimal\"></label>",
+  "u60Seconds": "<label>Tiempo (segundos)<input name=\"u60Seconds\" type=\"number\" min=\"0\" max=\"86400\" inputmode=\"decimal\"></label>",
+  "u60DistanceKm": "<label>Distancia running (km)<input name=\"u60DistanceKm\" type=\"number\" step=\"0.01\" min=\"0\" max=\"1000\" inputmode=\"decimal\"></label>",
+  "u60DistanceM": "<label>Distancia natación (m)<input name=\"u60DistanceM\" type=\"number\" min=\"0\" max=\"100000\" inputmode=\"decimal\"></label>",
+  "u60Load": "<label>Carga (kg)<input name=\"u60Load\" maxlength=\"80\"></label>",
+  "u60Rir": "<label>RIR<input name=\"u60Rir\" type=\"number\" min=\"0\" max=\"10\" step=\"0.5\" inputmode=\"decimal\"></label>",
+  "u60Pace": "<label>Ritmo running (min/km)<input name=\"u60Pace\" placeholder=\"5:30\" pattern=\"[0-9]{1,2}:[0-5][0-9]\"></label>",
+  "u60PaceSwim": "<label>Ritmo natación (min/100m)<input name=\"u60PaceSwim\" placeholder=\"2:15\"></label>"
+});
+export function datedObservationMetricGroups(step,exercise={}){
+  const profile=exerciseMeasurementProfile({...exercise,id:step?.exerciseId??exercise.id,
+    measurementProfile:step?.prescription?.measurementProfile??exercise.measurementProfile});
+  let primary;
+  if(profile.cardio){
+    if(profile.sport==='swimming')primary=['u60DistanceM','u60Seconds','u60PaceSwim'];
+    else if(profile.sport==='running'||profile.sport==='walking')primary=['u60DistanceKm','u60Seconds','u60Pace'];
+    else primary=['u60Seconds','u60DistanceKm','u60DistanceM'];
+  }else if(profile.kind==='carry')primary=['u60DistanceM','u60Load','u60Seconds'];
+  else if(profile.kind==='isometric')primary=['u60Seconds','u60Load'];
+  else if(profile.kind==='mobility')primary=['u60Reps','u60Seconds'];
+  else primary=['u60Reps','u60Load','u60Rir'];
+  // Explicit planned reps or load must remain visible even for mixed profiles.
+  const planned=plannedDatedSetDraft(step);
+  if(planned.reps!==undefined&&!primary.includes('u60Reps'))primary.push('u60Reps');
+  if(planned.load!==undefined&&!primary.includes('u60Load'))primary.push('u60Load');
+  return Object.freeze({primary:Object.freeze(primary),
+    additional:Object.freeze(Object.keys(DATED_OBSERVATION_MARKUP).filter(name=>!primary.includes(name)))});
+}
+export function renderDatedObservationMetrics(step,exercise={}){
+  const {primary,additional}=datedObservationMetricGroups(step,exercise);
+  const fields=names=>names.map(name=>DATED_OBSERVATION_MARKUP[name]).join('');
+  return fields(primary)+(additional.length
+    ?'<details class="m26-wide" data-u60-additional-metrics><summary>Otras métricas</summary><div class="m26-field-grid">'+fields(additional)+'</div></details>':'');
+}
+
 export function qaDatedCalendarRange(now=new Date()){
   if(!(now instanceof Date)||!Number.isFinite(now.getTime()))
     fail('CLOCK_INVALID');
@@ -313,6 +366,17 @@ export function captureDatedUnsubmittedFields(panel){
   }
   return values;
 }
+// Keep the quick selection visually and semantically in sync with the
+// actual editable RPE, including fractional or invalid manual values.
+export function syncDatedQuickRpe(panel){
+  const input=panel?.querySelector?.('[name="u60Rpe"]');
+  const raw=String(input?.value??'').trim();
+  const value=raw?Number(raw):NaN;
+  for(const button of panel?.querySelectorAll?.('[data-u60-quick-rpe]')||[]){
+    const candidate=Number(button.getAttribute?.('data-u60-quick-rpe'));
+    button.setAttribute?.('aria-pressed',Number.isFinite(value)&&[6,7,8,9,10].includes(candidate)&&candidate===value?'true':'false');
+  }
+}
 export function restoreDatedUnsubmittedFields(panel,values){
   if(!values||typeof values!=='object'||Array.isArray(values))return 0;
   let count=0;
@@ -324,8 +388,13 @@ export function restoreDatedUnsubmittedFields(panel,values){
       element.checked=values[name];count++;
     }else if(element.type!=='checkbox'&&typeof values[name]==='string'){
       element.value=values[name].slice(0,2048);count++;
+      // Reopen supplementary fields containing a restored draft after an error.
+      const details=element.closest?.('[data-u60-additional-metrics]')||
+        element.closest?.('[data-u60-skip-details]');
+      if(details&&element.value.trim())details.open=true;
     }
   }
+  syncDatedQuickRpe(panel);
   return count;
 }
 
@@ -495,22 +564,16 @@ export function createDatedOccurrenceQaUi({
          (coach&&hasPlannedDraft
            ?'<div class="m26-wide"><button type="button" data-u60-copy-plan aria-label="Copiar objetivo prescrito a los campos vacíos">Usar objetivo como borrador</button>'+
             '<p class="m26-field-help">No es un resultado real. Revisa cada valor, registra el esfuerzo observado y confirma la serie.</p></div>':'')+
-         '<label>Repeticiones<input name="u60Reps" type="number" min="0" max="10000" inputmode="decimal"></label>'+
-         '<label>Tiempo (segundos)<input name="u60Seconds" type="number" min="0" max="86400" inputmode="decimal"></label>'+
-         '<label>Distancia running (km)<input name="u60DistanceKm" type="number" step="0.01" min="0" max="1000" inputmode="decimal"></label>'+
-         '<label>Distancia natación (m)<input name="u60DistanceM" type="number" min="0" max="100000" inputmode="decimal"></label>'+
-         '<label>Carga (kg)<input name="u60Load" maxlength="80"></label>'+
+         renderDatedObservationMetrics(step,exercise)+
          '<label>RPE de la serie (1–10)<input name="u60Rpe" type="number" min="1" max="10" step="0.5" required inputmode="decimal"></label>'+
          (coach?'<div class="m26-session-coach-rpe-quick" role="group" aria-label="Seleccionar RPE real de la serie"><span>RPE real</span>'+
            [6,7,8,9,10].map(value=>'<button type="button" data-u60-quick-rpe="'+value+'" aria-label="RPE '+value+'" aria-pressed="false">'+value+'</button>').join('')+
            '</div>':'')+
-         '<label>RIR<input name="u60Rir" type="number" min="0" max="10" step="0.5" inputmode="decimal"></label>'+
-         '<label>Ritmo running (min/km)<input name="u60Pace" placeholder="5:30" pattern="[0-9]{1,2}:[0-5][0-9]"></label>'+
-         '<label>Ritmo natación (min/100m)<input name="u60PaceSwim" placeholder="2:15"></label>'+
          '<label class="m26-wide">Observación<input name="u60Notes" maxlength="1000"></label>'+
-         '<button type="button" data-iberdates-action="u60-record">Registrar serie, avanzar y sincronizar</button>'+
-         '<label class="m26-wide">Motivo para omitir<input name="u60SkipReason" maxlength="300"></label>'+
-         '<button type="button" data-iberdates-action="u60-skip">Omitir serie y sincronizar</button></div>'
+         '<button type="button" class="m26-primary-action m26-wide" data-iberdates-action="u60-record">Registrar serie, avanzar y sincronizar</button>'+
+         '<details class="m26-wide m26-session-options" data-u60-skip-details><summary>Omitir esta serie</summary>'+
+         '<div class="m26-field-grid"><label class="m26-wide">Motivo para omitir<input name="u60SkipReason" maxlength="300"></label>'+
+         '<button type="button" class="m26-wide" data-iberdates-action="u60-skip">Omitir serie y sincronizar</button></div></details></div>'
         :'';
       const feedbackForm=phase==='active'&&view.executionStatus==='awaiting_feedback'
         ?'<div class="m26-field-grid" data-u60-feedback-entry><label>RPE de la sesión<input name="u60FinalRpe" type="number" min="1" max="10" step="0.5" required></label>'+
@@ -542,8 +605,8 @@ export function createDatedOccurrenceQaUi({
       body='<section class="m26-panel" data-u60-workout data-u60-phase="'+escape(phase)+'"'+
         (phaseState.loading?' aria-busy="true"':'')+'><h3>Fecha independiente</h3>'+
         summary+(phaseState.loading?'<p class="m26-field-help">Verificando autorización, fecha y estado con el servidor. Todavía no se ha iniciado ningún entrenamiento.</p>':'')+
-        stepMarkup+stepMedia+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
-        (view.startedAt?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'">'+escape(formatDatedElapsed(Number(view.accumulatedActiveMs||0)+(view.executionStatus==='active'&&view.activeSince?Math.max(0,Date.now()-Date.parse(view.activeSince)):0)))+'</strong></p>':'')+
+        renderDatedCompletionSummary(view)+stepMarkup+stepMedia+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
+        (view.startedAt&&!(phase==='completed'&&view.completionSummary?.activeMs!=null)?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'">'+escape(formatDatedElapsed(Number(view.accumulatedActiveMs||0)+(view.executionStatus==='active'&&view.activeSince?Math.max(0,Date.now()-Date.parse(view.activeSince)):0)))+'</strong></p>':'')+
         '<p role="alert" data-u60-input-warning hidden></p>'+
         (phase==='active'&&['active','awaiting_feedback','paused'].includes(view.executionStatus)
           ?'<button type="button" data-iberdates-action="u60-save-close">Guardar y salir</button>'
@@ -998,6 +1061,11 @@ export function createDatedOccurrenceQaUi({
     }
   }
   function onCoachDateInput(event){
+    if(event?.target?.name==='u60Rpe'&&!disposed){
+      const panel=event.target.closest?.('[data-u60-panel]');
+      if(panel&&root.contains(panel))syncDatedQuickRpe(panel);
+      return;
+    }
     if(!['u60Session','u60Dates','u60AddDate','u60AddTime']
       .includes(String(event?.target?.name||''))||disposed)return;
     const panel=event.target.closest?.('[data-u60-panel]');
@@ -1095,8 +1163,7 @@ export function createDatedOccurrenceQaUi({
       const input=panel?.querySelector?.('[name="u60Rpe"]');
       if(!input)return;
       input.value=String(chosen);
-      for(const button of panel.querySelectorAll?.('[data-u60-quick-rpe]')||[])
-        button.setAttribute?.('aria-pressed',button===quick?'true':'false');
+      syncDatedQuickRpe(panel);
       return;
     }
     const button=event?.target?.closest?.('[data-iberdates-action]');
