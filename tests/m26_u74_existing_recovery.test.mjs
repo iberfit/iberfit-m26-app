@@ -4,20 +4,21 @@ import {readFileSync} from 'node:fs';
 import {checkHistoricFixture} from '../scripts/remote-gates/qa_u74_existing_recovery.mjs';
 const source={schema:'iberfit.u71.qa-authenticated-dated-e2e.v1',stage:'prepare-browser',
  status:'QA_BROWSER_FIXTURE_READY',project:'QA',writesApplied:true,prodTouched:false,
- sha:'3ee26fb00c98855d53f3c9b5cc923cf60d805a40',runId:'43679537387',
- createdAt:new Date().toISOString(),
+ sha:'4f1595cfda0bbfc76911f2f7d37e6e7cea51fa33',runId:'45627237403',
+ createdAt:new Date().toISOString(),appointmentless:true,serviceRole:false,
  fixture:{clientId:'10000000-0000-4000-8000-000000000001',
   sessionId:'20000000-0000-4000-8000-000000000001',
   occurrenceId:'30000000-0000-4000-8000-000000000001',
   futureOccurrenceId:'40000000-0000-4000-8000-000000000001',
-  stepsExpected:2,localDate:'2026-11-15',futureDate:'2026-11-22'}};
+  stepsExpected:1,appointmentless:true,localDate:'2026-11-25',futureDate:'2026-12-02'}};
 test('Historic QA-only interrupted fixture binds exact SHA, run, owner and two dates',()=>{
- assert.equal(checkHistoricFixture(source).stepsExpected,2);
+ assert.equal(checkHistoricFixture(source).stepsExpected,1);
  for(const mutation of [
-  {sha:'wrong'},{runId:'43679537393'},{project:'PROD'},
+  {sha:'wrong'},{runId:'45627237404'},{project:'PROD'},
   {writesApplied:false},{status:'QA_BROWSER_HOSTED_E2E_SUCCESS'},
   {fixture:{...source.fixture,occurrenceId:source.fixture.futureOccurrenceId}},
-  {fixture:{...source.fixture,stepsExpected:1}},
+  {fixture:{...source.fixture,stepsExpected:2}},
+  {fixture:{...source.fixture,appointmentless:false}},{serviceRole:true},
   {fixture:{...source.fixture,clientId:'not-a-uuid'}},
  ])assert.throws(()=>checkHistoricFixture({...source,...mutation}),/U74_RECOVERY_/u);
 });

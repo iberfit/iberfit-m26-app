@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {releaseQaSessionBeforeContextClose} from './qa-session-cleanup.mjs';
 import {readFileSync} from 'node:fs';
 import {
  CANARY_ORIGIN,QA_PROJECT_REF,SUPABASE_ORIGIN,
@@ -21,14 +22,15 @@ function proof(){
  expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
  expect(process.env.M26_QA_ONLY).toBe('true');
  expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
- expect(source.sha).toBe('3ee26fb00c98855d53f3c9b5cc923cf60d805a40');
- expect(String(source.runId)).toBe('43679537387');
+ expect(source.sha).toBe('4f1595cfda0bbfc76911f2f7d37e6e7cea51fa33');
+ expect(String(source.runId)).toBe('45627237403');
  expect(source.status).toBe('QA_BROWSER_FIXTURE_READY');
  expect(ready.status).toBe('READ_ONLY_READY');
  expect(ready.sha).toBe(process.env.GITHUB_SHA);
  expect(ready.runId).toBe(process.env.GITHUB_RUN_ID);
  expect(ready.occurrenceId).toBe(source.fixture.occurrenceId);
- expect(source.fixture.stepsExpected).toBe(2);
+ expect(source.fixture.stepsExpected).toBe(1);
+ expect(source.fixture.appointmentless).toBe(true);
  return {source,ready};
 }
 async function login(page,suffix){
@@ -52,6 +54,10 @@ async function login(page,suffix){
  await expect(page.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25000});
  await expect(page.locator('[data-u60-panel]')).toBeVisible({timeout:15000});
 }
+test.afterEach(async({page},testInfo)=>{
+ const result=await releaseQaSessionBeforeContextClose(page);
+ if(testInfo.status==='passed')expect(['released','no-session']).toContain(result);
+});
 test('U74 existing QA only: recover exact interrupted set, close with real ACK, B denied',async({page,context,browser})=>{
  test.setTimeout(420000);
  const {source,ready}=proof(),f=source.fixture,blocked=[],errors=[],faults=[],writes=[],acks=[];
@@ -98,9 +104,26 @@ test('U74 existing QA only: recover exact interrupted set, close with real ACK, 
  const record=player.locator('[data-iberdates-action="u60-record"]');
  await expect(record).toBeVisible({timeout:25000});
  await expect(record).toBeEnabled({timeout:25000});
- await player.locator('[name="u60Reps"]').fill('8');
- await player.locator('[name="u60Load"]').fill('20');
- await player.locator('[name="u60Rpe"]').fill('7');
+  // The signed candidate is not guaranteed to be a strength exercise.
+  // Use the actual primary fields for each exercise, never a hidden
+  // supplementary metric or a forced click. Keep all real ACK assertions.
+  const entry=player.locator('[data-u60-entry]');
+  const primary=name=>entry.locator(':scope > label > input[name="'+name+'"]');
+  const samples={u60Reps:'8',u60Load:'20',u60Seconds:'60',
+    u60DistanceKm:'0.2',u60DistanceM:'100',u60Rir:'2',
+    u60Pace:'5:00',u60PaceSwim:'1:00'};
+  const bothDistances=await primary('u60DistanceKm').count()&&await primary('u60DistanceM').count();
+  let observed=0;
+  for(const [name,value] of Object.entries(samples)){
+   if(bothDistances&&['u60DistanceKm','u60DistanceM'].includes(name))continue;
+   const field=primary(name);
+   if(!await field.count())continue;
+   await expect(field).toBeVisible({timeout:10000});
+   await field.fill(value,{timeout:10000});
+   observed++;
+  }
+  expect(observed,'each synthetic set records at least one primary metric').toBeGreaterThan(0);
+  await primary('u60Rpe').fill('7',{timeout:10000});
  await record.click();
  await expect.poll(()=>acks.length,{timeout:30000}).toBe(1);
  await expect(panel).not.toHaveAttribute('aria-busy','true',{timeout:30000});
@@ -114,12 +137,13 @@ test('U74 existing QA only: recover exact interrupted set, close with real ACK, 
  expect(new Set(writes.map(x=>x.operationId)).size).toBe(2);
  expect(blocked).toEqual([]);expect(errors).toEqual([]);expect(faults).toEqual([]);
  const other=await browser.newContext({serviceWorkers:'block'});
+ let b=null;
  try{
   const denied=[];await installCurrentSourceQaNetworkPolicy(other,{readOnlyRpcs:READS,
    onBlocked:x=>denied.push(x)});
-  const b=await other.newPage();await login(b,'B');
+  b=await other.newPage();await login(b,'B');
   await b.locator('[data-iberdates-action="u60-calendar"]').click();
   await expect(b.locator('[data-u60-id="'+f.occurrenceId+'"]')).toHaveCount(0);
   expect(denied).toEqual([]);
- }finally{await other.close();}
+ }finally{try{if(b)await releaseQaSessionBeforeContextClose(b);}finally{await other.close();}}
 });

@@ -1,7 +1,7 @@
 name: IBERFIT U74 QA Existing Synthetic Recovery
 on:
   push:
-    branches: ['feat/iberfit-real-training-360-20261114']
+    branches: ['qa/u74-recovery-45627237403']
     paths:
       - '.github/workflows/u74-qa-recover-existing.yml'
       - 'scripts/remote-gates/qa_u74_existing_recovery.mjs'
@@ -37,18 +37,20 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
-        with: {persist-credentials: false}
+        with: {persist-credentials: false, fetch-depth: 2}
       - uses: actions/setup-node@v4
         with: {node-version: '22', cache: npm}
       - name: Install pinned dependencies
         run: npm ci
-      - name: Guard exact historical recovery source and owner scope
-        run: node --test tests/m26_u74_existing_recovery.test.mjs
+      - name: Guard exact reviewed application source and owner scope
+        run: |
+          test "$(git rev-parse HEAD^)" = "0072a643c02a467aca28572a44a9d86a6563e11b"
+          node --test tests/m26_u74_existing_recovery.test.mjs
       - name: Recover immutable failed U74 QA browser fixture (no secrets)
         uses: actions/download-artifact@v4
         with:
-          name: iberfit-u74-browser-43679537387-2
-          run-id: 43679537387
+          name: iberfit-u74-browser-45627237403-2
+          run-id: 45627237403
           github-token: ${{ github.token }}
           path: .tmp/u74-old
       - name: First attempt READ ONLY inspect the single interrupted QA execution
@@ -76,7 +78,7 @@ jobs:
       - name: Build exact-source authenticated mobile QA shell
         if: ${{ github.run_attempt == 2 }}
         run: node qa/rc64/build-authenticated-surface.mjs
-      - name: Resume only missing QA set, real Client UI then final ACK
+      - name: Record the one missing QA set, real Client UI then final ACK
         if: ${{ github.run_attempt == 2 }}
         run: npx playwright test --config playwright.u74-recovery.config.mjs
       - name: Coach independently reads completion and untouched second date, B denied

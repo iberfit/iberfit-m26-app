@@ -2,11 +2,13 @@
 // Reads are the only operations in this script. A separate browser, under the
 // same project/owner/network whitelist, must perform the remaining actions.
 import {createHash} from 'node:crypto';
+import {createQaAuthLease,runQaStageWithCleanup} from './release_qa_auth_sessions.mjs';
+let lease;
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 const REF='gjztkdwfmunnzhtvxrsu';
 const ORIGIN='https://'+REF+'.supabase.co';
-const OLD_RUN='43679537387';
-const OLD_SHA='3ee26fb00c98855d53f3c9b5cc923cf60d805a40';
+const OLD_RUN='45627237403';
+const OLD_SHA='4f1595cfda0bbfc76911f2f7d37e6e7cea51fa33';
 const SOURCE='.tmp/u74-old/evidence.json';
 const FIRST='.tmp/u74-first/evidence.json';
 const OUTPUT='recovery/u74-existing-resume/evidence.json';
@@ -20,8 +22,9 @@ export function checkHistoricFixture(p){
   &&p.project==='QA'&&p.writesApplied===true&&p.prodTouched===false
   &&p.sha===OLD_SHA&&String(p.runId)===OLD_RUN
   &&f&&['clientId','sessionId','occurrenceId','futureOccurrenceId'].every(k=>UUID.test(f[k]))
-  &&f.occurrenceId!==f.futureOccurrenceId&&f.stepsExpected===2
-  &&f.localDate==='2026-11-15'&&f.futureDate==='2026-11-22','OLD_FIXTURE_INVALID');
+  &&f.occurrenceId!==f.futureOccurrenceId&&f.stepsExpected===1
+  &&p.appointmentless===true&&f.appointmentless===true&&p.serviceRole===false
+  &&f.localDate==='2026-11-25'&&f.futureDate==='2026-12-02','OLD_FIXTURE_INVALID');
  const age=Date.now()-Date.parse(p.createdAt);
  requireSafe(Number.isFinite(age)&&age>=0&&age<72*3600000,'OLD_PROVENANCE_EXPIRED');
  return f;
@@ -30,7 +33,7 @@ function environment(){
  const e=process.env;
  requireSafe(e.GITHUB_ACTIONS==='true'
   &&['1','2'].includes(e.GITHUB_RUN_ATTEMPT)
-  &&e.GITHUB_REF==='refs/heads/feat/iberfit-real-training-360-20261114'
+  &&e.GITHUB_REF==='refs/heads/qa/u74-recovery-45627237403'
   &&/^[a-f0-9]{40}$/u.test(e.GITHUB_SHA||'')
   &&/^[0-9]+$/u.test(e.GITHUB_RUN_ID||'')
   &&e.M26_PROJECT_REF===REF&&e.M26_QA_ONLY==='true'
@@ -43,7 +46,7 @@ function environment(){
 }
 async function exactHead(e){
  const u='https://api.github.com/repos/iberfit/iberfit-m26-app/git/ref/heads/'+
-   encodeURIComponent('feat/iberfit-real-training-360-20261114');
+   encodeURIComponent('qa/u74-recovery-45627237403');
  const r=await fetch(u,{headers:{Authorization:'Bearer '+e.GH_TOKEN,
   Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(12000)});
  requireSafe(r.ok,'HEAD_READ_FAILED');
@@ -65,11 +68,11 @@ async function jwt(e,label){
  const r=await api(e,'/auth/v1/token?grant_type=password',{
   email:e['M26_QA_'+label+'_EMAIL'],password:e['M26_QA_'+label+'_PASSWORD']});
  requireSafe(r.status===200&&typeof r.body?.access_token==='string','QA_AUTH_'+label);
- return r.body.access_token;
+ return lease.track(r.body,e['M26_QA_'+label+'_EMAIL']);
 }
 async function inspection(e,p,mode){
  const f=checkHistoricFixture(p);
- const [coach,a,b]=await Promise.all([jwt(e,'COACH'),jwt(e,'CLIENT_A'),jwt(e,'CLIENT_B')]);
+ const coach=await jwt(e,'COACH'),a=await jwt(e,'CLIENT_A'),b=await jwt(e,'CLIENT_B');
  const [roleCoach,roleA,ownerA,ownerB]=await Promise.all([
   rpc(e,coach,'iberfit_current_role_v26',{}),
   rpc(e,a,'iberfit_current_role_v26',{}),
@@ -89,7 +92,9 @@ async function inspection(e,p,mode){
  const two=calendar.body.occurrences.find(x=>x.id===f.futureOccurrenceId);
  requireSafe(one?.clientId===f.clientId&&one?.sessionId===f.sessionId
   &&two?.clientId===f.clientId&&two?.sessionId===f.sessionId
-  &&two.status==='confirmada'&&one.status===(mode==='verify'?'completada':'en_curso'),
+  &&one.appointmentId===null&&two.appointmentId===null
+  &&two.status==='confirmada'&&one.status===(mode==='verify'?'completada':'en_curso')
+  &&!calendar.body.occurrences.some(x=>x.id!==one.id&&x.status==='en_curso'),
   'DATES_SCOPE_OR_STATUS_CHANGED');
  const details=await rpc(e,coach,'iberfit_occurrence_detail_v1',{
   p_client_id:f.clientId,p_occurrence_id:f.occurrenceId});
@@ -99,9 +104,9 @@ async function inspection(e,p,mode){
   &&d.clientId===f.clientId&&d.sessionId===f.sessionId
   &&d.status===(mode==='verify'?'completada':'en_curso')
   &&d.results&&typeof d.results==='object'&&!Array.isArray(d.results)
-  &&Object.keys(d.results).length===(mode==='verify'?2:1)
+  &&Object.keys(d.results).length===(mode==='verify'?1:0)
   &&d.skippedSets&&Object.keys(d.skippedSets).length===0
-  &&Array.isArray(d.queue)&&d.queue.reduce((n,x)=>n+Number(x.sets||0),0)===2,
+  &&Array.isArray(d.queue)&&d.queue.reduce((n,x)=>n+Number(x.sets||0),0)===1,
   'EXECUTION_NOT_EXACTLY_RECOVERABLE');
  const denied=await rpc(e,b,'iberfit_occurrence_api_u60_v1',{
   p_action:'CALENDARIO',p_payload:{clientId:f.clientId,startDate:f.localDate,
@@ -120,6 +125,14 @@ async function main(){
  const mode=process.argv[2];
  requireSafe(['preflight','admit','verify'].includes(mode),'MODE');
  const e=environment();
+ lease=createQaAuthLease({base:ORIGIN,key:e.M26_SUPABASE_PUBLISHABLE_KEY,
+  projectRef:REF,qaOnly:e.M26_QA_ONLY,tag:'U74_RECOVERY',fixtures:{
+   'qa.rc74.coach@iberfit.cl':e.M26_QA_COACH_EMAIL,
+   'qa.rc74.client-a@iberfit.cl':e.M26_QA_CLIENT_A_EMAIL,
+   'qa.rc74.client-b@iberfit.cl':e.M26_QA_CLIENT_B_EMAIL}});
+ return runQaStageWithCleanup(()=>runMode(e,mode),()=>lease.release());
+}
+async function runMode(e,mode){
  requireSafe(e.GITHUB_RUN_ATTEMPT===(mode==='preflight'?'1':'2'),'ATTEMPT_SCOPE');
  await exactHead(e);
  const source=JSON.parse(await readFile(SOURCE,'utf8'));
@@ -153,7 +166,7 @@ async function main(){
   requireSafe(state.fingerprint===first.serverFingerprint,'SERVER_STATE_MOVED');
   process.stdout.write('IBERFIT_U74_EXISTING_QA_RECOVERY_ADMITTED_NO_WRITES\n');
  }else{
-  requireSafe(state.resultCount===2&&state.fingerprint!==first.serverFingerprint,
+  requireSafe(state.resultCount===1&&state.fingerprint!==first.serverFingerprint,
     'RECOVERY_NOT_COMMITTED');
   process.stdout.write('IBERFIT_U74_EXISTING_QA_COACH_READBACK_AND_CLIENT_B_DENIED\n');
  }
