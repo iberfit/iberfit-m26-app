@@ -3,6 +3,7 @@ import {sessionVisibilityLevel} from '../rc39/session-policy.js';
 import {
   formatIberfitDate,
   parseDateValue,
+  parseCivilDate,
 } from '../domain/civil-date.js';
 
 const ENTITY_ALIASES=Object.freeze({
@@ -17,7 +18,7 @@ const GROUP_NAMES=Object.freeze({biserie:'Biserie',triserie:'Triserie',circuito:
 function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
 function field(record,...keys){const body=bodyOf(record);for(const key of keys){const value=record?.[key]??body?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
 function clean(value,max=600){return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
-function boundedNumber(value,{min=0,max=100000,integer=false}={}){if(value===null||value===undefined||value===''||typeof value==='boolean'||(typeof value==='string'&&!value.trim()))return null;const parsed=Number(value);if(!Number.isFinite(parsed)||parsed<min||parsed>max)return null;return integer?Math.round(parsed):parsed;}
+function boundedNumber(value,{min=0,max=100000,integer=false}={}){if((typeof value!=='number'&&typeof value!=='string')||(typeof value==='string'&&!value.trim()))return null;const parsed=Number(value);if(!Number.isFinite(parsed)||parsed<min||parsed>max)return null;return integer?Math.round(parsed):parsed;}
 function dateValue(value){return parseDateValue(value);}
 function dateLabel(value){return formatIberfitDate(value,{locale:IBERFIT_UI_LOCALE,includeTime:false});}
 function entityOf(entity){return ENTITY_ALIASES[String(entity||'').trim().toLowerCase()]||null;}
@@ -94,18 +95,26 @@ export function clientContentView(entity,record={},{previewForPublication=false}
   const available=['publicado','published'].includes(status)&&audience==='cliente'
     &&['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(reportType);
   const evidence=publicReportValue('evidence'),activitySeries=publicReportValue('activitySeries');
-  const reportDocument=available&&Array.isArray(evidence)&&evidence.length>0?Object.freeze({
+  const periodStart=parseCivilDate(publicReportValue('periodStart','period_start'))?.iso;
+  const periodEnd=parseCivilDate(publicReportValue('periodEnd','period_end'))?.iso;
+  const series=activitySeries??[];
+  const validSeries=Array.isArray(series)&&series.length<=13&&series.every((row,index)=>
+    parseCivilDate(row?.from)&&parseCivilDate(row?.to)&&row.from>=periodStart&&row.to<=periodEnd&&
+    row.from<=row.to&&Number.isSafeInteger(row.count)&&row.count>=0&&(!index||series[index-1].to<row.from));
+  const validEvidence=Array.isArray(evidence)&&evidence.length>0&&evidence.length<=12&&evidence.every(row=>
+    clean(row?.label,120)&&clean(row?.text,500)&&clean(row?.source,120));
+  const reportDocument=available&&periodStart&&periodEnd&&periodStart<=periodEnd&&validEvidence&&validSeries?Object.freeze({
     id:reportType,ready:true,title,summary,
     conclusions:clean(publicReportValue('conclusions'),MAX_SECTION_TEXT),
     recommendations:clean(publicReportValue('recommendations'),MAX_SECTION_TEXT),
-    periodStart:clean(publicReportValue('periodStart','period_start'),10),
-    periodEnd:clean(publicReportValue('periodEnd','period_end'),10),
+    periodStart,
+    periodEnd,
     evidence:Object.freeze(evidence.slice(0,12).map(row=>Object.freeze({
       label:clean(row?.label,120),text:clean(row?.text,500),
       source:clean(row?.source,120),quality:clean(row?.quality,60),
     }))),
-    activitySeries:Object.freeze((Array.isArray(activitySeries)?activitySeries:[]).slice(0,13).map(row=>Object.freeze({
-      from:clean(row?.from,10),to:clean(row?.to,10),count:boundedNumber(row?.count,{min:0,max:100000,integer:true}),
+    activitySeries:Object.freeze(series.map(row=>Object.freeze({
+      from:row.from,to:row.to,count:row.count,
     }))),
     sourceType:reportType==='post-session'?'session_execution':'session_execution_period',
   }):null;

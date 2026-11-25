@@ -482,10 +482,11 @@ export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,lim
   const verifiedExecutions=confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true});
   for(const raw of verifiedExecutions){
     const item=unwrap(raw);
-    if(!within(dateOf(item),start,end))continue;
+    const completedAt=sessionExecutionCompletionDate(item);
+    if(!within(completedAt,start,end))continue;
     rows.push({
       kind:'execution',executionId:sessionExecutionId(item)||null,
-      date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',
+      date:completedAt,title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',
       status:statusOf(item),
       detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada',
     });

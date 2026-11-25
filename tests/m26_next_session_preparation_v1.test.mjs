@@ -450,3 +450,19 @@ test('next-session preparation reuses same-render owner summary and rejects unre
     assert.deepEqual(buildNextSessionPreparation(state,clientId,{now,summary:invalid}).progress,normal.progress);
   }
 });
+
+
+test('Coach preparation ignores acknowledgement-only and future executions and retains summary completion',()=>{
+  const state=baseState();
+  state.collections.sessionExecutions.push(
+    {id:'ack-only',clientId,status:'completed',syncStatus:'clean',remoteConfirmedAt:'2026-09-13T10:00:00Z',feedback:{comment:'ACK no es sesión'}},
+    {id:'future',clientId,status:'completed',syncStatus:'clean',completedAt:'2026-09-13T20:00:00Z',feedback:{comment:'Futura'}},
+    {id:'summary',clientId,status:'completed',syncStatus:'clean',summary:{completedAt:'2026-09-12T15:00:00Z'},feedback:{pain:true,comment:'Cierre real'}});
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.lastExecution.id,'summary');
+  assert.equal(prep.lastExecution.completedAt,'2026-09-12T15:00:00Z');
+  assert.equal(prep.reviewReasons[0].kind,'pain');
+  const review=buildTrainingSinceLastCoachReview(state,clientId,{now,outcomes:{closed:[{id:'r1',clientId,status:'cerrado',reviewedAt:'2026-09-10'}]}});
+  assert.equal(review.confirmedSessions,2);
+  assert.equal(review.latestSessionAt,'2026-09-12');
+});

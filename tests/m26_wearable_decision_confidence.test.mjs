@@ -128,3 +128,13 @@ test('Decision Brief accepts fresh wearable context without inventing values',()
   assert.ok(brief.signals.some((item)=>/1 día con datos actuales de dispositivo/u.test(item)));
   assert.equal(brief.limitations.some((item)=>/frescura/u.test(item)),false);
 });
+
+
+test('Decision Brief distinguishes primary evidence from alerts and fresh device context',()=>{
+  const brief=buildIberfitDecisionBrief({now:NOW,summary:{dataQuality:'alta',wearable:{daysWithData:1,decision:{eligible:true,currentEvidenceDays:1,providers:['health_connect']}}},alerts:[{severity:'warning',title:'Revisar',action:'Ver contexto'}]});
+  assert.equal(brief.evidenceCount,2);
+  assert.equal(brief.primaryEvidenceCount,0);
+  assert.equal(brief.contextualEvidenceCount,2);
+  assert.equal(brief.confidence,'limitada');
+  assert.equal(brief.nextStep,'Ver contexto');
+});

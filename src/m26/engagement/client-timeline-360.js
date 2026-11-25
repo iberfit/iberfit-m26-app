@@ -7,7 +7,8 @@ import {
   normalizeAppointmentRecord,
 } from '../domain/appointment.js';
 import {parseDateValue} from '../domain/civil-date.js';
-import {confirmedSessionExecutionsForClient,sessionExecutionId} from '../domain/session-execution-truth.js';
+import {clientContentView} from '../publication/client-content.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
@@ -67,12 +68,21 @@ function publicationRows(state,clientId,start,end){
     for(const record of forClient(state,collectionKey,clientId)){
       const at=publishedAt(record);
       if(!published(record)||!clientVisible(record)||!at||!within(at,start,end))continue;
+      // A report needs affirmative client publication; never interpret missing
+      // visibility or a contradictory professional audience as permission.
+      if(kind==='report'){
+        const audience=String(value(record,'audience','visibility')||'').trim().toLowerCase();
+        const visible=value(record,'visibleToClient','visible_to_client','clientVisible','client_visible');
+        if(audience?audience!=='cliente':visible!==true)continue;
+        if(!['published','publicado'].includes(statusOf(record)))continue;
+      }
+      const projected=clientContentView(kind,record);
       rows.push({
         kind,
         date:at,
-        title:publishedTitle(record,fallback),
+        title:projected.title||publishedTitle(record,fallback),
         status:'publicado',
-        detail:publicationDetail(kind,record),
+        detail:publicationDetail(kind,{summary:projected.summary}),
       });
     }
   }
@@ -114,7 +124,9 @@ function executionByDate(state,clientId){
   // Only remote-confirmed, completed executions can supply feedback to an
   // otherwise confirmed Client timeline row. Never borrow from pending work.
   for(const record of confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true})){
-    const key=rowDateKey(dateOf(record));
+    const completedAt=sessionExecutionCompletionDate(record);
+    if(!completedAt)continue;
+    const key=rowDateKey(completedAt);
     if(!key)continue;
     const records=map.get(key)||[];
     records.push(record);
@@ -168,7 +180,7 @@ export function buildClientTimeline360(state,clientId,{now=new Date(),days=90,li
   const {start,end}=progressWindow({now,days});
   const safeLimit=Number.isInteger(Number(limit))&&Number(limit)>=1&&Number(limit)<=200?Number(limit):24;
   const base=enrichConfirmedExecutionRows(
-    buildBaseProgressTimeline(state,clientId,{now,days,limit:200}),
+    buildBaseProgressTimeline(state,clientId,{now,days,limit:200,confirmedIriOnly:String(state?.identity?.role||'').toLowerCase()==='client'}),
     state,
     clientId,
   );
