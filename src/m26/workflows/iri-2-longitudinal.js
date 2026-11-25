@@ -31,6 +31,7 @@ export function isInitialIriAssessment(record){
 
 
 function finite(value){
+  if(typeof value!=='number'&&(typeof value!=='string'||!value.trim()))return null;
   const n=Number(value);
   return Number.isFinite(n)?n:null;
 }
@@ -185,7 +186,7 @@ export function iri2SnapshotFromDraft(draft={}){
 }
 
 function comparable(previous,current){
-  if(previous?.value===null||current?.value===null)return false;
+  if(finite(previous?.value)===null||finite(current?.value)===null)return false;
   if(previous.comparison==='protocol'||current.comparison==='protocol'){
     if(previous.valid===false||current.valid===false)return false;
     const p=clean(previous.protocol,500),c=clean(current.protocol,500);

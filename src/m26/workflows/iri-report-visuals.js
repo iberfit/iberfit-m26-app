@@ -1,7 +1,7 @@
 function esc(value){return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
-function finite(value){return value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value));}
-function clamp(value,min=0,max=100){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):null;}
-function fmt(value,digits=0){const n=Number(value);return Number.isFinite(n)?n.toLocaleString('es-ES',{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';}
+function finite(value){return (typeof value==='number'||(typeof value==='string'&&value.trim()!==''))&&Number.isFinite(Number(value));}
+function clamp(value,min=0,max=100){if(!finite(value))return null;const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):null;}
+function fmt(value,digits=0){return finite(value)?Number(value).toLocaleString('es-ES',{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';}
 
 const DOMAIN_LABELS=Object.freeze({mobility:'Movilidad',strength:'Fuerza funcional',cardio:'Capacidad funcional'});
 
@@ -78,8 +78,8 @@ export function renderEffortCurve(cardio={}){
 const PHOTO_VIEW_LABELS=Object.freeze({front:'Frontal',back:'Posterior',left:'Lateral izquierda',right:'Lateral derecha'});
 
 function iriMetricValue(item={}){
-  const value=Number(item?.value);
-  if(!Number.isFinite(value))return '—';
+  if(!finite(item?.value))return '—';
+  const value=Number(item.value);
   return `${fmt(value,1)}${item?.unit==='cm'?' cm':'°'}`;
 }
 function iriPhotoSvg(photo,landmarks={},measurements={},calibration={}){
@@ -88,7 +88,7 @@ function iriPhotoSvg(photo,landmarks={},measurements={},calibration={}){
   const view=photo?.view;
   const points=landmarks?.[view]||{};
   const point=(key)=>{
-    const p=points?.[key];if(!p||!Number.isFinite(Number(p.x))||!Number.isFinite(Number(p.y)))return null;
+    const p=points?.[key];if(!p||!finite(p.x)||!finite(p.y))return null;
     return {x:Math.max(0,Math.min(1,Number(p.x)))*width,y:Math.max(0,Math.min(1,Number(p.y)))*height};
   };
   const pairs=view==='front'||view==='back'
@@ -97,7 +97,7 @@ function iriPhotoSvg(photo,landmarks={},measurements={},calibration={}){
   const lines=pairs.map(([a,b])=>{const p1=point(a),p2=point(b);return p1&&p2?`<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}"/>`:'';}).join('');
   const dots=Object.keys(points).map((key)=>{const p=point(key);return p?`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${Math.max(3,Math.min(width,height)*.0045).toFixed(1)}"/>`:'';}).join('');
   const scale=calibration?.[view];
-  const scaleLine=scale?.pointA&&scale?.pointB
+  const scaleLine=scale?.pointA&&scale?.pointB&&[scale.pointA.x,scale.pointA.y,scale.pointB.x,scale.pointB.y,scale.knownLengthCm].every(finite)
     ?`<g class="iri-photo-scale"><line x1="${Number(scale.pointA.x)*width}" y1="${Number(scale.pointA.y)*height}" x2="${Number(scale.pointB.x)*width}" y2="${Number(scale.pointB.y)*height}"/><text x="${((Number(scale.pointA.x)+Number(scale.pointB.x))/2)*width}" y="${((Number(scale.pointA.y)+Number(scale.pointB.y))/2)*height}" text-anchor="middle">${esc(fmt(scale.knownLengthCm,1))} cm</text></g>`
     :'';
   const rows=Array.isArray(measurements?.metrics)?measurements.metrics.filter((item)=>item?.view===view):[];
