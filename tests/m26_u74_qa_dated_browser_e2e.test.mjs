@@ -88,6 +88,10 @@ test('U74 requires exact source, explicit second attempt, least privilege and no
  assert.match(policy,/allowQaSyntheticWrite\(request\)===true/u);
  assert.match(browser,/isQaScopedDatedSyntheticWrite\(request,f\)/u);
  assert.match(browser,/expect\(acks\)\.toEqual\(expected\)/u);
+ assert.match(browser,/:scope > label > input\[name=/u);
+ assert.match(browser,/expect\(observed,[^\n]+\)\.toBeGreaterThan\(0\)/u);
+ assert.match(browser,/await field\.fill\(value,\{timeout:10000\}\)/u);
+ assert.doesNotMatch(browser,/force:\s*true/u);
  assert.doesNotMatch(browser,/service_role|pjhmrhejsoofmouedavw/u);
 });
 
