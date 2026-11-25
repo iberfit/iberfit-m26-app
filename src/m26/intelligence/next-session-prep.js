@@ -1,4 +1,5 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
+import {confirmedScheduledCompletion,reusableConfirmedSummary} from '../engagement/progress-continuity.js';
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
@@ -393,10 +394,13 @@ export function buildTrainingSinceLastCoachReview(state,clientId,{now=new Date()
   });
 }
 
-export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null}={}){
+export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null,summary=null}={}){
   const safeClientId=String(clientId||'').trim();
   if(!safeClientId)return null;
-  const progress=computeProgressSummary(state,safeClientId,{now,days:28});
+  // Reuse only the same-owner, same-window projection from this render.
+  // No persistent cache or cross-route reuse.
+  const progress=reusableConfirmedSummary(summary,safeClientId,28)
+    ??computeProgressSummary(state,safeClientId,{now,days:28});
   const appointment=nextAppointment(state,safeClientId,now);
   const session=sessionForPreparation(state,safeClientId,appointment);
   const execution=latestExecution(state,safeClientId);
@@ -423,7 +427,8 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       :sessionId
         ?'draft-fallback'
         :'none';
-  const adherencePercent=percent(progress?.adherence);
+  const scheduled=confirmedScheduledCompletion(progress);
+  const adherencePercent=percent(scheduled?.adherence);
 
   return Object.freeze({
     kind:'next-session-preparation',
@@ -451,7 +456,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       plannedSessions:Number(progress?.plannedSessions||0),
       completedSessions:Number(progress?.completedSessions||0),
       scheduledCompletedSessions:progress?.scheduledCompletedSessions??null,
-      adherence:finite(progress?.adherence),
+      adherence:scheduled?.adherence??null,
       adherencePercent,
       averageRpe:finite(progress?.averageRpe),
       lastExecutionRpe:finite(progress?.lastExecutionRpe),

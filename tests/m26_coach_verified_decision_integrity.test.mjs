@@ -7,7 +7,7 @@ import {buildTraining360DecisionPack} from '../src/m26/intelligence/training360-
 import {createOccurrencePrivateReader} from '../src/m26/workflows/occurrence-private-reader.js';
 
 const NOW=new Date('2026-11-11T12:00:00.000Z');
-const SAMPLE={plannedSessions:4,completedSessions:3,adherence:0.75,averageRpe:7.5,
+const SAMPLE={plannedSessions:4,completedSessions:3,scheduledCompletedSessions:3,adherence:0.75,averageRpe:7.5,
   checkins:2,unconfirmedExecutions:1,wearable:{daysWithData:0}};
 const brief=(summary)=>buildIberfitDecisionBrief({summary,now:NOW});
 test('Coach decision brief uses verified counts and stable confirmed range',()=>{
@@ -19,15 +19,16 @@ test('Coach decision brief uses verified counts and stable confirmed range',()=>
 });
 test('missing, contradictory and non-numeric adherence never becomes a confirmed percentage',()=>{
  for(const changes of [
-  {completedSessions:5},{completedSessions:1},{plannedSessions:0},
-  {completedSessions:false},{completedSessions:-1},{completedSessions:1.5},
-  {plannedSessions:null,completedSessions:0},{plannedSessions:undefined,completedSessions:0},
+  {scheduledCompletedSessions:5},{scheduledCompletedSessions:1},{plannedSessions:0},
+  {scheduledCompletedSessions:false},{scheduledCompletedSessions:-1},{scheduledCompletedSessions:1.5},
+  {plannedSessions:null,scheduledCompletedSessions:0},{plannedSessions:undefined,scheduledCompletedSessions:0},
+  {scheduledCompletedSessions:null},{scheduledCompletedSessions:undefined},{adherence:null},{adherence:undefined},
  ]){
   const result=brief({...SAMPLE,...changes});
   assert.equal(result.signals.some(x=>x.includes('Adherencia confirmada:')),false,JSON.stringify(changes));
   assert.ok(result.limitations.some(x=>/Adherencia no calculable/u.test(x)));
  }
- assert.equal(brief({plannedSessions:3,completedSessions:0}).signals
+ assert.equal(brief({plannedSessions:3,completedSessions:0,scheduledCompletedSessions:0,adherence:0}).signals
   .some(x=>/Adherencia confirmada: 0% \(0 de 3/u.test(x)),true,'genuine zero is not missing');
 });
 test('wrong RPE, boolean and blank values are absence, not evidence',()=>{
@@ -218,4 +219,14 @@ test('U60 raw typed confirmed receipt and canonical mirror normalize to identica
    assert.equal(result.summary.completedDue,0);assert.equal(result.summary.verifiedAdherencePct,null);assert.equal(result.summary.insufficientEvidence,true);
   }
  }
+});
+
+
+test('Coach brief keeps autonomous activity separate from booked attendance',()=>{
+ const r=brief({...SAMPLE,completedSessions:12,scheduledCompletedSessions:2,adherence:0.5});
+ assert.ok(r.signals.includes('Adherencia confirmada: 50% (2 de 4 sesiones).'));
+ const zero=brief({...SAMPLE,completedSessions:8,scheduledCompletedSessions:0,adherence:0});
+ assert.ok(zero.signals.includes('Adherencia confirmada: 0% (0 de 4 sesiones).'));
+ const unknown=brief({...SAMPLE,completedSessions:4,scheduledCompletedSessions:null,adherence:1});
+ assert.ok(!unknown.signals.some(x=>x.startsWith('Adherencia confirmada:')));
 });

@@ -3,8 +3,12 @@ import {computeProgressSummary} from './progress-engine.js';
 export const M26_ADHERENCE_WINDOWS=Object.freeze([7,28,90]);
 
 /** Presentation contract: explicit booked attendance is not total activity. */
-export function confirmedScheduledCompletion(summary){
-  const planned=summary?.plannedSessions,completed=summary?.scheduledCompletedSessions;
+export function confirmedScheduledCompletion(summary,{allowLegacy=false}={}){
+  const planned=summary?.plannedSessions;
+  // Legacy payloads may omit the booked count; explicit null is unknown,
+  // never permission to substitute total training activity.
+  const completed=summary?.scheduledCompletedSessions===undefined&&allowLegacy
+    ?summary?.completedSessions:summary?.scheduledCompletedSessions;
   const adherence=summary?.adherence;
   if(!Number.isSafeInteger(planned)||planned<=0||!Number.isSafeInteger(completed)||completed<0||completed>planned
     ||typeof adherence!=='number'||!Number.isFinite(adherence)||adherence<0||adherence>1
@@ -40,17 +44,14 @@ export function reusableConfirmedSummary(candidate,clientId,days){
   if(!candidate||typeof candidate!=='object'||Array.isArray(candidate)
     ||String(candidate.clientId||'')!==String(clientId||'')
     ||Number(candidate.days)!==days)return null;
-  const planned=Number(candidate.plannedSessions);
-  const completed=Number(candidate.scheduledCompletedSessions
-    ??candidate.completedSessions);
-  const pct=candidate.adherence;
-  if(!Number.isSafeInteger(planned)||planned<0
-    ||!Number.isSafeInteger(completed)||completed<0||completed>planned)
-    return null;
-  if(planned===0)return pct===null?candidate:null;
-  if(typeof pct!=='number'||!Number.isFinite(pct)||pct<0||pct>1
-    ||Math.abs(pct-completed/planned)>0.01)return null;
-  return candidate;
+  // Empty canonical windows can still contain autonomous training.
+  // A known zero denominator is not an adherence percentage.
+  if(candidate.plannedSessions===0){
+    const completed=candidate.scheduledCompletedSessions===undefined
+      ?candidate.completedSessions:candidate.scheduledCompletedSessions;
+    return completed===0&&candidate.adherence===null?candidate:null;
+  }
+  return confirmedScheduledCompletion(candidate,{allowLegacy:true})?candidate:null;
 }
 function reusableSummary(summaries,clientId,days){
   if(!summaries||typeof summaries!=='object')return null;
@@ -69,9 +70,9 @@ export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26
       const activityCompletedSessions=Number(summary?.completedSessions||0);
       // The Constancia numerator is booked sessions fulfilled, not every
       // autonomous training performed in the same 7/28/90 day period.
-      const completedSessions=Number(summary?.scheduledCompletedSessions
-        ??summary?.completedSessions??0);
-      const adherence=Number.isFinite(summary?.adherence)?summary.adherence:null;
+      const scheduled=confirmedScheduledCompletion(summary,{allowLegacy:true});
+      const completedSessions=scheduled?.completed??0;
+      const adherence=scheduled?.adherence??null;
 
       return Object.freeze({
         days,

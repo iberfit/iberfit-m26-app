@@ -1,3 +1,4 @@
+import {computeProgressSummary} from '../src/m26/engagement/progress-engine.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildRetentionHealth} from '../src/m26/engagement/index.js';
@@ -125,4 +126,16 @@ test('An explicitly overdue renewal becomes a yellow human-review signal without
 
 test('Retention Health fails closed without clientId',()=>{
   assert.equal(buildRetentionHealth(healthyState(),null,{now:NOW}),null);
+});
+
+
+test('retention preserves the result when reusing the current owner summary and rejects incompatible projections',()=>{
+ const state=healthyState();
+ const normal=buildRetentionHealth(state,'c1',{now:NOW});
+ const invalid={clientId:'other',days:28,plannedSessions:4,scheduledCompletedSessions:0,completedSessions:0,adherence:0};
+ assert.deepEqual(buildRetentionHealth(state,'c1',{now:NOW,summary:invalid}),normal);
+ const summary=computeProgressSummary(state,'c1',{now:NOW,days:28});
+ assert.deepEqual(buildRetentionHealth(state,'c1',{now:NOW,summary}),normal);
+ for(const bad of [{...summary,days:7},{...summary,scheduledCompletedSessions:null},{...summary,adherence:NaN}])
+   assert.deepEqual(buildRetentionHealth(state,'c1',{now:NOW,summary:bad}),normal);
 });

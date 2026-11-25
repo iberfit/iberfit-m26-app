@@ -3,6 +3,7 @@ import {parseDateValue} from '../domain/civil-date.js';
 import {deriveAdherenceAlerts} from './adherence-engine.js';
 import {computeProgressSummary,progressWindow} from './progress-engine.js';
 import {buildProgressHub} from './progress-hub.js';
+import {confirmedScheduledCompletion,reusableConfirmedSummary} from './progress-continuity.js';
 import {buildCrmRenewalSummary} from './crm-renewals.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -23,16 +24,11 @@ function within(value,start,end){const date=parseDateValue(value);return Boolean
 function factor(id,label,status,evidence,source,quality='media',detail=null){return Object.freeze({id,label,status,evidence,detail,source,quality});}
 
 function adherenceFactor(summary){
-  const planned=Number(summary?.plannedSessions||0);
-  // Autonomous sessions count as activity, not attendance to a booked date.
-  const completed=Number(summary?.scheduledCompletedSessions??summary?.completedSessions??0);
-  const adherence=finite(summary?.adherence);
-  if(!Number.isSafeInteger(planned)||!Number.isSafeInteger(completed)
-    ||planned<3||completed<0||completed>planned
-    ||adherence===null||adherence<0||adherence>1
-    ||Math.abs(adherence-completed/planned)>0.01){
+  const scheduled=confirmedScheduledCompletion(summary,{allowLegacy:true});
+  if(!scheduled||scheduled.planned<3){
     return factor('adherence','Adherencia','insufficient','Se necesitan al menos 3 sesiones planificadas comparables en 28 días.','appointments+sessionExecutions','limitada');
   }
+  const {planned,completed,adherence}=scheduled;
   const status=completed===0||adherence<0.4?'red':adherence<0.7?'yellow':'green';
   return factor(
     'adherence',
@@ -208,12 +204,22 @@ function actionFor(band,factors){
   return Object.freeze({title:'Completar evidencia',detail:'Registrar más sesiones, feedback o actividad antes de clasificar riesgo.',primaryArea:'progreso',primaryLabel:'Completar seguimiento'});
 }
 
-export function buildRetentionHealth(state,clientId,{now=new Date()}={}){
+export function buildRetentionHealth(state,clientId,{now=new Date(),summary:providedSummary=null}={}){
   if(!clientId)return null;
-  const summary=computeProgressSummary(state,clientId,{now,days:28});
+  const summary=reusableConfirmedSummary(providedSummary,clientId,28)
+    ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary)return null;
-  const alerts=deriveAdherenceAlerts(state,clientId,{now});
-  const hub=buildProgressHub(state,clientId,{now});
+  // Same synchronous render and owner: each window is computed once and
+  // shared by the existing alert and Progress Hub engines, never cached globally.
+  const summaries={
+    d7:computeProgressSummary(state,clientId,{now,days:7}),
+    d28:summary,
+    d90:computeProgressSummary(state,clientId,{now,days:90}),
+  };
+  const alerts=deriveAdherenceAlerts(state,clientId,{now,summary,summaries});
+  const hub=buildProgressHub(state,clientId,{now,summaries:{
+    7:summaries.d7,28:summary,90:summaries.d90,
+  }});
   const crm=buildCrmRenewalSummary(state,clientId,{now});
   const factors=Object.freeze([
     adherenceFactor(summary),

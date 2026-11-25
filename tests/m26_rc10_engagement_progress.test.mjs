@@ -122,7 +122,8 @@ test('cartera reutiliza el resumen de progreso de 28 días al derivar alertas',(
   const verified=fs.readFileSync('src/m26/engagement/progress-continuity.js','utf8');
   assert.match(verified,/export function reusableConfirmedSummary\(candidate,clientId,days\)/u);
   assert.match(verified,/String\(candidate\.clientId\|\|''\)!==String\(clientId\|\|''\)/u);
-  assert.match(verified,/Math\.abs\(pct-completed\/planned\)>0\.01/u);
+  assert.match(verified,/confirmedScheduledCompletion\(candidate,\{allowLegacy:true\}\)/u);
+  assert.match(verified,/Math\.abs\(adherence-completed\/planned\)>0\.00050001/u);
 });
 
 test('rutas que ya calculan progreso reutilizan el resumen de 28 días para alertas',()=>{

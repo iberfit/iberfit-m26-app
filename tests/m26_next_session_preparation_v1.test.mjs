@@ -437,3 +437,16 @@ test('Coach preview refuses pending or incomplete executions even if they carry 
   item.status='completed';
   assert.equal(summarizeConfirmedSessionSets(item)?.recordedSets,1);
 });
+
+
+test('next-session preparation reuses same-render owner summary and rejects unrelated or contradictory summaries',()=>{
+  const state=baseState();
+  const normal=buildNextSessionPreparation(state,clientId,{now});
+  const summary={clientId,days:28,plannedSessions:4,scheduledCompletedSessions:1,completedSessions:12,adherence:0.25,averageRpe:6};
+  const reused=buildNextSessionPreparation(state,clientId,{now,summary});
+  assert.equal(reused.progress.adherence,0.25);
+  assert.equal(reused.progress.completedSessions,12);
+  for(const invalid of [{...summary,clientId:'other'},{...summary,days:7},{...summary,adherence:0.5},{...summary,scheduledCompletedSessions:null}]){
+    assert.deepEqual(buildNextSessionPreparation(state,clientId,{now,summary:invalid}).progress,normal.progress);
+  }
+});

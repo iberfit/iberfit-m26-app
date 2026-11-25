@@ -12,6 +12,7 @@ import {createAtomicOccurrenceIndexedDbStore} from './occurrence-indexeddb-store
 import {assertNoPendingSessionOccurrences} from './occurrence-session-retirement-gate.js';
 import {buildOccurrenceScopedCommand} from '../domain/occurrence-commands.js';
 import {resolveSantiagoLocalInstant} from '../domain/dated-training-occurrences.js';
+import {executionElapsedMs} from './session-timer.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const ZONE='America/Santiago';
@@ -36,6 +37,21 @@ export function formatDatedElapsed(milliseconds){
   const digits=v=>String(v).padStart(2,'0');
   return hh?digits(hh)+':'+digits(minutes%60)+':'+digits(seconds%60)
     :digits(minutes)+':'+digits(seconds%60);
+}
+// Presentation only: the server-confirmed status and timestamps are the
+// clock source. Paused/terminal/feedback snapshots never accrue active time.
+export function syncDatedClockNode(node,at=Date.now()){
+  if(!node)return false;
+  const status=node.getAttribute?.('data-u60-execution-status');
+  const activeSince=node.getAttribute?.('data-u60-active-since');
+  const base=node.getAttribute?.('data-u60-accumulated-ms');
+  const accumulatedActiveMs=Number(base);
+  if(base===null||base===undefined||base===''||!Number.isFinite(accumulatedActiveMs)||accumulatedActiveMs<0)return false;
+  const running=status==='active'&&typeof activeSince==='string'&&Number.isFinite(Date.parse(activeSince));
+  const time=formatDatedElapsed(executionElapsedMs({status:running?'active':status,
+    activeSince:running?activeSince:null,accumulatedActiveMs},at));
+  if(node.textContent!==time)node.textContent=time;
+  return running;
 }
 export function renderDatedCompletionSummary(view){
   const summary=view?.completionSummary;
@@ -439,6 +455,8 @@ export function createDatedOccurrenceQaUi({
   let mounted=false,disposed=false,busy=false,ticker=null,loadedFor='',rows=[],
     focus=null,preview=null,coachDraft=null,message='',failure='',generation=0,visibleScopeKey='',
     calendarOffset=0,mediaSelection=null;
+  const clockTarget=root.ownerDocument?.defaultView||globalThis;
+  const visibilityTarget=root.ownerDocument||globalThis.document;
   const repaint=()=>{if(!disposed)onRender();};
   // The U33 calendar differs by signed-in role, even for one client UUID.
   // A Coach projection must never be reused by Client after changing area.
@@ -615,7 +633,7 @@ export function createDatedOccurrenceQaUi({
         (phaseState.loading?' aria-busy="true"':'')+'><h3>Fecha independiente</h3>'+
         summary+(phaseState.loading?'<p class="m26-field-help">Verificando autorización, fecha y estado con el servidor. Todavía no se ha iniciado ningún entrenamiento.</p>':'')+
         renderDatedCompletionSummary(view)+stepMarkup+stepMedia+buttons+pauseControls+recordForm+feedbackForm+save+retryComplete+
-        (view.startedAt&&!(phase==='completed'&&view.completionSummary?.activeMs!=null)?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'">'+escape(formatDatedElapsed(Number(view.accumulatedActiveMs||0)+(view.executionStatus==='active'&&view.activeSince?Math.max(0,Date.now()-Date.parse(view.activeSince)):0)))+'</strong></p>':'')+
+        (view.startedAt&&!(phase==='completed'&&view.completionSummary?.activeMs!=null)?'<p class="m26-field-help">Tiempo activo confirmado · <strong role="timer" aria-live="off" data-u60-clock-start="'+escape(view.activeSince||view.startedAt)+'" data-u60-active-since="'+escape(view.activeSince||'')+'" data-u60-accumulated-ms="'+escape(view.accumulatedActiveMs||0)+'" data-u60-paused="'+(view.executionStatus==='paused'?'true':'false')+'" data-u60-execution-status="'+escape(view.executionStatus||'')+'">'+escape(formatDatedElapsed(executionElapsedMs({status:view.executionStatus,activeSince:view.activeSince,accumulatedActiveMs:view.accumulatedActiveMs})))+'</strong></p>':'')+
         '<p role="alert" data-u60-input-warning hidden></p>'+
         (phase==='active'&&['active','awaiting_feedback','paused'].includes(view.executionStatus)
           ?'<button type="button" data-iberdates-action="u60-save-close">Guardar y salir</button>'
@@ -1254,18 +1272,23 @@ export function createDatedOccurrenceQaUi({
           root.querySelector?.('[data-u60-panel]'),draftInputs);
     }
   }
+  function stopClock(){
+    if(ticker!==null)clockTarget.clearInterval?.(ticker);
+    ticker=null;
+  }
   function tick(){
-    // No global DOM lookup while the operator is outside dated execution.
-    if(!focus)return;
-    const node=root.querySelector?.('[data-u60-clock-start]');
-    const since=Date.parse(String(node?.getAttribute?.('data-u60-active-since')||''));
-    const base=Number(node?.getAttribute?.('data-u60-accumulated-ms')||0);
-    const paused=node?.getAttribute?.('data-u60-paused')==='true';
-    if(node&&Number.isFinite(base)&&base>=0){
-      const running=!paused&&Number.isFinite(since)?Math.max(0,Date.now()-since):0;
-      const time=formatDatedElapsed(base+running);
-      if(node.textContent!==time)node.textContent=time;
+    if(!mounted||disposed||!focus||visibilityTarget?.visibilityState==='hidden'){
+      stopClock();return false;
     }
+    const running=syncDatedClockNode(root.querySelector?.('[data-u60-clock-start]'));
+    if(!running)stopClock();
+    return running;
+  }
+  function syncClock(){
+    // Shell-rendered and foreground events re-read the current DOM. No
+    // polling while idle, hidden or paused, and no server call or mutation.
+    if(tick()&&ticker===null&&typeof clockTarget.setInterval==='function')
+      ticker=clockTarget.setInterval(tick,1000);
   }
   function mount(){
     if(disposed)fail('DESTROYED');
@@ -1276,15 +1299,20 @@ export function createDatedOccurrenceQaUi({
     mounted=true;root.addEventListener('click',onClick);
     root.addEventListener('input',onCoachDateInput);
     root.addEventListener('change',onCoachDateInput);
-    // One lightweight text-only tick while QA is authenticated. The timer is
-    // derived from the SERVER ACK's startedAt, not a speculative click.
-    ticker=globalThis.setInterval?.(tick,1000)??null;
+    root.addEventListener('m26:shell-rendered',syncClock);
+    visibilityTarget?.addEventListener?.('visibilitychange',syncClock);
+    clockTarget.addEventListener?.('pageshow',syncClock);
+    clockTarget.addEventListener?.('pagehide',stopClock);
+    syncClock();
   }
   function destroy(){
     if(disposed)return;
     disposed=true;generation++;mounted=false;
-    if(ticker!==null)globalThis.clearInterval?.(ticker);
-    ticker=null;
+    stopClock();
+    root.removeEventListener('m26:shell-rendered',syncClock);
+    visibilityTarget?.removeEventListener?.('visibilitychange',syncClock);
+    clockTarget.removeEventListener?.('pageshow',syncClock);
+    clockTarget.removeEventListener?.('pagehide',stopClock);
     root.removeEventListener('click',onClick);
     root.removeEventListener('input',onCoachDateInput);
     root.removeEventListener('change',onCoachDateInput);
