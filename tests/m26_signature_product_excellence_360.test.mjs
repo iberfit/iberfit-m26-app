@@ -87,7 +87,10 @@ test('confirmed booked attendance is evidence even with no completed training',(
  assert.notEqual(clientProgressPresentationStage(summary).noHistory,true);
  assert.equal(clientProgressPresentationStage({...summary,scheduledCompletedSessions:null}).noHistory,true);
  const render=summary=>renderProgressRoute({role:'client',summary,timeline:[],alerts:[],exerciseProgress:{exercises:[]}});
- assert.match(render(summary),/data-m26-client-guide="progress-surface"/u);
+ // Attendance can be displayed before training has begun, without triggering
+ // the guide that celebrates actual post-IRI evolution.
+ assert.doesNotMatch(render(summary),/data-m26-client-guide="progress-surface"/u);
+ assert.match(render({...summary,completedSessions:1}),/data-m26-client-guide="progress-surface"/u);
  assert.match(render(summary),/Citas cumplidas: 0 \/ 2/u);
  assert.doesNotMatch(render({...summary,scheduledCompletedSessions:null}),/data-m26-client-guide="progress-surface"/u);
 });
