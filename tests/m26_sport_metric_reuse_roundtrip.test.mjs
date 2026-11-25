@@ -165,3 +165,27 @@ test('cycling correction includes cadence/power and carry correction shows metre
  assert.match(carryHtml,/data-session-correction-profile="carry"/u);
  assert.match(carryHtml,/data-set-field="distanceM"/u);
 });
+
+
+test('observed metrics reject coercible non-numbers and preserve explicit zero, decimal comma and missing values',()=>{
+ const draft=createSessionDraft({clientId});
+ addCatalogExercise(draft,'IBF-SENTADILLA-CON-BARRA',catalog,{sets:2});
+ const execution=createExecution({session:draft,clientId});
+ startExecution(execution);
+ for(const [field,value,code] of [
+  ['reps',false,'REPS'],['reps',[8],'REPS'],['reps','0x10','REPS'],
+  ['seconds',true,'SECONDS'],['rpe',true,'RPE'],['rpe',[7],'RPE'],['rir',false,'RIR'],
+ ]){
+  assert.throws(()=>recordSet(execution,draft,{reps:8,rpe:7,[field]:value}),new RegExp('M26_EXECUTION_'+code+'_INVALID'));
+  assert.equal(Object.keys(execution.results).length,0);
+ }
+ assert.throws(()=>recordSet(execution,draft,{reps:'   ',rpe:7}),/RESULT_REQUIRED/);
+ recordSet(execution,draft,{reps:0,rpe:'7,5',rir:' '});
+ const result=Object.values(execution.results)[0];
+ assert.equal(result.reps,0);
+ assert.equal(result.rpe,7.5);
+ assert.equal(result.rir,null);
+ const previous=structuredClone(result);
+ assert.throws(()=>correctSet(execution,draft,{reps:8,rpe:true}),/RPE_INVALID/);
+ assert.deepEqual(Object.values(execution.results)[0],previous);
+});

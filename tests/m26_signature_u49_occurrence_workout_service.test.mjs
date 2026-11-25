@@ -368,3 +368,31 @@ test('U49 failed private read clears previous execution from the selected scope'
  assert.equal(service.view().currentStep,null);
  assert.equal(service.view().phase,'needs-refresh');
 });
+
+
+test('U49 input validation leaves the same dated workout editable and does not touch the durable checkpoint',async()=>{
+ const {service,checkpoint:cp,sent}=setup();
+ await service.open({clientId:CLIENT,occurrenceId:OCC});
+ await service.start();
+ const before=service.view();
+ const saved=await cp.readCheckpoint();
+ await assert.rejects(service.recordAndAdvance({reps:8,rpe:' ',load:20}),/M26_EXECUTION_RPE_INVALID/);
+ const after=service.view();
+ assert.equal(after.phase,'active');
+ assert.equal(after.busy,false);
+ assert.equal(after.hasUncertain,false);
+ assert.equal(after.unsavedWork,before.unsavedWork);
+ assert.deepEqual(after.currentStep,before.currentStep);
+ assert.deepEqual(await cp.readCheckpoint(),saved);
+ assert.equal(sent.length,1);
+ await service.recordAndAdvance({reps:8,rpe:7,load:20});
+ assert.equal(service.view().executionStatus,'awaiting_feedback');
+ const beforeFeedback=await cp.readCheckpoint();
+ await assert.rejects(service.finish({sessionRpe:7,comment:'',pain:false}),/M26_EXECUTION_FEEDBACK_REQUIRED/);
+ assert.equal(service.view().phase,'active');
+ assert.equal(service.view().executionStatus,'awaiting_feedback');
+ assert.deepEqual(await cp.readCheckpoint(),beforeFeedback);
+ await service.finish({sessionRpe:7,comment:'Sesión realizada',pain:false});
+ await service.complete();
+ assert.equal(service.view().phase,'completed');
+});
