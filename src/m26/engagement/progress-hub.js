@@ -1,4 +1,4 @@
-import {buildAdherenceWindows,reusableConfirmedSummary} from './progress-continuity.js';
+import {buildAdherenceWindows,reusableConfirmedSummary,confirmedScheduledCompletion} from './progress-continuity.js';
 import {computeProgressSummary} from './progress-engine.js';
 import {
   assessExercisePerformance,
@@ -85,7 +85,8 @@ export function buildProgressHub(
   const byDays=new Map(windows.map((window)=>[window.days,window]));
   const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12});
   const strength=trendEvidence(memories,{loadDirectionForExercise});
-  const adherence28=byDays.get(28)?.adherence??summary28.adherence;
+  const scheduled28=confirmedScheduledCompletion(summary28);
+  const adherence28=scheduled28?.adherence??null;
   const adherence90=byDays.get(90)?.adherence??null;
   const wearableDecision=summary28?.wearable?.decision||{};
   const wearableDays=count(wearableDecision.currentEvidenceDays)??0;
@@ -114,7 +115,7 @@ export function buildProgressHub(
       status:status(adherence28),
       value:percent(adherence28),
       unit:'%',
-      evidence:adherence28===null?'Sin planificación comparable en 28 días':`${summary28.scheduledCompletedSessions??summary28.completedSessions} de ${summary28.plannedSessions} citas programadas cumplidas en 28 días`,
+      evidence:adherence28===null?'Sin planificación comparable en 28 días':`${scheduled28.completed} de ${scheduled28.planned} citas programadas cumplidas en 28 días`,
       context:adherence90===null?'Sin ventana comparable de 90 días':`90 días · ${percent(adherence90)}%`,
       source:'appointments+sessionExecutions',
       quality:summary28.dataQuality,

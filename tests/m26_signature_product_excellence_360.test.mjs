@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {confirmedScheduledCompletion,scheduledCompletionCopy} from '../src/m26/engagement/progress-continuity.js';
 import {renderAthleticClientEvidence} from '../src/m26/design/athletic-client-evidence.js';
 import {deriveClientDayNextAction} from '../src/m26/experience/client-day-context.js';
 import {renderHoyRoute} from '../src/m26/modules/route-render.js';
@@ -60,4 +61,21 @@ test('Admin uses one capacity contract for missing, invalid and genuine zero hou
 test('New visible copy has four-locale translations',()=>{
   for(const label of ['Citas cumplidas','El estado de atención de la cartera aún no está disponible.','Horas asignadas sin confirmar'])
     for(const language of ['en','fr','pt'])assert.notEqual(iberfitSurfaceTranslate(label,{language}),label);
+});
+
+test('Booked adherence and standalone activity stay separate across summaries',()=>{
+  const summary={completedSessions:4,plannedSessions:2,scheduledCompletedSessions:1,adherence:0.5};
+  assert.deepEqual(confirmedScheduledCompletion(summary),{planned:2,completed:1,adherence:0.5});
+  assert.equal(scheduledCompletionCopy(summary),'Citas cumplidas: 1 / 2');
+  const home=renderAthleticClientEvidence({...summary,checkins:0});
+  assert.match(home,/1 \/ 2<\/strong><span>Citas cumplidas/u);
+  assert.match(home,/4<\/strong><span>Sesiones completadas/u);
+  for(const patch of [{scheduledCompletedSessions:null},{scheduledCompletedSessions:3},{adherence:1},{plannedSessions:0},{plannedSessions:'2'}]){
+    assert.equal(confirmedScheduledCompletion({...summary,...patch}),null);
+    assert.equal(scheduledCompletionCopy({...summary,...patch}),'Sin base suficiente para calcular adherencia');
+  }
+  assert.ok(confirmedScheduledCompletion({plannedSessions:3,scheduledCompletedSessions:1,adherence:0.333}));
+  for(const language of ['en','fr','pt']){
+    assert.notEqual(iberfitSurfaceTranslate('Citas cumplidas: 1 / 2 · 28 días',{language}),'Citas cumplidas: 1 / 2 · 28 días');
+  }
 });
