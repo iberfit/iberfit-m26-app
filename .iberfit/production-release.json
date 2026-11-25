@@ -1,0 +1,12 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "a0833cc017756ac9c49909394b67662ce3af7c0f",
+  "sourceBranch": "canary/rc74-4",
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "e302d8a3c903f8b98974f89c139fb50d7586f582",
+  "datedTrainingMode": "active",
+  "backendActivationProof": "verified-dated-sql-edge"
+}
