@@ -108,6 +108,8 @@ test('UNIVERSAL Coach calendar is fetched ONLY after an explicit action; no priv
     assert.equal(h.calls.length,0,'initial mount must not call the network');
     assert.match(h.ui.renderPanel(),/Training360/u);
     assert.match(h.ui.renderPanel(),/u60-calendar/u);
+    // A media handler must not swallow calendar events, even if a DOM adapter
+    // returns the same candidate for several selectors. Keep the explicit action test.
     const button={disabled:false,dataset:{},getAttribute:()=> 'u60-calendar',
       closest:()=>null};
     await h.listeners.get('click')({

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {confirmedScheduledCompletion,scheduledCompletionCopy} from '../src/m26/engagement/progress-continuity.js';
 import {renderAthleticClientEvidence} from '../src/m26/design/athletic-client-evidence.js';
 import {deriveClientDayNextAction} from '../src/m26/experience/client-day-context.js';
-import {renderHoyRoute,clientProgressPresentationStage} from '../src/m26/modules/route-render.js';
+import {renderHoyRoute,clientProgressPresentationStage,renderProgressRoute} from '../src/m26/modules/route-render.js';
 import {datedExerciseMediaScope} from '../src/m26/workflows/occurrence-qa-ui.js';
 import {coachCapacityEvidence,deriveAdminCommandCenter} from '../src/m26/admin/command-center.js';
 import {buildCoach360Rows} from '../src/m26/admin/view-model.js';
@@ -86,6 +86,10 @@ test('confirmed booked attendance is evidence even with no completed training',(
  const summary={completedSessions:0,checkins:0,plannedSessions:2,scheduledCompletedSessions:0,adherence:0};
  assert.notEqual(clientProgressPresentationStage(summary).noHistory,true);
  assert.equal(clientProgressPresentationStage({...summary,scheduledCompletedSessions:null}).noHistory,true);
+ const render=summary=>renderProgressRoute({role:'client',summary,timeline:[],alerts:[],exerciseProgress:{exercises:[]}});
+ assert.match(render(summary),/data-m26-client-guide="progress-surface"/u);
+ assert.match(render(summary),/Citas cumplidas: 0 \/ 2/u);
+ assert.doesNotMatch(render({...summary,scheduledCompletedSessions:null}),/data-m26-client-guide="progress-surface"/u);
 });
 test('dated media scope survives sets but never crosses owner, occurrence, role or exercise block',()=>{
  const view={phase:'active',clientId:'c',occurrenceId:'o',currentStep:{blockId:'b',exerciseId:'e',setNumber:1}};

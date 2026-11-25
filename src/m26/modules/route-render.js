@@ -3846,7 +3846,7 @@ export function renderProgressRoute(vm){
     ?`<section class="m26-notice is-pending" role="status"><strong>Progreso protegido</strong><p>Sesiones fuera del cálculo por no estar confirmadas: ${escapeHtml(unconfirmedCount)}. Se incorporarán únicamente cuando queden confirmadas.</p></section>`
     :'';
   const hasCheckins=Number(summary.checkins||0)>0;
-  const hasProgressEvidence=progressSummaryHasEvolutionEvidence(summary);
+  const hasProgressEvidence=Boolean(scheduledCompletion)||progressSummaryHasEvolutionEvidence(summary);
   const clientProgressGuideAttribute=vm.role==='client'&&hasProgressEvidence
     ?' data-m26-client-guide="progress-surface"'
     :'';

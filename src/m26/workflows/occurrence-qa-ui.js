@@ -1085,7 +1085,7 @@ export function createDatedOccurrenceQaUi({
   }
   async function onClick(event){
     const mediaButton=event?.target?.closest?.('[data-exercise-media-mode]');
-    if(mediaButton&&root.contains(mediaButton)&&!disposed){
+    if(mediaButton?.hasAttribute?.('data-exercise-media-mode')&&root.contains(mediaButton)&&!disposed){
       const panel=mediaButton.closest?.('[data-u60-workout]');
       const scope=visibleOwner();
       const view=scope&&focus?.clientId===scope.clientId&&focus?.role===scope.role?workoutView():null;
