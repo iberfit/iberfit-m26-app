@@ -137,11 +137,12 @@ function enrichClientsRetention(vm,role,state,now,clientScopeIndex=null){
   return Object.freeze({...vm,clients:Object.freeze(list(vm.clients).map((client)=>
     enrichClientRetention(client,scopes.get(String(client?.id||''))||state,now)))});
 }
-function enrichExpedienteDecision(vm,role){
+function enrichExpedienteDecision(vm,role,now){
   if(vm?.kind!=='expediente'||(role!=='coach'&&role!=='admin'))return vm;
   const decisionBrief=buildIberfitDecisionBrief({
     summary:vm.progress&&typeof vm.progress==='object'?vm.progress:{},
     alerts:list(vm.alerts),
+    now,
   });
   const cockpit=vm.coachCockpit&&typeof vm.coachCockpit==='object'?vm.coachCockpit:{};
   const items=list(cockpit.items);
@@ -294,7 +295,7 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date(),{clientScop
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;
   const coachLaunchJourney=role==='coach'?deriveCoachSelfLaunchJourney({state,identity:shellVm.identity||state.identity,now}):null;
   const retentionVm=enrichClientsRetention(vm,role,state,now,clientScopeIndex);
-  const decisionVm=enrichExpedienteDecision(retentionVm,role);
+  const decisionVm=enrichExpedienteDecision(retentionVm,role,now);
   const enrichedVm=enrichExpedienteRetention(decisionVm,role,state,routeClientId,now);
   return Object.freeze({...enrichedVm,rc39:Object.freeze({role,clientId:routeClientId||null,planningItems,appointments:Object.freeze(operationalAppointments),sessionProjections:Object.freeze(sessionProjections),needsPreparation,confirmationOpen,changeRequests,changeRequestAvailable,coachLaunchJourney,...(training360?{training360}:{}),generatedAt:new Date(now).toISOString()})});
 }

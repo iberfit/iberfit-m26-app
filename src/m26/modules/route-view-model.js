@@ -780,6 +780,7 @@ if (area === 'clientes') {
             exerciseOwnerId,
             {
               now,
+              summary:progress,
               exerciseName:(exerciseId)=>
                 catalogNames.get(String(exerciseId))||
                 String(exerciseId||'Ejercicio'),

@@ -226,3 +226,14 @@ test('B: wrong-client or contradictory cached 28-day progress is ignored and rec
  const hub=buildProgressHub(state,'c1',{now,summaries:{28:inconsistent}});
  assert.equal(hub.pillars.find(x=>x.id==='consistency').status,'insufficient');
 });
+
+
+test('shared evidence rejects coercion, null booked counts and inconsistent ratios',()=>{
+ const base={clientId:'c1',days:28,plannedSessions:4,scheduledCompletedSessions:1,completedSessions:12,adherence:0.25};
+ assert.equal(reusableConfirmedSummary(base,'c1',28),base);
+ for(const patch of [{plannedSessions:'4'},{scheduledCompletedSessions:'1'},{scheduledCompletedSessions:null},{adherence:0.251},{adherence:null},{plannedSessions:0,scheduledCompletedSessions:1,adherence:null}]){
+   assert.equal(reusableConfirmedSummary({...base,...patch},'c1',28),null);
+ }
+ const autonomous={...base,plannedSessions:0,scheduledCompletedSessions:0,adherence:null};
+ assert.equal(reusableConfirmedSummary(autonomous,'c1',28),autonomous);
+});

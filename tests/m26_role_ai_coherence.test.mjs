@@ -157,6 +157,7 @@ test(
       summary:{
         adherence:.75,
         completedSessions:3,
+        scheduledCompletedSessions:3,
         plannedSessions:4,
         averageRpe:6.5,
         checkins:2,

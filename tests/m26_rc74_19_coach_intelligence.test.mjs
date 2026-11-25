@@ -64,6 +64,7 @@ test('Coach recibe inteligencia explicable dentro del foco existente del expedie
   assert.equal(vm.decisionBrief.confidence,'media');
   assert.ok(vm.decisionBrief.signals.some((item)=>item.includes('Adherencia confirmada: 75% (3 de 4 sesiones).')));
   assert.ok(vm.decisionBrief.signals.some((item)=>item.includes('RPE medio confirmado: 7.5.')));
+  assert.ok(vm.decisionBrief.signals.some((item)=>item.includes('Existe una sesión confirmada reciente')));
   assert.ok(vm.decisionBrief.limitations.some((item)=>item.includes('Sin registro de bienestar confirmado')));
   assert.ok(vm.decisionBrief.limitations.some((item)=>item.includes('Sin datos de dispositivo confirmados')));
   assert.ok(vm.decisionBrief.limitations.some((item)=>item.includes('1 ejecución queda fuera del análisis')));
