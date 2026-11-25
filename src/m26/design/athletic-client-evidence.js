@@ -76,8 +76,8 @@ export function renderAthleticClientEvidence(summary){
  if(!trained&&!registered&&!scheduled)return '';
  const facts=[];
  if(trained)facts.push(`<div class="m26-athletic-fact"><strong>${esc(sessions)}</strong><span>Sesiones completadas</span></div>`);
- if(scheduled)facts.push(`<div class="m26-athletic-fact"><strong>${esc(scheduled.completed)} / ${esc(scheduled.planned)}</strong><span>Citas cumplidas</span></div>`);
- if(!scheduled&&trained&&adherence!==null&&planned!==null&&planned>0)facts.push(`<div class="m26-athletic-fact"><strong>${esc(adherence)}%</strong><span>Adherencia confirmada</span><meter min="0" max="100" value="${esc(adherence)}" aria-label="Adherencia confirmada: ${esc(adherence)} por ciento"></meter></div>`);
+ if(scheduled)facts.push(`<div class="m26-athletic-fact"><strong>${esc(scheduled.completed)} / ${esc(scheduled.planned)}</strong><span>Citas cumplidas</span><span>${esc(Math.round(scheduled.adherence*100))}% · Adherencia confirmada</span><meter min="0" max="100" value="${esc(Math.round(scheduled.adherence*100))}" aria-label="Adherencia confirmada: ${esc(Math.round(scheduled.adherence*100))} por ciento"></meter></div>`);
+ if(!scheduled&&summary.scheduledCompletedSessions===undefined&&trained&&adherence!==null&&planned!==null&&planned>0)facts.push(`<div class="m26-athletic-fact"><strong>${esc(adherence)}%</strong><span>Adherencia confirmada</span><meter min="0" max="100" value="${esc(adherence)}" aria-label="Adherencia confirmada: ${esc(adherence)} por ciento"></meter></div>`);
  if(trained&&delta!==null)facts.push(`<div class="m26-athletic-fact" data-trend="${delta>0?'up':delta<0?'down':'stable'}"><strong>${delta>0?'+':''}${esc(Number(delta.toFixed(1)))}%</strong><span>Volumen comparable</span></div>`);
  if(registered)facts.push(`<div class="m26-athletic-fact"><strong>${esc(checkins)}</strong><span>Registros de bienestar</span></div>`);
  const when=dateLabel(summary.latestCheckinAt);

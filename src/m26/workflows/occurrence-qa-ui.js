@@ -39,7 +39,8 @@ export function formatDatedElapsed(milliseconds){
 }
 export function renderDatedCompletionSummary(view){
   const summary=view?.completionSummary;
-  if(view?.phase!=='completed'||view.hasUncertain||view.unsavedWork||!summary)return '';
+  if(view?.phase!=='completed'||view.busy===true||view.error||view.hasUncertain||view.unsavedWork||!summary)return '';
+  if(![summary.total,summary.recorded,summary.omitted,summary.missing].every(n=>Number.isSafeInteger(n)&&n>=0)||summary.total===0||summary.recorded+summary.omitted+summary.missing!==summary.total)return '';
   const cell=(label,value)=>'<div><span>'+escape(label)+'</span><strong>'+escape(value)+'</strong></div>';
   return '<section data-u60-completion-summary aria-label="Resumen del entrenamiento confirmado">'+
     '<h4>Resumen del entrenamiento confirmado</h4><div class="m26-session-completion-grid">'+

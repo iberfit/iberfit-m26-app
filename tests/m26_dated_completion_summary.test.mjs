@@ -23,3 +23,12 @@ test('summary appears only on settled completion, with no raw notes or optimisti
  assert.equal(renderDatedCompletionSummary({...view,hasUncertain:true}),'');
  assert.equal(renderDatedCompletionSummary({...view,unsavedWork:true}),'');
 });
+
+test('contradictory receipts never produce a confirmed recap',()=>{
+ const contradictory={...execution,skippedSets:{...execution.skippedSets,'run:1':{reason:'fatigue'}}};
+ assert.equal(datedCompletionSummary(contradictory),null);
+ const view={phase:'completed',completionSummary:datedCompletionSummary(execution)};
+ assert.equal(renderDatedCompletionSummary({...view,busy:true}),'');
+ assert.equal(renderDatedCompletionSummary({...view,error:'RECOVERY_REQUIRED'}),'');
+ assert.equal(renderDatedCompletionSummary({...view,completionSummary:{...view.completionSummary,recorded:4}}),'');
+});
