@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {guardDatedBusyActions,
-  createDatedOccurrenceQaUi,qaDatedCalendarRange,formatDatedElapsed,
+  createDatedOccurrenceQaUi,qaDatedCalendarRange,formatDatedElapsed,syncDatedClockNode,
   plannedDatedSetDraft,applyPlannedDatedSetDraft,
   suggestedConfirmedDatedAppointments,datedCoachPreviewMatchesForm,
   appendCoachDatedDateLine,
@@ -801,4 +801,34 @@ test('Dated supplementary observation is visible again when restoring an invalid
   const panel={querySelector:name=>name==='[name="u60DistanceM"]'?input:null};
   restoreDatedUnsubmittedFields(panel,{u60DistanceM:'125'});
   assert.equal(input.value,'125');assert.equal(details.open,true);
+});
+
+
+test('dated clock uses canonical active time, catches up after suspension, freezes non-active states',()=>{
+  const start='2026-11-25T10:00:00.000Z',at=Date.parse(start)+65_000;
+  const attributes={'data-u60-execution-status':'active','data-u60-active-since':start,'data-u60-accumulated-ms':'30000'};
+  const node={textContent:'',getAttribute:key=>attributes[key]??null};
+  assert.equal(syncDatedClockNode(node,at),true);assert.equal(node.textContent,'01:35');
+  assert.equal(syncDatedClockNode(node,at+60_000),true);assert.equal(node.textContent,'02:35');
+  for(const status of ['paused','awaiting_feedback','completed','cancelled']){
+    attributes['data-u60-execution-status']=status;
+    assert.equal(syncDatedClockNode(node,at+120_000),false);assert.equal(node.textContent,'00:30');
+  }
+  attributes['data-u60-execution-status']='active';attributes['data-u60-active-since']='invalid';
+  assert.equal(syncDatedClockNode(node,at),false);assert.equal(node.textContent,'00:30');
+  attributes['data-u60-accumulated-ms']='';assert.equal(syncDatedClockNode(node,at),false);
+  assert.equal(syncDatedClockNode(null,at),false);
+});
+
+test('dated UI idle mount, render and foreground do not allocate an interval or query Supabase',()=>{
+ const h=createHarness();
+ try{
+   assert.ok(h.listeners.has('m26:shell-rendered'));
+   h.listeners.get('m26:shell-rendered')();
+   assert.equal(h.calls.length,0);
+   const source=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
+   assert.match(source,/if\(tick\(\)&&ticker===null&&typeof clockTarget\.setInterval==='function'\)/u);
+   assert.match(source,/visibilityTarget\?\.visibilityState==='hidden'/u);
+   assert.match(source,/removeEventListener\('m26:shell-rendered',syncClock\)/u);
+ }finally{h.close();}
 });
