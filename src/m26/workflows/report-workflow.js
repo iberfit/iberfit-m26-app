@@ -1,5 +1,5 @@
 import {buildPeriodProgressEvidence} from '../engagement/progress-hub.js';
-import {reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
+import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
 import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
@@ -37,7 +37,7 @@ function timestamp(date){return date?new Date(`${date}T00:00:00Z`).getTime():NaN
 // The canonic execution table may store its actual date inside summary.completedAt.
 function executionDate(record){return reportCivilDate(sessionExecutionCompletionDate(record));}
 function sortNewest(records,dateOf=recordDate){return [...records].sort((a,b)=>(timestamp(dateOf(b))||0)-(timestamp(dateOf(a))||0));}
-function uniqueConfirmedExecutions(records){const seen=new Set();return sortNewest(records,executionDate).filter((record)=>{const id=sessionExecutionId(record);if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;});}
+function uniqueConfirmedExecutions(records){const seen=new Set();return [...records].sort((a,b)=>(timestamp(executionDate(b))||0)-(timestamp(executionDate(a))||0)||(parseDateValue(sessionExecutionCompletionDate(b))?.getTime()||0)-(parseDateValue(sessionExecutionCompletionDate(a))?.getTime()||0)).filter((record)=>{const id=sessionExecutionId(record);if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;});}
 function dateOffset(endDate,days){const time=timestamp(endDate);if(!Number.isFinite(time))return null;return new Date(time-(Math.max(1,days)-1)*DAY_MS).toISOString().slice(0,10);}
 function inWindow(record,start,end){const date=executionDate(record);return Boolean(date&&date>=start&&date<=end);}
 function confirmedIri(record){const status=String(recordValue(record,'status','estado')||'').toLowerCase();return Boolean(recordValue(record,'firstSessionCompletedAt','first_session_completed_at'))||/(?:complet|confirmad|approved|aprob)/i.test(status);}
@@ -108,7 +108,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
     const previous=executions.filter(record=>inWindow(record,priorStart,priorEnd)).length;
     if(!previous)return evidence('Periodo anterior equivalente',`${priorStart} a ${priorEnd}: sin ejecuciones confirmadas en los registros disponibles; no se puede afirmar inactividad ni calcular variación.`,'sessionExecutions','limitada');
     const delta=current-previous;
-    return evidence('Periodo anterior equivalente',`${priorStart} a ${priorEnd}: ${previous} sesiones confirmadas; periodo actual: ${current} (${delta>0?'+':''}${delta}). Diferencia de registros, no de rendimiento ni de adherencia.`,'sessionExecutions');
+    return evidence('Periodo anterior equivalente',`${priorStart} a ${priorEnd}: ${previous} ${previous===1?'sesión confirmada':'sesiones confirmadas'}; periodo actual: ${current} (${delta>0?'+':''}${delta}). Diferencia de registros, no de rendimiento ni de adherencia.`,'sessionExecutions');
   }
   const datedHistory=executions.map(executionDate).filter(Boolean).sort();
   const historyDays=datedHistory.length?Math.floor((timestamp(end)-timestamp(datedHistory[0]))/DAY_MS)+1:0;

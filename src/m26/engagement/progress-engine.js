@@ -361,7 +361,7 @@ function executionTime(record,window){
 export function computeProgressSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false}={}){
   if(!clientId)return null;
   const window=progressWindow({now,days,civilPeriod}),{start,end}=window;
-  const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window));
+  const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>withinWindow(civilPeriod?first(item,'scheduledAt','scheduled_at','startAt','start_at','date','fecha'):dateOf(item),window));
   const reconciliation=reconcileSessionExecutionsForClient(state,clientId);
   const executionRows=reconciliation.records.map(unwrap)
     .filter((item)=>executionWithinWindow(item,window));

@@ -409,5 +409,15 @@ test('reportes: cada evidencia pertenece a su propia ventana y comparación ante
   state.collections.sessionExecutions.push({id:'previous',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-08-07T11:00:00Z',title:'Anterior'});
   state.collections.checkins.push({id:'recent',clientId:'c1',createdAt:'2026-09-02T10:00:00Z',energy:8});
   monthly=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='monthly');
-  assert.match(monthly.evidence.find(x=>x.label==='Periodo anterior equivalente').text,/1 sesiones confirmadas; periodo actual: 1/);
+  assert.match(monthly.evidence.find(x=>x.label==='Periodo anterior equivalente').text,/1 sesión confirmada; periodo actual: 1/);
+});
+
+
+test('reportes: el postentrenamiento selecciona la última hora real incluso el mismo día',()=>{
+  const state=stateWithHistory();
+  state.collections.sessionExecutions.push(
+    {id:'early',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-05T10:00:00Z',title:'Temprana'},
+    {id:'late',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-05T22:00:00Z',title:'Tardía'});
+  const post=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='post-session');
+  assert.equal(post.sourceId,'late');
 });
