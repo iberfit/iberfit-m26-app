@@ -1,5 +1,6 @@
 import {buildAdherenceWindows,reusableConfirmedSummary,confirmedScheduledCompletion} from './progress-continuity.js';
 import {computeProgressSummary} from './progress-engine.js';
+import {sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {
   assessExercisePerformance,
   buildExercisePerformanceTrend,
@@ -66,6 +67,25 @@ function trendEvidence(memories=[],{loadDirectionForExercise=null}={}){
     ratio:comparable.length?improving.length/comparable.length:null,
     confirmedExposures:memories.reduce((total,memory)=>total+Number(memory?.exposureCount||0),0),
   });
+}
+
+// Report evidence is computed only for the declared civil period. Reuse the
+// same canonical progress and exercise comparators as the interactive hub.
+export function buildPeriodProgressEvidence(state,clientId,{now,days,executions=[]}={}){
+  const summary=computeProgressSummary(state,clientId,{now,days,civilPeriod:true});
+  if(!summary)return Object.freeze([]);
+  const scoped={...state,collections:{...state.collections,sessionExecutions:executions.map(record=>{
+    const completion=sessionExecutionCompletionDate(record);
+    return {...record,completedAt:completion,...(record.body&&typeof record.body==='object'?{body:{...record.body,completedAt:completion}}:{})};
+  })}};
+  const strength=trendEvidence(listExercisePerformanceMemories(scoped,clientId,{limit:50,historyLimit:12}));
+  const scheduled=confirmedScheduledCompletion(summary);
+  const rows=[];
+  if(scheduled)rows.push({id:'consistency',label:'Constancia',evidence:`${scheduled.completed} de ${scheduled.planned} citas programadas cumplidas en ${days} días`,source:'appointments+sessionExecutions',quality:summary.dataQuality});
+  if(strength.comparable)rows.push({id:'strength',label:'Fuerza',evidence:`${strength.improving} de ${strength.comparable} ejercicios comparables con evolución favorable confirmada en el periodo`,source:'sessionExecutions',quality:strength.comparable>=3?'alta':'media'});
+  if(Number.isFinite(summary.volumeDelta))rows.push({id:'volume',label:'Volumen comparable',evidence:`Variación descriptiva ${summary.volumeDelta>0?'+':''}${summary.volumeDelta}% entre grupos cronológicos de sesiones comparables del mismo periodo; no equivale a una mejora automática`,source:'sessionExecutions',quality:summary.dataQuality});
+  if(summary.checkins>0)rows.push({id:'wellbeing',label:'Bienestar',evidence:`${summary.checkins} registro${summary.checkins===1?'':'s'} en el periodo; último registro ${summary.latestCheckinAt||'confirmado'}`,source:'checkins',quality:summary.checkins>=8?'alta':summary.checkins>=3?'media':'limitada'});
+  return Object.freeze(rows.map(row=>Object.freeze({...row,status:'available'})));
 }
 
 export function buildProgressHub(

@@ -1,6 +1,6 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
 import {confirmedAdherenceEvidence} from './confirmed-adherence.js';
-import {parseDateValue} from '../domain/civil-date.js';
+import {parseDateValue,reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND} from '../workflows/iri-2-longitudinal.js';
 import {
@@ -9,6 +9,7 @@ import {
   sessionExecutionIsConfirmed as executionIsConfirmed,
   sessionExecutionIsCompleted as executionIsCompleted,
   sessionExecutionId,
+  sessionExecutionCompletionDate,
   reconcileSessionExecutionsForClient,
 } from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
@@ -230,9 +231,9 @@ function planExecutionQuality(compared){
   return compared>=6?'alta':compared>=2?'media':compared>=1?'limitada':'insuficiente';
 }
 
-export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28}={}){
+export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false}={}){
   if(!clientId)return null;
-  const window=progressWindow({now,days});
+  const window=progressWindow({now,days,civilPeriod});
   const expectedClient=String(clientId);
   const sessions=new Map();
 
@@ -247,11 +248,11 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
   const completed=confirmedSessionExecutionsForClient(
     state,
     clientId,
-    {requireCompleted:true,requireDate:true},
+    {requireCompleted:true,requireDate:!civilPeriod},
   )
     .map(unwrap)
-    .filter((item)=>within(dateOf(item),window.start,window.end))
-    .sort(byDateDesc);
+    .filter((item)=>executionWithinWindow(item,window))
+    .sort((a,b)=>executionTime(b,window)-executionTime(a,window));
 
   const rows=[];
   let unmatchedExecutions=0;
@@ -282,7 +283,7 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
       executionId:String(first(execution,'id','executionId','execution_id')||''),
       sessionId,
       sessionTitle:String(first(planSnapshot,'title','name','nombre')||first(session,'title','name','nombre')||first(execution,'title','sessionTitle','session_title')||'Sesión IBERFIT').trim().slice(0,120),
-      completedAt:dateOf(execution)||null,
+      completedAt:(civilPeriod?sessionExecutionCompletionDate(execution):dateOf(execution))||null,
       plannedExercises:shape.plannedExercises,
       plannedSets:shape.plannedSets,
       recordedSets,
@@ -335,25 +336,40 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
   });
 }
 
-export function progressWindow({now=new Date(),days=28}={}){
+export function progressWindow({now=new Date(),days=28,civilPeriod=false}={}){
   const end=safeDate(now);if(!end)throw new Error('M26_PROGRESS_NOW_INVALID');
   const safeDays=safePositiveInteger(days,{fallback:28,min:1,max:3650});
+  if(civilPeriod){
+    const periodEnd=reportCivilDate(end);
+    const start=new Date(periodEnd+'T00:00:00Z');
+    start.setUTCDate(start.getUTCDate()-safeDays+1);
+    return {start,end,days:safeDays,civilPeriod:true,periodStart:start.toISOString().slice(0,10),periodEnd};
+  }
   const start=new Date(end);start.setUTCDate(start.getUTCDate()-safeDays);
   return {start,end,days:safeDays};
 }
+function withinWindow(value,window){
+  return window.civilPeriod?isWithinCivilPeriod(value,window.periodStart,window.periodEnd,window.end):within(value,window.start,window.end);
+}
+function executionWithinWindow(record,window){
+  return withinWindow(window.civilPeriod?sessionExecutionCompletionDate(record):dateOf(record),window);
+}
+function executionTime(record,window){
+  return safeDate(window.civilPeriod?sessionExecutionCompletionDate(record):dateOf(record))?.getTime()||0;
+}
 
-export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={}){
+export function computeProgressSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false}={}){
   if(!clientId)return null;
-  const window=progressWindow({now,days}),{start,end}=window;
-  const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
+  const window=progressWindow({now,days,civilPeriod}),{start,end}=window;
+  const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window));
   const reconciliation=reconcileSessionExecutionsForClient(state,clientId);
   const executionRows=reconciliation.records.map(unwrap)
-    .filter((item)=>within(dateOf(item),start,end));
+    .filter((item)=>executionWithinWindow(item,window));
   const blockedExecutionIds=unconfirmedCompletionIds(state);
   const unconfirmedRows=executionRows
     .filter((item)=>!executionIsConfirmed(item,blockedExecutionIds));
   const conflictedRows=reconciliation.conflicts.filter((group)=>group.some(
-    (record)=>within(dateOf(unwrap(record)),start,end)));
+    (record)=>executionWithinWindow(unwrap(record),window)));
   // A completed but unacknowledged result is pending confirmation, not a
   // completed training. A same-ID/revision contradiction also needs review.
   const pendingConfirmationWorkouts=executionRows.filter((item)=>
@@ -365,10 +381,10 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const completedExecutions=confirmedSessionExecutionsForClient(
     state,
     clientId,
-    {requireCompleted:true,requireDate:true},
+    {requireCompleted:true,requireDate:!civilPeriod},
   )
     .map(unwrap)
-    .filter((item)=>within(dateOf(item),start,end));
+    .filter((item)=>executionWithinWindow(item,window));
   const verifiedAdherence=confirmedAdherenceEvidence({appointments,executions:completedExecutions});
   const adherenceEvidence=Object.freeze({
     ...verifiedAdherence,
@@ -377,7 +393,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const {plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence}=adherenceEvidence;
   const rpes=completedExecutions.flatMap(rpeValues);
   const volumeSeries=completedExecutions
-    .map((item)=>({date:safeDate(dateOf(item))?.getTime()||0,volume:volumeOf(item),comparisonKey:volumeComparisonKey(item)}))
+    .map((item)=>({date:executionTime(item,window),volume:volumeOf(item),comparisonKey:volumeComparisonKey(item)}))
     .filter((item)=>item.volume>0)
     .sort((a,b)=>a.date-b.date);
   const volumes=volumeSeries.map((item)=>item.volume);
@@ -398,7 +414,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
         volume:round(item.volume,1),
       })))
     :Object.freeze([]);
-  const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end)).sort(byDateDesc);
+  const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window)).sort(byDateDesc);
   const wearable=summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
   const checkinSeries=checkins.map(checkinValues);
   const iriBaselineRecordValue=iriBaselineRecord(state,clientId);
@@ -408,7 +424,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const iriBaseline=iriBaselineProgressSummary(state,clientId);
   const evolution=iriBaseline;
   const iri2=iriBaseline;
-  const sortedExecutions=[...completedExecutions].sort(byDateDesc);
+  const sortedExecutions=[...completedExecutions].sort((a,b)=>executionTime(b,window)-executionTime(a,window));
   const lastExecution=sortedExecutions[0]||null;
   const lastExecutionRpe=lastExecution?rpeValues(lastExecution):[];
   const latestCheckin=checkins[0]||null;
@@ -436,7 +452,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
       stress:round(average(checkinSeries.map((x)=>x.stress)),1),pain:round(average(checkinSeries.map((x)=>x.pain)),1),
       fatigue:round(average(checkinSeries.map((x)=>x.fatigue)),1),motivation:round(average(checkinSeries.map((x)=>x.motivation)),1),
     }),
-    lastExecutionAt:dateOf(lastExecution)||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
+    lastExecutionAt:(civilPeriod?sessionExecutionCompletionDate(lastExecution):dateOf(lastExecution))||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
     latestCheckinAt:dateOf(latestCheckin)||null,
     unconfirmedExecutions:unconfirmedRows.length+conflictedRows.length,dataQuality,wearable,
   });

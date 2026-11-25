@@ -375,3 +375,39 @@ test('P1: approval eligibility recomputes after reset, restored drafts and IRI c
   fields.reportType='reassessment';
   assert.equal(syncPremiumReportApprovalButton(form),false,'Uncertified reassessment stays disabled');
 });
+
+
+test('reportes: fecha civil Santiago conserva el día local y excluye ejecuciones futuras',()=>{
+  const state=stateWithHistory();
+  state.collections.sessionExecutions.push(
+    {id:'local-yesterday',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-07T01:00:00Z',title:'Última sesión local'},
+    {id:'future-same-day',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-07T02:30:00Z',title:'Futura'});
+  const reports=buildPremiumReportPortfolio(state,'c1',{now:new Date('2026-09-07T02:00:00Z')});
+  const post=reports.find(x=>x.id==='post-session');
+  const weekly=reports.find(x=>x.id==='weekly');
+  assert.equal(post.sourceId,'local-yesterday');
+  assert.equal(post.periodEnd,'2026-09-06');
+  assert.equal(weekly.periodStart,'2026-08-31');
+  assert.equal(weekly.periodEnd,'2026-09-06');
+  assert.equal(weekly.activitySeries.reduce((n,row)=>n+row.count,0),2);
+});
+
+test('reportes: cada evidencia pertenece a su propia ventana y comparación anterior equivalente',()=>{
+  const state=stateWithHistory();
+  state.collections.appointments=[];
+  state.collections.sessionExecutions=[{id:'e-current',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-09-03T11:00:00Z',title:'Actual'}];
+  state.collections.checkins=[{id:'edge-30',clientId:'c1',createdAt:'2026-08-08T12:00:00Z',energy:7},{id:'edge-90',clientId:'c1',createdAt:'2026-07-01T12:00:00Z',energy:6}];
+  let reports=buildPremiumReportPortfolio(state,'c1',{now:NOW});
+  let monthly=reports.find(x=>x.id==='monthly');
+  assert.equal(monthly.ready,true);
+  assert.match(monthly.evidence.find(x=>x.label==='Bienestar').text,/^1 registro en el periodo/);
+  assert.match(monthly.evidence.find(x=>x.label==='Periodo anterior equivalente').text,/2026-07-09 a 2026-08-07/);
+  state.collections.checkins.shift();
+  reports=buildPremiumReportPortfolio(state,'c1',{now:NOW});
+  monthly=reports.find(x=>x.id==='monthly');
+  assert.equal(monthly.ready,false,'a July checkin cannot unlock a September monthly report');
+  state.collections.sessionExecutions.push({id:'previous',clientId:'c1',status:'completed',syncStatus:'clean',completedAt:'2026-08-07T11:00:00Z',title:'Anterior'});
+  state.collections.checkins.push({id:'recent',clientId:'c1',createdAt:'2026-09-02T10:00:00Z',energy:8});
+  monthly=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='monthly');
+  assert.match(monthly.evidence.find(x=>x.label==='Periodo anterior equivalente').text,/1 sesiones confirmadas; periodo actual: 1/);
+});

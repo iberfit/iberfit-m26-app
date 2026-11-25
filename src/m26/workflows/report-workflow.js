@@ -1,7 +1,8 @@
-import {buildProgressHub} from '../engagement/progress-hub.js';
+import {buildPeriodProgressEvidence} from '../engagement/progress-hub.js';
+import {reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
 import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {createM26Id} from '../platform/id.js';
-import {confirmedSessionExecutionsForClient,sessionExecutionId} from '../domain/session-execution-truth.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND,isInitialIriAssessment} from './iri-2-longitudinal.js';
 import {buildPostSessionSportEvidence} from './report-sport-evidence.js';
 import {buildPlanExecutionSummary} from '../engagement/progress-engine.js';
@@ -34,14 +35,7 @@ function recordDate(record){return civil(recordValue(record,'completedAt','compl
 function timestamp(date){return date?new Date(`${date}T00:00:00Z`).getTime():NaN;}
 // A database row creation/plan date is not evidence that a workout happened.
 // The canonic execution table may store its actual date inside summary.completedAt.
-function executionDate(record){
-  const summary=record?.summary&&typeof record.summary==='object'?record.summary:
-    record?.body?.summary&&typeof record.body.summary==='object'?record.body.summary:null;
-  return civil(recordValue(record,
-    'completedAt','completed_at','remoteConfirmedAt','remote_confirmed_at',
-    'localClosedAt','local_closed_at','endedAt','ended_at','executedAt','executed_at')
-    ||summary?.completedAt||summary?.completed_at||null);
-}
+function executionDate(record){return reportCivilDate(sessionExecutionCompletionDate(record));}
 function sortNewest(records,dateOf=recordDate){return [...records].sort((a,b)=>(timestamp(dateOf(b))||0)-(timestamp(dateOf(a))||0));}
 function uniqueConfirmedExecutions(records){const seen=new Set();return sortNewest(records,executionDate).filter((record)=>{const id=sessionExecutionId(record);if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;});}
 function dateOffset(endDate,days){const time=timestamp(endDate);if(!Number.isFinite(time))return null;return new Date(time-(Math.max(1,days)-1)*DAY_MS).toISOString().slice(0,10);}
@@ -76,9 +70,10 @@ function narrative(parts){return parts.filter(Boolean).join(' ');}
 
 export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   if(!clientId)return Object.freeze([]);
-  const end=new Date(now).toISOString().slice(0,10);
+  const end=reportCivilDate(new Date(now));
+  if(!end)throw new Error('M26_REPORT_NOW_INVALID');
   const iris=sortNewest(recordsForClient(state,'iriAssessments',clientId).filter(record=>confirmedIri(record)&&isInitialIri(record)));
-  const executions=uniqueConfirmedExecutions(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true,requireDate:true})).filter(record=>executionDate(record)&&executionDate(record)<=end);
+  const executions=uniqueConfirmedExecutions(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true,requireDate:false})).filter(record=>isWithinCivilPeriod(sessionExecutionCompletionDate(record),'0001-01-01',end,now));
   // The first confirmed initial assessment is the diagnostic baseline.
   // A more recent assessment of type "inicial" must not silently replace it.
   const latestIri=[...iris].sort((a,b)=>{
@@ -88,14 +83,6 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
       (normalizedRevision(recordValue(b,'revision'))??-1)-(normalizedRevision(recordValue(a,'revision'))??-1);
   })[0]||null;
   const latestExecution=executions[0]||null;
-  const progress=buildProgressHub(state,clientId,{now});
-  // Device readings are contextual: they cannot create a professional
-  // progress-report milestone on their own, even if recently synchronized.
-  // A confirmed IBERFIT execution is still required independently.
-  const progressEvidence=(progress?.pillars||[])
-    .filter((pillar)=>pillar.status!=='insufficient'
-      &&pillar.id!=='activity'
-      &&pillar.source!=='wearableDailySummaries');
   const latestIriDate=recordDate(latestIri);
   const latestSessionDate=executionDate(latestExecution);
   const assessmentId=iriId(latestIri);
@@ -109,6 +96,20 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   const monthlySessions=executions.filter((record)=>inWindow(record,monthlyStart,end));
   const quarterlySessions=executions.filter((record)=>inWindow(record,quarterlyStart,end));
   const yearlySessions=executions.filter((record)=>inWindow(record,yearlyStart,end));
+  // Each report consumes its own bounded evidence; a 28-day dashboard is
+  // not a source for a 30-, 90- or 365-day document.
+  const evidenceFor=(days,sessions)=>sessions.length?buildPeriodProgressEvidence(state,clientId,{now,days,executions:sessions})
+    .filter(pillar=>pillar.status!=='insufficient'&&pillar.id!=='activity'&&pillar.source!=='wearableDailySummaries'):[];
+  const monthlyEvidence=evidenceFor(30,monthlySessions);
+  const quarterlyEvidence=evidenceFor(90,quarterlySessions);
+  const yearlyEvidence=evidenceFor(365,yearlySessions);
+  function comparison(start,days,current){
+    const priorEnd=dateOffset(start,2),priorStart=dateOffset(priorEnd,days);
+    const previous=executions.filter(record=>inWindow(record,priorStart,priorEnd)).length;
+    if(!previous)return evidence('Periodo anterior equivalente',`${priorStart} a ${priorEnd}: sin ejecuciones confirmadas en los registros disponibles; no se puede afirmar inactividad ni calcular variación.`,'sessionExecutions','limitada');
+    const delta=current-previous;
+    return evidence('Periodo anterior equivalente',`${priorStart} a ${priorEnd}: ${previous} sesiones confirmadas; periodo actual: ${current} (${delta>0?'+':''}${delta}). Diferencia de registros, no de rendimiento ni de adherencia.`,'sessionExecutions');
+  }
   const datedHistory=executions.map(executionDate).filter(Boolean).sort();
   const historyDays=datedHistory.length?Math.floor((timestamp(end)-timestamp(datedHistory[0]))/DAY_MS)+1:0;
   // A confirmed shell without measured domains is not a releasable IRI diagnosis.
@@ -126,7 +127,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   const weeklyPlan=weeklyReady?buildPlanExecutionSummary({
     ...state,collections:{...state.collections,
       sessions:recordsForClient(state,'sessions',clientId)},
-  },clientId,{now,days:7}):null;
+  },clientId,{now,days:7,civilPeriod:true}):null;
   const comparableWeeklyPlan=weeklyPlan?.comparedSessions>0?weeklyPlan:null;
   const weeklyReport=reportModel({
     id:'weekly',label:'Resumen semanal de entrenamiento',ready:weeklyReady,
@@ -140,11 +141,12 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
       evidence('Sesiones confirmadas',String(weeklySessions.length),'sessionExecutions'),
       evidence('Días con entrenamiento confirmado',String(weeklyDays),'sessionExecutions'),
       evidence('Última sesión confirmada',`${sessionLabel(weeklySessions[0])} · ${executionDate(weeklySessions[0])}`,'sessionExecutions'),
+      comparison(weeklyStart,7,weeklySessions.length),
       ...(comparableWeeklyPlan?[evidence('Plan frente a ejecución',comparableWeeklyPlan.summary,'sessionExecutions',comparableWeeklyPlan.quality)]:[]),
     ]:[],
   });
-  const monthlyReady=Boolean(monthlySessions.length>0&&progressEvidence.length>0);
-  const monthlyReport=reportModel({id:'monthly',label:'Informe mensual',ready:monthlyReady,reason:'Se necesita al menos una sesión confirmada y una señal independiente de seguimiento registrada; los datos del dispositivo son solo contexto.',periodStart:monthlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:monthlyReady?confirmedActivitySeries(monthlySessions,monthlyStart,end,7):[],title:'Informe mensual IBERFIT',summary:monthlyReady?`En los últimos 30 días constan ${monthlySessions.length} ${monthlySessions.length===1?'sesión ejecutada':'sesiones ejecutadas'} y ${progressEvidence.length} área${progressEvidence.length===1?'':'s'} de seguimiento no derivada${progressEvidence.length===1?'':'s'} de dispositivos, con registros recientes.`:'',conclusions:monthlyReady?narrative(progressEvidence.slice(0,3).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:monthlyReady?'Revisar con el cliente la evolución del periodo y registrar el comentario profesional antes de aprobar o publicar el informe.':'',evidence:monthlyReady?[evidence('Sesiones ejecutadas',String(monthlySessions.length),'sessionExecutions'),...progressEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
+  const monthlyReady=Boolean(monthlySessions.length>0&&monthlyEvidence.length>0);
+  const monthlyReport=reportModel({id:'monthly',label:'Informe mensual',ready:monthlyReady,reason:'Se necesita al menos una sesión confirmada y una señal independiente de seguimiento registrada; los datos del dispositivo son solo contexto.',periodStart:monthlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:monthlyReady?confirmedActivitySeries(monthlySessions,monthlyStart,end,7):[],title:'Informe mensual IBERFIT',summary:monthlyReady?`En los últimos 30 días constan ${monthlySessions.length} ${monthlySessions.length===1?'sesión ejecutada':'sesiones ejecutadas'} y ${monthlyEvidence.length} área${monthlyEvidence.length===1?'':'s'} de seguimiento no derivada${monthlyEvidence.length===1?'':'s'} de dispositivos, dentro del periodo indicado.`:'',conclusions:monthlyReady?narrative(monthlyEvidence.slice(0,3).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:monthlyReady?'Revisar con el cliente la evolución del periodo y registrar el comentario profesional antes de aprobar o publicar el informe.':'',evidence:monthlyReady?[evidence('Sesiones ejecutadas',String(monthlySessions.length),'sessionExecutions'),comparison(monthlyStart,30,monthlySessions.length),...monthlyEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
   // A second initial IRI is not a follow-up measurement. Until the canonical
   // evolution-followup source and protocol comparator are wired end-to-end,
   // do not offer an invented reassessment based on assessment recency.
@@ -154,10 +156,10 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
     periodStart:null,periodEnd:null,title:'Reevaluación IBERFIT',
     summary:'',conclusions:'',recommendations:'',evidence:[],
   });
-  const quarterlyReady=Boolean(quarterlySessions.length>0&&progressEvidence.length>=2);
-  const quarterlyReport=reportModel({id:'quarterly',label:'Informe trimestral',ready:quarterlyReady,reason:'Se necesita al menos una sesión confirmada y dos áreas independientes del seguimiento con evidencia válida, sin utilizar dispositivos como prueba de progreso.',periodStart:quarterlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:quarterlyReady?confirmedActivitySeries(quarterlySessions,quarterlyStart,end,30):[],title:'Informe trimestral IBERFIT',summary:quarterlyReady?`En la ventana de 90 días constan ${quarterlySessions.length} sesiones ejecutadas y ${progressEvidence.length} áreas de seguimiento con registros válidos distintos de los wearables.`:'',conclusions:quarterlyReady?narrative(progressEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:quarterlyReady?'Revisar objetivos, continuidad y próximos hitos con el cliente antes de aprobar el informe trimestral.':'',evidence:quarterlyReady?[evidence('Sesiones ejecutadas',String(quarterlySessions.length),'sessionExecutions'),...progressEvidence.slice(0,5).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
-  const yearReady=Boolean(historyDays>=300&&yearlySessions.length>0&&progressEvidence.length>0);
-  const yearReport=reportModel({id:'year-in-iberfit',label:'Year in IBERFIT',ready:yearReady,reason:'Se necesitan al menos 300 días de historial de entrenamiento confirmado, una sesión ejecutada en el último año y al menos una señal independiente de seguimiento no derivada de dispositivos.',periodStart:yearlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:yearReady?confirmedActivitySeries(yearlySessions,yearlyStart,end,31):[],title:'Year in IBERFIT',summary:yearReady?`El historial canónico cubre ${historyDays} días y registra ${yearlySessions.length} sesiones ejecutadas en los últimos 365 días.`:'',conclusions:yearReady?narrative(progressEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:yearReady?'Cerrar el año con la interpretación del coach, reconocer los hitos confirmados y acordar el siguiente ciclo de objetivos.':'',evidence:yearReady?[evidence('Historial disponible',`${historyDays} días`,'canonical-store'),evidence('Sesiones del último año',String(yearlySessions.length),'sessionExecutions'),...progressEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
+  const quarterlyReady=Boolean(quarterlySessions.length>0&&quarterlyEvidence.length>=2);
+  const quarterlyReport=reportModel({id:'quarterly',label:'Informe trimestral',ready:quarterlyReady,reason:'Se necesita al menos una sesión confirmada y dos áreas independientes del seguimiento con evidencia válida, sin utilizar dispositivos como prueba de progreso.',periodStart:quarterlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:quarterlyReady?confirmedActivitySeries(quarterlySessions,quarterlyStart,end,30):[],title:'Informe trimestral IBERFIT',summary:quarterlyReady?`En la ventana de 90 días constan ${quarterlySessions.length} sesiones ejecutadas y ${quarterlyEvidence.length} áreas de seguimiento con registros válidos distintos de los wearables.`:'',conclusions:quarterlyReady?narrative(quarterlyEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:quarterlyReady?'Revisar objetivos, continuidad y próximos hitos con el cliente antes de aprobar el informe trimestral.':'',evidence:quarterlyReady?[evidence('Sesiones ejecutadas',String(quarterlySessions.length),'sessionExecutions'),comparison(quarterlyStart,90,quarterlySessions.length),...quarterlyEvidence.slice(0,5).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
+  const yearReady=Boolean(historyDays>=300&&yearlySessions.length>0&&yearlyEvidence.length>0);
+  const yearReport=reportModel({id:'year-in-iberfit',label:'Year in IBERFIT',ready:yearReady,reason:'Se necesitan al menos 300 días de historial de entrenamiento confirmado, una sesión ejecutada en el último año y al menos una señal independiente de seguimiento no derivada de dispositivos.',periodStart:yearlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:yearReady?confirmedActivitySeries(yearlySessions,yearlyStart,end,31):[],title:'Year in IBERFIT',summary:yearReady?`El historial canónico cubre ${historyDays} días y registra ${yearlySessions.length} sesiones ejecutadas en los últimos 365 días.`:'',conclusions:yearReady?narrative(yearlyEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:yearReady?'Cerrar el año con la interpretación del coach, reconocer los hitos confirmados y acordar el siguiente ciclo de objetivos.':'',evidence:yearReady?[evidence('Historial disponible',`${historyDays} días`,'canonical-store'),evidence('Sesiones del último año',String(yearlySessions.length),'sessionExecutions'),comparison(yearlyStart,365,yearlySessions.length),...yearlyEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
   return Object.freeze([iriReport,postReport,weeklyReport,monthlyReport,reassessmentReport,quarterlyReport,yearReport]);
 }
 

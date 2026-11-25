@@ -66,6 +66,25 @@ export function civilDateInTimeZone(
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+// A stored civil date is already a local calendar day. Only instants need a timezone projection.
+export function reportCivilDate(value){
+  if(typeof value!=='string'&&!(value instanceof Date))return null;
+  const raw=typeof value==='string'?value.trim():value;
+  const civil=parseCivilDate(raw);
+  if(civil)return civil.iso;
+  if(typeof raw==='string'&&!/^\d{4}-\d{2}-\d{2}T/.test(raw))return null;
+  if(typeof raw==='string'&&!parseCivilDate(raw.slice(0,10)))return null;
+  return civilDateInTimeZone(raw);
+}
+
+export function isWithinCivilPeriod(value,start,end,now){
+  const day=reportCivilDate(value);
+  if(!day||day<start||day>end)return false;
+  if(parseCivilDate(value))return true;
+  const instant=parseDateValue(value),cutoff=parseDateValue(now);
+  return Boolean(instant&&cutoff&&instant.getTime()<=cutoff.getTime());
+}
+
 export function formatIberfitDate(
   value,
   {
