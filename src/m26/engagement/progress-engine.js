@@ -10,6 +10,7 @@ import {
   sessionExecutionIsCompleted as executionIsCompleted,
   sessionExecutionId,
   sessionExecutionCompletionDate,
+  sessionExecutionDate,
   reconcileSessionExecutionsForClient,
 } from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
@@ -380,8 +381,11 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
       executionIsCompleted(record,{allowDatedFallback:false}))).length;
   // Reuse the exact canonical reconciliation above rather than rebuilding
   // the same owner/revision/conflict index for every report period.
-  const completedExecutions=executionRows.filter(item=>
-    executionIsConfirmed(item,blockedExecutionIds)&&executionIsCompleted(item));
+  const completedExecutions=reconciliation.records
+    .filter(record=>executionIsConfirmed(record,blockedExecutionIds)&&executionIsCompleted(record)&&
+      (civilPeriod||Boolean(sessionExecutionDate(record))))
+    .map(unwrap)
+    .filter(item=>executionWithinWindow(item,window));
   const verifiedAdherence=confirmedAdherenceEvidence({appointments,executions:completedExecutions});
   const adherenceEvidence=Object.freeze({
     ...verifiedAdherence,
