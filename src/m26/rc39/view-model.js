@@ -173,7 +173,7 @@ function enrichExpedienteDecision(vm,role,now){
 }
 function enrichExpedienteRetention(vm,role,state,routeClientId,now){
   if(vm?.kind!=='expediente'||!['coach','admin'].includes(role)||!routeClientId)return vm;
-  const retentionHealth=buildRetentionHealth(state,String(routeClientId),{now});
+  const retentionHealth=buildRetentionHealth(state,String(routeClientId),{now,summary:vm.progress});
   if(!retentionHealth)return vm;
   const cockpit=vm.coachCockpit&&typeof vm.coachCockpit==='object'?vm.coachCockpit:{};
   const items=list(cockpit.items);

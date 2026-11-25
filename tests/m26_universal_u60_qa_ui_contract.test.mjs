@@ -68,11 +68,12 @@ test('UNIVERSAL U60 separate action registry audits every date interaction with 
   assert.match(html,/runtime\.recovery\.retryUncertain/u);
 });
 
-function createHarness(role='coach'){
+function createHarness(role='coach',{document=null}={}){
   const state={identity:{role,clientId:CLIENT},selectedClientId:CLIENT,
     collections:{clients:[{id:CLIENT}],sessions:[],appointments:[]}};
   const listeners=new Map(),calls=[];
   const root={
+    ownerDocument:document,
     addEventListener(event,handler){listeners.set(event,handler);},
     removeEventListener(event){listeners.delete(event);},
     contains:()=>true,querySelector:()=>null,
@@ -494,7 +495,7 @@ test('U60 time-late calendar reads are rejected after role change, including Coa
   assert.match(source,/generation!==requestedGeneration/u);
   assert.match(source,/generation!==startedAtGeneration/u);
   assert.match(source,/focus\.role!==scope\.role/u);
-  assert.match(source,/if\(!focus\)return;/u);
+  assert.match(source,/if\(!mounted\|\|disposed\|\|!focus\|\|visibilityTarget\?\.visibilityState==='hidden'\)\{\s*stopClock\(\);return false;/u);
 });
 
 test('U60 copy-plan assistant only accepts unambiguous reps and kg, never invents effort',()=>{
@@ -821,14 +822,29 @@ test('dated clock uses canonical active time, catches up after suspension, freez
 });
 
 test('dated UI idle mount, render and foreground do not allocate an interval or query Supabase',()=>{
- const h=createHarness();
+ const pageEvents=new Map(),visibilityEvents=new Map();
+ let intervals=0,clears=0;
+ const clock={setInterval(){intervals++;return 1;},clearInterval(){clears++;},
+   addEventListener(name,handler){pageEvents.set(name,handler);},
+   removeEventListener(name){pageEvents.delete(name);}};
+ const document={defaultView:clock,visibilityState:'visible',
+   addEventListener(name,handler){visibilityEvents.set(name,handler);},
+   removeEventListener(name){visibilityEvents.delete(name);}};
+ const h=createHarness('coach',{document});
  try{
    assert.ok(h.listeners.has('m26:shell-rendered'));
    h.listeners.get('m26:shell-rendered')();
+   pageEvents.get('pagehide')();
+   pageEvents.get('pageshow')();
+   document.visibilityState='hidden';visibilityEvents.get('visibilitychange')();
+   document.visibilityState='visible';visibilityEvents.get('visibilitychange')();
+   assert.equal(intervals,0);assert.equal(clears,0);
    assert.equal(h.calls.length,0);
    const source=readFileSync(new URL('../src/m26/workflows/occurrence-qa-ui.js',import.meta.url),'utf8');
    assert.match(source,/if\(tick\(\)&&ticker===null&&typeof clockTarget\.setInterval==='function'\)/u);
    assert.match(source,/visibilityTarget\?\.visibilityState==='hidden'/u);
    assert.match(source,/removeEventListener\('m26:shell-rendered',syncClock\)/u);
  }finally{h.close();}
+ assert.equal(pageEvents.size,0);assert.equal(visibilityEvents.size,0);
+ assert.equal(h.listeners.has('m26:shell-rendered'),false);
 });

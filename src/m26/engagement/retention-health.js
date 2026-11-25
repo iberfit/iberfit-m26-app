@@ -3,7 +3,7 @@ import {parseDateValue} from '../domain/civil-date.js';
 import {deriveAdherenceAlerts} from './adherence-engine.js';
 import {computeProgressSummary,progressWindow} from './progress-engine.js';
 import {buildProgressHub} from './progress-hub.js';
-import {confirmedScheduledCompletion} from './progress-continuity.js';
+import {confirmedScheduledCompletion,reusableConfirmedSummary} from './progress-continuity.js';
 import {buildCrmRenewalSummary} from './crm-renewals.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -204,12 +204,22 @@ function actionFor(band,factors){
   return Object.freeze({title:'Completar evidencia',detail:'Registrar más sesiones, feedback o actividad antes de clasificar riesgo.',primaryArea:'progreso',primaryLabel:'Completar seguimiento'});
 }
 
-export function buildRetentionHealth(state,clientId,{now=new Date()}={}){
+export function buildRetentionHealth(state,clientId,{now=new Date(),summary:providedSummary=null}={}){
   if(!clientId)return null;
-  const summary=computeProgressSummary(state,clientId,{now,days:28});
+  const summary=reusableConfirmedSummary(providedSummary,clientId,28)
+    ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary)return null;
-  const alerts=deriveAdherenceAlerts(state,clientId,{now});
-  const hub=buildProgressHub(state,clientId,{now});
+  // Same synchronous render and owner: each window is computed once and
+  // shared by the existing alert and Progress Hub engines, never cached globally.
+  const summaries={
+    d7:computeProgressSummary(state,clientId,{now,days:7}),
+    d28:summary,
+    d90:computeProgressSummary(state,clientId,{now,days:90}),
+  };
+  const alerts=deriveAdherenceAlerts(state,clientId,{now,summary,summaries});
+  const hub=buildProgressHub(state,clientId,{now,summaries:{
+    7:summaries.d7,28:summary,90:summaries.d90,
+  }});
   const crm=buildCrmRenewalSummary(state,clientId,{now});
   const factors=Object.freeze([
     adherenceFactor(summary),
