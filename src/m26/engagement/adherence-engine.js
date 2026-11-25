@@ -1,5 +1,5 @@
 import { computeProgressSummary, progressWindow } from './progress-engine.js';
-import {reusableConfirmedSummary} from './progress-continuity.js';
+import {reusableConfirmedSummary,confirmedScheduledCompletion} from './progress-continuity.js';
 import {
   confirmedSessionExecutionsForClient,
   sessionExecutionDate,
@@ -52,22 +52,15 @@ const ADHERENCE_TRAJECTORY_EVIDENCE=Object.freeze({d7:1,d28:3,d90:6});
 function round(value,digits=3){if(!Number.isFinite(value))return null;const power=10**digits;return Math.round(value*power)/power;}
 function percentText(value){return Number.isFinite(value)?`${Math.round(value*100)}%`:'—';}
 function trajectoryWindow(summary,days){
-  const planned=Number(summary?.plannedSessions||0);
-  const completed=Number(summary?.scheduledCompletedSessions
-    ??summary?.completedSessions??0);
-  const value=summary?.adherence;
-  const adherence=typeof value==='number'&&Number.isFinite(value)?value:null;
-  const coherent=Number.isSafeInteger(planned)&&planned>=0
-    &&Number.isSafeInteger(completed)&&completed>=0&&completed<=planned
-    &&adherence!==null&&adherence>=0&&adherence<=1
-    &&(planned===0?false:Math.abs(adherence-completed/planned)<=0.01);
+  const planned=summary?.plannedSessions;
+  const scheduled=confirmedScheduledCompletion(summary,{allowLegacy:true});
   return Object.freeze({
     days,
-    adherence:coherent?adherence:null,
+    adherence:scheduled?.adherence??null,
     plannedSessions:Number.isSafeInteger(planned)&&planned>=0?planned:0,
-    completedSessions:Number.isSafeInteger(completed)&&completed>=0?completed:0,
+    completedSessions:scheduled?.completed??0,
     dataQuality:summary?.dataQuality||null,
-    evidence:coherent&&planned>=ADHERENCE_TRAJECTORY_EVIDENCE[`d${days}`],
+    evidence:Boolean(scheduled&&scheduled.planned>=ADHERENCE_TRAJECTORY_EVIDENCE[`d${days}`]),
   });
 }
 function trajectoryCopy(status){
@@ -193,13 +186,12 @@ export function deriveAdherenceAlerts(state,clientId,{now=new Date(),summary:pro
   const postSession=postSessionFeedbackSignal(state,clientId,{now});
   if(postSession)alerts.push(postSession);
   if(trajectory.status==='slipping')alerts.push(makeSignal('adherence-slipping','warning','Caída reciente de continuidad',`${trajectory.summary}. La referencia de 7 días está al menos 15 puntos porcentuales por debajo de la de 28 días; las ventanas se solapan y se usa como señal temprana, no como explicación causal.`,trajectory.coachAction,'sessions'));
-  if(Number.isFinite(summary.adherence)&&summary.plannedSessions>=3&&summary.adherence<0.6)alerts.push(makeSignal('adherence-low','warning','Adherencia por debajo de lo previsto',`Se completó el ${Math.round(summary.adherence*100)}% de las sesiones planificadas en 28 días.`,'Revisar barreras de agenda, comprensión o tolerancia.','sessions'));
+  const scheduled=confirmedScheduledCompletion(summary,{allowLegacy:true});
+  if(scheduled&&scheduled.planned>=3&&scheduled.adherence<0.6)alerts.push(makeSignal('adherence-low','warning','Adherencia por debajo de lo previsto',`Se completó el ${Math.round(scheduled.adherence*100)}% de las sesiones planificadas en 28 días.`,'Revisar barreras de agenda, comprensión o tolerancia.','sessions'));
   // A single booking that is only just due is insufficient evidence to
   // replace "Próxima sesión" with a high-priority continuity alarm.
   // Keep the original >=3 booked commitments threshold used by adherence.
-  if(Number.isSafeInteger(summary.plannedSessions)
-    &&summary.plannedSessions>=3
-    &&(summary.scheduledCompletedSessions??summary.completedSessions)===0)
+  if(scheduled&&scheduled.planned>=3&&scheduled.completed===0)
     alerts.push(makeSignal('no-completions','critical','Sin citas de entrenamiento cumplidas en el periodo',
       'Hay al menos tres citas planificadas en la ventana, pero ninguna se ha cumplido. Un entrenamiento autónomo no equivale a asistencia a una cita.',
       'Contactar y verificar continuidad del plan.','sessions'));

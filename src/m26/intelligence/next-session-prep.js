@@ -1,4 +1,5 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
+import {confirmedScheduledCompletion} from '../engagement/progress-continuity.js';
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
@@ -423,7 +424,8 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       :sessionId
         ?'draft-fallback'
         :'none';
-  const adherencePercent=percent(progress?.adherence);
+  const scheduled=confirmedScheduledCompletion(progress);
+  const adherencePercent=percent(scheduled?.adherence);
 
   return Object.freeze({
     kind:'next-session-preparation',
@@ -451,7 +453,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       plannedSessions:Number(progress?.plannedSessions||0),
       completedSessions:Number(progress?.completedSessions||0),
       scheduledCompletedSessions:progress?.scheduledCompletedSessions??null,
-      adherence:finite(progress?.adherence),
+      adherence:scheduled?.adherence??null,
       adherencePercent,
       averageRpe:finite(progress?.averageRpe),
       lastExecutionRpe:finite(progress?.lastExecutionRpe),

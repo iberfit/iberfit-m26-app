@@ -29,6 +29,7 @@ function expediente(){
     progress:{
       adherence:0.75,
       completedSessions:3,
+      scheduledCompletedSessions:3,
       plannedSessions:4,
       averageRpe:7.5,
       lastExecutionAt:'2026-09-06T10:00:00.000Z',

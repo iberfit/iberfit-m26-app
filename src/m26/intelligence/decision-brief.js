@@ -1,3 +1,5 @@
+import {confirmedScheduledCompletion} from '../engagement/progress-continuity.js';
+
 const PRIORITY=Object.freeze({
   critical:0,
   warning:1,
@@ -93,17 +95,11 @@ export function buildIberfitDecisionBrief({
   }
 
   const plannedCount=validCount(safeSummary.plannedSessions);
-  const completedCount=validCount(safeSummary.completedSessions);
-  const reportedAdherence=measured(safeSummary.adherence,0,1);
-  const measuredAdherence=plannedCount!==null&&plannedCount>0
-    &&completedCount!==null&&completedCount<=plannedCount
-    ?completedCount/plannedCount:null;
-  const adherence=measuredAdherence!==null
-    &&(reportedAdherence===null||Math.abs(reportedAdherence-measuredAdherence)<=0.01)
-    ?measuredAdherence:null;
-  if(adherence!==null){
+  const scheduled=confirmedScheduledCompletion(safeSummary);
+  if(scheduled){
+    const {planned,completed,adherence}=scheduled;
     signals.push(
-      `Adherencia confirmada: ${Math.round(adherence*100)}% (${completedCount} de ${plannedCount} sesiones).`
+      `Adherencia confirmada: ${Math.round(adherence*100)}% (${completed} de ${planned} sesiones).`
     );
 
     evidenceCount+=1;
