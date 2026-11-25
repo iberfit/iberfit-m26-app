@@ -1,0 +1,476 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-ELEVACION-FRONTAL-CON-DISCO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-e425ea9eb4a5.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 01. Original SHA256: c87731a6b9597da7643588e88fc0c7f2754b32e9805ea263374fe8d18d8fd70a"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ELEVACION-FRONTAL-CON-DISCO/movement-e425ea9eb4a5.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "e425ea9eb4a5466af6ccb4c7ed64eacb675683b6719b9e32a486c41cf4bdadfc"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-HANDSTAND-HOLD-ASISTIDO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-0bbcf0a92015.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 02. Original SHA256: 25fd00c741a6c1efc293e0b9b84e51045cb2cf28f1ea853e9acd98133f0aaa1c"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-HANDSTAND-HOLD-ASISTIDO/movement-0bbcf0a92015.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "0bbcf0a920156df5ea7f23353fd1701cf702b35e283036625018bb31bc7547ef"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-JERK-TECNICO-CON-PALO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-7dee1ab907e6.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 03. Original SHA256: 715f4b82ba3bccdd756f15a9144d48a5808f20db6efa2cad6df3ebad57e3d6da"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-JERK-TECNICO-CON-PALO/movement-7dee1ab907e6.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "7dee1ab907e6d4254fac7281787c66f457b48006c6bcf7428e767cba4cfb2ae6"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PIKE-PUSH-UP-ELEVADA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-882cc8d3bfad.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 04. Original SHA256: 891e4c0b98c0d87b6aaa4b9091045199973e2672e2dd6a73307063f9984fcb3b"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PIKE-PUSH-UP-ELEVADA/movement-882cc8d3bfad.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 700,
+          "sha256": "882cc8d3bfadee5ef2526ecbcbff13ac837c8287595bb4624909aef08dbc34b7"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PRESS-CON-BANDA-SOBRE-LA-CABEZA",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-36ae383ab235.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 05. Original SHA256: 2c1b7cd01799002340c893d478da54f46a52624627327abafff1d5c94d95316d"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PRESS-CON-BANDA-SOBRE-LA-CABEZA/movement-36ae383ab235.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 700,
+          "sha256": "36ae383ab235c41dc030afd378e5f1eda1e947d85bbe2f509fe3dc6b756a6b21"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PRESS-LANDMINE-DE-PIE",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-425b7a1b24bd.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 06. Original SHA256: c807d5fc66626f9c85959b8f0d2dc43273c4f1349e88ca9b991e182a064bc336"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PRESS-LANDMINE-DE-PIE/movement-425b7a1b24bd.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 700,
+          "sha256": "425b7a1b24bd922156ba2f1e0d0bec412a1d10fbcf8b82ec264c528b18a44aab"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PRESS-LANDMINE-MEDIO-ARRODILLADO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-5c0f6ec627bc.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 07. Original SHA256: 42053672c84aea29271ae694638b3c93be3c5d50ae84d27a963ab5c6a39fdeed"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PRESS-LANDMINE-MEDIO-ARRODILLADO/movement-5c0f6ec627bc.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 700,
+          "sha256": "5c0f6ec627bc7f023de3bff0f29ea23d6004cd1813d99aa4fcc95668003e013a"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PRESS-UNILATERAL-MEDIO-ARRODILLADO",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-1f34031ab8aa.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 08. Original SHA256: 2dfa57c04a2e621f46706beb860118458129155ea89b8a44e7d5d709aa8128f5"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PRESS-UNILATERAL-MEDIO-ARRODILLADO/movement-1f34031ab8aa.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 700,
+          "sha256": "1f34031ab8aa18a5abc6fba68f8d360ef4f79cf37e0b889d52911f389b00072c"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-SCAPTION-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-eb962697988a.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 09. Original SHA256: 501ef5e9458a581b24a1bcfeab7bd0f3faa60f34ef68ce11904ba893abf3614d"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SCAPTION-CON-MANCUERNAS/movement-eb962697988a.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 700,
+          "sha256": "eb962697988a3147920295284959a2ac21bc607daf04fb6662948948bdf579ab"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    },
+    {
+      "exercise_id": "IBF-PRESS-ARNOLD",
+      "local_path": "scripts/exercise-media/approved/IBF-MANUAL-BATCH-20261125-B11/movement-9e853dcca15a.webp",
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-11-25",
+        "note": "Aprobación explícita del propietario en conversación, lote B11 posición 10. Original SHA256: 79acd5707f49fbf7836376eefdfb6bd9f15436df103e7fca8248a5ec1bd32f60"
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PRESS-ARNOLD/movement-9e853dcca15a.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 700,
+          "sha256": "9e853dcca15a1ce1cb30cd1441022b476b01168c506cc3df2379afcca81b474b"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoides",
+            "tríceps"
+          ],
+          "secondary": [
+            "core",
+            "serrato"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
