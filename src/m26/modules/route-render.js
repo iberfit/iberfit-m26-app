@@ -288,16 +288,17 @@ function renderCoachHoyRoute(vm) {
     return clients.find((item)=>String(item?.id||'').trim()===clientId)||null;
   };
 
+  const attentionVerified=Number.isSafeInteger(cockpit?.attentionCount)&&cockpit.attentionCount>=0;
   let primary={
-    tone:'success',
-    eyebrow:'Todo al día',
-    title:'Tu cartera está al día',
+    tone:attentionVerified?'success':'neutral',
+    eyebrow:attentionVerified?'Todo al día':'Seguimiento',
+    title:attentionVerified?'Tu cartera está al día':'Revisar seguimiento',
     copy:clients.length
-      ?'Continúa con la próxima sesión o prepara trabajo futuro.'
+      ?attentionVerified?'Continúa con la próxima sesión o prepara trabajo futuro.':'El estado de atención de la cartera aún no está disponible.'
       :'Cuando tengas clientes asignados, su siguiente acción aparecerá aquí.',
-    area:clients.length?'agenda':'clientes',
+    area:clients.length&&attentionVerified?'agenda':'clientes',
     clientId:null,
-    label:clients.length?'Abrir agenda':'Abrir clientes',
+    label:clients.length&&attentionVerified?'Abrir agenda':'Abrir clientes',
   };
 
   if(vm.operations?.conflicts){
@@ -402,12 +403,12 @@ function renderCoachHoyRoute(vm) {
       <div class="m26-stack">${coachPriorityCard(heroAttentionItem)}</div>
     </details>`:'';
 
-  const attentionCount=Number(cockpit?.attentionCount||0);
-  const attentionStatus=attentionCount
+  const attentionCount=attentionVerified?cockpit.attentionCount:null;
+  const attentionStatus=attentionCount===null?'Sin datos':attentionCount
     ?countLabel(attentionCount,'requiere atención','requieren atención')
     :'Cartera al día';
   const portfolioCount=Number(cockpit?.totalClients??clients.length);
-  const attentionMeter=Number.isFinite(portfolioCount)&&portfolioCount>0&&Number.isFinite(attentionCount)&&attentionCount>=0
+  const attentionMeter=attentionVerified&&Number.isFinite(portfolioCount)&&portfolioCount>0
     ?`<progress max="${escapeHtml(portfolioCount)}" value="${escapeHtml(Math.min(attentionCount,portfolioCount))}" aria-label="${escapeHtml(attentionStatus)}">${escapeHtml(attentionStatus)}</progress>`
     :'';
   const operationStatus=vm.operations?.pending
@@ -446,8 +447,12 @@ function renderCoachHoyRoute(vm) {
           <div><strong>Cartera al día</strong><small>Sin revisiones prioritarias.</small></div>
         </div>`;
 
+  // Put clients with upcoming appointments first, retaining the original order for everyone else.
+  const clientById=new Map(clients.filter(item=>item?.id).map(item=>[String(item.id),item]));
+  const scheduledClientIds=new Set(upcoming.map(item=>String(item?.clientId||'')).filter(id=>clientById.has(id)));
+  const quickClients=[...Array.from(scheduledClientIds,id=>clientById.get(id)),...clients.filter(item=>!scheduledClientIds.has(String(item?.id||'')))];
   const clientsBody=clients.length
-    ?clients.slice(0,6).map(coachHomeClientCard).join('')
+    ?quickClients.slice(0,6).map(coachHomeClientCard).join('')
     :`<div class="m26-coach-home-clear">
         <span aria-hidden="true">+</span>
         <div><strong>Sin clientes asignados</strong><small>Tu cartera aparecerá aquí.</small></div>

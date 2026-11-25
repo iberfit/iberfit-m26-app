@@ -4,7 +4,14 @@ const KIND_RANK=Object.freeze({critical:0,warning:1,process:2,info:3,clear:4});
 
 function arr(value){return Array.isArray(value)?value:[];}
 function text(value,fallback=''){const clean=String(value??'').trim();return clean||fallback;}
-function number(value){const n=Number(value);return Number.isFinite(n)?n:null;}
+function number(value){if(typeof value!=='number'&&typeof value!=='string')return null;if(typeof value==='string'&&!value.trim())return null;const n=Number(value);return Number.isFinite(n)&&n>=0?n:null;}
+export function coachCapacityEvidence(coach={}){
+  const capacityHours=number(coach?.capacityHours);
+  const assignedHours=number(coach?.assignedHours);
+  const raw=capacityHours!==null&&capacityHours>0&&assignedHours!==null?assignedHours/capacityHours:null;
+  const loadRatio=raw!==null&&Number.isFinite(raw)&&Number.isFinite(raw*100)?raw:null;
+  return Object.freeze({capacityHours,assignedHours,loadRatio,loadPercent:loadRatio===null?null:Math.round(loadRatio*100)});
+}
 function openTask(task={}){return isOperationalTaskOpen(task);}
 function taskPriority(task={}){const p=text(task.priority,'normal').toLowerCase();return p==='critical'?0:p==='high'?1:2;}
 function stageKind(stage){if(stage==='onboarding'||stage==='evaluation')return 'warning';if(stage==='planning'||stage==='scheduling')return 'process';return 'clear';}
@@ -51,9 +58,7 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     });
 
   const coachLoad=arr(coaches).map((coach)=>{
-    const capacity=number(coach?.capacityHours);
-    const assignedHours=number(coach?.assignedHours)??0;
-    const ratio=capacity&&capacity>0?assignedHours/capacity:null;
+    const {capacityHours:capacity,assignedHours,loadRatio:ratio,loadPercent}=coachCapacityEvidence(coach);
     const status=ratio==null?'unknown':ratio>=1?'full':ratio>=.85?'near':'available';
     return Object.freeze({
       coachUserId:text(coach?.userId||coach?.id),
@@ -62,7 +67,7 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
       capacityHours:capacity,
       assignedHours,
       loadRatio:ratio,
-      loadPercent:ratio==null?null:Math.round(ratio*100),
+      loadPercent,
       status,
     });
   }).sort((a,b)=>{

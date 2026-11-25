@@ -22,7 +22,8 @@ function comparableVolumeChart(summary){
  if(!Array.isArray(input)||input.length<2||input.length>16||
     typeof summary?.volumeDelta!=='number'||!Number.isFinite(summary.volumeDelta))return '';
  const series=input.map((p)=>{
-   const d=new Date(p?.date);
+   const raw=p?.date;
+   const d=typeof raw==='string'&&raw.trim()?new Date(raw):new Date(NaN);
    const time=d.getTime();
    const volume=p?.volume;
    return {time,volume,date:Number.isFinite(time)?dateLabel(p.date):''};
@@ -70,9 +71,13 @@ export function renderAthleticClientEvidence(summary){
  const latest=summary.latestCheckin&&typeof summary.latestCheckin==='object'?summary.latestCheckin:null;
  const dials=latest?[dial('Energía',latest.energy),dial('Sueño',latest.sleep),dial('Estrés',latest.stress),dial('Motivación',latest.motivation)].filter(Boolean):[];
  const trained=sessions!==null&&sessions>0,registered=checkins!==null&&checkins>0&&dials.length>0;
- if(!trained&&!registered)return '';
+ const scheduled=whole(summary.scheduledCompletedSessions);
+ // Only canonical confirmed counts can establish zero scheduled completions.
+ const scheduledEvidence=planned!==null&&planned>0&&scheduled!==null&&scheduled<=planned;
+ if(!trained&&!registered&&!scheduledEvidence)return '';
  const facts=[];
  if(trained)facts.push(`<div class="m26-athletic-fact"><strong>${esc(sessions)}</strong><span>Sesiones completadas</span></div>`);
+ if(scheduledEvidence)facts.push(`<div class="m26-athletic-fact"><strong>${esc(scheduled)} / ${esc(planned)}</strong><span>Citas cumplidas</span></div>`);
  if(trained&&adherence!==null&&planned!==null&&planned>0)facts.push(`<div class="m26-athletic-fact"><strong>${esc(adherence)}%</strong><span>Adherencia confirmada</span><meter min="0" max="100" value="${esc(adherence)}" aria-label="Adherencia confirmada: ${esc(adherence)} por ciento"></meter></div>`);
  if(trained&&delta!==null)facts.push(`<div class="m26-athletic-fact" data-trend="${delta>0?'up':delta<0?'down':'stable'}"><strong>${delta>0?'+':''}${esc(Number(delta.toFixed(1)))}%</strong><span>Volumen comparable</span></div>`);
  if(registered)facts.push(`<div class="m26-athletic-fact"><strong>${esc(checkins)}</strong><span>Registros de bienestar</span></div>`);

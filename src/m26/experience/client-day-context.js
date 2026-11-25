@@ -111,7 +111,7 @@ function dateLabel(date){return civilDate(date)?date.slice(8,10)+'/'+date.slice(
 function metric(label,display){return '<div class="m26-client-day-metric"><dt>'+esc(label)
   +'</dt><dd>'+esc(display)+'</dd></div>';}
 export function deriveClientDayNextAction(snapshot){
-  if(!snapshot||!['today','recent'].includes(snapshot.wellbeing?.status))
+  if(!snapshot||snapshot.wellbeing?.status!=='today')
     return Object.freeze({area:'actividad',label:'Registrar cómo estoy',
       detail:'Tu registro de bienestar es voluntario y aporta contexto.'});
   return Object.freeze({area:'progreso',label:'Ver mi evolución',
@@ -147,7 +147,7 @@ export function renderClientDayContext(snapshot){
     :'Sin fecha reciente confirmada';
   const trainingMetrics=Number.isSafeInteger(training.completed28)?metric('Sesiones confirmadas · 28 días',training.completed28):'';
   const trend=Number.isFinite(training.volumeDelta)
-    ?metric('Carga comparable', (training.volumeDelta>0?'+':'')+training.volumeDelta+' %')
+    ?metric('Volumen comparable', (training.volumeDelta>0?'+':'')+training.volumeDelta+' %')
     :'';
   return '<section class="m26-client-day-context" data-m26-client-day-context aria-labelledby="m26-client-day-heading">'
     +'<header class="m26-client-day-heading"><div><p class="m26-eyebrow">TU VIDA ACTIVA</p>'
