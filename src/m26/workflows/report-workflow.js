@@ -67,6 +67,7 @@ function confirmedActivitySeries(executions,start,end,spanDays){
 function reportModel({id,label,ready,reason,periodStart,periodEnd,title,summary,conclusions,recommendations,evidence=[],assessmentId=null,assessmentRevision=null,sourceType=null,sourceId=null,activitySeries=[]}){return Object.freeze({id,label,status:ready?'ready':'insufficient-data',ready:Boolean(ready),reason:ready?null:cleanText(reason,500),periodStart:periodStart||null,periodEnd:periodEnd||null,title:cleanText(title,140),summary:cleanText(summary,2500),conclusions:cleanText(conclusions,2500),recommendations:cleanText(recommendations,2500),evidence:Object.freeze(evidence),assessmentId:assessmentId?String(assessmentId):null,assessmentRevision:normalizedRevision(assessmentRevision),sourceType,sourceId,activitySeries:Object.freeze(activitySeries),coachComment:'',coachCommentLabel:'Comentario del coach',dataPolicy:'canonical-only'});}
 function iriId(record){return recordValue(record,'id');}
 function sessionLabel(record){return cleanText(recordValue(record,'title','name','nombre')||'Sesión IBERFIT',120);}
+function trimTrailingPeriods(value){let end=value.length;while(end>0&&value.charCodeAt(end-1)===46)end--;return value.slice(0,end);}
 function narrative(parts){return parts.filter(Boolean).join(' ');}
 // Evidence-driven editorial prompts for review, never automatic prescriptions.
 function periodEditorial(sessions,signals,comparisonRow){
@@ -79,7 +80,7 @@ function periodEditorial(sessions,signals,comparisonRow){
   ];
   return Object.freeze({
     context:latest?`Entrenamiento confirmado en ${days} día${days===1?'':'s'} distintos. Última sesión: ${sessionLabel(latest)} (${executionDate(latest)}).`:'',
-    conclusions:narrative([...signals.map(row=>`${row.label}: ${row.evidence.replace(/[.]+$/u,'')}.`),comparisonRow?.text,'Estos resultados describen los registros disponibles; no acreditan por sí solos una mejora funcional.']),
+    conclusions:narrative([...signals.map(row=>`${row.label}: ${trimTrailingPeriods(row.evidence)}.`),comparisonRow?.text,'Estos resultados describen los registros disponibles; no acreditan por sí solos una mejora funcional.']),
     recommendations:narrative(prompts),
     evidence:latest?[evidence('Días con entrenamiento confirmado',String(days),'sessionExecutions'),evidence('Última sesión confirmada',`${sessionLabel(latest)} · ${executionDate(latest)}`,'sessionExecutions')]:[],
   });
@@ -347,7 +348,7 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
   // Own card/status changes cannot invalidate the portfolio. Coalesce external
   // mutations into one refresh, while clicks and approval always use fresh data.
   let scheduled=false;
-  const schedule=()=>{if(destroyed||scheduled)return;scheduled=true;const run=()=>{scheduled=false;if(!destroyed)enhance();};if(typeof scope.queueMicrotask==='function')scope.queueMicrotask(run);else Promise.resolve().then(run);};
+  const schedule=()=>{if(destroyed||scheduled)return;scheduled=true;const run=()=>{scheduled=false;if(!destroyed)enhance();};if(typeof scope.queueMicrotask==='function')scope.queueMicrotask(run);else void Promise.resolve().then(run).catch(()=>{});};
   const observer=new scope.MutationObserver(records=>{if(premiumReportNeedsRefresh(records))schedule();});
   observer.observe(root,{childList:true,subtree:true});root.addEventListener('click',onClick);
   const startupTimers=[0,250,1000,2500].map(delay=>scope.setTimeout?.(schedule,delay));
