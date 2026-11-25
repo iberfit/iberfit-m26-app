@@ -175,3 +175,27 @@ test('coach decision layer prioritizes review signals without changing planning 
   assert.match(html,/Cambio reciente -9%/);
   assert.equal((html.match(/data-progress-pillar=/g)||[]).length,4);
 });
+
+
+test('Client sees all meaningful areas without confusing wearable or wellbeing coverage with progress',()=>{
+  const hub=meaningfulHub();
+  hub.pillars[3]={...hub.pillars[3],status:'strong',value:8};
+  hub.pillars[4]={...hub.pillars[4],status:'building',value:2};
+  const html=renderProgressDecisionLayer(hub,{role:'client'});
+  assert.equal((html.match(/data-progress-pillar=/g)||[]).length,5);
+  assert.match(html,/Ver 2 áreas adicionales con registros/);
+  assert.match(html,/no una puntuación de tu bienestar/);
+  assert.match(html,/no entrenamientos IBERFIT confirmados/);
+  assert.match(html,/1\.200/);
+  assert.doesNotMatch(html,/Baseline/);
+});
+test('Client signal layer rejects absent and malformed values, preserves real zero',()=>{
+  const hub=meaningfulHub();
+  hub.pillars[0]={...hub.pillars[0],value:0};
+  hub.pillars[1]={...hub.pillars[1],value:false};
+  hub.pillars[2]={...hub.pillars[2],value:null};
+  const html=renderProgressDecisionLayer(hub,{role:'client'});
+  assert.equal((html.match(/data-progress-pillar=/g)||[]).length,1);
+  assert.match(html,/class="m26-progress-reading">0<span>%<\/span>/u);
+  assert.doesNotMatch(html,/false/);
+});

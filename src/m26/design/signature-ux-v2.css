@@ -3000,3 +3000,31 @@ body{
   .m26-shell[data-m26-role="coach"] .m26-coach-planning-compact{border-color:CanvasText}
   .m26-shell[data-m26-role="coach"] .m26-coach-planning-compact>summary:focus-visible{outline-color:Highlight}
 }
+
+
+/* ULTRA PRODUCT EXCELLENCE 360 · progression reading, no global fitness score.
+ * Scoped to the existing decision layer; detailed historical charts remain intact. */
+.m26-shell .m26-progress-decision-signature{min-width:0}
+.m26-shell .m26-progress-signal-list{display:grid;grid-template-columns:minmax(0,1fr);gap:.2rem;min-width:0}
+.m26-shell .m26-progress-signal-list>.m26-progress-signal{
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:.75rem;
+ min-width:0;margin:0;padding:clamp(.9rem,2vw,1.2rem) .25rem;
+ background:transparent;border:0;border-bottom:1px solid var(--iberfit-v2-line);border-radius:0;box-shadow:none
+}
+.m26-shell .m26-progress-signal-main{min-width:0;overflow-wrap:anywhere}
+.m26-shell .m26-progress-reading{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .5rem;margin:.3rem 0;color:var(--iberfit-color-text-primary);font-family:var(--iberfit-font-family-editorial);font-size:clamp(1.65rem,3vw,2.25rem);font-variant-numeric:tabular-nums;line-height:1.12}
+.m26-shell .m26-progress-reading>span{font-family:var(--iberfit-font-family-ui);font-size:.79rem;font-weight:600;color:var(--iberfit-color-text-secondary);line-height:1.35}
+.m26-shell .m26-progress-context{display:block;max-width:68ch;margin-top:.35rem;color:var(--iberfit-color-text-secondary);line-height:1.5}
+.m26-shell .m26-progress-signal[data-progress-signal-status="review"] .m26-eyebrow{color:var(--iberfit-color-accent-strong)}
+.m26-shell .m26-progress-additional{border-bottom:1px solid var(--iberfit-v2-line);min-width:0}
+.m26-shell .m26-progress-additional>summary{min-height:48px;padding:.8rem .25rem;cursor:pointer;touch-action:manipulation;color:var(--iberfit-color-text-primary);font-weight:600}
+.m26-shell .m26-progress-additional>summary:focus-visible{outline:3px solid var(--iberfit-color-accent-strong);outline-offset:2px}
+.m26-shell .m26-progress-decision-signature [data-progress-baseline="iri"]{margin-top:1rem;border:0;border-top:1px solid var(--iberfit-v2-line);border-radius:0;background:transparent;box-shadow:none;padding:.9rem .25rem 0}
+@media(max-width:480px){
+ .m26-shell .m26-progress-signal-list>.m26-progress-signal{grid-template-columns:minmax(0,1fr);gap:.5rem}
+ .m26-shell .m26-progress-signal .m26-appointment-state{justify-self:start;max-width:100%;white-space:normal}
+}
+@media(forced-colors:active){
+ .m26-shell .m26-progress-signal-list>.m26-progress-signal,.m26-shell .m26-progress-additional,.m26-shell .m26-progress-decision-signature [data-progress-baseline="iri"]{border-color:CanvasText}
+ .m26-shell .m26-progress-additional>summary:focus-visible{outline-color:Highlight}
+}
