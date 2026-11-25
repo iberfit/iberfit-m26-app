@@ -331,13 +331,21 @@ export async function boundedReadOnlyJwtClockSkewRecovery(request,wait=async()=>
  await wait();
  return request(); // Exactly one additional READ-ONLY attempt with unchanged JWT.
 }
+// One additional attempt at most for an explicitly allowlisted identity read.
+// Do not stack retry policies: a 522 followed by JWT skew still fails closed.
+export async function boundedQaIdentityReadRecovery(request,wait=async()=>new Promise(resolve=>setTimeout(resolve,2500))){
+ const first=await request();
+ if(first?.status!==522&&!isFutureIssuedJwtClockSkew(first))return first;
+ await wait();
+ return request();
+}
 const READ_ONLY_IDENTITY_RPCS=new Set([
  'iberfit_current_role_v26','iberfit_client_id',
  'iberfit_environment','iberfit_u71_dated_candidates_qa_v1',
 ]);
 async function value(ctx,jwt,name,params={}){
  assert(READ_ONLY_IDENTITY_RPCS.has(name),'NON_IDENTITY_READ_BLOCKED');
- const r=await boundedReadOnlyJwtClockSkewRecovery(()=>rpc(ctx,jwt,name,params));
+ const r=await boundedQaIdentityReadRecovery(()=>rpc(ctx,jwt,name,params));
  assert(r.status===200,'IDENTITY_RPC_'+name.toUpperCase()+'_'+r.status);
  return r.body;
 }
@@ -399,14 +407,15 @@ async function authenticatedStage(ctx,certified=null){
  const a=await login(ctx,e.M26_QA_CLIENT_A_EMAIL,e.M26_QA_CLIENT_A_PASSWORD);
  const b=await login(ctx,e.M26_QA_CLIENT_B_EMAIL,e.M26_QA_CLIENT_B_PASSWORD);
  assert(new Set([coach.actor,a.actor,b.actor]).size===3,'ACTORS_NOT_SEPARATE');
- const [roleCoach,roleA,roleB,clientA,clientB,environment,raw]=await Promise.all([
-  value(ctx,coach.jwt,'iberfit_current_role_v26'),
-  value(ctx,a.jwt,'iberfit_current_role_v26'),
-  value(ctx,b.jwt,'iberfit_current_role_v26'),
-  value(ctx,a.jwt,'iberfit_client_id'),value(ctx,b.jwt,'iberfit_client_id'),
-  value(ctx,a.jwt,'iberfit_environment'),
-  value(ctx,a.jwt,'iberfit_u71_dated_candidates_qa_v1'),
- ]);
+ // Avoid a seven-RPC burst immediately after the three password logins.
+ // Same reads, same authorization, sequential fail-closed validation.
+ const roleCoach=await value(ctx,coach.jwt,'iberfit_current_role_v26');
+ const roleA=await value(ctx,a.jwt,'iberfit_current_role_v26');
+ const roleB=await value(ctx,b.jwt,'iberfit_current_role_v26');
+ const clientA=await value(ctx,a.jwt,'iberfit_client_id');
+ const clientB=await value(ctx,b.jwt,'iberfit_client_id');
+ const environment=await value(ctx,a.jwt,'iberfit_environment');
+ const raw=await value(ctx,a.jwt,'iberfit_u71_dated_candidates_qa_v1');
  assert(roleCoach==='coach'&&['client','cliente'].includes(roleA)
   &&['client','cliente'].includes(roleB),'ROLE_MISMATCH');
  assert(UUID.test(clientA)&&UUID.test(clientB)&&clientA!==clientB,'CLIENT_OWNERS');
@@ -465,12 +474,11 @@ async function verifyBrowserWorkout(ctx){
  const coach=await login(ctx,ctx.e.M26_QA_COACH_EMAIL,ctx.e.M26_QA_COACH_PASSWORD);
  const a=await login(ctx,ctx.e.M26_QA_CLIENT_A_EMAIL,ctx.e.M26_QA_CLIENT_A_PASSWORD);
  const b=await login(ctx,ctx.e.M26_QA_CLIENT_B_EMAIL,ctx.e.M26_QA_CLIENT_B_PASSWORD);
- const [rc,ra,rb,ca,cb]=await Promise.all([
-  value(ctx,coach.jwt,'iberfit_current_role_v26'),
-  value(ctx,a.jwt,'iberfit_current_role_v26'),
-  value(ctx,b.jwt,'iberfit_current_role_v26'),
-  value(ctx,a.jwt,'iberfit_client_id'),value(ctx,b.jwt,'iberfit_client_id'),
- ]);
+ const rc=await value(ctx,coach.jwt,'iberfit_current_role_v26');
+ const ra=await value(ctx,a.jwt,'iberfit_current_role_v26');
+ const rb=await value(ctx,b.jwt,'iberfit_current_role_v26');
+ const ca=await value(ctx,a.jwt,'iberfit_client_id');
+ const cb=await value(ctx,b.jwt,'iberfit_client_id');
  assert(rc==='coach'&&['client','cliente'].includes(ra)
   &&['client','cliente'].includes(rb)&&ca===f.clientId&&cb!==ca,
   'UI_PROOF_OWNER_DRIFT');

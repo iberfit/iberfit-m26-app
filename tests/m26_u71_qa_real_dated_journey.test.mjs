@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,selectCertifiedDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,boundedHostedAuth522Recovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays,authorizedAutonomousQaBranch,boundedQaCalendarPage} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {derivedUuid,chileanClock,dayOffset,sameClientCalendar,firstAvailableDatedCandidate,selectCertifiedDatedCandidate,denied,isFutureIssuedJwtClockSkew,boundedReadOnlyJwtClockSkewRecovery,boundedHostedAuth522Recovery,boundedQaIdentityReadRecovery,validatedDatedCandidates,chooseUnoccupiedDatedSlot,u71PlanningDays,authorizedAutonomousQaBranch,boundedQaCalendarPage} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 test('U71 deterministic per-run QA operation IDs avoid duplicate writes',()=>{
  const a=derivedUuid('41900000','appointment-create-0');
  assert.match(a,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -210,7 +210,7 @@ test('U71 skew recovery is restricted to read-only identity and cannot reissue w
  const last=source.indexOf('async function checkedCalendar(ctx,jwt',first);
  const section=source.slice(first,last);
  assert.match(section,/READ_ONLY_IDENTITY_RPCS\.has\(name\)/u);
- assert.match(section,/boundedReadOnlyJwtClockSkewRecovery\(\(\)=>rpc\(ctx,jwt,name,params\)\)/u);
+ assert.match(section,/boundedQaIdentityReadRecovery\(\(\)=>rpc\(ctx,jwt,name,params\)\)/u);
  for(const forbidden of ['iberfit_execute_command_v26','iberfit_occurrence_api_u60_v1']){
   assert.doesNotMatch(source.slice(source.indexOf('const READ_ONLY_IDENTITY_RPCS=new Set('),first),new RegExp(forbidden));
  }
@@ -420,4 +420,27 @@ test('M1 shared QA gate uses bounded 4-page cursor, not first-page-only history'
  assert.match(s,/QA_CALENDAR_PAGE_BUDGET_EXCEEDED/u);
  assert.match(s,/calendar:ctx\.autonomous\?\[\]:old/u);
  assert.match(s,/assert\(!old\.some\(row=>row\.status==='en_curso'\)/u);
+});
+
+
+test('QA identity recovery is bounded to one extra read for 522 or exact JWT clock skew only',async()=>{
+ const skew={status:401,body:{code:'PGRST303',message:'JWT issued at future'}};
+ for(const first of [{status:522},skew]){
+  let n=0,waits=0;
+  const result=await boundedQaIdentityReadRecovery(async()=>++n===1?first:{status:200,body:'coach'},async()=>{waits++});
+  assert.equal(result.status,200);assert.equal(n,2);assert.equal(waits,1);
+  n=0;waits=0;
+  const second=first.status===522?skew:{status:522};
+  assert.equal(await boundedQaIdentityReadRecovery(async()=>++n===1?first:second,async()=>{waits++}),second);
+  assert.equal(n,2);assert.equal(waits,1);
+ }
+ for(const status of [200,400,401,403,429,500,502,503,504]){
+  let n=0,waits=0;const response={status};
+  assert.equal(await boundedQaIdentityReadRecovery(async()=>{n++;return response},async()=>{waits++}),response);
+  assert.equal(n,1);assert.equal(waits,0);
+ }
+ const source=readFileSync(new URL('../scripts/remote-gates/qa_u60_real_dated_journey.mjs',import.meta.url),'utf8');
+ const identity=source.slice(source.indexOf('async function authenticatedStage'),source.indexOf('async function save',source.indexOf('async function authenticatedStage'))<0?source.indexOf('async function verifyBrowserWorkout'):source.indexOf('async function save',source.indexOf('async function authenticatedStage')));
+ assert.doesNotMatch(identity,/Promise\.all/u);
+ assert.equal(source.split('boundedQaIdentityReadRecovery(').length-1,2,'only the allowlisted value helper may invoke recovery');
 });
