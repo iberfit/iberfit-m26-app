@@ -64,3 +64,23 @@ test('video stays native, manual and preload-free',()=>{
   assert.match(markup,/controls playsinline preload="none"/u);
   assert.doesNotMatch(markup,/\bautoplay\b/u);
 });
+
+
+test('video observer inspects new figures only; metadata, form mutations and retry failure remain recoverable',async()=>{
+  const listeners=new Map(),attrs=new Map([['data-video-state','idle']]);
+  let scans=0,observerCallback,loads=0;
+  const status={textContent:''},retry={hidden:true},pip={hidden:true};
+  const video={readyState:1,paused:true,networkState:1,matches:s=>s==='[data-exercise-video-element]',closest:()=>figure,load(){loads++;throw Error('unsupported')}};
+  const figure={nodeType:1,matches:s=>s==='[data-exercise-video]',getAttribute:k=>attrs.get(k),setAttribute:(k,v)=>attrs.set(k,v),querySelector:s=>({'[data-exercise-video-element]':video,'[data-exercise-video-status]':status,'[data-exercise-video-retry]':retry,'[data-exercise-video-pip]':pip})[s],querySelectorAll:()=>[]};
+  const root={addEventListener:(k,f)=>listeners.set(k,f),removeEventListener:k=>listeners.delete(k),querySelectorAll(){scans++;return [figure]},contains:()=>true};
+  const scope={MutationObserver:class{constructor(cb){observerCallback=cb}observe(){}disconnect(){}}};
+  const controller=createExerciseVideoExperienceController({root,scope,navigatorRef:{onLine:true},documentRef:{}});
+  controller.mount();assert.equal(scans,1);
+  observerCallback([{addedNodes:[{nodeType:3}]}]);assert.equal(scans,1);
+  observerCallback([{addedNodes:[figure,figure]}]);assert.equal(scans,1);
+  listeners.get('loadedmetadata')({type:'loadedmetadata',target:video});assert.equal(attrs.get('data-video-state'),'loading');
+  const button={closest:()=>figure};
+  await listeners.get('click')({target:{closest:s=>s==='[data-exercise-video-retry]'?button:null}});
+  assert.equal(loads,1);assert.equal(attrs.get('data-video-state'),'error');assert.equal(retry.hidden,false);
+  controller.destroy();
+});

@@ -67,3 +67,14 @@ test('B4 uses canonical Admin CSS, focus, compact mobile and forced-colors witho
   assert.ok(!b4.includes('!important'));
   assert.ok(!b4.includes('display:none'));
 });
+
+
+test('Admin surfaces deadlines due today and distinguishes missing counts from verified zeros',()=>{
+ const due=home({tasks:[{id:'today',title:'Revisión de hoy',priority:'normal',status:'open',dueAt:'2026-10-23'}]});
+ assert.match(due,/m26-admin-command-urgent-row[\s\S]*?Revisión de hoy[\s\S]*?Vence hoy/u);
+ const partial=renderAdminRoute({admin:true,kind:'admin-inicio',summary:{activeClients:0}});
+ assert.match(partial,/Clientes activos<\/span><strong>0<\/strong>/u);
+ assert.match(partial,/Sin Coach<\/span><strong>—<\/strong>/u);
+ assert.match(partial,/Estado no disponible/u);
+ assert.doesNotMatch(partial,/Clientes al día/u);
+});

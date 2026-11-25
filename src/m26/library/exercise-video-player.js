@@ -131,7 +131,7 @@ export function recoveredExerciseVideoState(video,{attempted=false}={}){
 
 export function stopExerciseVideo(video){
   if(!video)return;
-  video.pause?.();
+  try{video.pause?.();}catch{/* detached or unsupported media */}
   const doc=video.ownerDocument;
   if(doc?.pictureInPictureElement!==video)return;
   // A browser may revoke PiP while the exercise is being removed.
@@ -184,8 +184,8 @@ export function createExerciseVideoExperienceController({
   function updateFigure(figure,state){
     if(!figure)return;
     const network=networkState(navigatorRef);
-    figure.setAttribute?.('data-video-state',state);
-    figure.setAttribute?.('data-video-network',network);
+    if(figure.getAttribute?.('data-video-state')!==state)figure.setAttribute?.('data-video-state',state);
+    if(figure.getAttribute?.('data-video-network')!==network)figure.setAttribute?.('data-video-network',network);
     const status=figure.querySelector?.('[data-exercise-video-status]');
     const nextText=statusText(state,network);
     if(status&&status.textContent!==nextText)status.textContent=nextText;
@@ -193,14 +193,28 @@ export function createExerciseVideoExperienceController({
     if(retry)retry.hidden=!['error','offline'].includes(state);
   }
 
+  function refreshFigure(figure){
+    const video=figure.querySelector?.('[data-exercise-video-element]');
+    const pip=figure.querySelector?.('[data-exercise-video-pip]');
+    if(pip)pip.hidden=!canUsePictureInPicture(video,documentRef);
+    const state=String(figure.getAttribute?.('data-video-state')||'idle');
+    updateFigure(figure,state);
+  }
   function refreshCapabilities(){
-    for(const figure of root.querySelectorAll?.('[data-exercise-video]')||[]){
-      const video=figure.querySelector?.('[data-exercise-video-element]');
-      const pip=figure.querySelector?.('[data-exercise-video-pip]');
-      if(pip)pip.hidden=!canUsePictureInPicture(video,documentRef);
-      const state=String(figure.getAttribute?.('data-video-state')||'idle');
-      updateFigure(figure,state);
+    for(const figure of root.querySelectorAll?.('[data-exercise-video]')||[])refreshFigure(figure);
+  }
+  function refreshAddedFigures(records){
+    // Updating an aria-live status or typing in a training form is not a new
+    // media mount. Inspect only added element subtrees, once per batch.
+    const figures=new Set();
+    for(const record of records||[]){
+      for(const node of record.addedNodes||[]){
+        if(node?.nodeType!==1)continue;
+        if(node.matches?.('[data-exercise-video]'))figures.add(node);
+        for(const figure of node.querySelectorAll?.('[data-exercise-video]')||[])figures.add(figure);
+      }
     }
+    for(const figure of figures)if(root.contains?.(figure)!==false)refreshFigure(figure);
   }
 
   function recordMedia(eventType,state,{video,errorClass='none',latencyBucket='none'}={}){
@@ -228,6 +242,8 @@ export function createExerciseVideoExperienceController({
     }
     if(event.type==='canplay'&&video.paused===false&&
       figure?.getAttribute?.('data-video-state')==='playing')state='playing';
+    if(event.type==='loadedmetadata'&&Number(video.readyState||0)<3)
+      state=online?'loading':'offline';
     let latencyBucket='none';
 
     if(event.type==='loadstart'){
@@ -257,8 +273,10 @@ export function createExerciseVideoExperienceController({
       const video=figure?.querySelector?.('[data-exercise-video-element]');
       if(!video)return;
       const next=nextPlaybackRate(video.playbackRate);
-      video.playbackRate=next;
-      speed.textContent=`${next}×`;
+      try{video.playbackRate=next;}catch{return;}
+      const actual=Number(video.playbackRate)||1;
+      speed.textContent=`${actual}×`;
+      speed.setAttribute?.('aria-label',`Velocidad actual ${actual}×. Cambiar velocidad de reproducción`);
       analytics.record({eventType:'rate_change',state:String(figure.getAttribute?.('data-video-state')||'idle'),network:networkState(navigatorRef)});
       return;
     }
@@ -274,7 +292,9 @@ export function createExerciseVideoExperienceController({
       }
       analytics.record({eventType:'retry',state:'loading',network:'online'});
       updateFigure(figure,'loading');
-      video.load?.();
+      // A synchronous browser failure must leave a visible retry action,
+      // not a permanent loading indicator. Never autoplay after retry.
+      try{video.load?.();}catch{updateFigure(figure,'error');}
       return;
     }
 
@@ -289,6 +309,12 @@ export function createExerciseVideoExperienceController({
           analytics.record({eventType:'pip_exit',state:String(figure.getAttribute?.('data-video-state')||'idle'),network:networkState(navigatorRef)});
         }else{
           await video.requestPictureInPicture();
+          // The user may have navigated to another exercise while PiP was
+          // awaiting permission. Do not leave an obsolete video floating.
+          if(!mounted||root.contains?.(video)===false){
+            stopExerciseVideo(video);
+            return;
+          }
           analytics.record({eventType:'pip_enter',state:String(figure.getAttribute?.('data-video-state')||'idle'),network:networkState(navigatorRef)});
         }
       }catch{
@@ -322,7 +348,7 @@ export function createExerciseVideoExperienceController({
       scope?.addEventListener?.('online',onNetwork);
       scope?.addEventListener?.('offline',onNetwork);
       if(typeof scope?.MutationObserver==='function'){
-        observer=new scope.MutationObserver(refreshCapabilities);
+        observer=new scope.MutationObserver(refreshAddedFigures);
         observer.observe(root,{childList:true,subtree:true});
       }
       refreshCapabilities();
