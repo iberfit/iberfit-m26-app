@@ -7,11 +7,19 @@ const TYPES=Object.freeze({
   quarterly:'Informe trimestral',
   'year-in-iberfit':'Balance anual',
 });
+const EDITORIAL=Object.freeze({
+  'post-session':['Tu sesión en perspectiva','Resultados registrados y contexto para preparar el siguiente entrenamiento.'],
+  weekly:['Tu semana de entrenamiento','La actividad confirmada, lo que conviene revisar y cómo dar continuidad al proceso.'],
+  monthly:['Un mes de seguimiento','Los registros del periodo, sus comparaciones y las decisiones que merecen una revisión profesional.'],
+  quarterly:['El ciclo en perspectiva','Continuidad, evidencia comparable y prioridades para la siguiente etapa.'],
+  'year-in-iberfit':['Un año de recorrido','El historial confirmado y los aprendizajes que orientan el próximo ciclo.'],
+});
 const TRUSTED_SOURCES=Object.freeze({
   sessionExecutions:'Sesiones IBERFIT confirmadas',
   'session_execution':'Sesión IBERFIT confirmada',
   'session_execution_period':'Historial de sesiones confirmadas',
   appointments:'Citas verificadas',
+  'appointments+sessionExecutions':'Citas verificadas y sesiones IBERFIT confirmadas',
   checkins:'Registros de bienestar',
   'canonical-store':'Historial canónico IBERFIT',
   wearableDailySummaries:'Datos de dispositivo, solo contexto',
@@ -33,6 +41,11 @@ function dateLabel(value){
   if(Number.isNaN(+date)||date.toISOString().slice(0,10)!==match[0])return 'Fecha pendiente';
   return new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(date);
 }
+function dayMonth(value){return value.slice(8,10)+'/'+value.slice(5,7);}
+function validateActivitySeries(series,start,end){
+  if(!Array.isArray(series)||series.length>13)return false;
+  return series.every((row,index)=>row&&dateLabel(row.from)!=='Fecha pendiente'&&dateLabel(row.to)!=='Fecha pendiente'&&row.from>=start&&row.to<=end&&row.from<=row.to&&Number.isSafeInteger(row.count)&&row.count>=0&&(!index||series[index-1].to<row.from));
+}
 function activityGraphic(series){
   const values=series.map(row=>row.count);
   const maximum=Math.max(1,...values);
@@ -44,16 +57,16 @@ function activityGraphic(series){
     const x=left+slot*index+slot*.19;
     const y=baseline-height;
     const width=Math.min(40,slot*.62);
-    const label=row.from===row.to?row.from.slice(5):row.from.slice(5)+' / '+row.to.slice(5);
+    const label=row.from===row.to?dateLabel(row.from):dateLabel(row.from)+' — '+dateLabel(row.to);
     // Dates remain legible directly on the graph. The accessible HTML table
     // below supplies full years and both endpoints where labels are compact.
-    const tick=row.from.slice(5).replace('-','/');
+    const tick=dayMonth(row.from);
     return '<g><rect class="m44-activity-bar" x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+width.toFixed(1)+'" height="'+height.toFixed(1)+'" rx="2"/>'+
       '<text class="m44-activity-value" x="'+(x+width/2).toFixed(1)+'" y="'+Math.max(19,y-8).toFixed(1)+'" text-anchor="middle">'+value+'</text>'+
       '<text class="m44-activity-date" x="'+(x+width/2).toFixed(1)+'" y="229" text-anchor="middle">'+esc(tick)+'</text>'+
       '<title>'+esc(label)+': '+value+' sesiones confirmadas</title></g>';
   }).join('');
-  const grid='<line x1="'+left+'" y1="'+baseline+'" x2="'+right+'" y2="'+baseline+'" class="m44-activity-baseline"/>'+
+  const grid='<text class="m44-activity-axis-label" x="28" y="'+(baseline+4)+'" text-anchor="end">0</text><text class="m44-activity-axis-label" x="28" y="'+(top+4)+'" text-anchor="end">'+maximum+'</text><line x1="'+left+'" y1="'+baseline+'" x2="'+right+'" y2="'+baseline+'" class="m44-activity-baseline"/>'+
     '<line x1="'+left+'" y1="'+top+'" x2="'+right+'" y2="'+top+'" class="m44-activity-guide"/>';
   return '<figure class="m44-activity-chart"><figcaption>Sesiones IBERFIT completadas y confirmadas</figcaption>'+
     '<svg viewBox="0 0 682 240" role="img" aria-label="Histograma de '+series.length+' periodos con una escala que empieza en cero. '+series.map(row=>esc(row.from)+' a '+esc(row.to)+': '+row.count).join('; ')+'">'+grid+columns+'</svg>'+
@@ -124,10 +137,9 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     currentChunk.push(item);budgetUsed+=cost;
   }
   if(currentChunk.length)evidenceChunks.push(currentChunk);
-  const activitySeries=Array.isArray(report.activitySeries)?report.activitySeries:[];
-  const showActivity=report.id!=='post-session'&&activitySeries.length>=2
-    &&activitySeries.length<=13
-    &&activitySeries.every(item=>item&&item.from&&item.to&&Number.isInteger(item.count)&&item.count>=0&&item.from<=item.to);
+  const activitySeries=report.activitySeries??[];
+  if(!validateActivitySeries(activitySeries,report.periodStart,report.periodEnd))throw new Error('M44_REPORT_PREVIEW_ACTIVITY_INVALID');
+  const showActivity=report.id!=='post-session'&&activitySeries.length>=2;
   // Length-limited reading sections. The full interpretation must remain
   // visible in the PDF, never merely truncated by overflow:hidden.
   const summaryText=clean(report.summary,2500);
@@ -149,13 +161,13 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     '<div class="m44-cover-accent" aria-hidden="true"></div>'+
     '<div class="m44-brand"><img src="/public/isotipo-iberfit.png" alt="" width="66" height="66"><div><strong>IBERFIT</strong><small>ENTRENAMIENTO PERSONAL CON CRITERIO</small></div></div>'+
     '<p class="m44-cover-category">EVOLUCIÓN · SEGUIMIENTO PERSONALIZADO</p>'+
-    '<h1>'+esc(TYPES[report.id])+'<span>Tu proceso,<br>con perspectiva.</span></h1>'+
-    '<p class="m44-cover-description">No se trata solo de entrenar. Se trata de comprender lo realizado, valorar la evidencia y decidir con criterio qué hacer después.</p>'+
+    '<h1>'+esc(TYPES[report.id])+'<span>'+esc(EDITORIAL[report.id][0])+'</span></h1>'+
+    '<p class="m44-cover-description">'+esc(EDITORIAL[report.id][1])+'</p>'+
     '<div class="m44-cover-rule" aria-hidden="true"></div>'+
     '<div class="m44-cover-meta"><div><span>Preparado para</span><strong>'+esc(name)+'</strong></div><div><span>Periodo analizado</span><strong>'+esc(dateLabel(report.periodStart))+' — '+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Revisión profesional</span><strong>'+esc(coach)+'</strong></div></div>'+
     '<div class="m44-cover-bottom"><span>'+(published?'CONSULTA DE INFORME PUBLICADO EN PLATAFORMA':'BORRADOR PRIVADO · VISTA PREVIA SIN PUBLICAR')+'</span><span>IBERFIT · INFORME DE EVOLUCIÓN</span></div></section>');
   pages.push(page(2,total,'01 · LA LECTURA','Qué hemos hecho',
-    '<p class="m44-section-lead">El periodo en contexto</p>'+
+    '<p class="m44-section-lead">'+esc(title===TYPES[report.id]?'El periodo en contexto':title)+'</p>'+
     '<div class="m44-prose m44-report-summary">'+paragraphs(summaryChunks[0],2500)+'</div>'+
     '<div class="m44-period-line"><div><span>Desde</span><strong>'+esc(dateLabel(report.periodStart))+'</strong></div><div><span>Hasta</span><strong>'+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Tipo de seguimiento</span><strong>'+esc(TYPES[report.id])+'</strong></div></div>'+
     '<div class="m44-reading-rule"><span>Cómo interpretar estos resultados</span><p>Los hechos describen lo que está confirmado; las conclusiones y próximos pasos corresponden a la revisión del coach. Un cambio de carga, volumen o frecuencia no implica por sí mismo una mejora funcional.</p></div>'));
@@ -195,7 +207,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   if(!longDecision){
     pages.push(page(total,total,showActivity?'04 · CRITERIO PROFESIONAL':'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
     '<div class="m44-decision"><span>INTERPRETACIÓN PROFESIONAL</span><div class="m44-prose">'+paragraphs(report.conclusions,2500)+'</div></div>'+
-    (published?'':'<div class="m44-coach-voice"><span>LA MIRADA DE TU COACH</span><div class="m44-prose">'+paragraphs(report.coachComment,2500)+'</div><strong>'+esc(coach)+'</strong></div>')+
+    (published?'':'<div class="m44-coach-voice"><span>NOTA PRIVADA DEL COACH</span><div class="m44-prose">'+paragraphs(report.coachComment,2500)+'</div><strong>'+esc(coach)+'</strong></div>')+
     '<div class="m44-next"><span>PRÓXIMO PASO PROPUESTO</span><div class="m44-prose">'+paragraphs(report.recommendations,2500)+'</div></div>'+
     '<div class="m44-method"><h3>Transparencia del informe</h3><p>Fuente principal: '+esc(TRUSTED_SOURCES[report.sourceType]||'Evidencia canónica IBERFIT')+'. Ventana: '+esc(dateLabel(report.periodStart))+' a '+esc(dateLabel(report.periodEnd))+'. '+(published?'Esta copia de lectura procede del informe visible en la plataforma. No constituye por sí sola un artefacto PDF firmado o archivado.':'Este documento es una previsualización; no confirma aprobación, publicación ni entrega.')+' La evidencia de diagnóstico IRI inicial se mantiene separada de la evolución.</p><p>Los datos de dispositivos, si se utilizan, deben mostrar procedencia, frescura y calidad y nunca sustituir una sesión confirmada.</p></div>'));
   }else{

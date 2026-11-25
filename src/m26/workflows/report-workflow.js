@@ -67,6 +67,22 @@ function reportModel({id,label,ready,reason,periodStart,periodEnd,title,summary,
 function iriId(record){return recordValue(record,'id');}
 function sessionLabel(record){return cleanText(recordValue(record,'title','name','nombre')||'Sesión IBERFIT',120);}
 function narrative(parts){return parts.filter(Boolean).join(' ');}
+// Evidence-driven editorial prompts for review, never automatic prescriptions.
+function periodEditorial(sessions,signals,comparisonRow){
+  const days=new Set(sessions.map(executionDate).filter(Boolean)).size;
+  const latest=sessions[0],byId=new Set(signals.map(row=>row.id));
+  const prompts=[
+    byId.has('consistency')?'Revisar las citas cumplidas y las pendientes de aclaración, sin equiparar entrenamiento autónomo con una ausencia.':'Acordar una frecuencia sostenible y registrar los compromisos programados antes de valorar la adherencia.',
+    byId.has('strength')||byId.has('volume')?'Contrastar las exposiciones comparables con la técnica y el esfuerzo antes de decidir cambios de carga.':'Conservar las variantes, unidades y condiciones de los ejercicios para que la próxima comparación sea interpretable.',
+    byId.has('wellbeing')?'Conversar sobre los registros de bienestar y su contexto antes de ajustar el siguiente bloque.':'Completar el seguimiento de bienestar cuando sea pertinente para interpretar el entrenamiento.',
+  ];
+  return Object.freeze({
+    context:latest?`Entrenamiento confirmado en ${days} día${days===1?'':'s'} distintos. Última sesión: ${sessionLabel(latest)} (${executionDate(latest)}).`:'',
+    conclusions:narrative([...signals.map(row=>`${row.label}: ${row.evidence.replace(/[.]+$/u,'')}.`),comparisonRow?.text,'Estos resultados describen los registros disponibles; no acreditan por sí solos una mejora funcional.']),
+    recommendations:narrative(prompts),
+    evidence:latest?[evidence('Días con entrenamiento confirmado',String(days),'sessionExecutions'),evidence('Última sesión confirmada',`${sessionLabel(latest)} · ${executionDate(latest)}`,'sessionExecutions')]:[],
+  });
+}
 
 export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   if(!clientId)return Object.freeze([]);
@@ -110,6 +126,12 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
     const delta=current-previous;
     return evidence('Periodo anterior equivalente',`${priorStart} a ${priorEnd}: ${previous} ${previous===1?'sesión confirmada':'sesiones confirmadas'}; periodo actual: ${current} (${delta>0?'+':''}${delta}). Diferencia de registros, no de rendimiento ni de adherencia.`,'sessionExecutions');
   }
+  const monthlyComparison=comparison(monthlyStart,30,monthlySessions.length);
+  const quarterlyComparison=comparison(quarterlyStart,90,quarterlySessions.length);
+  const yearlyComparison=comparison(yearlyStart,365,yearlySessions.length);
+  const monthlyEditorial=periodEditorial(monthlySessions,monthlyEvidence,monthlyComparison);
+  const quarterlyEditorial=periodEditorial(quarterlySessions,quarterlyEvidence,quarterlyComparison);
+  const yearlyEditorial=periodEditorial(yearlySessions,yearlyEvidence,yearlyComparison);
   const datedHistory=executions.map(executionDate).filter(Boolean).sort();
   const historyDays=datedHistory.length?Math.floor((timestamp(end)-timestamp(datedHistory[0]))/DAY_MS)+1:0;
   // A confirmed shell without measured domains is not a releasable IRI diagnosis.
@@ -117,7 +139,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   const iriReport=reportModel({id:'iri',label:'Diagnóstico IRI',ready:iriReady,reason:'Se necesita una evaluación IRI inicial confirmada con alguna medición objetiva registrada para generar este documento.',periodStart:latestIriDate,periodEnd:latestIriDate,assessmentId,assessmentRevision,sourceType:'iri_assessment',sourceId:assessmentId||null,title:'Diagnóstico IRI',summary:iriReady?`Evaluación IRI confirmada el ${latestIriDate}, con evidencia objetiva registrada en ${coverage} de 3 dominios.`:'',conclusions:iriReady?'El informe conserva únicamente los dominios medidos y mantiene como no evaluado cualquier dominio sin evidencia confirmada.':'',recommendations:iriReady?'Revisar el diagnóstico IRI confirmado y definir los próximos pasos de entrenamiento según los resultados registrados.':'',evidence:iriReady?[evidence('Cobertura objetiva',`${coverage} de 3 dominios registrados`,'iriAssessments')]:[]});
   const postReady=Boolean(latestExecution&&latestSessionDate&&sessionExecutionId(latestExecution));
   const postMetrics=postReady?buildPostSessionSportEvidence(latestExecution,{clientId}):[];
-  const postReport=reportModel({id:'post-session',label:'Informe post-sesión',ready:postReady,reason:'Se necesita al menos una ejecución de sesión confirmada e identificable.',periodStart:latestSessionDate,periodEnd:latestSessionDate,sourceType:'session_execution',sourceId:latestExecution?sessionExecutionId(latestExecution):null,title:latestExecution?`Post-sesión · ${sessionLabel(latestExecution)}`:'Informe post-sesión',summary:postReady?`Sesión confirmada el ${latestSessionDate}: ${sessionLabel(latestExecution)}. El documento se limita a la evidencia registrada en la ejecución.${postMetrics.length?' Datos realizados: '+postMetrics.slice(0,3).map(row=>`${row.label}: ${row.text}`).join('; ')+'.':''}`:'',conclusions:postReady?'La sesión consta como ejecutada en el historial canónico del cliente; no se añaden métricas que no estén registradas.':'',recommendations:postReady?'Añadir la interpretación profesional del coach y utilizarla para orientar la siguiente sesión sin modificar automáticamente la planificación.':'',evidence:postReady?[evidence('Sesión confirmada',`${sessionLabel(latestExecution)} · ${latestSessionDate}`,'sessionExecutions'),...postMetrics]:[]});
+  const postReport=reportModel({id:'post-session',label:'Informe post-sesión',ready:postReady,reason:'Se necesita al menos una ejecución de sesión confirmada e identificable.',periodStart:latestSessionDate,periodEnd:latestSessionDate,sourceType:'session_execution',sourceId:latestExecution?sessionExecutionId(latestExecution):null,title:latestExecution?`Post-sesión · ${sessionLabel(latestExecution)}`:'Informe post-sesión',summary:postReady?`Sesión confirmada el ${latestSessionDate}: ${sessionLabel(latestExecution)}. El documento se limita a la evidencia registrada en la ejecución.${postMetrics.length?' Datos realizados: '+postMetrics.slice(0,3).map(row=>`${row.label}: ${row.text}`).join('; ')+'.':''}`:'',conclusions:postReady?(postMetrics.length?`Se dispone de ${postMetrics.length} ${postMetrics.length===1?'registro de evidencia':'registros de evidencia'} de esta ejecución. Son resultados observados, no objetivos prescritos ni una valoración automática del rendimiento.`:'La sesión está confirmada, pero no hay resultados deportivos suficientemente registrados para valorar su desempeño.'):'',recommendations:postReady?(postMetrics.length?'Contrastar los resultados registrados con el objetivo de la sesión y el esfuerzo percibido. Acordar el siguiente paso y dejar constancia de cualquier ajuste.':'Revisar con el cliente qué pudo completar y completar los registros que falten sin inventar mediciones.'):'',evidence:postReady?[evidence('Sesión confirmada',`${sessionLabel(latestExecution)} · ${latestSessionDate}`,'sessionExecutions'),...postMetrics]:[]});
 
   // An observed Health Connect activity is never a confirmed IBERFIT execution.
   // The weekly summary deliberately uses only canonical completed sessions.
@@ -135,8 +157,8 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
     periodStart:weeklyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:weeklyReady?confirmedActivitySeries(weeklySessions,weeklyStart,end,1):[],
     title:'Resumen semanal de entrenamiento',
     summary:weeklyReady?`En los últimos 7 días se han confirmado ${weeklySessions.length} ${weeklySessions.length===1?'sesión':'sesiones'} de entrenamiento en ${weeklyDays} día${weeklyDays===1?'':'s'}.${comparableWeeklyPlan?' Plan frente a ejecución: '+comparableWeeklyPlan.summary+'.':''}`:'',
-    conclusions:weeklyReady?'Este resumen refleja únicamente sesiones IBERFIT realmente finalizadas; las actividades detectadas por un dispositivo no se consideran sesiones confirmadas.':'',
-    recommendations:weeklyReady?'Revisar los resultados y el esfuerzo registrados en cada sesión y acordar con el coach la planificación de la siguiente semana.':'',
+    conclusions:weeklyReady?narrative([comparison(weeklyStart,7,weeklySessions.length).text,comparableWeeklyPlan?'Las diferencias entre plan y ejecución necesitan interpretación profesional, no una calificación automática.':'No hay una prescripción publicada suficientemente comparable para valorar el cumplimiento de las series.','Las actividades detectadas por un dispositivo no se consideran sesiones confirmadas.']):'',
+    recommendations:weeklyReady?(comparableWeeklyPlan?'Revisar las series registradas, omitidas y los ajustes explícitos junto con el esfuerzo percibido antes de acordar el siguiente bloque.':'Revisar los resultados de la semana y acordar fechas, objetivos y criterios de registro para la siguiente.'):'',
     evidence:weeklyReady?[
       evidence('Sesiones confirmadas',String(weeklySessions.length),'sessionExecutions'),
       evidence('Días con entrenamiento confirmado',String(weeklyDays),'sessionExecutions'),
@@ -146,7 +168,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
     ]:[],
   });
   const monthlyReady=Boolean(monthlySessions.length>0&&monthlyEvidence.length>0);
-  const monthlyReport=reportModel({id:'monthly',label:'Informe mensual',ready:monthlyReady,reason:'Se necesita al menos una sesión confirmada y una señal independiente de seguimiento registrada; los datos del dispositivo son solo contexto.',periodStart:monthlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:monthlyReady?confirmedActivitySeries(monthlySessions,monthlyStart,end,7):[],title:'Informe mensual IBERFIT',summary:monthlyReady?`En los últimos 30 días constan ${monthlySessions.length} ${monthlySessions.length===1?'sesión ejecutada':'sesiones ejecutadas'} y ${monthlyEvidence.length} área${monthlyEvidence.length===1?'':'s'} de seguimiento no derivada${monthlyEvidence.length===1?'':'s'} de dispositivos, dentro del periodo indicado.`:'',conclusions:monthlyReady?narrative(monthlyEvidence.slice(0,3).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:monthlyReady?'Revisar con el cliente la evolución del periodo y registrar el comentario profesional antes de aprobar o publicar el informe.':'',evidence:monthlyReady?[evidence('Sesiones ejecutadas',String(monthlySessions.length),'sessionExecutions'),comparison(monthlyStart,30,monthlySessions.length),...monthlyEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
+  const monthlyReport=reportModel({id:'monthly',label:'Informe mensual',ready:monthlyReady,reason:'Se necesita al menos una sesión confirmada y una señal independiente de seguimiento registrada; los datos del dispositivo son solo contexto.',periodStart:monthlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:monthlyReady?confirmedActivitySeries(monthlySessions,monthlyStart,end,7):[],title:'Informe mensual IBERFIT',summary:monthlyReady?`En los últimos 30 días constan ${monthlySessions.length} ${monthlySessions.length===1?'sesión ejecutada':'sesiones ejecutadas'} y ${monthlyEvidence.length} área${monthlyEvidence.length===1?'':'s'} de seguimiento no derivada${monthlyEvidence.length===1?'':'s'} de dispositivos, dentro del periodo indicado. ${monthlyEditorial.context}`:'',conclusions:monthlyReady?monthlyEditorial.conclusions:'',recommendations:monthlyReady?monthlyEditorial.recommendations:'',evidence:monthlyReady?[evidence('Sesiones ejecutadas',String(monthlySessions.length),'sessionExecutions'),...monthlyEditorial.evidence,monthlyComparison,...monthlyEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
   // A second initial IRI is not a follow-up measurement. Until the canonical
   // evolution-followup source and protocol comparator are wired end-to-end,
   // do not offer an invented reassessment based on assessment recency.
@@ -157,9 +179,9 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
     summary:'',conclusions:'',recommendations:'',evidence:[],
   });
   const quarterlyReady=Boolean(quarterlySessions.length>0&&quarterlyEvidence.length>=2);
-  const quarterlyReport=reportModel({id:'quarterly',label:'Informe trimestral',ready:quarterlyReady,reason:'Se necesita al menos una sesión confirmada y dos áreas independientes del seguimiento con evidencia válida, sin utilizar dispositivos como prueba de progreso.',periodStart:quarterlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:quarterlyReady?confirmedActivitySeries(quarterlySessions,quarterlyStart,end,30):[],title:'Informe trimestral IBERFIT',summary:quarterlyReady?`En la ventana de 90 días constan ${quarterlySessions.length} sesiones ejecutadas y ${quarterlyEvidence.length} áreas de seguimiento con registros válidos distintos de los wearables.`:'',conclusions:quarterlyReady?narrative(quarterlyEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:quarterlyReady?'Revisar objetivos, continuidad y próximos hitos con el cliente antes de aprobar el informe trimestral.':'',evidence:quarterlyReady?[evidence('Sesiones ejecutadas',String(quarterlySessions.length),'sessionExecutions'),comparison(quarterlyStart,90,quarterlySessions.length),...quarterlyEvidence.slice(0,5).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
+  const quarterlyReport=reportModel({id:'quarterly',label:'Informe trimestral',ready:quarterlyReady,reason:'Se necesita al menos una sesión confirmada y dos áreas independientes del seguimiento con evidencia válida, sin utilizar dispositivos como prueba de progreso.',periodStart:quarterlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:quarterlyReady?confirmedActivitySeries(quarterlySessions,quarterlyStart,end,30):[],title:'Informe trimestral IBERFIT',summary:quarterlyReady?`En la ventana de 90 días constan ${quarterlySessions.length} sesiones ejecutadas y ${quarterlyEvidence.length} áreas de seguimiento con registros válidos distintos de los wearables. ${quarterlyEditorial.context}`:'',conclusions:quarterlyReady?quarterlyEditorial.conclusions:'',recommendations:quarterlyReady?quarterlyEditorial.recommendations:'',evidence:quarterlyReady?[evidence('Sesiones ejecutadas',String(quarterlySessions.length),'sessionExecutions'),...quarterlyEditorial.evidence,quarterlyComparison,...quarterlyEvidence.slice(0,5).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
   const yearReady=Boolean(historyDays>=300&&yearlySessions.length>0&&yearlyEvidence.length>0);
-  const yearReport=reportModel({id:'year-in-iberfit',label:'Year in IBERFIT',ready:yearReady,reason:'Se necesitan al menos 300 días de historial de entrenamiento confirmado, una sesión ejecutada en el último año y al menos una señal independiente de seguimiento no derivada de dispositivos.',periodStart:yearlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:yearReady?confirmedActivitySeries(yearlySessions,yearlyStart,end,31):[],title:'Year in IBERFIT',summary:yearReady?`El historial canónico cubre ${historyDays} días y registra ${yearlySessions.length} sesiones ejecutadas en los últimos 365 días.`:'',conclusions:yearReady?narrative(yearlyEvidence.slice(0,4).map((pillar)=>`${pillar.label}: ${pillar.evidence}.`)):'',recommendations:yearReady?'Cerrar el año con la interpretación del coach, reconocer los hitos confirmados y acordar el siguiente ciclo de objetivos.':'',evidence:yearReady?[evidence('Historial disponible',`${historyDays} días`,'canonical-store'),evidence('Sesiones del último año',String(yearlySessions.length),'sessionExecutions'),comparison(yearlyStart,365,yearlySessions.length),...yearlyEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
+  const yearReport=reportModel({id:'year-in-iberfit',label:'Year in IBERFIT',ready:yearReady,reason:'Se necesitan al menos 300 días de historial de entrenamiento confirmado, una sesión ejecutada en el último año y al menos una señal independiente de seguimiento no derivada de dispositivos.',periodStart:yearlyStart,periodEnd:end,sourceType:'session_execution_period',activitySeries:yearReady?confirmedActivitySeries(yearlySessions,yearlyStart,end,31):[],title:'Year in IBERFIT',summary:yearReady?`El historial canónico cubre ${historyDays} días y registra ${yearlySessions.length} sesiones ejecutadas en los últimos 365 días. ${yearlyEditorial.context}`:'',conclusions:yearReady?yearlyEditorial.conclusions:'',recommendations:yearReady?yearlyEditorial.recommendations:'',evidence:yearReady?[evidence('Historial disponible',`${historyDays} días`,'canonical-store'),evidence('Sesiones del último año',String(yearlySessions.length),'sessionExecutions'),...yearlyEditorial.evidence,yearlyComparison,...yearlyEvidence.slice(0,4).map((pillar)=>evidence(pillar.label,pillar.evidence,pillar.source,pillar.quality))]:[]});
   return Object.freeze([iriReport,postReport,weeklyReport,monthlyReport,reassessmentReport,quarterlyReport,yearReport]);
 }
 
@@ -211,7 +233,7 @@ export function syncPremiumReportApprovalButton(form){
 function ensurePremiumEditorFields(form,document){
   ensureHiddenField(form,document,'reportType');ensureHiddenField(form,document,'premiumEvidenceSignature');
   syncPremiumReportApprovalButton(form);
-  if(!form?.elements?.namedItem?.('coachComment')){const label=document.createElement('label');label.className='m26-premium-coach-comment';label.append(createTextElement(document,'span','Comentario del coach'));const textarea=document.createElement('textarea');textarea.name='coachComment';textarea.maxLength=2500;textarea.placeholder='Interpretación profesional, contexto o próximos pasos que quieras dejar registrados.';label.append(textarea);const approve=form.querySelector?.('[data-workflow-action="approve-report"]');if(approve)approve.before(label);else form.append(label);}
+  if(!form?.elements?.namedItem?.('coachComment')){const label=document.createElement('label');label.className='m26-premium-coach-comment';label.append(createTextElement(document,'span','Nota privada del coach'));const textarea=document.createElement('textarea');textarea.name='coachComment';textarea.maxLength=2500;textarea.placeholder='Nota privada de trabajo del Coach. Para comunicar una interpretación al cliente, utiliza Conclusiones o Próximos pasos.';label.append(textarea);const approve=form.querySelector?.('[data-workflow-action="approve-report"]');if(approve)approve.before(label);else form.append(label);}
   if(!form.querySelector?.('[data-m44-report-preview]')){
     const button=document.createElement('button');button.type='button';
     button.dataset.m44ReportPreview='true';button.textContent='Vista previa editorial A4';
@@ -232,12 +254,12 @@ function prefillPremiumReport(form,candidate){
   setReportFormValue(form,'reportType',candidate.id);setReportFormValue(form,'premiumEvidenceSignature',premiumEvidenceSignature(candidate));setReportFormValue(form,'assessmentId',candidate.assessmentId);setReportFormValue(form,'title',candidate.title);setReportFormValue(form,'periodStart',candidate.periodStart);setReportFormValue(form,'periodEnd',candidate.periodEnd);setReportFormValue(form,'summary',candidate.summary);setReportFormValue(form,'conclusions',candidate.conclusions);setReportFormValue(form,'recommendations',candidate.recommendations);setReportFormValue(form,'coachComment','');const review=form.elements?.namedItem?.('reviewAccepted');if(review)review.checked=false;const status=form.ownerDocument?.querySelector?.('[data-workflow-status="report"]');if(status){status.textContent=`${candidate.label} preparado con evidencia canónica. Revisa el contenido y añade tu comentario antes de aprobar.`;status.dataset.status='info';}syncPremiumReportApprovalButton(form);form.scrollIntoView?.({behavior:'smooth',block:'start'});form.querySelector?.('[name="summary"]')?.focus?.({preventScroll:true});
 }
 export function installPremiumReportUi({scope=globalThis,root=scope?.document?.querySelector?.('#app')}={}){
-  const document=scope?.document;if(!document?.createElement||!root?.addEventListener||typeof scope.MutationObserver!=='function')return null;if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__)return scope.__IBERFIT_M26_PREMIUM_REPORT_UI__;ensurePremiumReportStyles(document);let destroyed=false;
+  const document=scope?.document;if(!document?.createElement||!root?.addEventListener||typeof scope.MutationObserver!=='function')return null;if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__)return scope.__IBERFIT_M26_PREMIUM_REPORT_UI__;ensurePremiumReportStyles(document);let destroyed=false,selectionVersion=0;
   function enhance(){
     if(destroyed)return false;const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)return false;const context=browserReportContext(scope);
     if(!context.state||!['coach','admin'].includes(context.role)||!context.clientId){root.querySelector?.('[data-premium-report-candidates]')?.remove?.();return false;}
     ensurePremiumEditorFields(form,document);let host=root.querySelector?.('[data-premium-report-candidates]');if(!host){host=document.createElement('section');host.className='m26-panel m26-panel-soft';host.dataset.premiumReportCandidates='true';form.before(host);}
-    const portfolio=premiumReportUiCandidates(context.state,context.role,context.clientId,{now:new Date()});const signature=premiumPortfolioSignature(portfolio);if(host.dataset.premiumReportSignature!==signature){renderPremiumReportCards(host,portfolio,document);host.dataset.premiumReportSignature=signature;}return true;
+    const portfolio=premiumReportUiCandidates(context.state,context.role,context.clientId,{now:new Date()});const signature=JSON.stringify([context.role,context.clientId,premiumPortfolioSignature(portfolio)]);if(host.dataset.premiumReportSignature!==signature){renderPremiumReportCards(host,portfolio,document);host.dataset.premiumReportSignature=signature;}return true;
   }
   async function onClick(event){
     const preview=event.target?.closest?.('[data-m44-report-preview]');
@@ -297,6 +319,7 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     if(!context.state||!['coach','admin'].includes(context.role))return;
     const candidate=premiumReportByType(context.state,context.clientId,button.dataset.premiumReportType,{now:new Date()});
     if(!candidate?.ready)return;
+    const selection=++selectionVersion;
     const pending={wait:null},EventType=scope.CustomEvent||globalThis.CustomEvent;
     if(typeof EventType==='function')root.dispatchEvent(new EventType('m26:report-before-switch',{detail:pending}));
     try{if(pending.wait)await pending.wait;}
@@ -305,8 +328,15 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
       if(status){status.textContent='No pudimos conservar el informe anterior. Comprueba el almacenamiento antes de cambiar de formato.';status.dataset.status='error';}
       return;
     }
-    if(!root.contains?.(form)||browserReportContext(scope).clientId!==context.clientId)return;
-    prefillPremiumReport(form,candidate);
+    const current=browserReportContext(scope);
+    if(destroyed||selection!==selectionVersion||!root.contains?.(form)||current.clientId!==context.clientId||current.role!==context.role)return;
+    const fresh=premiumReportByType(current.state,current.clientId,candidate.id,{now:new Date()});
+    if(!fresh?.ready||premiumEvidenceSignature(fresh)!==premiumEvidenceSignature(candidate)){
+      const status=root.querySelector?.('[data-workflow-status="report"]');
+      if(status){status.textContent='La evidencia ha cambiado. Selecciona nuevamente el formato.';status.dataset.status='info';}
+      return;
+    }
+    prefillPremiumReport(form,fresh);
   }
   const observer=new scope.MutationObserver(()=>enhance());observer.observe(root,{childList:true,subtree:true});root.addEventListener('click',onClick);for(const delay of [0,250,1000,2500])scope.setTimeout?.(()=>enhance(),delay);
   const api=Object.freeze({refresh:enhance,destroy(){destroyed=true;observer.disconnect();root.removeEventListener('click',onClick);if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__===api)scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=null;}});scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=api;return api;

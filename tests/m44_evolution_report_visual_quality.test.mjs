@@ -112,9 +112,9 @@ test('M44 histogram shows actual period dates and numeric scale, not just hover 
     {from:'2026-10-13',to:'2026-10-15',count:2},
   ]}});
   assert.match(html,/class="m44-activity-date"/);
-  assert.match(html,/10\/09/);
-  assert.match(html,/10\/11/);
-  assert.match(html,/10\/13/);
+  assert.match(html,/09\/10/);
+  assert.match(html,/11\/10/);
+  assert.match(html,/13\/10/);
   assert.match(html,/Escala vertical desde 0 hasta 2 sesiones confirmadas/);
   assert.match(html,/Detalle accesible del ritmo de entrenamiento/);
 });
@@ -161,4 +161,21 @@ test('M44 very long evidence-based explanations get their own continuation pages
   assert.match(html,/Comentario de trabajo exclusivamente para el Coach/);
   assert.match(html,/Transparencia del informe/);
   assert.match(html,new RegExp(String((html.match(/class="m44-sheet /g)||[]).length)+' \\/ '+String((html.match(/class="m44-sheet /g)||[]).length)));
+});
+
+
+test('M44 editorial variants preserve custom titles, local dates and private note boundaries',()=>{
+  const report={...basic,title:'Mi revisión semanal <personal>',coachComment:'NOTA CONFIDENCIAL',activitySeries:[{from:'2026-10-09',to:'2026-10-11',count:1},{from:'2026-10-12',to:'2026-10-15',count:2}]};
+  const html=buildEvolutionReportHtml({report});
+  assert.match(html,/Tu semana de entrenamiento/);
+  assert.match(html,/Mi revisión semanal &lt;personal&gt;/);
+  assert.match(html,/class="m44-activity-axis-label"/);
+  assert.match(html,/09\/10/);
+  assert.match(html,/NOTA PRIVADA DEL COACH/);
+  const published=buildEvolutionReportHtml({report,publicationStatus:'published'});
+  assert.doesNotMatch(published,/NOTA CONFIDENCIAL|NOTA PRIVADA DEL COACH/);
+});
+test('M44 fails closed on invalid, overlapping or out-of-window chart buckets',()=>{
+  const bad=[[{from:'2026-10-08',to:'2026-10-10',count:1}],[{from:'2026-10-09',to:'2026-10-11',count:1},{from:'2026-10-11',to:'2026-10-15',count:2}],[{from:'2026-10-09',to:'2026-10-15',count:null}],[{from:'2026-10-09',to:'2026-10-32',count:2}]];
+  for(const activitySeries of bad)assert.throws(()=>buildEvolutionReportHtml({report:{...basic,activitySeries}}),/ACTIVITY_INVALID/);
 });

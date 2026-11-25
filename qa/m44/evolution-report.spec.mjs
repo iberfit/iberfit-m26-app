@@ -52,7 +52,7 @@ test('M44 report is readable without horizontal clipping and contains a table an
     pageCount:document.querySelectorAll('.m44-sheet').length,
   }));
   expect(info.scrollWidth).toBeLessThanOrEqual(info.innerWidth+3);
-  expect(info.chartLabels).toEqual(['09/15','09/22','09/29','10/06','10/13']);
+  expect(info.chartLabels).toEqual(['15/09','22/09','29/09','06/10','13/10']);
   expect(info.privateNote).toBe(false);
   expect(info.pageCount).toBe(5);
 });

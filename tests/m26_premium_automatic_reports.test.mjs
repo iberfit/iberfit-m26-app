@@ -421,3 +421,18 @@ test('reportes: el postentrenamiento selecciona la última hora real incluso el 
   const post=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='post-session');
   assert.equal(post.sourceId,'late');
 });
+
+
+test('reportes periódicos incluyen contexto individual y próximos pasos según evidencia disponible',()=>{
+  const state=stateWithHistory();
+  const monthly=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='monthly');
+  assert.equal(monthly.ready,true);
+  assert.match(monthly.summary,/Última sesión: Fuerza C/);
+  assert.ok(monthly.evidence.some(x=>x.label==='Días con entrenamiento confirmado'));
+  assert.match(monthly.recommendations,/registros de bienestar/);
+  assert.ok(monthly.evidence.length<=12);
+  state.collections.checkins=[];
+  const noCheckin=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='monthly');
+  assert.equal(noCheckin.ready,true);
+  assert.match(noCheckin.recommendations,/Completar el seguimiento de bienestar/);
+});
