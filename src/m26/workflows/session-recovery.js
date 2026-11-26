@@ -6,7 +6,7 @@ const SETTLED=new Set(['completed','cancelled']);
 const FORBIDDEN_CREDENTIAL_KEYS=new Set(['token','accesstoken','refreshtoken','password','authorization','auth','apikey','secret']);
 const DAY_MS=86400000;
 function clone(value){return value==null?value:structuredClone(value);}
-function parseDate(value){const ms=value instanceof Date?value.getTime():new Date(value).getTime();return Number.isFinite(ms)?ms:null;}
+function parseDate(value){if(!(value instanceof Date)&&typeof value!=='number'&&(typeof value!=='string'||!value.trim()))return null;const ms=value instanceof Date?value.getTime():new Date(value).getTime();return Number.isFinite(ms)?ms:null;}
 function safeIso(value=new Date()){const ms=parseDate(value);if(ms===null)throw new Error('M26_RECOVERY_DATE_INVALID');return new Date(ms).toISOString();}
 function credentialKey(key){return String(key||'').toLowerCase().replaceAll('_','').replaceAll('-','');}
 function containsCredentialKeys(value,seen=new Set()){if(!value||typeof value!=='object'||seen.has(value))return false;seen.add(value);for(const [key,child] of Object.entries(value)){if(FORBIDDEN_CREDENTIAL_KEYS.has(credentialKey(key)))return true;if(containsCredentialKeys(child,seen))return true;}return false;}
@@ -88,7 +88,12 @@ function remotePreservesLocalEvidence(local,remote){
   return true;
 }
 export function reconcileExecutionSnapshots({local,remote}={}){
-  if(!local)return {kind:'remote',snapshot:clone(remote),conflict:null};if(!remote)return {kind:'local',snapshot:clone(local),conflict:null};
+  if(!local&&!remote)return {kind:'remote',snapshot:null,conflict:null};
+  if(!local||!remote){
+    const only=local||remote,validation=validateExecutionSnapshot(only);
+    return validation.ok?{kind:local?'local':'remote',snapshot:clone(only),conflict:null}
+      :{kind:'invalid',snapshot:null,conflict:{code:'SINGLE_SNAPSHOT_INVALID',errors:validation.errors}};
+  }
   const localValidation=validateExecutionSnapshot(local),remoteValidation=validateExecutionSnapshot(remote);
   if(!localValidation.ok&&!remoteValidation.ok)return {kind:'invalid',snapshot:null,conflict:{code:'BOTH_SNAPSHOTS_INVALID',localErrors:localValidation.errors,remoteErrors:remoteValidation.errors}};
   if(!localValidation.ok)return {kind:'remote',snapshot:clone(remote),conflict:null};if(!remoteValidation.ok)return {kind:'local',snapshot:clone(local),conflict:null};
@@ -179,16 +184,20 @@ export function createExecutionRecoveryStore({storage=createBrowserKeyValueStore
   const currentMs=()=>{const ms=parseDate(now());if(ms===null)throw new Error('M26_RECOVERY_NOW_INVALID');return ms;};
   const expired=(snapshot,at=currentMs())=>{const saved=parseDate(snapshot?.savedAt);return saved===null||saved<at-ttl*DAY_MS||saved>at+5*60*1000;};
   async function save(context){const at=currentMs(),snapshot=createExecutionSnapshot({...context,ownerId:owner,savedAt:new Date(at)});await storage.set(key(snapshot.execution.id),snapshot);return clone(snapshot);}
+  // Prefix scans must never select or remove a snapshot belonging to a different owner or execution.
+  const matchesKey=(storageKey,snapshot)=>snapshot?.ownerId===owner&&Boolean(cleanId(snapshot.execution?.id))&&key(snapshot.execution.id)===storageKey;
   async function load(executionId){
     const storageKey=key(executionId),snapshot=await storage.get(storageKey);if(!snapshot)return null;
-    const validation=validateExecutionSnapshot(snapshot);if(!validation.ok||snapshot.ownerId!==owner||expired(snapshot)){await storage.remove(storageKey);return null;}
+    if(!matchesKey(storageKey,snapshot))return null;
+    const validation=validateExecutionSnapshot(snapshot);if(!validation.ok||expired(snapshot)){await storage.remove(storageKey);return null;}
     recoverExecutionTimers(snapshot.execution,currentMs());return clone(snapshot);
   }
   async function list({clientId,includeSettled=false}={}){
     const at=currentMs(),scope=clientId==null?null:cleanId(clientId);if(clientId!=null&&!scope)throw new Error('M26_RECOVERY_CLIENT_ID_INVALID');
     const out=[];for(const [storageKey,snapshot] of await storage.entries(ownerPrefix)){
+      if(!matchesKey(storageKey,snapshot))continue;
       const validation=validateExecutionSnapshot(snapshot);
-      if(!validation.ok||snapshot.ownerId!==owner||expired(snapshot,at)){await storage.remove(storageKey);continue;}
+      if(!validation.ok||expired(snapshot,at)){await storage.remove(storageKey);continue;}
       if(scope&&snapshot.execution.clientId!==scope)continue;
       if(!includeSettled&&SETTLED.has(snapshot.execution.status)&&snapshot.execution.syncStatus==='clean')continue;
       recoverExecutionTimers(snapshot.execution,at);out.push(clone(snapshot));
@@ -196,7 +205,7 @@ export function createExecutionRecoveryStore({storage=createBrowserKeyValueStore
     return out.sort((a,b)=>(parseDate(b.savedAt)||0)-(parseDate(a.savedAt)||0));
   }
   async function remove(executionId){await storage.remove(key(executionId));}
-  async function purgeExpired(){const at=currentMs();let removed=0;for(const [storageKey,snapshot] of await storage.entries(ownerPrefix)){const validation=validateExecutionSnapshot(snapshot);if(!validation.ok||snapshot.ownerId!==owner||expired(snapshot,at)){await storage.remove(storageKey);removed+=1;}}return removed;}
+  async function purgeExpired(){const at=currentMs();let removed=0;for(const [storageKey,snapshot] of await storage.entries(ownerPrefix)){if(!matchesKey(storageKey,snapshot))continue;const validation=validateExecutionSnapshot(snapshot);if(!validation.ok||expired(snapshot,at)){await storage.remove(storageKey);removed+=1;}}return removed;}
   async function clearOwner(){await storage.clear(ownerPrefix);}
   return Object.freeze({ownerId:owner,save,load,list,remove,purgeExpired,clearOwner});
 }
