@@ -74,7 +74,7 @@ function sessionLabel(record){return cleanText(recordValue(record,'title','name'
 function trimTrailingPeriods(value){let end=value.length;while(end>0&&value.charCodeAt(end-1)===46)end--;return value.slice(0,end);}
 function narrative(parts){return parts.filter(Boolean).join(' ');}
 function elitePeriodEvidence(rows,signals,sessions,start,clientId,objective,strength=null,plan=null,end=null){
-  const days=[...new Set(sessions.map(executionDate).filter(Boolean))].sort();
+  const days=[...new Set(sessions.map(executionDate).filter(Boolean))].sort((a,b)=>a<b?-1:a>b?1:0);
   const weeks=[...new Set(days.map(d=>Math.floor((timestamp(d)-timestamp(start))/(7*DAY_MS))))].sort((a,b)=>a-b);
   let longest=0,run=0,previous=-2;for(const w of weeks){run=w===previous+1?run+1:1;longest=Math.max(run,longest);previous=w;}
   const result=[...rows];

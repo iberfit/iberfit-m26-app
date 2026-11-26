@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Check generated PWA shell against tracked runtime files
         run: node scripts/generate_rc58_app_shell.mjs --check
       - name: Verify all backend release procedures and reversal without credentials
@@ -43,7 +43,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: ./node_modules/.bin/playwright install chromium
       - name: Native report browser at desktop, tablet and mobile
         run: npm run quality:m44:report:a4

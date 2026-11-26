@@ -44,7 +44,7 @@ function decodeWellbeingBundle(row,start,end){
   seen.add(match[1]);const label=WELLBEING_CODES[match[1]],total=Number(match[2]),raw=match[3].split(',');
   if(raw.length<3||raw.length>10||total<raw.length||total>length)return [];
   let previous=-1;const points=[];
-  for(const token of raw){const a=token.match(/^([0-9a-z]{1,2})=([0-9a-z]{1,2})$/u);if(!a)return [];const offset=parseInt(a[1],36),hundredths=parseInt(a[2],36);if(offset.toString(36)!==a[1]||hundredths.toString(36)!==a[2]||offset<=previous||offset>=length||hundredths>1000)return [];previous=offset;points.push(new Date(from+offset*DAY).toISOString().slice(0,10)+': '+hundredths/100);}
+  for(const token of raw){const a=token.match(/^([0-9a-z]{1,2})=([0-9a-z]{1,2})$/u);if(!a)return [];const offset=Number.parseInt(a[1],36),hundredths=Number.parseInt(a[2],36);if(offset.toString(36)!==a[1]||hundredths.toString(36)!==a[2]||offset<=previous||offset>=length||hundredths>1000)return [];previous=offset;points.push(new Date(from+offset*DAY).toISOString().slice(0,10)+': '+hundredths/100);}
   result.push({label:'Tendencia: '+label,source:'checkins',quality:'registrada',text:'/10 | '+points.length+' de '+total+' días registrados | '+points.join('; ')});
  }
  return result;
@@ -94,7 +94,7 @@ export function readDatedTrends(evidence,start,end){
 }
 export function trendGeometry(series,{width=400,height=100}={}){
   const {points,from,to}=series,values=points.map(p=>p.value);
-  const min=series.unit==='/10'?0:0,max=series.unit==='/10'?10:Math.max(1,Math.ceil(Math.max(...values)/100)*100);
+  const min=0,max=series.unit==='/10'?10:Math.max(1,Math.ceil(Math.max(...values)/100)*100);
   const span=Math.max(DAY,to-from),gapDays=Math.max(3,Math.min(45,Math.ceil(span/DAY/8)));
   const coords=points.map(p=>({...p,x:(p.time-from)/span*width,y:height-(p.value-min)/(max-min)*height}));
   const segments=[];for(let i=1;i<coords.length;i++)if((coords[i].time-coords[i-1].time)/DAY<=gapDays)segments.push([coords[i-1],coords[i]]);
@@ -109,7 +109,7 @@ export function buildTrainingCalendarEvidence(dates,start,end){
  const observed=new Set((dates??[]).filter(d=>day(d)!==null&&d>=start&&d<=end));
  if(!observed.size)return null;
  const bits=Array.from({length},(_,i)=>observed.has(new Date(from+i*DAY).toISOString().slice(0,10))?'1':'0').join('');
- const hex=Array.from({length:Math.ceil(length/4)},(_,i)=>parseInt(bits.slice(i*4,i*4+4).padEnd(4,'0'),2).toString(16)).join('');
+ const hex=Array.from({length:Math.ceil(length/4)},(_,i)=>Number.parseInt(bits.slice(i*4,i*4+4).padEnd(4,'0'),2).toString(16)).join('');
  return Object.freeze({label:'Calendario de entrenamiento',text:'Días con entrenamiento confirmado: '+observed.size+' de '+length+'. Registro diario v1: '+hex,source:'sessionExecutions',quality:'confirmada'});
 }
 export function readTrainingCalendar(evidence,start,end,activitySeries=[]){
@@ -119,7 +119,7 @@ export function readTrainingCalendar(evidence,start,end,activitySeries=[]){
  if(candidates.length!==1)return null;
  const a=String(candidates[0].text??'').match(/^Días con entrenamiento confirmado: (\d+) de (\d+)\. Registro diario v1: ([0-9a-f]+)$/u);
  if(!a||Number(a[2])!==length||a[3].length!==Math.ceil(length/4))return null;
- const full=[...a[3]].map(c=>parseInt(c,16).toString(2).padStart(4,'0')).join('');
+ const full=[...a[3]].map(c=>Number.parseInt(c,16).toString(2).padStart(4,'0')).join('');
  if(/1/u.test(full.slice(length)))return null;
  const bits=full.slice(0,length),count=[...bits].filter(c=>c==='1').length;
  if(count!==Number(a[1])||!count)return null;

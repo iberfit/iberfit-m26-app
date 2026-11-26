@@ -1,5 +1,5 @@
 """Build report-only, static TrueType instances from the first-party web fonts."""
-import hashlib
+import subprocess
 from pathlib import Path
 from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
@@ -15,5 +15,6 @@ for stem, family in [("inter","inter-latin-wght-normal.woff2"),("serif","source-
         font.save(path)
         data=path.read_bytes()
         assert data[:4]==b"\x00\x01\x00\x00" and "fvar" not in font
-        sha=hashlib.sha1(b"blob "+str(len(data)).encode()+b"\x00"+data).hexdigest()
+        # Git object identity, not a cryptographic integrity or authentication check.
+        sha=subprocess.check_output(["git","hash-object","--",str(path)],text=True).strip()
         print("GX_FONT_META",path.name,len(data),sha)

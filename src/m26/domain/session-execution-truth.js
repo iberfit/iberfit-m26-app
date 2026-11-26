@@ -266,7 +266,7 @@ export function originalSeriesCoverage(record,snapshot){
 }
 export function sessionExecutionEvidenceSignature(record){
   const row=unwrap(record);
-  const aliasEvidence=(...keys)=>[...new Set([record,record?.body].filter(r=>r&&typeof r==='object'&&!Array.isArray(r)).flatMap(r=>keys.map(key=>r[key])).filter(v=>v!==undefined&&v!==null&&v!=='').map(stableEvidenceJson))].sort();
+  const aliasEvidence=(...keys)=>[...new Set([record,record?.body].filter(r=>r&&typeof r==='object'&&!Array.isArray(r)).flatMap(r=>keys.map(key=>r[key])).filter(v=>v!==undefined&&v!==null&&v!=='').map(stableEvidenceJson))].sort((a,b)=>a<b?-1:a>b?1:0);
   const evidence={
     owner:sessionExecutionClientId(row),id:sessionExecutionId(row),
     ownerAliases:aliasEvidence('clientId','client_id','clienteId','cliente_id'),

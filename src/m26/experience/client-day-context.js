@@ -40,7 +40,7 @@ function metricRows(rows,day){
     metrics[key]=values.length===1?values[0]:null;
     if(values.length>1)ambiguous=true;
     // Equal measurements may be shown once, but must retain their sources.
-    if(metrics[key]!==null)provenance[key]=Object.freeze([...new Set(measured.map(item=>sourceLabel(item.row.provider)))].sort());
+    if(metrics[key]!==null)provenance[key]=Object.freeze([...new Set(measured.map(item=>sourceLabel(item.row.provider)))].sort((a,b)=>a<b?-1:a>b?1:0));
   }
   return {metrics:Object.freeze(metrics),provenance:Object.freeze(provenance),ambiguous};
 }

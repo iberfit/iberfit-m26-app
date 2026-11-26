@@ -8,7 +8,9 @@ const BASE='99933fd7e8ce557f2b98c01be0ff9b612d0292a9';
 const NAMES=Object.freeze(['gx_goal_measurement_v1','gx_followup_v1','gx_followup_recent_v1','gx_followup_detail_v1','gx_publication_v1','gx_report_proof_v1','gx_report_evidence_v1','gx_report_guards_v1','gx_admin_create_replay_v1']);
 const prefix='supabase/release-procedures/';
 const sha=s=>createHash('sha256').update(s).digest('hex');
-const tx=/^\s*(BEGIN|COMMIT|ROLLBACK)\s*;\s*$/gmi;
+// Bound leading/trailing whitespace to a single line so failed scans cannot
+// repeatedly traverse the same blank lines. A separated semicolon remains detected.
+const tx=/^[^\S\r\n]*(BEGIN|COMMIT|ROLLBACK)\s*;[^\S\r\n]*\r?$/gmi;
 export function unwrapReleaseSql(source){
  if(typeof source!=='string'||!source.trim()||source.includes('\0'))throw Error('GX_RELEASE_SQL_INVALID');
  const matches=[...source.matchAll(tx)];
