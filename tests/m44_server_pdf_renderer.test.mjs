@@ -52,3 +52,28 @@ test('GX05 preview and official PDF agree on activity chronology and counts',asy
   await assert.rejects(()=>renderEvolutionReportPdf({source:{...basic,reportId:'11111111-1111-4111-8111-111111111111',activitySeries},pdfLib:{PDFDocument:{},StandardFonts:{},rgb:()=>{}}}),/M44_PDF_ACTIVITY_SERIES_INVALID/);
  }
 });
+
+
+test('GX05 official report uses public labels, civil dates and bounded chart/title geometry',async()=>{
+ const calls=[];
+ const font={widthOfTextAtSize:(t,size)=>t.length*size*.55};
+ const pdfLib={PDFDocument:{create:async()=>({
+  registerFontkit(){},embedFont:async()=>font,
+  addPage:()=>({drawRectangle(){},drawLine(){},drawText(t,o){calls.push({t,...o});}}),
+  setTitle(){},setCreator(){},setProducer(){},setSubject(){},setCreationDate(){},
+  save:async()=>new Uint8Array(2048),
+ })},StandardFonts:{TimesRomanBold:'x',HelveticaBold:'y'},rgb:()=>0};
+ const source={reportId:'11111111-1111-4111-8111-111111111111',periodStart:'2026-10-01',periodEnd:'2026-10-31',
+  reportType:'monthly',sourceType:'session_execution_period',clientName:'Cliente sintético',summary:'Resumen',
+  conclusions:'Conclusiones',recommendations:'Próximos pasos',coachComment:'PRIVADO NO EMITIR',
+  evidence:[{label:'W'.repeat(120),text:'2 sesiones',source:'sessionExecutions',quality:'confirmada'}],
+  activitySeries:[{from:'2026-10-01',to:'2026-10-15',count:0},{from:'2026-10-16',to:'2026-10-31',count:2}]};
+ await renderEvolutionReportPdf({source,pdfLib,brandFonts:{inter:1,serif:1},fontkit:{},generatedAt:'2026-11-25'});
+ for(const label of ['Informe mensual','16/10','2026-10-16 a 2026-10-31','Total representado: 2','Sesiones IBERFIT confirmadas'])
+  assert.ok(calls.some(row=>row.t.includes(label)),label);
+ assert.ok(!calls.some(row=>row.t.includes('PRIVADO NO EMITIR')));
+ const longLabels=calls.filter(row=>row.t.includes('WWWW'));
+ assert.ok(longLabels.length>1);
+ assert.ok(longLabels.every(row=>row.x+row.font.widthOfTextAtSize(row.t,row.size)<=540));
+ assert.ok(calls.find(row=>row.t==='2'&&row.y>500).y<calls.find(row=>row.t==='SESIONES CONFIRMADAS POR PERIODO').y-15);
+});

@@ -2,6 +2,11 @@
 // Rendering is based on the canonical, redacted, published server snapshot.
 export const M44_PDF_TEMPLATE='iberfit-evolution-a4-brand-v2';
 const W=595.28,H=841.89;
+// Keep the public report vocabulary aligned with the existing A4 preview.
+const REPORT_LABELS=Object.freeze({'post-session':'Informe post-sesión',weekly:'Resumen semanal',monthly:'Informe mensual',quarterly:'Informe trimestral','year-in-iberfit':'Balance anual'});
+const SOURCE_LABELS=Object.freeze({sessionExecutions:'Sesiones IBERFIT confirmadas','session_execution':'Sesión IBERFIT confirmada','session_execution_period':'Historial de sesiones confirmadas',appointments:'Citas verificadas','appointments+sessionExecutions':'Citas verificadas y sesiones IBERFIT confirmadas',checkins:'Registros de bienestar','canonical-store':'Historial canónico IBERFIT',wearableDailySummaries:'Datos de dispositivo, solo contexto'});
+const publicLabel=(dictionary,key,fallback)=>Object.hasOwn(dictionary,key)?dictionary[key]:fallback;
+const shortDate=value=>value.slice(8,10)+'/'+value.slice(5,7);
 const C={forest:[.064,.145,.117],forest2:[.15,.27,.21],gold:[.73,.58,.30],
  cream:[.975,.965,.94],ink:[.12,.20,.17],muted:[.37,.44,.40],rule:[.80,.83,.79]};
 function safe(v,n=2500){
@@ -91,7 +96,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  }
  const meta=[['PREPARADO PARA',safe(source.clientName,100)||'Cliente IBERFIT'],
   ['PERIODO',String(source.periodStart)+'  -  '+String(source.periodEnd)],
-  ['INFORME',safe(source.reportType,80)||'Evolucion']];
+  ['INFORME',publicLabel(REPORT_LABELS,source.reportType,safe(source.reportType,80)||'Evolución')]];
  let cy=284;
  for(const [k,v] of meta){
   cover.drawText(k,{x:79,y:cy,size:8.2,font:bold,color:color('gold')});
@@ -124,9 +129,12 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
   y-=gap;
  }
  function heading(v){
-  if(y<170)continuation();
+  const lines=wrap(bold,9,safe(v,130).toUpperCase(),483);
+  if(y<170+lines.length*13)continuation();
   current.drawLine({start:{x:55,y:y+10},end:{x:540,y:y+10},color:color('rule'),thickness:.75});
-  current.drawText(safe(v,100).toUpperCase(),{x:55,y:y-8,size:9,font:bold,color:color('gold')});y-=35;
+  y-=8;
+  for(const line of lines){current.drawText(line,{x:55,y,size:9,font:bold,color:color('gold')});y-=13;}
+  y-=14;
  }
  const fallback=v=>safe(v)||'No hay datos adicionales confirmados para esta lectura.';
  sectionPage('01  /  CONTEXTO','Que hemos hecho');
@@ -137,13 +145,14 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  flow('El diagnostico inicial IRI se mantiene separado de la evolucion.',{colorName:'muted'});
  if(Array.isArray(source.activitySeries)&&source.activitySeries.length){
   const series=source.activitySeries.map(item=>({
-   date:safe(item?.from,10).slice(5).replace('-','/'),
-   end:safe(item?.to,10).slice(5).replace('-','/'),
+   date:shortDate(item.from),
+   from:item.from,to:item.to,
    count:item.count,
   }));
   sectionPage('02  /  CONTINUIDAD','El ritmo del periodo');
   flow('SESIONES CONFIRMADAS POR PERIODO',{font:bold,size:9,colorName:'gold',gap:0});
-  const max=Math.max(1,...series.map(item=>item.count)),bottom=450,top=662,left=77,right=535,step=(right-left)/series.length;
+  // Reserve space below the caption for the highest value label.
+  const max=Math.max(1,...series.map(item=>item.count)),bottom=440,top=Math.min(620,y-25),left=77,right=535,step=(right-left)/series.length;
   current.drawLine({start:{x:left,y:bottom},end:{x:right,y:bottom},color:color('muted'),thickness:1});
   current.drawLine({start:{x:left,y:top},end:{x:right,y:top},color:color('rule'),thickness:.8});
   current.drawText('0',{x:55,y:bottom-4,size:8,font:sans,color:color('muted')});
@@ -158,12 +167,13 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
    current.drawText(item.date,{x:bx+width/2-sans.widthOfTextAtSize(item.date,7)/2,
     y:bottom-19,size:7,font:sans,color:color('muted')});
   });
-  y=396;
+  y=392;
   heading('Detalle y contexto');
   flow('El eje comienza en cero; sin registro de sesion confirmada no equivale a inactividad. La grafica no mide adherencia ni esfuerzo.',{gap:8});
+  flow('Total representado: '+series.reduce((sum,item)=>sum+item.count,0)+' sesiones confirmadas.',{font:bold,size:10,gap:4});
   for(const item of series){
    if(y<112)continuation();
-   current.drawText(item.date+' - '+item.end,{x:55,y,size:9,font:sans,color:color('muted')});
+   current.drawText(item.from+' a '+item.to,{x:55,y,size:9,font:sans,color:color('muted')});
    current.drawText(String(item.count)+' sesiones',{x:367,y,size:9,font:bold,color:color('ink')});
    y-=19;
   }
@@ -175,14 +185,14 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
   if(y<183)continuation();
   heading(String(i+1).padStart(2,'0')+'  /  '+safe(item?.label,120));
   flow(fallback(safe(item?.text,500)),{gap:4});
-  flow('FUENTE: '+safe(item?.source,100)+'  /  '+(safe(item?.quality,70)||'registrada'),
+  flow('FUENTE: '+publicLabel(SOURCE_LABELS,item?.source,safe(item?.source,100))+'  /  '+(safe(item?.quality,70)||'registrada'),
    {size:8.5,colorName:'muted',gap:13});
  }
  sectionPage('04  /  CRITERIO','Decidir el siguiente paso');
  heading('Interpretacion profesional');flow(fallback(source.conclusions));
  heading('Proximo paso propuesto');flow(fallback(source.recommendations));
  heading('Transparencia');
- flow('Fuente: ejecuciones verificadas por IBERFIT. Periodo: '+source.periodStart+' a '+source.periodEnd+
+ flow('Fuente principal: '+publicLabel(SOURCE_LABELS,source.sourceType,'Evidencia canónica IBERFIT')+'. Periodo: '+source.periodStart+' a '+source.periodEnd+
   '. Esta lectura no es un diagnostico medico ni presupone mejoras donde no hay pruebas.');
  flow('Wearables, si se integran, deben indicar origen y frescura y nunca sustituir una ejecucion confirmada.',
   {colorName:'muted'});

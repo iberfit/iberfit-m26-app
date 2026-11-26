@@ -171,3 +171,7 @@ Status vocabulary: **Enhanced** = implementation in this branch, acceptance pend
 - Shared-device privacy: 5/5 directed module checks, simulated adapters only.
 - IRI revision/classification and numeric comparison: 7/7 directed module checks, exact source.
 - 17/17 directed checks for this phase. These are isolated source/DOM simulations, not the full Node/Playwright test suite. CI/PR certification has not yet begun. The source Edge PDF renderer remains a distinct controlled deployment dependency.
+
+## Twenty-second commit — GX05 official Signature report readability
+- Reused preview's public report/source vocabulary in server renderer, corrected graph dates to DD/MM and expanded interval table to complete ISO dates, added represented session total, reserved chart clearance below caption and wrapped long evidence headings. Source snapshot, fingerprint, template family, publication policy and private Coach note exclusion remain unchanged.
+- Eight directed renderer checks passed in V8 with synthetic PDF document/font drawing adapters; no physical PDF bytes or real font metrics certified. Exact-source CI, official issuer QA, native PDF visual review and controlled rollout remain mandatory. No database or Edge deployment performed.
