@@ -32,3 +32,18 @@ test('Client draft and published HTML cannot contain private notes or technical 
  const admin=buildPrivateReportDetail({...state,identity:{role:'admin'}},'c1',report,{now});
  assert.match(buildEvolutionReportHtml({report,audience:'internal',technicalDetail:admin}),/Control interno del expediente/);
 });
+
+test('Technical longitudinal analysis requires complete matching explicit protocol, equal reps and distinct dates',()=>{
+ const context={exerciseId:'sq',exerciseName:'Sentadilla técnica',variantId:'barra-alta',equipmentId:'barra',loadBasis:'total',side:'bilateral',reps:8,setNumber:1};
+ const s={...state,collections:{sessionExecutions:[
+ execution('a','c1','2026-11-19T15:00:00Z',[{...context,loadKg:40,rpe:8,rir:2}]),
+ execution('b','c1','2026-11-21T15:00:00Z',[{...context,loadKg:45,rpe:7,rir:3},{...context,loadKg:45,rpe:9,rir:1}]),
+ execution('c','c1','2026-11-24T15:00:00Z',[{...context,loadKg:50,rpe:8,rir:2},{...context,reps:5,loadKg:80},{...context,variantId:'otra',loadKg:90},{...context,equipmentId:undefined,loadKg:100}]),
+ ]}};
+ const d=buildPrivateReportDetail(s,'c1',report,{now});
+ assert.equal(d.exerciseSummary[0].rows,7);assert.equal(d.exerciseSummary[0].exposures,3);
+ assert.equal(d.loadComparisons.length,1);const c=d.loadComparisons[0];
+ assert.equal(c.first.kg,40);assert.equal(c.last.kg,50);assert.equal(c.change,10);assert.equal(c.percent,25);assert.equal(c.bestKg,50);assert.equal(c.points[1].rpe,null);assert.equal(c.points[1].rir,null);
+ const internal=buildEvolutionReportHtml({report,technicalDetail:d});assert.match(internal,/Comparaciones de carga por ejercicio/);assert.match(internal,/Sentadilla técnica/);
+ assert.doesNotMatch(buildEvolutionReportHtml({report,technicalDetail:d,audience:'client'}),/Sentadilla técnica|Comparaciones de carga por ejercicio/);
+});

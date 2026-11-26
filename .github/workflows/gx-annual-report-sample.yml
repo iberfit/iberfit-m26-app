@@ -7,6 +7,10 @@ on:
       - '.github/workflows/gx-annual-report-sample.yml'
       - 'supabase/functions/iberfit-evolution-report-emission-v1/**'
       - 'public/m26/fonts/report-*.ttf'
+      - 'src/m26/workflows/report-*.js'
+      - 'src/m26/workflows/evolution-report-document.js'
+      - 'public/m26/evolution-report.css'
+      - 'tests/m26_report_private_audience.test.mjs'
   workflow_dispatch:
 permissions:
   contents: read

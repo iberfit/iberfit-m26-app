@@ -4,7 +4,7 @@ import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionC
 import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
 import {observedSet,evidenceNumber,observedLoadKg} from '../domain/evidence-signal.js';
 import {normalizeExerciseLoad} from '../engagement/exercise-performance-engine.js';
-const LIMIT=360;
+const LIMIT=360,ANALYSIS_LIMIT=48;
 const clean=(v,max=100)=>String(v??'').replace(/[\u0000-\u001f\u007f]/gu,' ').replace(/\s+/gu,' ').trim().slice(0,max);
 const first=(o,...keys)=>{for(const key of keys){const v=o?.[key];if(v!==undefined&&v!==null&&v!=='')return v;}return null;};
 const body=r=>r?.body&&typeof r.body==='object'&&!Array.isArray(r.body)?{...r,...r.body}:r;
@@ -13,6 +13,29 @@ const rows=r=>{for(const x of [r?.results,r?.setResults,r?.set_results,r?.progre
   if(a.length)return a.filter(o=>o&&typeof o==='object'&&!Array.isArray(o));
 }return [];};
 const n=(v,min,max,integer=false)=>evidenceNumber(typeof v==='string'?v.replace(',','.'):v,{min,max,integer});
+// Explicit protocol identity is required for a load comparison. A missing
+// variant, implement, load basis or laterality is not evidence of equivalence.
+function protocol(row){
+ const fields=[['variantId','variant_id','exerciseVariantId','exercise_variant_id'],['equipmentId','equipment_id','equipment'],['loadBasis','load_basis','loadMode','load_mode'],['side','lado','laterality']];
+ const v=fields.map(keys=>first(row,...keys));
+ if(v.some(x=>typeof x!=='string'||!x.trim()||x.trim().length>100))return null;
+ return v.map(x=>x.trim());
+}
+const rounded=x=>Math.round(x*100)/100;
+function summarizeExerciseGroups(groups,comparisonGroups){
+ const exercises=[...groups.values()].map(g=>({exercise:g.exercise,exposures:g.sessions.size,rows:g.rows,loadRows:g.loadRows,rpeRows:g.rpeRows,rirRows:g.rirRows,first:g.first,last:g.last})).sort((a,b)=>b.exposures-a.exposures||a.exercise.localeCompare(b.exercise));
+ const eligible=[];
+ for(const g of comparisonGroups.values()){
+   // Within one date multiple series are summarized as highest observed kg at
+   // the exact same repetitions and explicit protocol, not estimated 1RM.
+   const p=[...g.days.values()].sort((a,b)=>a.date.localeCompare(b.date));
+   if(p.length<2)continue;
+   const a=p[0],b=p.at(-1);
+   eligible.push({exercise:g.exercise,protocol:g.protocol,reps:g.reps,dates:p.length,first:a,last:b,change:rounded(b.kg-a.kg),percent:a.kg>0?rounded((b.kg-a.kg)/a.kg*100):null,bestKg:Math.max(...p.map(x=>x.kg)),points:p.length<=10?p:Array.from({length:10},(_,i)=>p[Math.round(i*(p.length-1)/9)])});
+ }
+ eligible.sort((a,b)=>b.dates-a.dates||a.exercise.localeCompare(b.exercise)||a.reps-b.reps||JSON.stringify(a.protocol).localeCompare(JSON.stringify(b.protocol)));
+ return {exerciseSummary:exercises.slice(0,ANALYSIS_LIMIT),exerciseSummaryTotal:exercises.length,loadComparisons:eligible.slice(0,ANALYSIS_LIMIT),loadComparisonTotal:eligible.length};
+}
 export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}={}){
   const role=String(state?.identity?.role||'').toLowerCase(),owner=String(clientId||'');
   if(!['coach','admin'].includes(role)||!owner||String(state?.selectedClientId||'')!==owner)throw Error('M44_PRIVATE_DETAIL_SCOPE');
@@ -23,7 +46,7 @@ export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}=
     .sort((a,b)=>parseDateValue(sessionExecutionCompletionDate(b)).getTime()-parseDateValue(sessionExecutionCompletionDate(a)).getTime()||String(sessionExecutionId(a)).localeCompare(String(sessionExecutionId(b))));
   const details=[],coverage={load:0,reps:0,seconds:0,rpe:0,rir:0,distance:0};
   let observedRows=0,omittedRows=0,emptySessions=0;
-  const uniqueExercises=new Set();
+  const uniqueExercises=new Set(),exerciseGroups=new Map(),comparisonGroups=new Map();
   for(const execution of executions){
     const r=body(execution),date=reportCivilDate(sessionExecutionCompletionDate(execution));
     // No free-text notes, health records, IDs of other people or prescriptions.
@@ -32,8 +55,9 @@ export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}=
     let count=0;
     for(const [index,set] of rows(r).entries()){
       if(!observedSet(set)){omittedRows++;continue;}
-      const id=clean(first(set,'exerciseId','exercise_id','ejercicioId','ejercicio_id'));
-      if(!id)continue;
+      const rawId=first(set,'exerciseId','exercise_id','ejercicioId','ejercicio_id');
+      if(typeof rawId!=='string'||!rawId.trim()||rawId.length>160)continue;
+      const id=rawId.trim();
       const kg=observedLoadKg(set);
       const load=normalizeExerciseLoad(set);
       const loadText=kg!==null?String(kg)+' kg':load.comparableKey==='lb'&&Number.isFinite(load.value)?String(load.value)+' lb':null;
@@ -50,10 +74,27 @@ export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}=
       const label=clean(first(set,'exerciseName','exercise_name','name','nombre')||id,65);
       const setNumber=n(first(set,'setNumber','set_number','serie','series'),1,10000,true);
       observedRows++;count++;uniqueExercises.add(id);
+      let group=exerciseGroups.get(id);
+      if(!group){group={exercise:label,sessions:new Set(),rows:0,loadRows:0,rpeRows:0,rirRows:0,first:date,last:date};exerciseGroups.set(id,group);}
+      group.sessions.add(sessionExecutionId(execution));group.rows++;
+      if(values.load!==null)group.loadRows++;if(values.rpe!==null)group.rpeRows++;if(values.rir!==null)group.rirRows++;
+      if(date<group.first)group.first=date;if(date>group.last)group.last=date;
+      const context=protocol(set);
+      if(context&&kg!==null&&values.reps!==null&&values.reps>0){
+        const key=JSON.stringify([id,context,values.reps]);
+        let comp=comparisonGroups.get(key);
+        if(!comp){comp={exercise:label,protocol:context,reps:values.reps,days:new Map()};comparisonGroups.set(key,comp);}
+        const current=comp.days.get(date);
+        const point={date,kg,rpe:values.rpe,rir:values.rir};
+        // Equal highest loads with conflicting effort readings do not choose
+        // a favourable value; retain the load and mark the effort ambiguous.
+        if(!current||kg>current.kg)comp.days.set(date,point);
+        else if(kg===current.kg)comp.days.set(date,{date,kg,rpe:current.rpe===point.rpe?point.rpe:null,rir:current.rir===point.rir?point.rir:null});
+      }
       for(const k of Object.keys(coverage))if(values[k]!==null)coverage[k]++;
       if(details.length<LIMIT)details.push(Object.freeze({date,session:clean(first(r,'title','sessionTitle','name')||'Entrenamiento',55),exercise:label,set:setNumber,...values}));
     }
     if(!count)emptySessions++;
   }
-  return Object.freeze({role,periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
+  return Object.freeze({...summarizeExerciseGroups(exerciseGroups,comparisonGroups),role,periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
 }

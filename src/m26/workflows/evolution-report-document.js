@@ -116,6 +116,23 @@ function privateTechnicalPages(detail){
   const metrics=counts.map(([k,v])=>'<tr><th scope="row">'+esc(k)+'</th><td>'+fmt(v)+'</td></tr>').join('');
   const coverage=Object.entries(names).map(([key,label])=>'<tr><th scope="row">'+esc(label)+'</th><td>'+fmt(detail.coverage[key])+'</td><td>'+fmt(detail.observedRows)+'</td></tr>').join('');
   const result=[{title:detail.role==='admin'?'Control interno del expediente':'Cobertura técnica del entrenamiento',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">Consulta de registros disponibles en este expediente y ventana. No es una certificación de integridad del historial remoto ni una nueva publicación.</p><table class="m44-tech-table"><caption>Inventario de evidencia</caption><tbody>'+metrics+'</tbody></table><table class="m44-tech-table"><caption>Cobertura de mediciones por serie</caption><thead><tr><th>Variable</th><th>Registradas</th><th>Series medibles</th></tr></thead><tbody>'+coverage+'</tbody></table><p class="m44-subtle-note">Se muestran '+fmt(detail.details.length)+' de '+fmt(detail.observedRows)+' series medibles. '+(detail.limited?'Detalle limitado a las 360 series más recientes; el recuento cubre todas las series disponibles de la ventana. Consulta el historial para el resto.':'Detalle completo de las series medibles disponibles en esta consulta.')+' Ausente no equivale a cero.</p>'}];
+  const overview=detail.exerciseSummary??[],comparisons=detail.loadComparisons??[];
+  for(let i=0;i<overview.length;i+=12){
+    const rows=overview.slice(i,i+12).map(r=>'<tr><td>'+fmt(r.exercise)+'<small>'+fmt(r.first)+' — '+fmt(r.last)+'</small></td><td>'+fmt(r.exposures)+'</td><td>'+fmt(r.rows)+'</td><td>'+fmt(r.loadRows)+'</td><td>'+fmt(r.rpeRows)+'</td><td>'+fmt(r.rirRows)+'</td></tr>').join('');
+    result.push({title:'Inventario por ejercicio',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table m44-exercise-inventory"><caption>'+fmt(overview.length)+' de '+fmt(detail.exerciseSummaryTotal)+' ejercicios identificados · cobertura por variable</caption><thead><tr><th>Ejercicio / fechas</th><th>Sesiones</th><th>Series</th><th>Carga</th><th>RPE</th><th>RIR</th></tr></thead><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">Los recuentos incluyen todas las series medibles de cada ejercicio, aunque el anexo de series tenga un límite de impresión. No se agregan cargas de protocolos diferentes.</p>'});
+  }
+  for(let i=0;i<comparisons.length;i+=2){
+    const cards=comparisons.slice(i,i+2).map(c=>{
+      const p=c.points,lo=Date.parse(p[0].date+'T00:00:00Z'),hi=Date.parse(p.at(-1).date+'T00:00:00Z'),maximum=Math.max(1,c.bestKg);
+      const xy=p.map(x=>({x:34+(Date.parse(x.date+'T00:00:00Z')-lo)/(hi-lo)*550,y:100-x.kg/maximum*82}));
+      const dots=xy.map((v,j)=>'<circle cx="'+v.x+'" cy="'+v.y+'" r="3.2" fill="#234638"><title>'+fmt(p[j].date)+': '+fmt(p[j].kg)+' kg</title></circle>').join('');
+      const segments=xy.slice(1).map((v,j)=>{const gap=(Date.parse(p[j+1].date)-Date.parse(p[j].date))/86400000;return gap>45?'':'<line x1="'+xy[j].x+'" y1="'+xy[j].y+'" x2="'+v.x+'" y2="'+v.y+'" stroke="#234638" stroke-width="2" stroke-dasharray="4 3"/>';}).join('');
+      const effort=q=>'RPE '+fmt(q.rpe)+' / RIR '+fmt(q.rir);
+      return '<section class="m44-exercise-analysis"><h3>'+fmt(c.exercise)+' · '+fmt(c.reps)+' rep.</h3><p class="m44-subtle-note">Variante: '+fmt(c.protocol[0])+' · equipo: '+fmt(c.protocol[1])+' · base: '+fmt(c.protocol[2])+' · lado: '+fmt(c.protocol[3])+'</p><div class="m44-tech-compare"><div><small>Primera · '+fmt(c.first.date)+'</small><b>'+fmt(c.first.kg)+' kg</b><span>'+effort(c.first)+'</span></div><div><small>Última · '+fmt(c.last.date)+'</small><b>'+fmt(c.last.kg)+' kg</b><span>'+effort(c.last)+'</span></div><div><small>Variación de carga</small><b>'+fmt(c.change)+' kg</b><span>'+fmt(c.percent)+(c.percent===null?'':' %')+' · máximo '+fmt(c.bestKg)+' kg</span></div></div><svg viewBox="0 0 610 120" role="img" aria-label="'+fmt(p.map(x=>x.date+': '+x.kg+' kg').join('; '))+'"><line x1="34" y1="100" x2="584" y2="100" stroke="#bfc9bf"/><line x1="34" y1="18" x2="584" y2="18" stroke="#bfc9bf"/><text x="28" y="21" text-anchor="end">'+fmt(maximum)+'</text><text x="28" y="103" text-anchor="end">0</text>'+segments+dots+'<text x="34" y="116">'+fmt(p[0].date)+'</text><text x="584" y="116" text-anchor="end">'+fmt(p.at(-1).date)+'</text></svg><p class="m44-subtle-note">'+fmt(p.length)+' de '+fmt(c.dates)+' días observados. Máxima carga registrada a igual número de repeticiones y contexto explícito. No es una estimación de 1RM ni un juicio de rendimiento.</p></section>';
+    }).join('');
+    result.push({title:'Comparaciones de carga por ejercicio',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">'+fmt(comparisons.length)+' de '+fmt(detail.loadComparisonTotal)+' grupos elegibles. Las fechas sin datos no se estiman y los huecos superiores a 45 días no se unen.</p>'+cards});
+  }
+  if(!comparisons.length)result[0].inner+='<p class="m44-subtle-note">Comparación de carga: no hay dos días con el mismo ejercicio, repeticiones y contexto explícito completo. Se conservan los registros descriptivos.</p>';
   const perPage=12;
   for(let i=0;i<detail.details.length;i+=perPage){
     const rows=detail.details.slice(i,i+perPage).map(r=>'<tr><td>'+fmt(r.date)+'<small>'+fmt(r.session)+'</small></td><td>'+fmt(r.exercise)+'<small>Serie '+fmt(r.set)+'</small></td><td>'+fmt(r.load)+'</td><td>'+fmt(r.reps)+'</td><td>'+fmt(r.seconds)+'</td><td>'+fmt(r.distance)+'</td><td>'+fmt(r.rpe)+'</td><td>'+fmt(r.rir)+'</td></tr>').join('');
@@ -129,7 +146,7 @@ function footer(page,total){
 function page(index,total,eyebrow,title,inner){
   return '<section class="m44-sheet m44-interior" aria-label="Página '+index+' de '+total+'"><header class="m44-page-head"><span class="m44-page-index">'+String(index-1).padStart(2,'0')+'</span><div><p class="m44-kicker">'+esc(eyebrow)+'</p><h2>'+esc(title)+'</h2></div></header><main class="m44-page-content">'+inner+'</main>'+footer(index,total)+'</section>';
 }
-export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-2',publicationStatus='draft',audience='internal',technicalDetail=null}={}){
+export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-3',publicationStatus='draft',audience='internal',technicalDetail=null}={}){
   if(!report||report.ready!==true||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
     throw new Error('M44_REPORT_PREVIEW_EVIDENCE_REQUIRED');
   if(!report.periodStart||!report.periodEnd||dateLabel(report.periodStart)==='Fecha pendiente'||dateLabel(report.periodEnd)==='Fecha pendiente'||report.periodStart>report.periodEnd)
@@ -325,7 +342,7 @@ async function verifyA4Layout(doc,popup,scope){
 export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',audience='internal',technicalDetail=null,scope=globalThis}={}){
   const origin=String(scope.location?.origin||'');
   if(!/^https?:\/\/[^/]+$/i.test(origin))throw new Error('M44_REPORT_PREVIEW_ORIGIN_REQUIRED');
-  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,audience,technicalDetail,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-2'});
+  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,audience,technicalDetail,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-3'});
   const popup=scope.open?.('about:blank','_blank');
   if(!popup?.document)throw new Error('M44_REPORT_PREVIEW_POPUP_BLOCKED');
   try{
