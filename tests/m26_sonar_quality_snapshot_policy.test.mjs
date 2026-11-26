@@ -1,14 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
+import {M44_IMMUTABLE_CPD_ARCHIVES} from './helpers/sonar-immutable-recovery-paths.mjs';
 const read=path=>readFileSync(path,'utf8');
 const config=read('.sonarcloud.properties');
 const snapshots=[
-  "scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261119/index.ts",
-  "scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/index.ts",
-  "scripts/ops/m44_legacy_edge_source/iberfit-iri-report-emission-v1-prod-20261115/index.ts",
-  "scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/pdf-renderer.js",
-  "scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/storage-recovery.js",
+  ...M44_IMMUTABLE_CPD_ARCHIVES,
   "supabase/migrations/20261117235000_coach_scoped_hosted_invitation_v1.sql",
   "supabase/rollbacks/20261117235000_coach_scoped_hosted_invitation_v1.rollback.sql",
   "supabase/qa-migrations/20261117224500_coach_invitation_finalize_cas_v2.sql",
@@ -57,7 +54,7 @@ test('M44 CPD policy covers only the five verified production archives, never th
  const {loadInventory,validateLocalSources,AUXILIARY_SOURCES}=await import('../scripts/ops/m44_edge_source_recovery_contract.mjs');
  const inventory=loadInventory();
  const pinned=inventory.sources.filter(s=>s.source_state==='canonical_live_snapshot_pending_release').map(s=>s.source_path).concat(AUXILIARY_SOURCES.map(s=>s.path));
- const expected=["scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261119/index.ts","scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/index.ts","scripts/ops/m44_legacy_edge_source/iberfit-iri-report-emission-v1-prod-20261115/index.ts","scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/pdf-renderer.js","scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/storage-recovery.js"];
+ const expected=M44_IMMUTABLE_CPD_ARCHIVES;
  assert.deepEqual([...pinned].sort((a,b)=>a<b?-1:a>b?1:0),[...expected].sort((a,b)=>a<b?-1:a>b?1:0));
  assert.equal(validateLocalSources(inventory).filesVerified,16);
  const entries=config.split(/\r?\n/u).find(x=>x.startsWith('sonar.cpd.exclusions=')).slice('sonar.cpd.exclusions='.length).split(',');

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {HISTORICAL_CPD_EDGE_PATHS} from './helpers/sonar-immutable-recovery-paths.mjs';
 
 const migration=readFileSync(new URL('../supabase/qa-migrations/20261110163500_p0_qa_bootstrap_sanitized_projection_reuse.sql',import.meta.url),'utf8');
 const rollback=readFileSync(new URL('../supabase/qa-rollbacks/20261110163500_p0_qa_bootstrap_sanitized_projection_reuse.rollback.sql',import.meta.url),'utf8');
@@ -49,10 +50,8 @@ test('Sonar CPD exclusions cover only the exact immutable SQL pair and preserve 
     'supabase/qa-migrations/20261110163500_p0_qa_bootstrap_sanitized_projection_reuse.sql',
     'supabase/qa-rollbacks/20261110163500_p0_qa_bootstrap_sanitized_projection_reuse.rollback.sql'
   ])assert.equal(paths.filter(x=>x===p).length,1);
-  // The sole non-SQL exception is an immutable historical PROD Edge snapshot;
-  // it remains part of source/security analysis (only CPD duplicates ignored).
-  const historicEdge='scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts';
-  assert.ok(paths.every(x=>(x.endsWith('.sql')||x===historicEdge)&&!/[?*]/u.test(x)));
+  // Exact immutable Edge archives remain subject to source/security analysis.
+  assert.ok(paths.every(x=>(x.endsWith('.sql')||HISTORICAL_CPD_EDGE_PATHS.includes(x))&&!/[?*]/u.test(x)));
   assert.ok(!config.includes('sonar.exclusions='));
   assert.ok(!config.includes('sonar.sources='));
 });
