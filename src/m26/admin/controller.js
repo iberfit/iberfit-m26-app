@@ -1,5 +1,7 @@
 import {createClientCreateWizard} from './client-create-wizard.js';
 import {focusFirstNeededControl} from '../ui/guided-input.js';
+import {createAdminRouteViewModel} from './view-model.js';
+import {openBusinessReport} from './business-report.js';
 const toast=(message)=>{try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}catch{}};
 const text=(data,key,max=4000)=>String(data.get(key)||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
 const rev=(data)=>{const n=Number(data.get('baseRevision')||0);return Number.isInteger(n)&&n>=0?n:0;};
@@ -542,6 +544,14 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     if(empty)empty.hidden=Boolean(id);
   }
   function onClientEditClick(event){
+    if(event.target?.closest?.('[data-admin-business-report]')){
+      event.preventDefault?.();
+      try{const state=store.getState();if(state.identity?.role!=='admin'||state.activeArea!=='admin-analitica')throw Error('M26_BUSINESS_REPORT_FORBIDDEN');
+        const vm=createAdminRouteViewModel({}, {identity:state.identity,activeArea:state.activeArea},state);
+        openBusinessReport(vm.businessReport);
+      }catch(error){toast(String(error?.message)==='M26_BUSINESS_REPORT_POPUP_BLOCKED'?'Permite abrir una ventana para imprimir el informe.':'No fue posible abrir el informe interno con los permisos actuales.');}
+      return;
+    }
     const person=event.target?.closest?.('[data-admin-person-select]');
     if(person){event.preventDefault();selectPerson(person.getAttribute('data-admin-person-select'));return;}
 
