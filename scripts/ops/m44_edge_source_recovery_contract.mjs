@@ -47,7 +47,7 @@ export function loadInventory(file=INVENTORY){
         throw Error(PREFIX+'ARCHIVE_BOUNDARY_INVALID');
     }else if(x.source_state==='canonical_live_snapshot_pending_release'){
       const exactArchives={
-        'iberfit-admin-client-invite-v1':'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts',
+        'iberfit-admin-client-invite-v1':'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261119/index.ts',
         'iberfit-evolution-report-emission-v1':'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/index.ts',
         'iberfit-iri-report-emission-v1':'scripts/ops/m44_legacy_edge_source/iberfit-iri-report-emission-v1-prod-20261115/index.ts',
       };

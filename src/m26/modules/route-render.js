@@ -3827,7 +3827,7 @@ function renderClientProgressStage(vm,stage){
   </section>`;
 }
 
-export export function renderProfessionalReassessmentReview(review,role){
+export function renderProfessionalReassessmentReview(review,role){
  if(!['coach','admin'].includes(role)||!review||!Array.isArray(review.comparisons))return '';
  const tx=value=>iberfitSurfaceTranslate(value,{language:getIberfitLanguage()});
  const label=value=>escapeHtml(tx(value));
@@ -3837,7 +3837,7 @@ export export function renderProfessionalReassessmentReview(review,role){
  const items=rows.map(x=>'<li><strong>'+label(x.label)+'</strong> · '+number(x.previous)+' '+escapeHtml(x.unit)+' → '+number(x.value)+' '+escapeHtml(x.unit)+' ('+(x.delta>0?'+':'')+number(x.delta)+' '+escapeHtml(x.deltaUnit??x.unit)+')</li>').join('');
  return '<details class="m26-panel m26-optional-section" data-m26-reassessment-review><summary>'+label('Reevaluación protocolizada')+'</summary><p>'+date(review.periodStart)+' — '+date(review.periodEnd)+'</p>'+(items?'<ul>'+items+'</ul>':'<p>'+label('No hay mediciones con protocolo equivalente.')+'</p>')+'<p class="m26-notice">'+label('Comparación descriptiva de mediciones confirmadas. No acredita una mejora clínica ni modifica la planificación.')+'</p><button type="button" data-m26-area="informes">'+label('Consultar informes')+'</button></details>';
 }
-function renderProgressRoute(vm){
+export function renderProgressRoute(vm){
   const professionalRole=['coach','admin'].includes(String(vm.role||'').toLowerCase());
   const clientContextBar=professionalRole?professionalClientContextBar(vm.clientContext,{activeArea:'progreso'}):'';
   if(lacksTrainingSurface(vm.serviceKind)){

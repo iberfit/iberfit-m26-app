@@ -69,6 +69,7 @@
   "qaOnly": [
     "qa/gx/gx_goal_measurement_sql_test.sql",
     "qa/gx/gx_publication_sql_test.sql",
-    "qa/gx/gx_full_auth_acceptance_v1.sql"
+    "qa/gx/gx_full_auth_acceptance_v1.sql",
+    "qa/gx/gx_admin_create_replay_acceptance_v1.sql"
   ]
 }

@@ -136,7 +136,6 @@ export function createOccurrenceWorkoutDraft({
   if(!Array.isArray(prescriptionSnapshot.blocks)
     ||!Array.isArray(prescriptionSnapshot.queue))
     fail('PRIVATE_SNAPSHOT_REQUIRED');
-  assertFrozenOccurrencePrescription(prescriptionSnapshot);
   // Clone to avoid caller mutation of a plan while a workout is under way.
   const session={id:sessionId,clientId,
     ...(typeof prescriptionSnapshot.title==='string'?{title:prescriptionSnapshot.title}:{}),
@@ -144,6 +143,7 @@ export function createOccurrenceWorkoutDraft({
     blocks:structuredClone(prescriptionSnapshot.blocks)};
   const execution=createExecution({session,clientId,executionId:id});
   verifyQueue(prescriptionSnapshot.queue,execution.queue);
+  assertFrozenOccurrencePrescription(prescriptionSnapshot);
   return {
     kind:'iberfit.occurrence-workout-draft.v1',
     clientId,occurrenceId,sessionId,localDate,

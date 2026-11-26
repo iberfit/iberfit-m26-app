@@ -123,3 +123,12 @@ test('session controller rehydrates set fields after telemetry-driven renders',(
   assert.match(source,/querySelectorAll\?\.\('\[data-set-field\]'\)/);
   assert.match(source,/hydrateActiveSetDraft\(after\)/);
 });
+
+test('active strength draft preserves explicitly supplied context and empty selections',()=>{
+  const execution=activeExecution();
+  const context={variantId:'v1',equipmentId:'barbell',loadBasis:'total',side:'bilateral',loadUnit:'kg'};
+  updateActiveSetDraft(execution,session,{...values,...context});
+  assert.deepEqual(getActiveSetDraft(structuredClone(execution),session)?.values,{...values,...context});
+  updateActiveSetDraft(execution,session,{...values,...context,variantId:''});
+  assert.equal(getActiveSetDraft(execution,session).values.variantId,'');
+});

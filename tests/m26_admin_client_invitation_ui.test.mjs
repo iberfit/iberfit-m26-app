@@ -48,7 +48,7 @@ test('ADMIN client access state remains visible after bootstrap refresh', () => 
 
 test('ADMIN creation feedback distinguishes internal record and provider delivery result', () => {
   assert.match(controller, /creado sin enviar invitación/u);
-  assert.match(controller, /Invitación enviada correctamente/);
+  assert.match(controller, /El proveedor aceptó la invitación; confirma la recepción con la persona\./);
   assert.match(controller, /invitación no pudo enviarse/);
   assert.match(controller, /Invitación en proceso/);
 });

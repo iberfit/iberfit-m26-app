@@ -64,7 +64,7 @@ test('SQL staging rejects drift, while frontend dedupes and tracks provider rece
 test('Hosted Auth acceptance cannot delete the user and retains a recoverable pending state',()=>{
   assert.doesNotMatch(adminEdge,/auth\.admin\.deleteUser/u);
   assert.match(adminEdge,/providerAccepted=true/u);
-  assert.match(adminEdge,/if\(providerAccepted&&clientId&&UUID\.test\(clientId\)\)/u);
+  assert.match(adminEdge,/if\(\(providerAccepted\|\|providerDispatched\)&&clientId&&UUID\.test\(clientId\)\)/u);
   assert.match(adminEdge,/V26_INVITATION_RECONCILIATION_REQUIRED/u);
   assert.match(adminEdge,/provider_accepted_reconciliation_pending/u);
 });

@@ -157,8 +157,11 @@ test('M44 very long evidence-based explanations get their own continuation pages
   assert.match(html,/El periodo en detalle/);
   assert.match(html,/La interpretación/);
   assert.match(html,/El siguiente paso/);
-  assert.match(html,/La mirada del Coach/);
+  assert.match(html,/La mirada del entrenador/);
+  assert.match(html,/NOTA PROFESIONAL PRIVADA/);
   assert.match(html,/Comentario de trabajo exclusivamente para el Coach/);
+  const published=buildEvolutionReportHtml({report:{...basic,summary,conclusions,recommendations,coachComment},publicationStatus:'published'});
+  assert.doesNotMatch(published,/Comentario de trabajo exclusivamente para el Coach|NOTA PROFESIONAL PRIVADA|La mirada del entrenador/);
   assert.match(html,/Transparencia del informe/);
   assert.match(html,new RegExp(String((html.match(/class="m44-sheet /g)||[]).length)+' \\/ '+String((html.match(/class="m44-sheet /g)||[]).length)));
 });

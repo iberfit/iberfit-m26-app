@@ -90,7 +90,7 @@ test('M43: controller guards remote approval with a fresh revision and checks ac
   assert.match(code,/updateReportDraftChoices\(form,\{restoreSingle:true\}\)/);
   assert.match(code,/onBeforeReportSwitch/);
   const app=source('src/m26/app/application.js');
-  assert.match(app,/workflow=createWorkflowController\(\{root,store,commandBus,catalog,mediaMap,draftRepository,refreshState:hydrate,/);
+  assert.match(app,/workflow=createWorkflowController\(\{root,store,commandBus,catalog,mediaMap,draftRepository,professionalFollowupController,refreshState:hydrate,getSessionLease:/);
   assert.match(code,/if\(event\.target\.closest\?\.\('\[data-report-draft-choice\]'\)\)return;/);
 });
 
