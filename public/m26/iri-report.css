@@ -968,3 +968,5 @@ th{color:var(--iberfit-color-forest-700);font-size:5.4pt;text-transform:uppercas
 /* Signature report family: shared brand accent and more readable diagnostic headings. */
 .pdf-page:not(.cover)::before{content:'';position:absolute;top:0;left:0;right:0;height:1.7mm;background:#13221c;z-index:3;pointer-events:none}
 .section-copy p{color:#485e51}.section-copy h1{color:#13221c}.section-index{color:#8c6b30}
+
+.iri-recovery-note{font-size:7pt;line-height:1.35;color:var(--iberfit-color-forest-700);margin:1mm 0 0}.iri-effort-curve svg{height:49mm}.iri-effort-path{stroke-dasharray:4 2}
