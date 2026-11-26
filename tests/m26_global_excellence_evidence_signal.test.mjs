@@ -122,7 +122,7 @@ test('GX06/GX09/GX26 dashboard, Coach load board and report reject incompatible 
     good:{exerciseId:'squat',reps:10,load:'20 kg',rpe:7},
     skipped:{exerciseId:'squat',reps:10,loadKg:100,skipped:true},
     contradiction:{exerciseId:'squat',reps:10,loadKg:50,load:'30 kg',rpe:99},
-    coercion:{exerciseId:'squat',reps:[10],loadKg:200,rpe:'0x7'},
+    coercion:{exerciseId:'squat',reps:[10],loadKg:[200],rpe:'0x7'},
   }};
   const state={collections:{sessionExecutions:[
     measured,

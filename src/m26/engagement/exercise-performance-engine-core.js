@@ -121,21 +121,11 @@ function setRows(execution){
 }
 
 export function normalizeExerciseLoad(row={}){
-  const kg=numeric(
-    first(
-      row,
-      'loadKg',
-      'load_kg',
-      'weightKg',
-      'weight_kg',
-    ),
-  );
-
   const typedKg=first(row,'loadKg','load_kg','weightKg','weight_kg','kg');
   const kgValue=observedLoadKg(row);
   if(kgValue!==null){
     return Object.freeze({
-      raw:typedKg!==null?`${kgValue} kg`:String(first(row,'load','weight','carga')).trim(),
+      raw:`${kgValue} kg`,
       value:kgValue,
       unit:'kg',
       comparableKey:'kg',
@@ -155,7 +145,7 @@ export function normalizeExerciseLoad(row={}){
     ),
   );
 
-  if(Number.isFinite(lb)){
+  if(Number.isFinite(lb)&&lb>=0){
     return Object.freeze({
       raw:`${lb} lb`,
       value:lb,
@@ -180,6 +170,7 @@ export function normalizeExerciseLoad(row={}){
     });
   }
 
+  if(typeof raw!=='number'&&typeof raw!=='string')return Object.freeze({raw:null,value:null,unit:null,comparableKey:null});
   const text=String(raw).trim();
 
   let match=text.match(
@@ -197,15 +188,15 @@ export function normalizeExerciseLoad(row={}){
   if(match){
     return Object.freeze({
       raw:text,
-      value:Number(match[1].replace(',','.')),
+      value:Number(match[1].replace(',','.'))>=0?Number(match[1].replace(',','.')):null,
       unit:'lb',
-      comparableKey:'lb',
+      comparableKey:Number(match[1].replace(',','.'))>=0?'lb':null,
     });
   }
 
   const value=numeric(text);
 
-  if(Number.isFinite(value)){
+  if(Number.isFinite(value)&&value>=0){
     return Object.freeze({
       raw:text,
       value,

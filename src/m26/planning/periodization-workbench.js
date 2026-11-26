@@ -45,7 +45,7 @@ export function buildPeriodizationSnapshot(state,clientId,{cycle,now=new Date()}
     const w=weekOf(isoOf(appointmentDate(appointment)));
     const id=recordId(appointment);if(w&&id)w.scheduledIds.add(id);
   }
-  for(const execution of confirmedSessionExecutionsForClient(state,safeId,{requireDate:true})){
+  for(const execution of confirmedSessionExecutionsForClient(state,safeId,{requireDate:false})){
     const item=unwrap(execution),id=sessionExecutionId(item),completedAt=sessionExecutionCompletionDate(item),date=reportCivilDate(completedAt),w=weekOf(date);
     if(!isWithinCivilPeriod(completedAt,'0001-01-01',reportCivilDate(now),now))continue;
     if(!w||!id||w.executedIds.has(id))continue;

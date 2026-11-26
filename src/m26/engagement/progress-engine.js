@@ -11,7 +11,6 @@ import {
   sessionExecutionIsCompleted as executionIsCompleted,
   sessionExecutionId,
   sessionExecutionCompletionDate,
-  sessionExecutionDate,
   reconcileSessionExecutionsForClient,
 } from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
@@ -240,7 +239,7 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
   const completed=confirmedSessionExecutionsForClient(
     state,
     clientId,
-    {requireCompleted:true,requireDate:!civilPeriod},
+    {requireCompleted:true,requireDate:false},
   )
     .map(unwrap)
     .filter((item)=>executionWithinWindow(item,window))
@@ -513,7 +512,7 @@ function epFirst(record,...keys){
   return null;
 }
 
-function epNumber(value){return number(value);}
+function epNumber(value,range={}){return number(value,range);}
 
 function epRound(value,digits=1){
   if(!Number.isFinite(value))return null;
@@ -842,7 +841,7 @@ function epPoint(execution,rows,meta,completionDate){
       row,
       'reps','actualReps','actual_reps',
       'repetitions','repeticiones'
-    )))
+    ),{min:0,max:10000,integer:true}))
     .filter(Number.isFinite);
 
   const seconds=rows
@@ -850,21 +849,21 @@ function epPoint(execution,rows,meta,completionDate){
       row,
       'seconds','actualSeconds','actual_seconds',
       'durationSeconds','duration_seconds'
-    )))
+    ),{min:0,max:86400}))
     .filter(Number.isFinite);
 
   const rpes=rows
     .map((row)=>epNumber(epFirst(
       row,
       'rpe','actualRpe','actual_rpe'
-    )))
+    ),{min:1,max:10}))
     .filter(Number.isFinite);
 
   const rirs=rows
     .map((row)=>epNumber(epFirst(
       row,
       'rir','actualRir','actual_rir'
-    )))
+    ),{min:0,max:10}))
     .filter(Number.isFinite);
 
   const knownLoads=rows
@@ -884,7 +883,7 @@ function epPoint(execution,rows,meta,completionDate){
         row,
         'reps','actualReps','actual_reps',
         'repetitions','repeticiones'
-      ));
+      ),{min:0,max:10000,integer:true});
 
       return Number.isFinite(load)&&Number.isFinite(rowReps)
         ? load*rowReps
@@ -936,7 +935,7 @@ export function buildExerciseLongitudinalProgress(
     clientId,
     {
       requireCompleted:true,
-      requireDate:true,
+      requireDate:false,
     }
   );
 
