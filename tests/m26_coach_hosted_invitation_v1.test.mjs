@@ -93,7 +93,8 @@ test('QA denied invite checks the exact hosted Edge version without relaxing bea
  const gate=fs.readFileSync('scripts/remote-gates/run_qa_real_write_gate.mjs','utf8');
  const version=adminEdge.match(/^const FUNCTION_VERSION='(admin-client-invite-v26\.\d+)';$/mu);
  assert.ok(version,'Edge source version must remain explicit');
- assert.ok(gate.includes("String(invalidInviteAuth.body?.version||'')!=='"+version[1]+"'"));
- assert.match(gate,/invalidInviteAuth\.status!==401/u);
- assert.match(gate,/V26_AUTH_REQUIRED/u);
+ assert.ok(gate.includes("const EXPECTED_INVITE_VERSION='"+version[1]+"';"));
+ assert.match(gate,/const inviteInvalidBearerDenied=\s*invalidInviteAuth\.status===401&&\s*String\(invalidInviteAuth\.body\?\.code\|\|''\)==='V26_AUTH_REQUIRED'&&\s*String\(invalidInviteAuth\.body\?\.version\|\|''\)===EXPECTED_INVITE_VERSION;/u);
+ assert.match(gate,/if\(!inviteInvalidBearerDenied\)\s*\{[\s\S]{0,800}throw new Error\(/u);
+ assert.match(gate,/authorization:\s*\{\s*inviteInvalidBearerDenied,/u);
 });
