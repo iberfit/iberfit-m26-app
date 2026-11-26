@@ -104,3 +104,7 @@ GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19
 
 ## Nineteenth commit — honest shared-device privacy inspection
 - GX20/GX21/GX24/GX32: the existing explicit local account cleanup no longer reports absent clearOwner adapters as successful. Genuine void-returning completed methods retain compatibility. Invalid inventory responses trigger incomplete inspection warning, not a falsely verified empty device. Error metadata exposes stable codes rather than raw adapter messages. No change to the explicit destructive confirmation, owner scopes, server data or normal logout; regression scenarios added.
+
+## Twentieth commit — canonical initial IRI revision before classification
+- GX11/GX13/GX14: canonical initial IRI selector reconciles all same-owner revisions before classification, preventing a later follow-up revision from resurrecting an earlier initial diagnosis. Explicit unconfirmed records and malformed revision values cannot qualify. Longitudinal numeric comparisons reuse strict evidence parsing. Retains separate diagnosis/follow-up and the existing Coach provisional timeline (not certified as confirmed evidence).
+- Nineteenth commit shared-device privacy directed checks 5/5 passed (empty, malformed, missing adapters, partial failure, full available cleanup). No actual device data deleted during verification.

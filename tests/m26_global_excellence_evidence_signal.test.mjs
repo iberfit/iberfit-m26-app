@@ -146,3 +146,14 @@ test('GX06 same revision but differing summary completion dates cannot certify c
   const state={collections:{sessionExecutions:[row,{...row,summary:{completedAt:'2026-11-24T12:00:00Z'}}]}};
   assert.equal(reconcileSessionExecutionsForClient(state,'c1').conflicts.length,1);
 });
+
+
+test('GX11 initial IRI cannot resurrect after newer noninitial or conflicting revision',()=>{
+ const now=new Date('2026-11-25T12:00:00Z');
+ const initial={id:'same',clientId:'c1',status:'confirmed',assessmentType:'inicial',assessmentDate:'2026-08-01',revision:1};
+ const followup={...initial,revision:2,assessmentType:'seguimiento',assessmentDate:'2026-10-01'};
+ for(const rows of [[initial,followup],[followup,initial],[initial,{...initial,assessmentType:'seguimiento'}]])assert.equal(selectInitialIriBaseline(rows,'c1',{now}),null);
+ assert.equal(selectInitialIriBaseline([{...initial,revision:'0x1'}],'c1',{now}),null);
+ assert.equal(selectInitialIriBaseline([{...initial,serverConfirmed:false}],'c1',{now}),null);
+ assert.equal(selectInitialIriBaseline([initial],'c1',{now}),initial);
+});

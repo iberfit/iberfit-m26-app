@@ -1,5 +1,5 @@
 import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
-import {stableEvidenceJson} from '../domain/evidence-signal.js';
+import {stableEvidenceJson,evidenceNumber} from '../domain/evidence-signal.js';
 
 export const IRI2_SNAPSHOT_SCHEMA='iberfit-iri2-snapshot-v1';
 export const IRI2_LONGITUDINAL_SCHEMA='iberfit-iri2-longitudinal-v1';
@@ -50,20 +50,24 @@ export function selectInitialIriBaseline(records,clientId,{now=new Date()}={}){
   if(!owner||!end)return null;
   const byId=new Map();
   for(const record of Array.isArray(records)?records:[]){
-    if(!isInitialIriAssessment(record))continue;
+    if(!record||typeof record!=='object'||Array.isArray(record))continue;
     const outer=record.clientId??record.client_id,inner=record.body?.clientId??record.body?.client_id;
     if((outer!==undefined&&String(outer)!==owner)||(inner!==undefined&&String(inner)!==owner)||(!outer&&!inner))continue;
     const id=String(baselineField(record,'id','entityId','entity_id')||'').trim();
     if(!id)continue;
     const raw=baselineField(record,'revision');
-    const revision=(typeof raw==='number'||typeof raw==='string')&&String(raw).trim()!==''&&Number.isSafeInteger(Number(raw))&&Number(raw)>=0?Number(raw):0;
+    const parsed=evidenceNumber(raw,{min:0,integer:true}),revision=parsed??0;
+    const invalid=raw!==null&&parsed===null;
     const previous=byId.get(id);
-    if(!previous||revision>previous.revision)byId.set(id,{record,revision,conflict:false});
+    // Reconcile all revisions before identifying initial assessments. Otherwise
+    // a later follow-up/cancellation could resurrect an obsolete diagnosis.
+    if(!previous||revision>previous.revision)byId.set(id,{record,revision,invalid,conflict:false});
     else if(revision===previous.revision&&stableEvidenceJson(previous.record)!==stableEvidenceJson(record))previous.conflict=true;
   }
   let selected=null;
-  for(const [id,{record,revision,conflict}] of byId){
-    if(conflict)continue;
+  for(const [id,{record,revision,conflict,invalid}] of byId){
+    if(conflict||invalid||!isInitialIriAssessment(record))continue;
+    if(record.serverConfirmed===false||record.body?.serverConfirmed===false)continue;
     const status=String(baselineField(record,'status','estado')||'').trim().toLowerCase();
     const sync=String(baselineField(record,'syncStatus','sync_status')||'').trim().toLowerCase();
     const receipt=baselineField(record,'firstSessionCompletedAt','first_session_completed_at');
@@ -83,11 +87,7 @@ export function selectInitialIriBaseline(records,clientId,{now=new Date()}={}){
   return selected?.record||null;
 }
 
-function finite(value){
-  if(typeof value!=='number'&&(typeof value!=='string'||!value.trim()))return null;
-  const n=Number(value);
-  return Number.isFinite(n)?n:null;
-}
+function finite(value){return evidenceNumber(value);}
 function clean(value,max=500){
   return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 }
