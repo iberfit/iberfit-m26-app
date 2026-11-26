@@ -1,6 +1,7 @@
 import {buildPeriodProgressEvidence} from '../engagement/progress-hub.js';
 import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
 import {openEvolutionReportPreview} from './evolution-report-document.js';
+import {buildPrivateReportDetail} from './report-private-detail.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND,selectInitialIriBaseline,initialIriMeasurementDate} from './iri-2-longitudinal.js';
@@ -247,10 +248,15 @@ function ensurePremiumEditorFields(form,document){
   if(!form?.elements?.namedItem?.('coachComment')){const label=document.createElement('label');label.className='m26-premium-coach-comment';label.append(createTextElement(document,'span','Nota privada del coach'));const textarea=document.createElement('textarea');textarea.name='coachComment';textarea.maxLength=2500;textarea.placeholder='Nota privada de trabajo del Coach. Para comunicar una interpretación al cliente, utiliza Conclusiones o Próximos pasos.';label.append(textarea);const approve=form.querySelector?.('[data-workflow-action="approve-report"]');if(approve)approve.before(label);else form.append(label);}
   if(!form.querySelector?.('[data-m44-report-preview]')){
     const button=document.createElement('button');button.type='button';
-    button.dataset.m44ReportPreview='true';button.textContent='Vista previa editorial A4';
+    button.dataset.m44ReportPreview='internal';button.textContent='Informe técnico interno · A4';
     button.setAttribute('aria-label','Abrir vista previa privada del informe de evolución en formato A4');
     const actions=form.querySelector?.('.m26-inline-actions');
     if(actions)actions.append(button);else form.append(button);
+  }
+  if(!form.querySelector?.('[data-m44-report-preview="client"]')){
+    const button=document.createElement('button');button.type='button';button.dataset.m44ReportPreview='client';button.textContent='Vista del cliente · A4';
+    button.setAttribute('aria-label','Previsualizar el informe del cliente sin notas privadas ni anexo técnico');
+    const actions=form.querySelector?.('.m26-inline-actions');if(actions)actions.append(button);else form.append(button);
   }
 }
 function renderPremiumReportCards(host,portfolio,document){
@@ -318,7 +324,11 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
       };
       try{
         // Open synchronously from the user gesture. No command, remote write or publish.
-        openEvolutionReportPreview({report:edited,clientName,coachName,scope});
+        const audience=preview.dataset.m44ReportPreview==='client'?'client':'internal';
+        const technicalDetail=audience==='internal'?buildPrivateReportDetail(context.state,context.clientId,candidate,{now:new Date()}):null;
+        // A client copy never receives the private note or the technical payload.
+        const viewReport=audience==='client'?{...edited,coachComment:''}:edited;
+        openEvolutionReportPreview({report:viewReport,clientName,coachName,audience,technicalDetail,scope});
         message('Vista previa privada abierta. No se ha aprobado ni publicado nada.','info');
       }catch(error){
         message(error?.message==='M44_REPORT_PREVIEW_POPUP_BLOCKED'

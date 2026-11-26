@@ -28,7 +28,7 @@ jobs:
             test -s "$font"
           done
       - name: Verify Elite trend and existing renderer contracts
-        run: node --test tests/m26_elite_report_trends.test.mjs tests/m44_server_pdf_renderer.test.mjs
+        run: node --test tests/m26_elite_report_trends.test.mjs tests/m44_server_pdf_renderer.test.mjs tests/m26_report_private_audience.test.mjs tests/m44_evolution_report_visual_quality.test.mjs
       - name: Generate official-template synthetic PDF
         run: deno run --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json --allow-read --allow-write=qa-output/annual-report-sample --allow-env=GITHUB_SHA qa/m44/generate-synthetic-annual-report.mjs
       - name: Raster preview of actual PDF pages

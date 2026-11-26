@@ -108,13 +108,28 @@ function eliteTrendGraphic(series){
   const a=series.points[0],b=series.points.at(-1);
   return '<figure class="m44-elite-trend"><figcaption>'+esc(series.label)+' <small>'+esc(series.unit)+'</small></figcaption><div class="m44-elite-endpoints"><b>'+esc(fmt(a.value))+'</b><span>Primera medición · '+esc(a.date)+'</span><b>'+esc(fmt(b.value))+'</b><span>Última medición · '+esc(b.date)+'</span></div><svg viewBox="0 0 640 146" role="img" aria-label="'+esc(series.label+': '+series.points.map(p=>p.date+' '+p.value).join('; '))+'">'+grid+paths+points+'<text x="48" y="140">'+esc(new Date(series.from).toISOString().slice(0,10))+'</text><text x="618" y="140" text-anchor="end">'+esc(new Date(series.to).toISOString().slice(0,10))+'</text></svg><p>'+series.points.length+' de '+series.total+' días registrados · medias diarias. Las líneas discontinuas orientan la lectura; no representan mediciones entre puntos. Huecos superiores a '+g.gapDays+' días no se unen.</p></figure>';
 }
+function privateTechnicalPages(detail){
+  if(!detail)return [];
+  const fmt=v=>v==null?'—':esc(typeof v==='number'?v.toLocaleString('es-CL',{maximumFractionDigits:2}):v);
+  const counts=[['Sesiones confirmadas',detail.sessions],['Ejercicios identificados',detail.exercises],['Series con alguna medición',detail.observedRows],['Sesiones sin series medibles',detail.emptySessions],['Filas explícitamente excluidas',detail.omittedRows]];
+  const names={load:'Carga con unidad',reps:'Repeticiones',seconds:'Duración',distance:'Distancia',rpe:'RPE',rir:'RIR'};
+  const metrics=counts.map(([k,v])=>'<tr><th scope="row">'+esc(k)+'</th><td>'+fmt(v)+'</td></tr>').join('');
+  const coverage=Object.entries(names).map(([key,label])=>'<tr><th scope="row">'+esc(label)+'</th><td>'+fmt(detail.coverage[key])+'</td><td>'+fmt(detail.observedRows)+'</td></tr>').join('');
+  const result=[{title:detail.role==='admin'?'Control interno del expediente':'Cobertura técnica del entrenamiento',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">Consulta de registros disponibles en este expediente y ventana. No es una certificación de integridad del historial remoto ni una nueva publicación.</p><table class="m44-tech-table"><caption>Inventario de evidencia</caption><tbody>'+metrics+'</tbody></table><table class="m44-tech-table"><caption>Cobertura de mediciones por serie</caption><thead><tr><th>Variable</th><th>Registradas</th><th>Series medibles</th></tr></thead><tbody>'+coverage+'</tbody></table><p class="m44-subtle-note">Se muestran '+fmt(detail.details.length)+' de '+fmt(detail.observedRows)+' series medibles. '+(detail.limited?'Detalle limitado a las 360 series más recientes; el recuento cubre todas las series disponibles de la ventana. Consulta el historial para el resto.':'Detalle completo de las series medibles disponibles en esta consulta.')+' Ausente no equivale a cero.</p>'}];
+  const perPage=12;
+  for(let i=0;i<detail.details.length;i+=perPage){
+    const rows=detail.details.slice(i,i+perPage).map(r=>'<tr><td>'+fmt(r.date)+'<small>'+fmt(r.session)+'</small></td><td>'+fmt(r.exercise)+'<small>Serie '+fmt(r.set)+'</small></td><td>'+fmt(r.load)+'</td><td>'+fmt(r.reps)+'</td><td>'+fmt(r.seconds)+'</td><td>'+fmt(r.distance)+'</td><td>'+fmt(r.rpe)+'</td><td>'+fmt(r.rir)+'</td></tr>').join('');
+    result.push({title:'Detalle de ejecución · '+(i+1)+'–'+Math.min(i+perPage,detail.details.length),inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><div class="m44-tech-scroll"><table class="m44-tech-table m44-tech-sets"><caption>Series observadas · orden de sesión más reciente</caption><thead><tr><th>Fecha / sesión</th><th>Ejercicio / serie</th><th>Carga</th><th>Rep.</th><th>s</th><th>Dist.</th><th>RPE</th><th>RIR</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="m44-subtle-note">Unidades y valores registrados. No se han estimado datos ausentes ni equiparado variantes, implementos o protocolos.</p>'});
+  }
+  return result;
+}
 function footer(page,total){
   return '<footer class="m44-foot"><span><b>IBERFIT</b> · Diagnóstico, planificación, control y seguimiento</span><span>'+page+' / '+total+'</span></footer>';
 }
 function page(index,total,eyebrow,title,inner){
   return '<section class="m44-sheet m44-interior" aria-label="Página '+index+' de '+total+'"><header class="m44-page-head"><span class="m44-page-index">'+String(index-1).padStart(2,'0')+'</span><div><p class="m44-kicker">'+esc(eyebrow)+'</p><h2>'+esc(title)+'</h2></div></header><main class="m44-page-content">'+inner+'</main>'+footer(index,total)+'</section>';
 }
-export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-1',publicationStatus='draft'}={}){
+export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-2',publicationStatus='draft',audience='internal',technicalDetail=null}={}){
   if(!report||report.ready!==true||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
     throw new Error('M44_REPORT_PREVIEW_EVIDENCE_REQUIRED');
   if(!report.periodStart||!report.periodEnd||dateLabel(report.periodStart)==='Fecha pendiente'||dateLabel(report.periodEnd)==='Fecha pendiente'||report.periodStart>report.periodEnd)
@@ -127,6 +142,9 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   const title=clean(report.title,140)||TYPES[report.id];
   if(!['draft','published'].includes(publicationStatus))throw new Error('M44_REPORT_DOCUMENT_STATUS_INVALID');
   const published=publicationStatus==='published';
+  if(!['client','internal'].includes(audience))throw Error('M44_REPORT_AUDIENCE_INVALID');
+  const clientView=published||audience==='client';
+  const technicalPages=!clientView&&technicalDetail&&['coach','admin'].includes(technicalDetail.role)&&technicalDetail.periodStart===report.periodStart&&technicalDetail.periodEnd===report.periodEnd?privateTechnicalPages(technicalDetail):[];
   // An evidence sheet must accommodate actual explanation lengths. Six rows
   // of 500 characters do not fit A4 even if the source count is valid.
   // Use a conservative per-page reading budget; never scale text down or
@@ -154,21 +172,22 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   // visible in the PDF, never merely truncated by overflow:hidden.
   const summaryText=clean(report.summary,2500);
   const summaryChunks=summaryText.length<=750?[report.summary]:chunkEditorial(summaryText,590,950);
-  const coachText=published?'':clean(report.coachComment,2500);
+  const coachText=clientView?'':clean(report.coachComment,2500);
   const longDecision=clean(report.conclusions,2500).length+coachText.length+
     clean(report.recommendations,2500).length>900;
   const decisionSections=[];
   if(longDecision){
     for(const text of chunkEditorial(report.conclusions,960))decisionSections.push({kind:'conclusions',text});
-    if(!published&&coachText)
+    if(!clientView&&coachText)
       for(const text of chunkEditorial(coachText,900))decisionSections.push({kind:'coach',text});
     for(const text of chunkEditorial(report.recommendations,960))decisionSections.push({kind:'next',text});
   }
   const trends=readDatedTrends(lines,report.periodStart,report.periodEnd);
   const trendPages=Math.ceil(trends.length/2);
   const total=1+summaryChunks.length+evidenceChunks.length+(showActivity?1:0)+trendPages+
-    (longDecision?decisionSections.length:1);
+    (longDecision?decisionSections.length:1)+technicalPages.length;
   const pages=[];
+  const decisionEnd=total-technicalPages.length;
   const summaryMetrics=[];
   const countEvidence=(labels,source)=>lines.find(item=>labels.includes(item.label)&&item.source===source&&/^\d+$/u.test(item.text));
   const sessionCount=countEvidence(['Sesiones confirmadas','Sesiones ejecutadas','Sesiones del último año'],'sessionExecutions');
@@ -189,12 +208,12 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   pages.push('<section class="m44-sheet m44-cover" aria-label="Portada del informe">'+
     '<div class="m44-cover-accent" aria-hidden="true"></div>'+
     '<div class="m44-brand"><img src="/public/isotipo-iberfit.png" alt="" width="66" height="66"><div><strong>IBERFIT</strong><small>ENTRENAMIENTO PERSONAL CON CRITERIO</small></div></div>'+
-    '<p class="m44-cover-category">EVOLUCIÓN · SEGUIMIENTO PERSONALIZADO</p>'+
+    '<p class="m44-cover-category">'+(clientView?'EVOLUCIÓN · TU SEGUIMIENTO':'EVOLUCIÓN · DOCUMENTO DE TRABAJO INTERNO')+'</p>'+
     '<h1>'+esc(TYPES[report.id])+'<span>'+esc(EDITORIAL[report.id][0])+'</span></h1>'+
     '<p class="m44-cover-description">'+esc(EDITORIAL[report.id][1])+'</p>'+
     '<div class="m44-cover-rule" aria-hidden="true"></div>'+
     '<div class="m44-cover-meta"><div><span>Preparado para</span><strong>'+esc(name)+'</strong></div><div><span>Periodo analizado</span><strong>'+esc(dateLabel(report.periodStart))+' — '+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Revisión profesional</span><strong>'+esc(coach)+'</strong></div></div>'+
-    '<div class="m44-cover-bottom"><span>'+(published?'CONSULTA DE INFORME PUBLICADO EN PLATAFORMA':'BORRADOR PRIVADO · VISTA PREVIA SIN PUBLICAR')+'</span><span>IBERFIT · INFORME DE EVOLUCIÓN</span></div></section>');
+    '<div class="m44-cover-bottom"><span>'+(published?'CONSULTA DE INFORME PUBLICADO EN PLATAFORMA':clientView?'BORRADOR PRIVADO · VERSIÓN CLIENTE SIN PUBLICAR':'BORRADOR PRIVADO · USO INTERNO · NO ENVIAR AL CLIENTE')+'</span><span>IBERFIT · INFORME DE EVOLUCIÓN</span></div></section>');
   pages.push(page(2,total,'01 · LA LECTURA','Qué hemos hecho',
     '<p class="m44-section-lead">'+esc(title===TYPES[report.id]?'El periodo en contexto':title)+'</p>'+summaryBand+
     '<div class="m44-prose m44-report-summary">'+paragraphs(summaryChunks[0],2500)+'</div>'+
@@ -236,9 +255,9 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     ' La evidencia de diagnóstico IRI inicial se mantiene separada de la evolución.</p>'+
     '<p>Los datos de dispositivos, si se utilizan, deben mostrar procedencia, frescura y calidad y nunca sustituir una sesión confirmada.</p></div>';
   if(!longDecision){
-    pages.push(page(total,total,showActivity?'04 · CRITERIO PROFESIONAL':'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
+    pages.push(page(decisionEnd,total,showActivity?'04 · CRITERIO PROFESIONAL':'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
     '<div class="m44-decision"><span>INTERPRETACIÓN PROFESIONAL</span><div class="m44-prose">'+paragraphs(report.conclusions,2500)+'</div></div>'+
-    (published?'':'<div class="m44-coach-voice"><span>NOTA PRIVADA DEL COACH</span><div class="m44-prose">'+paragraphs(report.coachComment,2500)+'</div><strong>'+esc(coach)+'</strong></div>')+
+    (clientView?'':'<div class="m44-coach-voice"><span>NOTA PRIVADA DEL COACH</span><div class="m44-prose">'+paragraphs(report.coachComment,2500)+'</div><strong>'+esc(coach)+'</strong></div>')+
     '<div class="m44-next"><span>PRÓXIMO PASO PROPUESTO</span><div class="m44-prose">'+paragraphs(report.recommendations,2500)+'</div></div>'+
     '<div class="m44-method"><h3>Transparencia del informe</h3><p>Fuente principal: '+esc(TRUSTED_SOURCES[report.sourceType]||'Evidencia canónica IBERFIT')+'. Ventana: '+esc(dateLabel(report.periodStart))+' a '+esc(dateLabel(report.periodEnd))+'. '+(published?'Esta copia de lectura procede del informe visible en la plataforma. No constituye por sí sola un artefacto PDF firmado o archivado.':'Este documento es una previsualización; no confirma aprobación, publicación ni entrega.')+' La evidencia de diagnóstico IRI inicial se mantiene separada de la evolución.</p><p>Los datos de dispositivos, si se utilizan, deben mostrar procedencia, frescura y calidad y nunca sustituir una sesión confirmada.</p></div>'));
   }else{
@@ -258,7 +277,8 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
         body+(last?method:'')));
     }
   }
-  return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>Vista previa IBERFIT · '+esc(name)+'</title><link rel="stylesheet" href="'+esc(stylesheetHref)+'" data-m44-report-css></head><body><nav class="m44-toolbar" aria-label="Acciones de la vista previa"><span data-m44-print-status>Verificando diseño A4…</span><button type="button" data-m44-print disabled>Imprimir o guardar como PDF</button><button type="button" data-m44-close>Cerrar</button></nav>'+pages.join('')+'</body></html>';
+  for(let i=0;i<technicalPages.length;i++){const p=technicalPages[i];pages.push(page(decisionEnd+i+1,total,'ANEXO TÉCNICO PRIVADO',p.title,p.inner));}
+  return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>Vista previa IBERFIT · '+esc(name)+'</title><link rel="stylesheet" href="'+esc(stylesheetHref)+'" data-m44-report-css></head><body class="'+(clientView?'m44-audience-client':'m44-audience-internal')+'"><nav class="m44-toolbar" aria-label="Acciones de la vista previa"><span data-m44-print-status>Verificando diseño A4…</span><button type="button" data-m44-print disabled>Imprimir o guardar como PDF</button><button type="button" data-m44-close>Cerrar</button></nav>'+pages.join('')+'</body></html>';
 }
 function pageOverflow(doc){
   return [...doc.querySelectorAll('.m44-sheet')].some((page)=>{
@@ -302,10 +322,10 @@ async function verifyA4Layout(doc,popup,scope){
     return geometries&&!pageOverflow(target);
   }finally{frame.remove();}
 }
-export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',scope=globalThis}={}){
+export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',audience='internal',technicalDetail=null,scope=globalThis}={}){
   const origin=String(scope.location?.origin||'');
   if(!/^https?:\/\/[^/]+$/i.test(origin))throw new Error('M44_REPORT_PREVIEW_ORIGIN_REQUIRED');
-  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-1'});
+  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,audience,technicalDetail,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-2'});
   const popup=scope.open?.('about:blank','_blank');
   if(!popup?.document)throw new Error('M44_REPORT_PREVIEW_POPUP_BLOCKED');
   try{
