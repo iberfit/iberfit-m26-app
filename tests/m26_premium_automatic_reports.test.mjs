@@ -431,6 +431,7 @@ test('reportes periódicos incluyen contexto individual y próximos pasos según
   assert.ok(monthly.evidence.some(x=>x.label==='Días con entrenamiento confirmado'));
   assert.match(monthly.recommendations,/registros de bienestar/);
   assert.ok(monthly.evidence.length<=12);
+  assert.match(monthly.conclusions,/citas programadas cumplidas|día[s]? distintos/);
   state.collections.checkins=[];
   const noCheckin=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find(x=>x.id==='monthly');
   assert.equal(noCheckin.ready,true);

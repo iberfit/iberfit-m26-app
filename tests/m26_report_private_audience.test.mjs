@@ -47,3 +47,18 @@ test('Technical longitudinal analysis requires complete matching explicit protoc
  const internal=buildEvolutionReportHtml({report,technicalDetail:d});assert.match(internal,/Comparaciones de carga por ejercicio/);assert.match(internal,/Sentadilla técnica/);
  assert.doesNotMatch(buildEvolutionReportHtml({report,technicalDetail:d,audience:'client'}),/Sentadilla técnica|Comparaciones de carga por ejercicio/);
 });
+
+test('private RPE/RIR trends require identical workload and at least three dated observations; retain measured zero RIR',()=>{
+ const context={exerciseId:'sq',exerciseName:'Sentadilla',variantId:'alta',equipmentId:'barra',loadBasis:'total',side:'bilateral',reps:8,loadKg:40,setNumber:1};
+ const s={...state,collections:{sessionExecutions:[
+ execution('a','c1','2026-11-19T15:00:00Z',[{...context,rpe:9,rir:0}]),
+ execution('b','c1','2026-11-21T15:00:00Z',[{...context,rpe:8,rir:1}]),
+ execution('c','c1','2026-11-24T15:00:00Z',[{...context,rpe:7,rir:2},{...context,setNumber:2,loadKg:50,rpe:10,rir:0},{...context,setNumber:3,variant_id:'contradicción',rpe:10,rir:0}]),
+ ]}};
+ const d=buildPrivateReportDetail(s,'c1',report,{now});
+ assert.equal(d.effortComparisonTotal,2);
+ assert.deepEqual(d.effortComparisons.find(x=>x.metric==='rpe').points.map(p=>p.value),[9,8,7]);
+ assert.deepEqual(d.effortComparisons.find(x=>x.metric==='rir').points.map(p=>p.value),[0,1,2]);
+ assert.match(buildEvolutionReportHtml({report,technicalDetail:d}),/Esfuerzo a carga equivalente/);
+ assert.doesNotMatch(buildEvolutionReportHtml({report,technicalDetail:d,audience:'client'}),/Esfuerzo a carga equivalente/);
+});

@@ -1,0 +1,57 @@
+name: IBERFIT GLOBAL EXCELLENCE — consolidated local certification
+on:
+  push:
+    branches: [feature/global-excellence-intelligence-360]
+    paths:
+      - '.github/workflows/gx-consolidated-local.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gx-consolidated-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  offline-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Full offline regression suite, network guard and no credentials
+        run: npm run test:offline
+  native-browser-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: ./node_modules/.bin/playwright install chromium
+      - name: Native report browser at desktop, tablet and mobile
+        run: npm run quality:m44:report:a4
+      - name: Package exact current app
+        run: node qa/rc64/build-current-surface.mjs
+      - name: Existing real-shell browser tests
+        run: npm run quality:rc64:real-shell
+      - name: Existing browser performance checks
+        run: npm run quality:rc64:performance
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gx-consolidated-local-${{ github.run_id }}
+          path: |
+            test-results/**
+            playwright-report/**
+          if-no-files-found: warn
+          retention-days: 14

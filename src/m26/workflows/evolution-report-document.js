@@ -144,6 +144,17 @@ function privateTechnicalPages(detail){
     }).join('');
     result.push({title:'Comparaciones de carga por ejercicio',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">'+fmt(comparisons.length)+' de '+fmt(detail.loadComparisonTotal)+' grupos elegibles. Las fechas sin datos no se estiman y los huecos superiores a 45 días no se unen.</p>'+cards});
   }
+  const effortComparisons=detail.effortComparisons??[];
+  for(let i=0;i<effortComparisons.length;i+=2){
+    const charts=effortComparisons.slice(i,i+2).map(c=>{
+      const points=c.points.map(p=>({...p,time:Date.parse(p.date+'T00:00:00Z')}));
+      const label=c.exercise+' · '+fmt(c.kg)+' kg · '+fmt(c.reps)+' rep. · '+c.metric.toUpperCase();
+      const series={label,unit:'/10',points,total:c.days,from:Date.parse(detail.periodStart+'T00:00:00Z'),to:Date.parse(detail.periodEnd+'T00:00:00Z')};
+      return eliteTrendGraphic(series)+'<p class="m44-subtle-note">'+fmt(c.series)+' series con medición válida en '+fmt(c.days)+' días. Variante: '+fmt(c.protocol[0])+' · equipo: '+fmt(c.protocol[1])+' · base: '+fmt(c.protocol[2])+' · lado: '+fmt(c.protocol[3])+'. Misma carga y repeticiones; no controla por sí solo descanso, técnica ni fatiga previa.</p>';
+    }).join('');
+    result.push({title:'Esfuerzo a carga equivalente',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">'+fmt(effortComparisons.length)+' de '+fmt(detail.effortComparisonTotal)+' grupos elegibles. RPE y RIR se analizan por separado; no se infiere una mejora de fuerza.</p>'+charts});
+  }
+  if(!effortComparisons.length)result[0].inner+='<p class="m44-subtle-note">Esfuerzo comparable: se requieren al menos tres fechas con mediciones válidas y misma carga, repeticiones y contexto de ejercicio.</p>';
   if(!comparisons.length)result[0].inner+='<p class="m44-subtle-note">Comparación de carga: no hay dos días con el mismo ejercicio, repeticiones y contexto explícito completo. Se conservan los registros descriptivos.</p>';
   const perPage=12;
   for(let i=0;i<detail.details.length;i+=perPage){

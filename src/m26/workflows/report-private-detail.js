@@ -19,7 +19,7 @@ const n=(v,min,max,integer=false)=>evidenceNumber(typeof v==='string'?v.replace(
 // variant, implement, load basis or laterality is not evidence of equivalence.
 function protocol(row){
  const fields=[['variantId','variant_id','exerciseVariantId','exercise_variant_id'],['equipmentId','equipment_id','equipment'],['loadBasis','load_basis','loadMode','load_mode'],['side','lado','laterality']];
- const v=fields.map(keys=>first(row,...keys));
+ const v=fields.map(keys=>{const vals=keys.map(k=>row[k]).filter(x=>x!=null&&x!=='');return vals.length&&vals.every(x=>typeof x==='string'&&x.trim()===String(vals[0]).trim())?vals[0]:null;});
  if(v.some(x=>typeof x!=='string'||!x.trim()||x.trim().length>100))return null;
  return v.map(x=>x.trim());
 }
@@ -40,6 +40,17 @@ function summarizeExerciseGroups(groups,comparisonGroups){
  eligible.sort((a,b)=>b.dates-a.dates||a.exercise.localeCompare(b.exercise)||a.reps-b.reps||JSON.stringify(a.protocol).localeCompare(JSON.stringify(b.protocol)));
  return {exerciseSummary:exercises.slice(0,ANALYSIS_LIMIT),exerciseSummaryTotal:exercises.length,loadComparisons:eligible.slice(0,ANALYSIS_LIMIT),loadComparisonTotal:eligible.length};
 }
+function summarizeEffortGroups(groups){
+ const all=[];
+ for(const g of groups.values()){
+  const p=[...g.days].sort(([a],[b])=>a.localeCompare(b)).map(([date,v])=>({date,value:rounded(v.sum/v.count),count:v.count}));
+  if(p.length<3)continue;
+  const points=p.length<=10?p:Array.from({length:10},(_,i)=>p[Math.round(i*(p.length-1)/9)]);
+  all.push({exercise:g.exercise,protocol:g.protocol,reps:g.reps,kg:g.kg,metric:g.metric,days:p.length,series:p.reduce((n,x)=>n+x.count,0),points});
+ }
+ all.sort((a,b)=>b.days-a.days||a.exercise.localeCompare(b.exercise)||a.kg-b.kg||a.reps-b.reps||a.metric.localeCompare(b.metric));
+ return {effortComparisons:all.slice(0,ANALYSIS_LIMIT),effortComparisonTotal:all.length};
+}
 export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}={}){
   const role=String(state?.identity?.role||'').toLowerCase(),owner=String(clientId||'');
   if(!['coach','admin'].includes(role)||!owner||String(state?.selectedClientId||'')!==owner)throw Error('M44_PRIVATE_DETAIL_SCOPE');
@@ -50,14 +61,16 @@ export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}=
     .sort((a,b)=>parseDateValue(sessionExecutionCompletionDate(b)).getTime()-parseDateValue(sessionExecutionCompletionDate(a)).getTime()||String(sessionExecutionId(a)).localeCompare(String(sessionExecutionId(b))));
   const details=[],coverage={load:0,reps:0,seconds:0,rpe:0,rir:0,distance:0};
   let observedRows=0,omittedRows=0,emptySessions=0;
-  const uniqueExercises=new Set(),exerciseGroups=new Map(),comparisonGroups=new Map();
+  const uniqueExercises=new Set(),exerciseGroups=new Map(),comparisonGroups=new Map(),effortGroups=new Map();
   for(const execution of executions){
     const r=body(execution),date=reportCivilDate(sessionExecutionCompletionDate(execution));
     // No free-text notes, health records, IDs of other people or prescriptions.
     // A contradictory nested owner or explicit unobserved row cannot contribute.
     if(sessionExecutionClientId(r)!==owner){emptySessions++;continue;}
     let count=0;
-    for(const [index,set] of rows(r).entries()){
+    const observed=rows(r),coordinates=new Map();
+    for(const set of observed){const id=first(set,'exerciseId','exercise_id','ejercicioId','ejercicio_id'),number=n(first(set,'setNumber','set_number','serie','series'),1,10000,true);if(id&&number!==null){const key=JSON.stringify([id,number]);coordinates.set(key,(coordinates.get(key)||0)+1);}}
+    for(const set of observed){
       if(!observedSet(set)){omittedRows++;continue;}
       const rawId=first(set,'exerciseId','exercise_id','ejercicioId','ejercicio_id');
       if(typeof rawId!=='string'||!rawId.trim()||rawId.length>160)continue;
@@ -85,6 +98,14 @@ export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}=
       if(date<group.first)group.first=date;if(date>group.last)group.last=date;
       const context=protocol(set);
       if(context&&kg!==null&&values.reps!==null&&values.reps>0){
+        if(setNumber!==null&&coordinates.get(JSON.stringify([rawId,setNumber]))===1){
+          for(const metric of ['rpe','rir']){
+            const value=values[metric];if(value===null)continue;
+            const ek=JSON.stringify([id,context,values.reps,kg,metric]);
+            let g=effortGroups.get(ek);if(!g){g={exercise:label,protocol:context,reps:values.reps,kg,metric,days:new Map()};effortGroups.set(ek,g);}
+            const day=g.days.get(date)||{sum:0,count:0};day.sum+=value;day.count++;g.days.set(date,day);
+          }
+        }
         const key=JSON.stringify([id,context,values.reps]);
         let comp=comparisonGroups.get(key);
         if(!comp){comp={exercise:label,protocol:context,reps:values.reps,days:new Map()};comparisonGroups.set(key,comp);}
@@ -100,5 +121,5 @@ export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}=
     }
     if(!count)emptySessions++;
   }
-  return Object.freeze({...summarizeExerciseGroups(exerciseGroups,comparisonGroups),sportSummary:summarizePeriodSportEvidence(executions,{clientId:owner}),role,objective:buildReportCycleObjective(state,owner,{start:report.periodStart,end:report.periodEnd,now}),periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
+  return Object.freeze({...summarizeExerciseGroups(exerciseGroups,comparisonGroups),...summarizeEffortGroups(effortGroups),sportSummary:summarizePeriodSportEvidence(executions,{clientId:owner}),role,objective:buildReportCycleObjective(state,owner,{start:report.periodStart,end:report.periodEnd,now}),periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
 }

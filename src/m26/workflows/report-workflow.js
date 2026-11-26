@@ -2,7 +2,7 @@ import {buildPeriodProgressEvidence} from '../engagement/progress-hub.js';
 import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
 import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {buildPrivateReportDetail} from './report-private-detail.js';
-import {buildTrainingCalendarEvidence} from './report-trend-contract.js';
+import {buildTrainingCalendarEvidence,readDatedTrends} from './report-trend-contract.js';
 import {buildReportCycleObjective,cycleObjectiveEvidence} from './report-cycle-objective.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
@@ -92,9 +92,12 @@ function elitePeriodEvidence(rows,signals,sessions,start,clientId,objective){
   return result;
 }
 // Evidence-driven editorial prompts for review, never automatic prescriptions.
-function periodEditorial(sessions,signals,comparisonRow){
+function periodEditorial(sessions,signals,comparisonRow,start,end){
   const days=new Set(sessions.map(executionDate).filter(Boolean)).size;
   const latest=sessions[0],byId=new Set(signals.map(row=>row.id));
+  const consistency=signals.find(r=>r.id==='consistency'),volume=signals.find(r=>r.id==='volume');
+  const wellbeing=readDatedTrends(signals[0]?.trends??[],start,end).filter(t=>t.unit==='/10').sort((a,b)=>b.total-a.total||a.label.localeCompare(b.label))[0];
+  const fmt=n=>n.toLocaleString('es-CL',{maximumFractionDigits:2});
   const prompts=[
     byId.has('consistency')?'Revisar las citas cumplidas y las pendientes de aclaración, sin equiparar entrenamiento autónomo con una ausencia.':'Acordar una frecuencia sostenible y registrar los compromisos programados antes de valorar la adherencia.',
     byId.has('strength')||byId.has('volume')?'Contrastar las exposiciones comparables con la técnica y el esfuerzo antes de decidir cambios de carga.':'Conservar las variantes, unidades y condiciones de los ejercicios para que la próxima comparación sea interpretable.',
@@ -103,9 +106,9 @@ function periodEditorial(sessions,signals,comparisonRow){
   return Object.freeze({
     context:latest?`Entrenamiento confirmado en ${days} día${days===1?'':'s'} distintos. Última sesión: ${sessionLabel(latest)} (${executionDate(latest)}).`:'',
     conclusions:narrative([
-      byId.has('consistency')?'El seguimiento de las citas permite valorar cómo se ha mantenido el compromiso acordado.':'La frecuencia registrada permite conversar sobre una rutina sostenible, sin confundir actividad con adherencia.',
-      byId.has('strength')||byId.has('volume')?'Las comparaciones de entrenamiento aportan contexto para revisar la carga, las repeticiones y el esfuerzo; no constituyen por sí solas una medida de mejora funcional.':'Todavía no hay una base comparable suficiente para interpretar cambios de rendimiento.',
-      byId.has('wellbeing')?'Los registros de bienestar ayudan a contextualizar la recuperación y la siguiente etapa.':'',
+      consistency?trimTrailingPeriods(consistency.evidence)+'. Esta es la referencia para conversar sobre el compromiso acordado.':`Se registran entrenamientos en ${days} día${days===1?'':'s'} distintos. Sin un plan comparable no se puede cuantificar la adherencia.`,
+      volume?trimTrailingPeriods(volume.evidence)+'. Conviene contrastar estos grupos con la planificación y el esfuerzo.':byId.has('strength')?'Hay ejercicios con exposiciones comparables; revisar técnica, carga y esfuerzo antes de interpretar cambios de rendimiento.':'Todavía no hay una base comparable suficiente para interpretar cambios de rendimiento.',
+      wellbeing?`${wellbeing.label}: primera media diaria registrada ${fmt(wellbeing.points[0].value)}/10 y última ${fmt(wellbeing.points.at(-1).value)}/10 (${wellbeing.total} días con medición). El cambio describe respuestas registradas, no una causa ni una valoración clínica.`:byId.has('wellbeing')?'Los registros de bienestar ayudan a contextualizar la recuperación y la siguiente etapa.':'',
       comparisonRow?.quality==='limitada'?'No hay un periodo anterior suficientemente documentado para establecer una comparación histórica.':'La comparación histórica describe registros, no una calificación del rendimiento.'
     ]),
     recommendations:narrative(prompts),
@@ -153,9 +156,9 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   const monthlyComparison=comparison(monthlyStart,30,monthlySessions.length);
   const quarterlyComparison=comparison(quarterlyStart,90,quarterlySessions.length);
   const yearlyComparison=comparison(yearlyStart,365,yearlySessions.length);
-  const monthlyEditorial=periodEditorial(monthlySessions,monthlyEvidence,monthlyComparison);
-  const quarterlyEditorial=periodEditorial(quarterlySessions,quarterlyEvidence,quarterlyComparison);
-  const yearlyEditorial=periodEditorial(yearlySessions,yearlyEvidence,yearlyComparison);
+  const monthlyEditorial=periodEditorial(monthlySessions,monthlyEvidence,monthlyComparison,monthlyStart,end);
+  const quarterlyEditorial=periodEditorial(quarterlySessions,quarterlyEvidence,quarterlyComparison,quarterlyStart,end);
+  const yearlyEditorial=periodEditorial(yearlySessions,yearlyEvidence,yearlyComparison,yearlyStart,end);
   const datedHistory=executions.map(executionDate).filter(Boolean).sort();
   const historyDays=datedHistory.length?Math.floor((timestamp(end)-timestamp(datedHistory[0]))/DAY_MS)+1:0;
   // A confirmed shell without measured domains is not a releasable IRI diagnosis.
