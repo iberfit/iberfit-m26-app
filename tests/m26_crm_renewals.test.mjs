@@ -83,3 +83,15 @@ test('CRM Renewal fails closed on missing client id and invalid time window',()=
   assert.throws(()=>buildCrmRenewalSummary(baseState(),'c1',{now:'not-a-date'}),/M26_CRM_NOW_INVALID/u);
   assert.throws(()=>buildCrmRenewalSummary(baseState(),'c1',{now:NOW,upcomingDays:0}),/M26_CRM_UPCOMING_DAYS_INVALID/u);
 });
+
+test('GX41 renewal uses Santiago calendar and never fabricates elapsed days',()=>{
+ const state=baseState();
+ const record={id:'r',clientId:'c1',entityType:'crm',renewalDate:'2026-11-25'};
+ state.collections.m26Entities=[record];
+ const now=new Date('2026-11-26T01:30:00Z');
+ const read=()=>buildCrmRenewalSummary(state,'c1',{now}).renewal;
+ assert.equal(read().daysToRenewal,0);assert.equal(read().status,'upcoming');
+ record.renewalDate='2026-11-24';assert.equal(read().status,'overdue');assert.equal(read().daysToRenewal,-1);
+ record.renewalDate='2026-11-26T01:00:00Z';assert.equal(read().civilDate,'2026-11-25');assert.equal(read().daysToRenewal,0);
+ record.renewalDate='2026-11-29';record.renewalStatus='overdue';assert.equal(read().status,'overdue');assert.equal(read().daysToRenewal,null);
+});

@@ -1,4 +1,4 @@
-import {parseDateValue} from '../domain/civil-date.js';
+import {parseDateValue,reportCivilDate} from '../domain/civil-date.js';
 import {normalizeClientProfile} from '../domain/client-profile.js';
 
 const DAY_MS=86_400_000;
@@ -26,7 +26,7 @@ function value(record,...keys){
 function clientIdOf(record){return clean(value(record,'clientId','client_id','clienteId','cliente_id'),160);}
 function recordId(record){return clean(value(record,'id','entityId','entity_id','operationId','operation_id'),160);}
 function dateOf(record){return value(record,'occurredAt','occurred_at','completedAt','completed_at','updatedAt','updated_at','createdAt','created_at','date','fecha');}
-function safeDate(input){return input===null||input===undefined||input===''?null:parseDateValue(input);}
+function safeDate(input){return typeof input==='string'||input instanceof Date?parseDateValue(input):null;}
 function isoDate(input){const date=safeDate(input);return date?date.toISOString():null;}
 function collection(state,key){return arr(state?.collections?.[key]);}
 function forClient(state,key,clientId){return collection(state,key).filter((record)=>clientIdOf(record)===clientId);}
@@ -71,14 +71,17 @@ function normalizedRenewalStatus(raw){
 }
 function renewalState({renewalDate,explicitStatus,now,upcomingDays}){
   const status=normalizedRenewalStatus(explicitStatus);
-  const date=safeDate(renewalDate);
-  if(status==='completed')return {status:'completed',daysToRenewal:date?Math.ceil((date.getTime()-now.getTime())/DAY_MS):null};
-  if(status==='overdue')return {status:'overdue',daysToRenewal:date?Math.ceil((date.getTime()-now.getTime())/DAY_MS):null};
-  if(!date){
+  const date=reportCivilDate(renewalDate);
+  const today=reportCivilDate(now);
+  const days=date&&today?Math.round((Date.parse(date+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/DAY_MS):null;
+  if(status==='completed')return {status:'completed',daysToRenewal:days};
+  // Explicit overdue requires human review; a contradictory future date
+  // cannot be presented as a known number of elapsed days.
+  if(status==='overdue')return {status:'overdue',daysToRenewal:days!==null&&days<=0?days:null};
+  if(days===null){
     if(status==='upcoming'||status==='current')return {status,daysToRenewal:null};
     return {status:'insufficient',daysToRenewal:null};
   }
-  const days=Math.ceil((date.getTime()-now.getTime())/DAY_MS);
   if(days<0)return {status:'overdue',daysToRenewal:days};
   if(days<=upcomingDays)return {status:'upcoming',daysToRenewal:days};
   return {status:'current',daysToRenewal:days};
@@ -193,7 +196,8 @@ export function buildCrmRenewalSummary(state,clientId,{now=new Date(),upcomingDa
     renewal:{
       status:renewal.status,
       statusLabel:statusLabel(renewal.status),
-      date:isoDate(renewalDateEvidence?.value),
+      date:reportCivilDate(renewalDateEvidence?.value)?isoDate(renewalDateEvidence?.value):null,
+      civilDate:reportCivilDate(renewalDateEvidence?.value),
       daysToRenewal:renewal.daysToRenewal,
       explicitStatus:renewalStatusEvidence?clean(renewalStatusEvidence.value,100):null,
       upcomingWindowDays:horizon,

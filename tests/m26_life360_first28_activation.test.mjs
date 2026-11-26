@@ -68,3 +68,18 @@ test('GX First28 distinguishes actual workout from completed appointment and rej
  assert.equal(run({client:{...CLIENT,createdAt:'2026-11-05T23:00:00Z'}}),null);
  assert.equal(run({client:{...CLIENT,id:'other',body:CLIENT}}),null);
 });
+
+test('GX42 First28 accepts exact rolling summary and rejects stale timestamps',()=>{
+ const start=new Date(NOW);start.setUTCDate(start.getUTCDate()-28);
+ const dated={...PROGRESS,startAt:start.toISOString(),endAt:NOW.toISOString()};
+ assert.equal(run({progress:dated}).confirmedSessions,1);
+ assert.equal(run({progress:{...dated,endAt:'2026-11-04T15:00:00Z'}}).confirmedSessions,null);
+});
+test('GX40 contextual report message remains an editable, idempotent draft',async()=>{
+ const {appendCommunicationPrompt,clientServicePrompt}=await import('../src/m26/communication/client-service-prompts.js');
+ const draft=clientServicePrompt('informe').draft;
+ const message=appendCommunicationPrompt('Mi mensaje',draft);
+ assert.equal(message,'Mi mensaje\n\n'+draft);
+ assert.equal(appendCommunicationPrompt(message,draft),message);
+ assert.equal(clientServicePrompt('__proto__'),null);
+});

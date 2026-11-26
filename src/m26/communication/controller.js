@@ -1,4 +1,4 @@
-import {clientServicePrompt} from './client-service-prompts.js';
+import {clientServicePrompt,appendCommunicationPrompt} from './client-service-prompts.js';
 const toast=(message)=>{try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}catch{}};
 const text=(d,k,m=4000)=>String(d.get(k)||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,m);
 const NOTIFICATION_PREFERENCE_KEYS=new Set(['sessionReminders','scheduleChanges','planPublished','coachMessages','challenges','milestones']);
@@ -6,6 +6,7 @@ const COACH_MESSAGE_ASSISTS=Object.freeze({
   session:'¿Cómo te sentiste durante la última sesión? Cuéntame qué ejercicios te resultaron más cómodos y cuáles te costaron más.',
   recovery:'¿Cómo has recuperado después de la sesión? ¿Has notado alguna molestia o algo que debamos adaptar?',
   next:'Antes de la próxima sesión, ¿hay algún cambio en tu disponibilidad o alguna cuestión que quieras que tengamos en cuenta?',
+  report:'Me gustaría revisar contigo el informe de seguimiento y aclarar qué nos dicen los registros del periodo. ¿Qué resultados o dudas te gustaría comentar antes de acordar el siguiente paso?',
 });
 function pushErrorMessage(error){
   const code=String(error?.message||error||'');
@@ -612,7 +613,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       const textarea=form?.querySelector?.('textarea[name="body"]');
       if(!textarea)return;
       const currentText=String(textarea.value||'');
-      const composed=currentText.trim()?currentText.trimEnd()+'\n\n'+prompt:prompt;
+      const composed=appendCommunicationPrompt(currentText,prompt);
+      if(composed===currentText){textarea.focus?.({preventScroll:true});return;}
       if(composed.length>4000){
         toast('El mensaje ha alcanzado el límite de texto. Edita el borrador antes de añadir otra idea.');
         return;

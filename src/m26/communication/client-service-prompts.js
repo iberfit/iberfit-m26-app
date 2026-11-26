@@ -19,6 +19,10 @@ export const CLIENT_SERVICE_PROMPTS=Object.freeze([
     draft:'Esta semana tendré comidas fuera de casa o cambios de rutina. Me gustaría recibir orientaciones generales y prácticas compatibles con mi entrenamiento, sin una dieta restrictiva. Contexto: [si quieres, añade detalles].',
   }),
   Object.freeze({
+    key:'informe',label:'Revisar mi informe',
+    draft:'Me gustaría comentar contigo mi informe de seguimiento. Periodo o informe: [indica cuál]. Lo que quiero comprender mejor: [indica tu duda]. ¿Podemos revisar los resultados y acordar el siguiente paso?',
+  }),
+  Object.freeze({
     key:'hotel',group:'executive',label:'Gimnasio de hotel',
     draft:'Estaré en un hotel o apartamento. Material confirmado: [mancuernas, bandas, máquinas, ninguno o no lo sé]. Espacio disponible: [habitación o gimnasio]. Duración máxima por sesión: [minutos]. ¿Puedes proponerme alternativas compatibles con el objetivo de mi ciclo? Prefiero que no se cambie la sesión publicada hasta que tú lo confirmes.',
   }),
@@ -34,4 +38,11 @@ export const CLIENT_SERVICE_PROMPTS=Object.freeze([
 const BY_KEY=Object.freeze(Object.fromEntries(CLIENT_SERVICE_PROMPTS.map(x=>[x.key,x])));
 export function clientServicePrompt(key){
   return typeof key==='string'&&Object.hasOwn(BY_KEY,key)?BY_KEY[key]:null;
+}
+
+// Keep the existing composer editable; repeated taps must not duplicate a draft.
+export function appendCommunicationPrompt(current,prompt){
+  const text=String(current??'');
+  if(typeof prompt!=='string'||!prompt.trim()||text.includes(prompt))return text;
+  return text.trim()?text.trimEnd()+'\n\n'+prompt:prompt;
 }

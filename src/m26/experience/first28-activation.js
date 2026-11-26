@@ -28,7 +28,13 @@ export function buildClientFirst28Activation({
   const readiness=experience?.serviceKind==='training'?experience?.readiness||{}:{};
   const cycleRegistered=readiness.cycle===true;
   // A partial or other-owner progress cache cannot become a false 'zero'.
-  const scoped=String(progress?.clientId||'')===owner&&progress?.days===28?progress:null;
+  // Preserve legacy undated same-frame summaries; when dates are present,
+  // require the current exact rolling window rather than a stale cache.
+  const end=now instanceof Date?new Date(now.getTime()):new Date(now);
+  const start=new Date(end);start.setUTCDate(start.getUTCDate()-28);
+  const dated=progress?.startAt!=null||progress?.endAt!=null;
+  const current=!dated||(progress.startAt===start.toISOString()&&progress.endAt===end.toISOString());
+  const scoped=String(progress?.clientId||'')===owner&&progress?.days===28&&current?progress:null;
   const sessionSource=scoped?.confirmedWorkoutExecutions===undefined?'legacy-activity':'confirmed-execution';
   const sessions=count(sessionSource==='confirmed-execution'?scoped.confirmedWorkoutExecutions:scoped?.completedSessions);
   const checkins=count(scoped?.checkins);
