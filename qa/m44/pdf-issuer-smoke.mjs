@@ -17,7 +17,7 @@ const source={
  })),
  activitySeries:Array.from({length:13},(_,i)=>({
   from:'2026-10-'+String(i+1).padStart(2,'0'),
-  to:'2026-10-'+String(i+2).padStart(2,'0'),
+  to:'2026-10-'+String(i+1).padStart(2,'0'),
   count:i%3,
  })),
 };

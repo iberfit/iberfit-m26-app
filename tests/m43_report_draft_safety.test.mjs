@@ -247,3 +247,15 @@ test('P1: controller recomputes report approval eligibility when reopening or cl
   assert.match(premium,/const eligible=\(training&&hasEvidenceSignature\)/u);
   assert.match(premium,/syncPremiumReportApprovalButton\(form\);form\.scrollIntoView/u);
 });
+
+
+test('GX14 report approval follows latest revision and rejects contradictory evidence',()=>{
+ const normalized=buildApproveReportDraftCommand(data('revision-report'),0).payload.patch;
+ const old={id:normalized.id,clientId,revision:7,status:'borrador',body:normalized};
+ const latest={...old,revision:8,status:'aprobado'};
+ for(const rows of [[old,latest],[latest,old,latest]])assert.deepEqual(reportApprovalDecision(rows,clientId,normalized),{kind:'already-approved',baseRevision:8});
+ const conflict={...latest,body:{...latest.body,summary:'Otra revisión'}};
+ for(const rows of [[latest,conflict],[conflict,latest]])assert.throws(()=>reportApprovalDecision(rows,clientId,normalized),/REMOTE_REVISION_CONFLICT/);
+ assert.throws(()=>reportApprovalDecision([latest,{...old,clientId:'other'}],clientId,normalized),/REMOTE_CLIENT_CONFLICT/);
+ assert.throws(()=>reportApprovalDecision([{...latest,revision:'0x8'}],clientId,normalized),/REMOTE_REVISION_UNKNOWN/);
+});

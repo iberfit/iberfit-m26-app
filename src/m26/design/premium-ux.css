@@ -2294,3 +2294,9 @@ body {
     color:CanvasText;
   }
 }
+
+/* GX07: keep the denominator explanation on its own row and the history
+   continuation reachable on touch without adding another overlay. */
+.m26-action-outcome-metrics>.m26-action-outcome-metric-note{grid-column:1/-1;margin:0;line-height:1.5}
+.m26-action-outcome-more{min-height:44px;width:100%;justify-content:center}
+.m26-action-outcome-more[hidden]{display:none!important}

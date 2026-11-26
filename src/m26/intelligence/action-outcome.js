@@ -75,7 +75,7 @@ function clientIdOf(record){
 function statusOf(record){
   const status=text(field(record,'status','estado'),80).toLowerCase();
   if(['cerrado','closed','completado','completed'].includes(status))return ACTION_OUTCOME_CLOSED_STATUS;
-  if(['abierto','open','pending','pendiente'].includes(status))return ACTION_OUTCOME_OPEN_STATUS;
+  if(['abierto','open'].includes(status))return ACTION_OUTCOME_OPEN_STATUS;
   return null;
 }
 function createdTime(record){

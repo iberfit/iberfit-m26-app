@@ -8,6 +8,19 @@ function safe(v,n=2500){
  return String(v??'').replace(/[\u{10000}-\u{10ffff}]/gu,'')
  .replace(/[^\x20-\xff\n]/gu,' ').replace(/[ \t]+/gu,' ').trim().slice(0,n);
 }
+function validCivilDate(value){
+ if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/u.test(value))return false;
+ const day=new Date(value+'T00:00:00.000Z');
+ return Number.isFinite(day.getTime())&&day.toISOString().slice(0,10)===value;
+}
+// The official renderer enforces the same activity contract as the private
+// preview. No truncation, coerced zero, overlapping buckets or false dates.
+export function validateOfficialActivitySeries(series,start,end){
+ if(!validCivilDate(start)||!validCivilDate(end)||start>end||!Array.isArray(series)||series.length>13)return false;
+ return series.every((item,index)=>item&&validCivilDate(item.from)&&validCivilDate(item.to)
+  &&item.from>=start&&item.to<=end&&item.from<=item.to
+  &&Number.isSafeInteger(item.count)&&item.count>=0&&(!index||series[index-1].to<item.from));
+}
 function wrap(font,size,v,width){
  const words=safe(v).split(/\s+/u).filter(Boolean),lines=[];let line='';
  for(let word of words){
@@ -28,13 +41,14 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  if(!source||!pdfLib?.PDFDocument||!pdfLib?.StandardFonts||!pdfLib?.rgb)
   throw Error('M44_PDF_RENDER_INPUT_INVALID');
  if(!/^[0-9a-f]{8}-/iu.test(String(source.reportId||''))||
-  !/^\d{4}-\d{2}-\d{2}$/u.test(String(source.periodStart||''))||
-  !/^\d{4}-\d{2}-\d{2}$/u.test(String(source.periodEnd||''))||
+  !validCivilDate(source.periodStart)||!validCivilDate(source.periodEnd)||source.periodStart>source.periodEnd||
   !Array.isArray(source.evidence)||!source.evidence.length)
   throw Error('M44_PDF_SOURCE_NOT_CANONICAL');
  // Never silently omit authorized evidence from a signed professional report.
  // An extreme payload is rejected for Coach review instead of being clipped.
  if(source.evidence.length>80)throw Error('M44_PDF_EVIDENCE_VOLUME_REVIEW_REQUIRED');
+ if(!validateOfficialActivitySeries(source.activitySeries??[],source.periodStart,source.periodEnd))
+  throw Error('M44_PDF_ACTIVITY_SERIES_INVALID');
  const {PDFDocument,StandardFonts,rgb}=pdfLib,doc=await PDFDocument.create();
  // Reject issuance if the actual first-party brand fonts are missing.
  // This is the same Inter/Source Serif identity used by the HTML A4 preview.
@@ -122,10 +136,10 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  flow('Los datos describen lo confirmado. Un cambio de carga, volumen o frecuencia no demuestra por si solo una mejora funcional.');
  flow('El diagnostico inicial IRI se mantiene separado de la evolucion.',{colorName:'muted'});
  if(Array.isArray(source.activitySeries)&&source.activitySeries.length){
-  const series=source.activitySeries.slice(0,13).map(item=>({
+  const series=source.activitySeries.map(item=>({
    date:safe(item?.from,10).slice(5).replace('-','/'),
    end:safe(item?.to,10).slice(5).replace('-','/'),
-   count:Number.isInteger(item?.count)&&item.count>=0?item.count:0,
+   count:item.count,
   }));
   sectionPage('02  /  CONTINUIDAD','El ritmo del periodo');
   flow('SESIONES CONFIRMADAS POR PERIODO',{font:bold,size:9,colorName:'gold',gap:0});

@@ -200,14 +200,16 @@ export function createEngagementController({root,store,draftRepository,service,s
       const workspaceNextSessionId=workspaceMode?String(mount.getAttribute?.('data-action-outcome-next-session-id')||'').trim():'';
       const summaryData=summarizeActionOutcomes(state?.collections?.m26Entities||[],clientId);
       const records=summaryData.reviewQueue;
-      const signature=`${mode}:${workspacePriority}:${workspaceNextSessionId||'no-session'}:${summaryData.asOf}:${summaryData.conflictCount}:${summaryData.unconfirmedCount}:${records.map(item=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty'}`;
+      const signature=`${mode}:${workspacePriority}:${workspaceNextSessionId||'no-session'}:${clientId}:${summaryData.asOf}:${summaryData.conflictCount}:${summaryData.unconfirmedCount}:${records.map(item=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty'}`;
       const renderEvidence=stableEvidenceJson([records,mount.getAttribute?.('data-action-outcome-prefill-signal'),mount.getAttribute?.('data-action-outcome-prefill-source')]);
       let manager=mount.querySelector?.('[data-action-outcome-manager]');
       if(manager?.dataset?.canonicalSignature===signature&&actionOutcomeRenderEvidence.get(manager)===renderEvidence)continue;
-      const previousOpen=manager?.open===true;
-      const previousNewOpen=manager?.querySelector?.('[data-action-outcome-new]')?.open===true;
+      const sameOwner=manager?.dataset?.clientId===clientId;
+      const previousOpen=sameOwner&&manager?.open===true;
+      const previousNewOpen=sameOwner&&manager?.querySelector?.('[data-action-outcome-new]')?.open===true;
       const drafts=new Map();
-      for(const draft of Array.from(manager?.querySelectorAll?.('form[data-action-dirty="true"]')||[])){
+      for(const draft of Array.from(sameOwner?manager?.querySelectorAll?.('form[data-action-dirty="true"]')||[]:[])){
+        if(draft.dataset.clientId!==clientId)continue;
         const key=draft.dataset.trackingId?`${draft.dataset.trackingId}:${draft.dataset.baseRevision}`:'new';
         drafts.set(key,formValues(draft));
       }
@@ -264,7 +266,7 @@ export function createEngagementController({root,store,draftRepository,service,s
       managerFeedback.setAttribute('aria-live','polite');
       if(summaryData.conflictCount||summaryData.unconfirmedCount)managerFeedback.textContent='Hay seguimientos pendientes de verificación. No se incluyen en los indicadores.';
       const metricNote=documentLike.createElement('p');
-      metricNote.className='m26-field-help';
+      metricNote.className='m26-field-help m26-action-outcome-metric-note';
       metricNote.textContent=summaryData.assessableCount?'Resultados favorables entre revisiones con evidencia documentada. No implican causalidad.':'Sin resultados evaluables con evidencia documentada.';
       metrics.append(metricNote);
 
@@ -331,7 +333,7 @@ export function createEngagementController({root,store,draftRepository,service,s
       history.className='m26-action-outcome-history';
       if(records.length){
         const title=documentLike.createElement('h4');title.textContent='Seguimientos pendientes e historial';history.append(title);
-        const showMore=documentLike.createElement('button');showMore.type='button';showMore.textContent='Mostrar más seguimientos';
+        const showMore=documentLike.createElement('button');showMore.type='button';showMore.className='m26-action-outcome-more';showMore.textContent='Mostrar más seguimientos';
         let shown=0;
         const appendHistoryPage=(limit=4)=>{
         const next=Math.min(shown+limit,records.length);
@@ -379,8 +381,8 @@ export function createEngagementController({root,store,draftRepository,service,s
         shown=next;showMore.hidden=shown>=records.length;
         };
         history.append(showMore);
-        const draftPositions=records.map((item,index)=>drafts.has(`${item.id}:${item.revision}`)?index+1:0);
-        appendHistoryPage(Math.max(4,...draftPositions));
+        const requiredPage=records.reduce((last,item,index)=>drafts.has(`${item.id}:${item.revision}`)?Math.max(last,index+1):last,4);
+        appendHistoryPage(requiredPage);
         showMore.addEventListener('click',()=>appendHistoryPage());
       }else{
         const empty=documentLike.createElement('p');empty.className='m26-action-outcome-empty';empty.textContent='Registra la primera decisión cuando una señal justifique una intervención y quieras comprobar después qué ocurrió.';history.append(empty);
@@ -450,10 +452,17 @@ export function createEngagementController({root,store,draftRepository,service,s
     const entityId=String(result?.command?.entityId||'');
     const persisted=actionOutcomeEntities(store.getState()?.collections?.m26Entities||[],clientId).find((item)=>item.id===entityId);
     if(!persisted)throw new Error('M26_ACTION_TRACKING_NOT_PERSISTED');
-    delete form.dataset.actionDirty;
-    form.reset?.();
     ensureActionOutcomeManagers();
     const confirmed=actionOutcomeManagerForClient(root,clientId,{workspace:workspaceOrigin});
+    // The refresh may have replaced the submitted form. Clear only the
+    // acknowledged values, never newer edits or another owner's form.
+    const currentForm=confirmed?.querySelector?.('[data-engagement-form="action-tracking"]');
+    if(currentForm?.dataset?.clientId===clientId&&stableEvidenceJson(formValues(currentForm))===stableEvidenceJson(values)){
+      delete currentForm.dataset.actionDirty;
+      currentForm.reset?.();
+      const review=currentForm.elements?.namedItem?.('reviewAt');
+      if(review)review.value=civilDateOffset(14);
+    }
     if(confirmed)confirmed.open=true;
     setStatus(confirmed||root,'action-manager','Decisión registrada. El resultado queda pendiente de revisión.','success');
     if(confirmed&&workspaceOrigin&&role==='coach')ensureCoachDecisionContinuity(confirmed,role);
