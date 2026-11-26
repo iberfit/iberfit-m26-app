@@ -61,5 +61,17 @@ export function openBusinessReport(report,scope=globalThis){
  const html=buildBusinessReportHtml(report).replace('href="/m26/business-report.css','href="'+origin+'/m26/business-report.css');
  const w=scope.open?.('about:blank','_blank');
  if(!w)throw Error('M26_BUSINESS_REPORT_POPUP_BLOCKED');
- try{w.opener=null;w.document.open();w.document.write(html);w.document.close();w.document.getElementById('print')?.addEventListener('click',()=>w.print());return true;}catch(e){w.close?.();throw e;}
+ try{
+  w.opener=null;
+  // Parse the escaped, internally generated report in an inert document and
+  // import its DOM into the user-opened window; never stream executable HTML.
+  const parsed=new scope.DOMParser().parseFromString(html,'text/html');
+  const doc=w.document;
+  const root=doc.importNode(parsed.documentElement,true);
+  if(!root.querySelector('#print'))throw Error('M26_BUSINESS_REPORT_PRINT_CONTROL_MISSING');
+  const doctype=doc.implementation.createDocumentType('html','','');
+  doc.replaceChildren(doctype,root);
+  doc.getElementById('print').addEventListener('click',()=>w.print());
+  return true;
+ }catch(e){w.close?.();throw e;}
 }
