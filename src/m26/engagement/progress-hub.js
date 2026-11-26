@@ -1,7 +1,6 @@
 import {buildAdherenceWindows,reusableConfirmedSummary,confirmedScheduledCompletion} from './progress-continuity.js';
 import {computeProgressSummary} from './progress-engine.js';
 import {evidenceNumber,currentWearableEvidence} from '../domain/evidence-signal.js';
-import {sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {
   assessExercisePerformance,
   buildExercisePerformanceTrend,
@@ -67,14 +66,14 @@ function trendEvidence(memories=[],{loadDirectionForExercise=null}={}){
 
 // Report evidence is computed only for the declared civil period. Reuse the
 // same canonical progress and exercise comparators as the interactive hub.
-export function buildPeriodProgressEvidence(state,clientId,{now,days,executions=[]}={}){
+export function buildPeriodProgressEvidence(state,clientId,{now=new Date(),days}={}){
   const summary=computeProgressSummary(state,clientId,{now,days,civilPeriod:true,reportEvidenceOnly:true});
   if(!summary)return Object.freeze([]);
-  const scoped={...state,collections:{...state.collections,sessionExecutions:executions.map(record=>{
-    const completion=sessionExecutionCompletionDate(record);
-    return {...record,completedAt:completion,...(record.body&&typeof record.body==='object'?{body:{...record.body,completedAt:completion}}:{})};
-  })}};
-  const strength=trendEvidence(listExercisePerformanceMemories(scoped,clientId,{limit:50,historyLimit:12,now}));
+  // Reconcile the full canonical owner history before restricting the period.
+  // A caller-provided subset cannot hide a newer revision or a conflict.
+  const strength=trendEvidence(listExercisePerformanceMemories(state,clientId,{
+    limit:50,historyLimit:12,now,from:summary.startAt.slice(0,10),civilPeriod:true,
+  }));
   const scheduled=confirmedScheduledCompletion(summary);
   const rows=[];
   if(scheduled)rows.push({id:'consistency',label:'Constancia',evidence:`${scheduled.completed} de ${scheduled.planned} citas programadas cumplidas en ${days} días`,source:'appointments+sessionExecutions',quality:summary.dataQuality});
@@ -99,7 +98,7 @@ export function buildProgressHub(
     summaries:{...summaries,28:summary28},
   });
   const byDays=new Map(windows.map((window)=>[window.days,window]));
-  const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12,now});
+  const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12,now,from:new Date(new Date(now).getTime()-28*86400000)});
   const strength=trendEvidence(memories,{loadDirectionForExercise});
   const scheduled28=confirmedScheduledCompletion(summary28);
   const adherence28=scheduled28?.adherence??null;
@@ -141,7 +140,7 @@ export function buildProgressHub(
       value:strength.comparable||null,
       unit:'ejercicios comparables',
       evidence:strength.comparable?`${strength.improving} con evolución favorable confirmada`:'Se necesitan exposiciones repetidas y semántica comparable del ejercicio',
-      context:`${memories.length} ejercicios con historial · ${strength.confirmedExposures} exposiciones confirmadas · ${strength.descriptiveComparable} tendencia${strength.descriptiveComparable===1?'':'s'} descriptiva${strength.descriptiveComparable===1?'':'s'}`,
+      context:`Ventana de 28 días · ${memories.length} ejercicios con historial · ${strength.confirmedExposures} exposiciones confirmadas · ${strength.descriptiveComparable} tendencia${strength.descriptiveComparable===1?'':'s'} descriptiva${strength.descriptiveComparable===1?'':'s'}`,
       source:'sessionExecutions',
       quality:strength.comparable>=3?'alta':strength.comparable>=1?'media':'limitada',
     }),

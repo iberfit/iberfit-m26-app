@@ -1,4 +1,4 @@
-import {parseDateValue} from '../domain/civil-date.js';
+import {parseDateValue,reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
 import {
   unconfirmedSessionExecutionIds as blockedCompletionIds,
   sessionExecutionIsConfirmed as executionConfirmed,
@@ -1763,14 +1763,18 @@ export function projectExercisePerformanceForRole(
 
 // Reconcile once for the complete exercise list: the same revision cannot
 // manufacture additional exposures, and conflicting results stay excluded.
-function exerciseEvidenceScope(state,clientId,now){
-  const end=safeDate(now);
+function exerciseEvidenceScope(state,clientId,now,{from=null,civilPeriod=false}={}){
+  const end=safeDate(now),start=from===null?null:safeDate(from);
+  const startDay=from===null?'0001-01-01':reportCivilDate(from),endDay=reportCivilDate(now);
   const blocked=blockedCompletionIds(state);
   const reconciliation=reconcileSessionExecutionsForClient(state,clientId);
   const eligible=record=>{
-    const date=safeDate(executionDate(record));
-    return Boolean(end&&date&&date.getTime()<=end.getTime()&&
-      executionCompleted(record,{allowDatedFallback:false}));
+    const value=executionDate(record),date=safeDate(value);
+    const inWindow=civilPeriod
+      ?Boolean(startDay&&endDay&&isWithinCivilPeriod(value,startDay,endDay,now))
+      :Boolean(end&&date&&date.getTime()<=end.getTime()&&
+        (from===null||(start&&date.getTime()>=start.getTime())));
+    return inWindow&&executionCompleted(record,{allowDatedFallback:false});
   };
   const confirmed=[],unconfirmed=[];
   for(const record of reconciliation.records){
@@ -1778,13 +1782,13 @@ function exerciseEvidenceScope(state,clientId,now){
     (executionConfirmed(record,blocked)?confirmed:unconfirmed).push(unwrap(record));
   }
   confirmed.sort((a,b)=>safeDate(executionDate(b)).getTime()-safeDate(executionDate(a)).getTime());
-  return {confirmed,unconfirmed,conflicts:reconciliation.conflicts};
+  return {confirmed,unconfirmed,conflicts:reconciliation.conflicts.filter(group=>group.some(eligible))};
 }
 
 export function listExercisePerformanceMemories(
   state,
   clientId,
-  {limit=6,historyLimit=20,now=new Date()}={},
+  {limit=6,historyLimit=20,now=new Date(),from=null,civilPeriod=false}={},
 ){
   const safeClientId=String(
     clientId||'',
@@ -1802,7 +1806,7 @@ export function listExercisePerformanceMemories(
         )
       :6;
 
-  const scope=exerciseEvidenceScope(state,safeClientId,now);
+  const scope=exerciseEvidenceScope(state,safeClientId,now,{from,civilPeriod});
   const executions=scope.confirmed;
 
   const exerciseIds=[];
@@ -1855,7 +1859,7 @@ export function buildExercisePerformanceMemory(
   state,
   clientId,
   exerciseId,
-  {limit=50,now=new Date()}={},
+  {limit=50,now=new Date(),from=null,civilPeriod=false}={},
 ){
   const safeClientId=String(
     clientId||'',
@@ -1870,7 +1874,7 @@ export function buildExercisePerformanceMemory(
   }
 
   return buildScopedExercisePerformanceMemory(
-    exerciseEvidenceScope(state,safeClientId,now),safeClientId,safeExerciseId,limit);
+    exerciseEvidenceScope(state,safeClientId,now,{from,civilPeriod}),safeClientId,safeExerciseId,limit);
 }
 
 function buildScopedExercisePerformanceMemory(scope,safeClientId,safeExerciseId,limit){

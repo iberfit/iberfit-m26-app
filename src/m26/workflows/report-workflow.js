@@ -3,7 +3,8 @@ import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civi
 import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
-import {IRI_INITIAL_DIAGNOSTIC_KIND,isInitialIriAssessment} from './iri-2-longitudinal.js';
+import {IRI_INITIAL_DIAGNOSTIC_KIND,selectInitialIriBaseline,initialIriMeasurementDate} from './iri-2-longitudinal.js';
+import {evidenceNumber} from '../domain/evidence-signal.js';
 import {buildPostSessionSportEvidence} from './report-sport-evidence.js';
 import {buildPlanExecutionSummary} from '../engagement/progress-engine.js';
 
@@ -40,10 +41,8 @@ function sortNewest(records,dateOf=recordDate){return [...records].sort((a,b)=>(
 function uniqueConfirmedExecutions(records){const seen=new Set();return records.map(record=>({record,day:timestamp(executionDate(record))||0,instant:parseDateValue(sessionExecutionCompletionDate(record))?.getTime()||0})).sort((a,b)=>b.day-a.day||b.instant-a.instant).filter(({record})=>{const id=sessionExecutionId(record);if(!id)return true;if(seen.has(id))return false;seen.add(id);return true;}).map(({record})=>record);}
 function dateOffset(endDate,days){const time=timestamp(endDate);if(!Number.isFinite(time))return null;return new Date(time-(Math.max(1,days)-1)*DAY_MS).toISOString().slice(0,10);}
 function inWindow(record,start,end){const date=executionDate(record);return Boolean(date&&date>=start&&date<=end);}
-function confirmedIri(record){const status=String(recordValue(record,'status','estado')||'').toLowerCase();return Boolean(recordValue(record,'firstSessionCompletedAt','first_session_completed_at'))||/(?:complet|confirmad|approved|aprob)/i.test(status);}
-function isInitialIri(record){return isInitialIriAssessment(record);}
-function objectiveMeasurement(candidate){if(candidate===null||candidate===undefined||candidate==='')return false;if(Array.isArray(candidate))return candidate.some(objectiveMeasurement);if(typeof candidate==='object')return Object.values(candidate).some(objectiveMeasurement);if(typeof candidate==='number')return Number.isFinite(candidate);if(typeof candidate==='string')return candidate.trim()!==''&&Number.isFinite(Number(candidate));return false;}
-function iriCoverage(record){if(!record)return 0;const finalHr=recordValue(record,'stepFinalHr','step_final_hr'),oneMinuteHr=recordValue(record,'stepOneMinuteHr','step_one_minute_hr');const cardio=objectiveMeasurement(finalHr)&&objectiveMeasurement(oneMinuteHr);const composition=objectiveMeasurement(recordValue(record,'bodyComposition','body_composition'));const strength=objectiveMeasurement(recordValue(record,'strengthPatterns','strength_patterns'));return [cardio,composition,strength].filter(Boolean).length;}
+function objectiveMeasurement(candidate){if(candidate===null||candidate===undefined||candidate==='')return false;if(Array.isArray(candidate))return candidate.some(objectiveMeasurement);if(typeof candidate==='object')return Object.values(candidate).some(objectiveMeasurement);if(typeof candidate==='number')return Number.isFinite(candidate);if(typeof candidate==='string')return evidenceNumber(candidate)!==null;return false;}
+function iriCoverage(record){if(!record)return 0;const finalHr=recordValue(record,'stepFinalHr','step_final_hr'),oneMinuteHr=recordValue(record,'stepOneMinuteHr','step_one_minute_hr');const cardio=evidenceNumber(finalHr,{min:1,max:300})!==null&&evidenceNumber(oneMinuteHr,{min:1,max:300})!==null;const composition=objectiveMeasurement(recordValue(record,'bodyComposition','body_composition'));const strength=objectiveMeasurement(recordValue(record,'strengthPatterns','strength_patterns'));return [cardio,composition,strength].filter(Boolean).length;}
 function evidence(label,value,source,quality='confirmada'){return Object.freeze({label,text:cleanText(value,500),source,quality});}
 function normalizedRevision(value){if(value===null||value===undefined||value==='')return null;const revision=Number(value);return Number.isInteger(revision)&&revision>=0?revision:null;}
 function confirmedActivitySeries(executions,start,end,spanDays){
@@ -90,18 +89,12 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   if(!clientId)return Object.freeze([]);
   const end=reportCivilDate(new Date(now));
   if(!end)throw new Error('M26_REPORT_NOW_INVALID');
-  const iris=sortNewest(recordsForClient(state,'iriAssessments',clientId).filter(record=>confirmedIri(record)&&isInitialIri(record)));
   const executions=uniqueConfirmedExecutions(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true,requireDate:false})).filter(record=>isWithinCivilPeriod(sessionExecutionCompletionDate(record),'0001-01-01',end,now));
   // The first confirmed initial assessment is the diagnostic baseline.
   // A more recent assessment of type "inicial" must not silently replace it.
-  const latestIri=[...iris].sort((a,b)=>{
-    const at=timestamp(recordDate(a)),bt=timestamp(recordDate(b));
-    const byDate=(Number.isFinite(at)?at:Infinity)-(Number.isFinite(bt)?bt:Infinity);
-    return Number.isFinite(byDate)&&byDate!==0?byDate:
-      (normalizedRevision(recordValue(b,'revision'))??-1)-(normalizedRevision(recordValue(a,'revision'))??-1);
-  })[0]||null;
+  const latestIri=selectInitialIriBaseline(state?.collections?.iriAssessments,clientId,{now});
   const latestExecution=executions[0]||null;
-  const latestIriDate=recordDate(latestIri);
+  const latestIriDate=reportCivilDate(initialIriMeasurementDate(latestIri));
   const latestSessionDate=executionDate(latestExecution);
   const assessmentId=iriId(latestIri);
   const assessmentRevision=normalizedRevision(recordValue(latestIri,'revision'));
@@ -116,7 +109,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   const yearlySessions=executions.filter((record)=>inWindow(record,yearlyStart,end));
   // Each report consumes its own bounded evidence; a 28-day dashboard is
   // not a source for a 30-, 90- or 365-day document.
-  const evidenceFor=(days,sessions)=>sessions.length?buildPeriodProgressEvidence(state,clientId,{now,days,executions:sessions})
+  const evidenceFor=(days,sessions)=>sessions.length?buildPeriodProgressEvidence(state,clientId,{now,days})
     .filter(pillar=>pillar.status!=='insufficient'&&pillar.id!=='activity'&&pillar.source!=='wearableDailySummaries'):[];
   const monthlyEvidence=evidenceFor(30,monthlySessions);
   const quarterlyEvidence=evidenceFor(90,quarterlySessions);

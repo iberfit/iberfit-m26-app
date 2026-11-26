@@ -64,3 +64,38 @@ test('GX09 uses one confirmed dated revision per execution and excludes conflict
   const [fromList]=listExercisePerformanceMemories(state,'c1',{now});
   assert.deepEqual(fromList,memory);
 });
+
+import {selectInitialIriBaseline} from '../src/m26/workflows/iri-2-longitudinal.js';
+import {buildPremiumReportPortfolio} from '../src/m26/workflows/report-workflow.js';
+import {buildNextSessionPreparation} from '../src/m26/intelligence/next-session-prep.js';
+import {buildProgressHub,buildPeriodProgressEvidence} from '../src/m26/engagement/progress-hub.js';
+
+test('GX11/GX14 one confirmed initial diagnosis is shared by Coach and report',()=>{
+  const now=new Date('2026-11-25T12:00:00Z');
+  const base={clientId:'c1',status:'confirmed',assessmentType:'inicial',stepFinalHr:150,stepOneMinuteHr:120};
+  const rows=[
+    {...base,id:'negative',status:'unconfirmed',assessmentDate:'2026-06-01'},
+    {...base,id:'undated',createdAt:'2026-06-02'},
+    {...base,id:'foreign',clientId:'c2',assessmentDate:'2026-06-03'},
+    {...base,id:'pending',syncStatus:'pending',assessmentDate:'2026-06-04'},
+    {...base,id:'contradictory',body:{assessmentKind:'evolution-followup'},assessmentDate:'2026-06-05'},
+    {...base,id:'original',assessmentDate:'2026-07-01'},
+    {...base,id:'later',assessmentDate:'2026-10-01'},
+    {...base,id:'future',assessmentDate:'2026-11-26'},
+  ];
+  const state={collections:{iriAssessments:rows}};
+  assert.equal(selectInitialIriBaseline(rows,'c1',{now}).id,'original');
+  assert.equal(buildNextSessionPreparation(state,'c1',{now}).iri.assessmentId,'original');
+  const report=buildPremiumReportPortfolio(state,'c1',{now}).find(x=>x.id==='iri');
+  assert.equal(report.sourceId,'original');assert.equal(report.ready,true);
+});
+test('GX09/GX26 the recent strength indicator cannot borrow old or future observations',()=>{
+  const now=new Date('2026-11-25T12:00:00Z');
+  const row=(id,date,loadKg)=>({id,clientId:'c1',status:'completed',syncStatus:'clean',completedAt:date,results:{a:{exerciseId:'squat',reps:8,loadKg}}});
+  const old=[row('old1','2026-09-10T12:00:00Z',30),row('old2','2026-10-10T12:00:00Z',40)];
+  const state={collections:{sessionExecutions:[...old,row('recent','2026-11-20T12:00:00Z',50),row('future','2026-11-26T12:00:00Z',60)]}};
+  const hub=buildProgressHub(state,'c1',{now,loadDirectionForExercise:()=> 'higher-is-better'});
+  assert.equal(hub.pillars.find(x=>x.id==='strength').status,'insufficient');
+  assert.equal(buildExercisePerformanceMemory(state,'c1','squat',{now,from:'2026-10-28'}).exposureCount,1);
+  assert.equal(buildPeriodProgressEvidence(state,'c1',{now,days:30,executions:old}).some(x=>x.id==='strength'),false);
+});

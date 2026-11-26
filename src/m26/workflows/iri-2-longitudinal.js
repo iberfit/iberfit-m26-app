@@ -1,3 +1,5 @@
+import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
+
 export const IRI2_SNAPSHOT_SCHEMA='iberfit-iri2-snapshot-v1';
 export const IRI2_LONGITUDINAL_SCHEMA='iberfit-iri2-longitudinal-v1';
 export const IRI_INITIAL_DIAGNOSTIC_KIND='iri-initial-diagnostic';
@@ -29,6 +31,56 @@ export function isInitialIriAssessment(record){
   return !primary||INITIAL_IRI_TYPES.has(primary.value);
 }
 
+const CONFIRMED_INITIAL_STATUSES=new Set(['confirmed','confirmada','confirmado','completed','completada','completado','approved','aprobada','aprobado']);
+function baselineField(record,...keys){
+  for(const key of keys){
+    const value=record?.[key]??record?.body?.[key];
+    if(value!==undefined&&value!==null&&value!=='')return value;
+  }
+  return null;
+}
+export function initialIriMeasurementDate(record){
+  return baselineField(record,'assessmentDate','assessment_date','evaluatedAt','evaluated_at');
+}
+// Same owner, actual measurement date, earliest confirmed initial diagnosis.
+// The date of creation or a later follow-up never replaces the baseline.
+export function selectInitialIriBaseline(records,clientId,{now=new Date()}={}){
+  const owner=String(clientId||'').trim(),end=reportCivilDate(now);
+  if(!owner||!end)return null;
+  const byId=new Map();
+  for(const record of Array.isArray(records)?records:[]){
+    if(!isInitialIriAssessment(record))continue;
+    const outer=record.clientId??record.client_id,inner=record.body?.clientId??record.body?.client_id;
+    if((outer!==undefined&&String(outer)!==owner)||(inner!==undefined&&String(inner)!==owner)||(!outer&&!inner))continue;
+    const id=String(baselineField(record,'id','entityId','entity_id')||'').trim();
+    if(!id)continue;
+    const raw=baselineField(record,'revision');
+    const revision=(typeof raw==='number'||typeof raw==='string')&&String(raw).trim()!==''&&Number.isSafeInteger(Number(raw))&&Number(raw)>=0?Number(raw):0;
+    const previous=byId.get(id);
+    if(!previous||revision>previous.revision)byId.set(id,{record,revision,conflict:false});
+    else if(revision===previous.revision&&JSON.stringify(previous.record)!==JSON.stringify(record))previous.conflict=true;
+  }
+  let selected=null;
+  for(const [id,{record,revision,conflict}] of byId){
+    if(conflict)continue;
+    const status=String(baselineField(record,'status','estado')||'').trim().toLowerCase();
+    const sync=String(baselineField(record,'syncStatus','sync_status')||'').trim().toLowerCase();
+    const receipt=baselineField(record,'firstSessionCompletedAt','first_session_completed_at');
+    const date=initialIriMeasurementDate(record);
+    if(sync&&sync!=='clean')continue;
+    if(status&&!CONFIRMED_INITIAL_STATUSES.has(status))continue;
+    if(!CONFIRMED_INITIAL_STATUSES.has(status)&&!receipt)continue;
+    if(receipt&&!isWithinCivilPeriod(receipt,'0001-01-01',end,now))continue;
+    if(!isWithinCivilPeriod(date,'0001-01-01',end,now))continue;
+    const civil=reportCivilDate(date),instant=parseDateValue(date)?.getTime()??Infinity;
+    const rank={record,id,revision,civil,instant};
+    if(!selected||civil<selected.civil||
+      (civil===selected.civil&&(instant<selected.instant||
+        (instant===selected.instant&&(revision>selected.revision||
+          (revision===selected.revision&&id<selected.id))))))selected=rank;
+  }
+  return selected?.record||null;
+}
 
 function finite(value){
   if(typeof value!=='number'&&(typeof value!=='string'||!value.trim()))return null;

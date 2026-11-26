@@ -285,8 +285,8 @@ test('Coach preparation always keeps the INITIAL IRI when newer follow-ups exist
     {id:'foreign',clientId:'another-client',assessmentType:'initial',assessmentDate:'2026-09-13',status:'completada'},
   ];
   const prep=buildNextSessionPreparation(state,clientId,{now});
-  assert.equal(prep.iri?.assessmentId,'initial-newer');
-  assert.equal(prep.iri?.assessmentDate,'2026-08-02');
+  assert.equal(prep.iri?.assessmentId,'initial-older');
+  assert.equal(prep.iri?.assessmentDate,'2026-07-01');
   assert.notEqual(prep.iri?.assessmentId,'followup-newest');
 });
 

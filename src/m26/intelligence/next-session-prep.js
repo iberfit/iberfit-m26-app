@@ -5,7 +5,8 @@ import {reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionCompletionDate,sessionExecutionId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
-import {isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
+import {selectInitialIriBaseline,initialIriMeasurementDate} from '../workflows/iri-2-longitudinal.js';
+import {evidenceNumber,currentWearableEvidence} from '../domain/evidence-signal.js';
 import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -19,7 +20,7 @@ function idOf(record){return String(field(record,'id','entityId','entity_id')||'
 function titleOf(record,fallback='Sesión IBERFIT'){return String(field(record,'title','name','nombre','titulo')||fallback).trim().slice(0,140);}
 function forClient(state,key,clientId){const expected=String(clientId||'').trim();return arr(state?.collections?.[key]).filter((item)=>clientIdOf(item)===expected);}
 function percent(value){const measured=finite(value);return measured===null?null:Math.round(measured*100);}
-function finite(value){if(typeof value!=='number'&&typeof value!=='string')return null;if(typeof value==='string'&&!value.trim())return null;const n=Number(value);return Number.isFinite(n)?n:null;}
+function finite(value){return evidenceNumber(value);}
 function text(value,max=1600){return String(value??'').trim().slice(0,max);}
 // Compare the immutable prescribed queue with the completed workout queue.
  // These counts are informational. Missing results are unknown, never successes.
@@ -132,12 +133,6 @@ function latestExecution(state,clientId,now){
     state,clientId,{requireCompleted:true,requireDate:false},
   ).filter(record=>isWithinCivilPeriod(sessionExecutionCompletionDate(record),'0001-01-01',today,now)),sessionExecutionCompletionDate);
 }
-function latestIri(state,clientId){
-  return latestRecord(
-    forClient(state,'iriAssessments',clientId).filter(isInitialIriAssessment),
-    item=>field(item,'assessmentDate','assessment_date','evaluatedAt','evaluated_at')||dateOf(item),
-  );
-}
 function loadLabel(load){
   if(!load)return null;
   if(load.raw!==undefined&&load.raw!==null&&String(load.raw).trim())return String(load.raw).trim().slice(0,80);
@@ -147,9 +142,9 @@ function loadLabel(load){
   }
   return null;
 }
-function recentExerciseMemory(state,clientId,exerciseNames=null){
+function recentExerciseMemory(state,clientId,exerciseNames=null,now=new Date()){
   return Object.freeze(
-    listExercisePerformanceMemories(state,clientId,{limit:6,historyLimit:12})
+    listExercisePerformanceMemories(state,clientId,{limit:6,historyLimit:12,now})
       .map((memory)=>{
         const latest=memory.latest||null;
         const name=typeof exerciseNames==='function'
@@ -169,19 +164,21 @@ function recentExerciseMemory(state,clientId,exerciseNames=null){
       })
   );
 }
-function iriContext(state,clientId,progress){
-  const iri=latestIri(state,clientId);
+function iriContext(state,clientId,progress,now){
+  const iri=selectInitialIriBaseline(state?.collections?.iriAssessments,clientId,{now});
   // A longitudinal record cannot stand in for the initial IRI baseline.
   if(!iri)return null;
+  const id=idOf(iri),sameBaseline=progress?.iri2?.currentAssessmentId===id;
+  const baseline=sameBaseline?progress.iri2:null;
   return Object.freeze({
-    assessmentId:idOf(iri)||progress?.iri2?.currentAssessmentId||null,
-    assessmentDate:field(iri,'assessmentDate','assessment_date','evaluatedAt','evaluated_at')||progress?.iri2?.currentAssessmentDate||null,
+    assessmentId:id||null,
+    assessmentDate:initialIriMeasurementDate(iri)||null,
     status:statusOf(iri)||null,
-    assessmentCount:Number(progress?.iriAssessmentCount||0),
-    kind:progress?.iri2?.kind||null,
-    label:progress?.iri2?.label||null,
-    detail:progress?.iri2?.detail||null,
-    comparableCount:Number(progress?.iri2?.comparableCount||0),
+    assessmentCount:1,
+    kind:baseline?.kind||null,
+    label:baseline?.label||null,
+    detail:baseline?.detail||null,
+    comparableCount:Number(baseline?.comparableCount||0),
   });
 }
 const WELLBEING_SHIFT_THRESHOLD=2;
@@ -272,8 +269,9 @@ function wellbeingShift(state,clientId,{now=new Date(),days=28,threshold=WELLBEI
 // Only expose aggregate context from one provider at a time. Unknown,
 // overlapping or stale sources must not manufacture a readiness score.
 function wearableContextForPreparation(summary,{now=new Date()}={}){
-  const daysWithData=Number(summary?.daysWithData||0);
-  const recentDays=Number(summary?.decision?.currentEvidenceDays||0);
+  const signal=currentWearableEvidence(summary);
+  const daysWithData=signal.availableDays??0;
+  const recentDays=evidenceNumber(summary?.decision?.currentEvidenceDays,{min:0,integer:true})??0;
   if(!Number.isFinite(daysWithData)||daysWithData<=0)return Object.freeze({
     status:'missing',daysWithData:0,recentDays:0,metrics:null,
   });
@@ -285,17 +283,18 @@ function wearableContextForPreparation(summary,{now=new Date()}={}){
   if(providers.length!==1)return Object.freeze({
     status:'multiple-sources',daysWithData,recentDays,metrics:null,
   });
+  if(!signal.eligible)return Object.freeze({status:'historical',daysWithData,recentDays:0,metrics:null});
   const end=now instanceof Date?now:new Date(now);
   if(!Number.isFinite(end.getTime()))return Object.freeze({
     status:'historical',daysWithData,recentDays:0,metrics:null,
   });
-  const today=end.toISOString().slice(0,10);
+  const today=reportCivilDate(end);
   const rows=(Array.isArray(summary?.records)?summary.records:[]).filter((row)=>{
-    if(row?.provider!==providers[0]||typeof row?.date!=='string'||row.date>today)return false;
+    if(row?.provider!==signal.provider||typeof row?.date!=='string'||reportCivilDate(row.date)!==row.date||row.date>today)return false;
     const dayEnd=Date.parse(row.date+'T23:59:59Z');
     return Number.isFinite(dayEnd)&&Math.max(0,end.getTime()-dayEnd)<=48*3_600_000;
   });
-  if(!rows.length)return Object.freeze({
+  if(!rows.length||new Set(rows.map(row=>row.date)).size!==signal.days||rows.length!==signal.days)return Object.freeze({
     status:'historical',daysWithData,recentDays:0,metrics:null,
   });
   const avg=(key)=>{
@@ -399,8 +398,8 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   const feedback=feedbackOf(execution);
   const outcomes=summarizeActionOutcomes(state?.collections?.m26Entities||[],safeClientId,{now});
   const sinceLastReview=buildTrainingSinceLastCoachReview(state,safeClientId,{now,outcomes});
-  const memories=recentExerciseMemory(state,safeClientId,exerciseName);
-  const iri=iriContext(state,safeClientId,progress);
+  const memories=recentExerciseMemory(state,safeClientId,exerciseName,now);
+  const iri=iriContext(state,safeClientId,progress,now);
   const wellbeingTrend=wellbeingShift(state,safeClientId,{now});
   const deviceContext=wearableContextForPreparation(progress?.wearable,{now});
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
