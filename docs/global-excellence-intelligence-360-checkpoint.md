@@ -108,3 +108,66 @@ GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19
 ## Twentieth commit — canonical initial IRI revision before classification
 - GX11/GX13/GX14: canonical initial IRI selector reconciles all same-owner revisions before classification, preventing a later follow-up revision from resurrecting an earlier initial diagnosis. Explicit unconfirmed records and malformed revision values cannot qualify. Longitudinal numeric comparisons reuse strict evidence parsing. Retains separate diagnosis/follow-up and the existing Coach provisional timeline (not certified as confirmed evidence).
 - Nineteenth commit shared-device privacy directed checks 5/5 passed (empty, malformed, missing adapters, partial failure, full available cleanup). No actual device data deleted during verification.
+
+
+## Authoritative GX coverage matrix — after twentieth implementation commit
+Source: original user-provided GLOBAL EXCELLENCE & INNOVATION 360 mandate, section 32 (GX01–GX48). This matrix supersedes the earlier provisional GX numbering in the chronological log: periodization is GX27/GX28 (not GX25); substitutions GX29; execution recovery GX18; Admin operations GX23/GX43 (not GX37). Do not interpret an implemented source change or isolated check as acceptance, a merged PR, or production deployment.
+
+Status vocabulary: **Enhanced** = implementation in this branch, acceptance pending; **Existing/review** = existing foundation retained, no new end-to-end acceptance; **Open** = no completed implementation in this block; **Blocked** = concrete dependency or missing evidence. Baseline is Canary 50ba022115091478a86900be6f0b0e4c816044ef. No production change, database migration, added recurring service, dependency or intentional extra backend request in this block. All changed capabilities require full exact-head CI, role/browser and appropriate device gates; remote evidence is separately identified below. Existing workflows are reused, not weakened. Each row links the prior foundation, changed work/evidence and remaining acceptance.
+
+| ID | Original opportunity | Branch status | Reused foundation / change and evidence | Remaining acceptance / dependency |
+|---|---|---|---|---|
+| GX01 | Close M43 real | Blocked | QA v4 ledger capacity failure; v5 adds 163 verified historical synthetic fingerprints, total 936; read-only inspection, no deletion or quota increase | Real authenticated Coach–Client–Coach gate, reserved fixture capacity and actual ACK |
+| GX02 | Auth/Vault/Edge integral recovery | Blocked | Existing M44 offsite run 45731453075 historical success; recovery docs preserved | Isolated restore including Hosted Auth/Vault/Edge and independently restorable evidence; do not substitute logical backup |
+| GX03 | RLS/grants audit | Existing/review | Read-only catalog: PROD 130/130 and QA 129/129 public tables RLS enabled | Allow/deny and grant semantics for actual roles/operations at candidate SHA |
+| GX04 | SHA attestation | Existing/review | Existing version manifest, exact-head release gates; historical PROD promotion run 45732501319 | Confirm actual served Canary/PROD source SHA after protected releases |
+| GX05 | Preview–PDF parity | Enhanced | Existing preview/official issuer activity series contract aligned; 17/17 directed report/draft cases in prior phase include pre-generation reject | Physical PDF appearance, semantics across all report types, official Edge exact-source rollout, QA smoke; no claim deployed |
+| GX06 | Evidence Signal 360 | Enhanced | Shared strict numbers, observed sets/kg, stable equality, wearable provenance; consumed by existing engines | Comprehensive field-level provenance/sample/comparability review; full regressions |
+| GX07 | Coach Priority Cockpit | Enhanced | Existing brief, outcome queue, due dates, conflict warnings; frame-local reuse of alerts | Native Coach flows and priority ordering for mixed safety/operational issues |
+| GX08 | Cliente Ahora | Enhanced | Daily context single primary destination, true workout count, First28 and per-metric provenance | Mobile/tablet/desktop hierarchy and guided-flow acceptance |
+| GX09 | Exercise longitudinal | Enhanced | Canonical execution reconciliation, actual date, observed units/sets, recent strength window | Variant/protocol comparability and full history/runtime verification |
+| GX10 | Canonical adherence | Enhanced | Booked fulfilment separate from activity; rescheduling reconciliation; explicit missed/Coach absent/unresolved counts, corrected planning challenge | Full legacy/data-integrity suite, explicit UI semantics and real date flow |
+| GX11 | IRI to professional action | Enhanced | Existing baseline selector for report/Coach prep; newest revision before classification, earliest confirmed baseline | Consistency with legacy professional provisional chronology and validated goal workflow |
+| GX12 | Independent IRI | Existing/review | Existing service lifecycle retained, no new client activation model | Authenticated IRI-only enrollment/report with no training directory contamination |
+| GX13 | Protocolized reassessment | Enhanced | Existing IRI comparison primitives use strict numeric evidence and protocol guards; follow-up cannot replace baseline | Real reassessment lifecycle and comparisons; do not enable unverified publication |
+| GX14 | Evidence-first reports | Enhanced | Confirmed dated workouts, observed kg/sets, bounded evidence and approval revisions | Complete report suite and official preview/issuer parity |
+| GX15 | Deterministic copilot | Enhanced | Existing brief, preparation, action outcome; review queue and safe history | End-to-end Coach decisions, no automatic prescriptions |
+| GX16 | Pain and safety | Enhanced | Bounded observed values, actual post-session completion, skipped rows excluded | Confirm signal priority and human review in real session flow |
+| GX17 | Reusable planning | Existing/review | Existing template/reuse and planning drafts retained; no separate template engine | Regression and real copy/edit/publish lifecycle; check isolation of original template |
+| GX18 | Execution recovery | Enhanced | Snapshot validation and owner/key fences; tests 8/8 recovery/Admin prior phase | Offline pause/return, browser crash and real sync/idempotence across devices |
+| GX19 | Wearable provenance | Enhanced | Shared eligibility and individual metric provider; no inferred watch or multi-provider averaging in daily context | Device-specific consent/revocation, longitudinal comparability and physical validation |
+| GX20 | Consent center | Enhanced | Existing device consent gates; consent before heavy challenge aggregation, incomplete local cleanup warning | Actual permission history, revocation, health data lifecycle; no new consent store |
+| GX21 | Data rights | Enhanced (local only) | Existing shared-device explicit cleanup now fail-closed; separate open #1319 preserved | Server export/correction/selective erasure authorized workflow, recovery and legal/business decision; no deletion executed |
+| GX22 | Own multimedia | Enhanced | Existing approved manifests, lazy image/video/both, slow playback, bounded native lifecycle, viewer | Approved assets and real device playback; no invented video production |
+| GX23 | Admin Health Center | Enhanced | Operational triage + shared command center, latest task revisions, explicit conflicts | Authenticated admin permissions, dashboard and operations QA |
+| GX24 | Privacy-first telemetry | Enhanced (local) | Media observability remains memory-only; local cleanup failure codes sanitized | Full telemetry/diagnostic redaction and retention audit, no new collection |
+| GX25 | Supabase Free budgets | Enhanced (QA preparation) | Preserved 150 fixture cap and v5 ledger, no new queries; frame-local reuse avoids repeated calculations | Actual budget/wire-meter evidence and billing; no claim measured savings |
+| GX26 | Safe period comparison | Enhanced | Actual period boundaries, strict comparable sets and honest within-window labels | Independent period and variant comparability across report/longitudinal surfaces |
+| GX27 | Measurable objectives | Enhanced | Existing cycle frequency/periodization, future versus elapsed weeks and partial-week meaning | Structured goal review and authenticated Coach/Client planning agreement |
+| GX28 | Calendar conflicts | Enhanced | Current cycle revisions and appointment time-window reconciliation | Real reschedule/overlap/appointment CAS tests, Chile civil date boundary coverage |
+| GX29 | Intelligent substitutions | Enhanced | Existing rank with measurement kind and same known cardio sport guard; no incompatible prescription inheritance | Real Coach/client substitution, constraints and all catalog profiles |
+| GX30 | History during session | Enhanced | Existing memory and adaptive history share observed sets and kg; strict dates | Actual live touch workflow and variant comparability |
+| GX31 | Systematic accessibility | Enhanced | Existing media viewer fixes pending request, focus, fallback and hidden image; simulated DOM 5/5 | Existing independent accessibility gate plus real keyboard/touch/focus across routes |
+| GX32 | PWA installation/recovery | Enhanced (recovery) | Local checkpoint and privacy cleanup guards | Real PWA installation, upgrade, background/reconnect and safe-area device gate |
+| GX33 | Canonical DTOs | Enhanced (partial) | Shared evidence and reconciliation helpers at selected boundaries | Full alias/transport DTO inventory; no schema overhaul |
+| GX34 | Consolidate legacy gates | Existing/review | Existing required workflows kept; one consolidated branch, no intermediate CI | Determine redundant gates from actual coverage before modifying any protection |
+| GX35 | Index/RLS performance | Existing/review | No speculative indexes or DB changes; owner-scoped local reuse | Read-only plans, measurable query cost, RLS performance; separate risk approval if needed |
+| GX36 | Multimedia budget | Enhanced | Native preload none, stop obsolete playback, no extra assets or player dependency | Actual egress/transfer measurements and quality checks on devices |
+| GX37 | Webhooks vs polling | Open | No polling added; existing operations/communication system preserved | Inspect current provider delivery and retry semantics; do not introduce unneeded service |
+| GX38 | HealthKit/Health Connect | Existing/review | Existing Connected360 retained, shared evidence guards | Physical Android/iOS acceptance and consent lifecycle; no emulator claim |
+| GX39 | Selective B2B integrations | Open | No new providers or costs | Confirm demand, lawful access, workflow and Free-compatible economics |
+| GX40 | Contextual communication | Existing/review | Existing communication module retained | Review actual role-scoped session/report/check-in linkage and delivery |
+| GX41 | Renewals/referrals | Enhanced (retention only) | Existing CRM/retention evidence; latest cancellation and unresolved booking safeguards | Verified renewal lifecycle and privacy-safe referrals; no automatic commercial messaging |
+| GX42 | Web to IRI to service | Existing/review | Existing onboarding/First28; current workout evidence | Real conversion/identity transition without duplicates; website changes separately scoped |
+| GX43 | Readable audit trail | Enhanced (operations) | Existing Admin tasks and audit timeline preserved; revision reconciliation and visible conflicts | Actual audit event identity/result/role boundaries; audit event timeline not fully reworked |
+| GX44 | Minimum business intelligence | Enhanced (partial) | Existing capacity/retention/activation indicators; strict counts | Aggregated business denominators and authorized role reporting |
+| GX45 | Captions and text guidance | Enhanced | Native captions/guidance retained, slow playback and accessible visual fallback | Caption content equivalence and QA of each approved video; no synthetic proof |
+| GX46 | Year in IBERFIT | Open | Existing longitudinal evidence foundation, no new annual experience in this block yet | Meaningful verified milestones, privacy and mobile performance |
+| GX47 | Controlled AI summary | Open / research | Deterministic human-review brief retained; no external inference, new API or costs | Validate private optional experimental workflow and economic model before activation |
+| GX48 | Movement analysis | Open / research | Human-approved media retained; no clinical scoring introduced | Defined protocol, consent, representative validation and physical biomechanics evidence |
+
+### Current phase verification
+- Viewer exact functions exercised with simulated DOM/deferred stylesheet: 5/5 (latest open, close/focus and cleanup, cached error, cached success, detached trigger). Native-browser check still required.
+- Shared-device privacy: 5/5 directed module checks, simulated adapters only.
+- IRI revision/classification and numeric comparison: 7/7 directed module checks, exact source.
+- 17/17 directed checks for this phase. These are isolated source/DOM simulations, not the full Node/Playwright test suite. CI/PR certification has not yet begun. The source Edge PDF renderer remains a distinct controlled deployment dependency.
