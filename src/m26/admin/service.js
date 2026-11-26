@@ -168,8 +168,9 @@ export function createAdminCommandService({
         }
         assertCurrent();
         if(tracked)invitationAttempts.settle(lease,command.entityId,command.operationId,response);
-        if(trackCreation){verifyInvitationReceipt(response,{type:command.type,operationId:command.operationId});clearCreation();}
+        if(trackCreation)verifyInvitationReceipt(response,{type:command.type,operationId:command.operationId});
         const refresh=await refreshAfterAck(response,assertCurrent);assertCurrent();
+        clearCreation();
         return Object.freeze({ok:true,command,response,...refresh});
       })().catch(error=>{
         // Before dispatch there can be no ambiguous remote mutation. After it,

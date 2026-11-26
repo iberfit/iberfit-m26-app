@@ -40,3 +40,11 @@ test('GX350 concurrent identical creations join a single pending dispatch',async
   const a=h.service.execute(createInput),b=h.service.execute(createInput);assert.equal(a,b);
   d.resolve();await Promise.all([a,b]);assert.deepEqual(h.counts(),{requests:1,refreshes:1});
 });
+
+test('GX350 acknowledged creation stays coalesced during bounded refresh',async()=>{
+  const started=deferred(),finish=deferred();
+  const h=setup({execute:async(_token,c)=>createReceipt(c),refreshState:()=>{started.resolve();return finish.promise;}});
+  const first=h.service.execute(createInput);await started.promise;
+  const second=h.service.execute(createInput);assert.equal(first,second);
+  finish.resolve();await Promise.all([first,second]);assert.deepEqual(h.counts(),{requests:1,refreshes:1});
+});
