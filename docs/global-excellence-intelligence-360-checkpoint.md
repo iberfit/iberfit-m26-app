@@ -86,3 +86,8 @@ GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19
 ## Fifteenth commit — native media lifecycle
 - Existing native exercise player supports explicit 0.75×/0.5× slow technique review while retaining normal and faster playback. Tracks active video and pauses previous playback, detached videos and active playback on controller teardown; moved nodes are not stopped unnecessarily. No autoplay, preload, additional dependencies, backend requests or changes to media publication approval. Added directed lifecycle regression.
 - Fourteenth commit directed domain checks 10/10 passed; browser and full suite remain pending.
+
+## Sixteenth commit — frame-local reuse and canonical challenge metrics
+- Coach Hoy shares owner-scoped progress/alerts between client compact/adaptive summaries, selected context and cockpit within the same synchronous render. Expediente reuses its progress and alerts; Progreso reuses longitudinal windows in adherence alerts. No global cache, no new request or persisted data.
+- Existing Client planning challenge uses explicitly fulfilled booked commitments rather than total training activity. Unknown counts stay unknown. Challenge engine reuses longitudinal progress windows (three fewer summary computations per canonical context), does not convert missing adherence/device data to zero, uses confirmed workout counts where available. Existing group consent policy remains intact.
+- Native media isolated controller suite passed 6/6 at fifteenth commit, including event lifecycle and slow playback. Full CI/browser still pending.

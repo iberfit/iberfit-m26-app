@@ -261,3 +261,14 @@ test('RC59.5 se exporta por engagement y cierra foundation abriendo Data Trust U
     /RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u
   );
 });
+
+test('GX challenges preserve unknown data and never treat autonomous sessions as appointment adherence',()=>{
+ const now=new Date('2026-11-25T12:00:00Z');
+ const state={collections:{appointments:[],sessionExecutions:[],checkins:[],wearableDailySummaries:[]}};
+ const context=buildCanonicalChallengeContext(state,'c1',{now});
+ assert.equal(context.progress,context.longitudinal.progress);
+ const empty=evaluateChallenge(state,'c1',{type:'consistency',target:80},{now});
+ assert.equal(empty.value,null);assert.equal(empty.status,'no_data');
+ const noDevice=evaluateChallenge(state,'c1',{type:'steps',target:10000},{now,deviceOptIn:true});
+ assert.equal(noDevice.value,null);assert.equal(noDevice.status,'no_data');
+});

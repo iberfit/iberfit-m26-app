@@ -1,5 +1,6 @@
 import {buildLongitudinalAggregation} from '../intelligence/longitudinal-aggregation.js';
-import {computeProgressSummary} from './progress-engine.js';
+import {confirmedScheduledCompletion} from './progress-continuity.js';
+import {evidenceNumber} from '../domain/evidence-signal.js';
 
 export const CHALLENGE_METRICS_SCHEMA_VERSION='iberfit.challenge-metrics.v1';
 export const CHALLENGE_WINDOWS=Object.freeze([7,28,90]);
@@ -45,10 +46,7 @@ function deepFreeze(value){
   return Object.freeze(value);
 }
 
-function finite(value){
-  const number=Number(value);
-  return Number.isFinite(number)?number:null;
-}
+function finite(value){return evidenceNumber(value);}
 
 function round(value,digits=1){
   if(!Number.isFinite(value))return null;
@@ -220,7 +218,7 @@ function longitudinalMetricSnapshot(longitudinal,days,metricKey){
   const points=Array.isArray(metric.points)?metric.points:[];
   const values=points.map((point)=>finite(point?.value)).filter(Number.isFinite);
   return deepFreeze({
-    value:round(values.reduce((sum,value)=>sum+value,0),1),
+    value:values.length?round(values.reduce((sum,value)=>sum+value,0),1):null,
     coverage:finite(metric.coverage)??0,
     quality:qualityOf(points),
     providers:Object.freeze([...(metric.providers||[])]),
@@ -257,12 +255,8 @@ function habitSnapshot(state,clientId,window,habitId){
 export function buildCanonicalChallengeContext(state,clientId,{now=new Date()}={}){
   if(!clientId)throw new Error('M26_CHALLENGE_CLIENT_REQUIRED');
   const longitudinal=buildLongitudinalAggregation(state,clientId,{now});
-  const progress=Object.fromEntries(
-    CHALLENGE_WINDOWS.map((days)=>[
-      `d${days}`,
-      computeProgressSummary(state,clientId,{now,days}),
-    ])
-  );
+  // The longitudinal engine already computed these exact owner/time windows.
+  const progress=longitudinal.progress;
 
   return deepFreeze({
     schemaVersion:CHALLENGE_METRICS_SCHEMA_VERSION,
@@ -285,7 +279,7 @@ function metricSnapshot(context,state,definition,now){
   const progress=context?.progress?.[`d${days}`];
 
   if(definition.metricKey==='adherencePct'){
-    const adherence=finite(progress?.adherence);
+    const adherence=confirmedScheduledCompletion(progress)?.adherence??null;
     return deepFreeze({
       value:adherence===null?null:round(adherence*100,1),
       source:'progress',
@@ -297,7 +291,7 @@ function metricSnapshot(context,state,definition,now){
 
   if(definition.metricKey==='completedSessions'){
     return deepFreeze({
-      value:finite(progress?.completedSessions),
+      value:evidenceNumber(progress?.confirmedWorkoutExecutions??progress?.completedSessions,{min:0,integer:true}),
       source:'progress',
       quality:progress?.dataQuality||'limitada',
       coverage:null,
