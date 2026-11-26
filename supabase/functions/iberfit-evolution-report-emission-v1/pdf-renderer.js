@@ -87,8 +87,9 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
   cover.drawImage(logo,{x:455,y:690,width:logo.width*scale,height:logo.height*scale});
  }catch{/* Logo optional, branded wordmark always present. */}}
  cover.drawText('EVOLUCION Y SEGUIMIENTO',{x:79,y:570,size:10,font:bold,color:color('gold')});
- cover.drawText('Tu proceso,',{x:79,y:509,size:41,font:serifBold,color:color('cream')});
- cover.drawText('con perspectiva.',{x:79,y:462,size:39,font:serif,color:color('cream')});
+ const annual=source.reportType==='year-in-iberfit';
+ cover.drawText(annual?'Tu año en':'Tu proceso,',{x:79,y:509,size:41,font:serifBold,color:color('cream')});
+ cover.drawText(annual?'IBERFIT':'con perspectiva.',{x:79,y:462,size:39,font:serif,color:color('cream')});
  cover.drawLine({start:{x:79,y:429},end:{x:446,y:429},color:color('gold'),thickness:1.5});
  let yCover=393;
  for(const line of wrap(serif,15,'Comprender lo realizado. Interpretar la evidencia. Decidir que hacer despues.',425)){

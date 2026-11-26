@@ -32,7 +32,8 @@ const result=await renderEvolutionReportPdf({
 });
 if(!(result.bytes instanceof Uint8Array)||result.bytes.length<1024||
  !new TextDecoder().decode(result.bytes.slice(0,8)).startsWith('%PDF-'))throw Error('M44_RENDERED_BYTES_NOT_A_PDF');
-const doc=await PDFDocument.load(result.bytes);
+const doc=await PDFDocument.load(result.bytes,{updateMetadata:false});
+if(doc.getProducer()!==M44_PDF_TEMPLATE)throw Error('M44_PDF_PRODUCER_MISMATCH');
 const pages=doc.getPages();
 if(pages.length!==result.pages||pages.length<5)throw Error('M44_PDF_PAGINATION_MISMATCH');
 if(result.templateVersion!==M44_PDF_TEMPLATE)throw Error('M44_PDF_TEMPLATE_MISMATCH');

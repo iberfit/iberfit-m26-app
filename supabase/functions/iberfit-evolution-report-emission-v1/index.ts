@@ -142,7 +142,8 @@ async function issue({user,service,actor,body}:{
   const artifact=await ensureStoredPdfArtifact({
    bucket:service.storage.from(BUCKET),path,bytes,expectedHash:hash,digest,
    validateExisting:async (stored:Uint8Array)=>{
-    const pdf=await PDFDocument.load(stored);
+    // Read the original producer; pdf-lib otherwise updates metadata on load.
+    const pdf=await PDFDocument.load(stored,{updateMetadata:false});
     if(pdf.getSubject()!==sourceFingerprint||
        pdf.getProducer()!==M44_PDF_TEMPLATE||pdf.getPageCount()<1)
       throw Error('M44_PDF_ORPHAN_REPLAY_COLLISION');
