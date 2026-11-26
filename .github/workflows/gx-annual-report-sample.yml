@@ -5,6 +5,8 @@ on:
     paths:
       - 'qa/m44/generate-synthetic-annual-report.mjs'
       - '.github/workflows/gx-annual-report-sample.yml'
+      - 'scripts/ops/stage_gx_evolution_edge.mjs'
+      - 'tests/m26_elite_report_trends.test.mjs'
       - 'supabase/functions/iberfit-evolution-report-emission-v1/**'
       - 'public/m26/fonts/report-*.ttf'
       - 'src/m26/workflows/report-*.js'
@@ -44,10 +46,11 @@ jobs:
         run: node --test tests/m26_elite_report_trends.test.mjs tests/m44_server_pdf_renderer.test.mjs tests/m26_report_private_audience.test.mjs tests/m44_evolution_report_visual_quality.test.mjs tests/m26_life360_sport_reports.test.mjs tests/m26_business_report.test.mjs tests/m26_rc47_admin_command_center.test.mjs tests/m26_report_cycle_objective.test.mjs tests/m26_life360_cycle_goals.test.mjs tests/m26_premium_automatic_reports.test.mjs tests/m26_iri_elite_measurements.test.mjs tests/m26_iri_client_report_human_premium.test.mjs tests/m26_iri_report_premium_v1.test.mjs tests/m26_iri_report_governance_contract.test.mjs tests/m26_iri2_live_history_report.test.mjs
       - name: Typecheck IRI and evolution official emitters
         run: |
-          deno check --node-modules-dir=auto supabase/functions/iberfit-iri-report-emission-v1/index.ts
-          deno check --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json supabase/functions/iberfit-evolution-report-emission-v1/index.ts
+          # Stage the exact clean source before Deno creates local dependency files.
           stage="$(node scripts/ops/stage_gx_evolution_edge.mjs)"
           trap 'rm -rf "$stage"' EXIT
+          deno check --node-modules-dir=auto supabase/functions/iberfit-iri-report-emission-v1/index.ts
+          deno check --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json supabase/functions/iberfit-evolution-report-emission-v1/index.ts
           deno check --config "$stage/supabase/functions/iberfit-evolution-report-emission-v1/deno.json" "$stage/supabase/functions/iberfit-evolution-report-emission-v1/index.ts"
       - name: Generate official-template synthetic PDF
         run: deno run --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json --allow-read --allow-write=qa-output/annual-report-sample --allow-env=GITHUB_SHA qa/m44/generate-synthetic-annual-report.mjs
