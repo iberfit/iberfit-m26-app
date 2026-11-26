@@ -2,6 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildPostSessionSportEvidence,summarizePeriodSportEvidence,periodSportEvidence,buildPeriodSportProjection} from '../src/m26/workflows/report-sport-evidence.js';
 test('sport report fails closed with no workout evidence',()=>{assert.deepEqual(buildPostSessionSportEvidence(null,{}),[]);});
+test('El informe posterior no publica distancia contradictoria ni recurre a un resumen antiguo',()=>{
+ const base={clientId:'c1',sessionId:'run',sport:'running',distanceKm:99,durationSeconds:999,planSnapshot:{sessionId:'run',blocks:[{type:'exercise',exerciseId:'run',name:'Carrera suave'}]}};
+ const post=results=>buildPostSessionSportEvidence({...base,results},{clientId:'c1'});
+ const a=post([{exerciseId:'run',setNumber:1,distanceKm:5,distanceM:4000,seconds:1500}]);
+ assert.equal(a.length,1);assert.equal(a[0].label,'Duración registrada');
+ assert.deepEqual(post([{exerciseId:'run',setNumber:1,distanceKm:5,distanceM:4000}]),[]);
+ assert.deepEqual(post([{exerciseId:'run',setNumber:1,distanceKm:5},{exerciseId:'run',setNumber:1,distanceKm:6}]),[]);
+ const lateDuplicate=post([{exerciseId:'run',setNumber:1,distanceKm:99},...Array.from({length:16},(_,i)=>({exerciseId:'run',setNumber:i+2,distanceKm:1})),{exerciseId:'run',setNumber:1,distanceKm:99}]);assert.ok(lateDuplicate.every(r=>!r.text.includes('99 km')));
+ assert.deepEqual(post([{exerciseId:'run',exercise_id:'other',setNumber:1,distanceKm:5}]),[]);
+ assert.deepEqual(buildPostSessionSportEvidence({...base,body:{clientId:'c2'}},{clientId:'c1'}),[]);
+ assert.equal(buildPostSessionSportEvidence({clientId:'c1',sport:'running',distanceKm:5,distanceM:3000,durationSeconds:1500},{clientId:'c1'}).length,1);
+ assert.equal(post([{exerciseId:'run',setNumber:1,distanceKm:5,distanceM:5000,seconds:1500}]).length,3);
+});
 test('running pace uses only measured duration and distance',()=>{
   const execution={clientId:'c1',sport:'running',distanceKm:6.5,durationSeconds:2145};
   const rows=buildPostSessionSportEvidence(execution,{clientId:'c1'});

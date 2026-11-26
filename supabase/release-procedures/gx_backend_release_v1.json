@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "base": "99933fd7e8ce557f2b98c01be0ff9b612d0292a9",
+  "steps": [
+    {
+      "name": "gx_goal_measurement_v1",
+      "install": "supabase/release-procedures/gx_goal_measurement_v1.sql",
+      "installSha256": "d2a62db400d4fbd25d05b8e2b21371294145819f6ddc39e8c1331103a8544944",
+      "rollback": "supabase/release-procedures/gx_goal_measurement_v1.rollback.sql",
+      "rollbackSha256": "aa159224e93f446bb994bd3286108fe383bcd66a840ce3e7ed2f980ad3464162"
+    },
+    {
+      "name": "gx_followup_v1",
+      "install": "supabase/release-procedures/gx_followup_v1.sql",
+      "installSha256": "a4ab281a2a080afcdb16a71eb1cffdc0688846d44dbce35721ccb0a9181349f9",
+      "rollback": "supabase/release-procedures/gx_followup_v1.rollback.sql",
+      "rollbackSha256": "8a03c472921c0f8e27b189aa9935a1ddf59f5a9359b6950e9235c74123e8c7ad"
+    },
+    {
+      "name": "gx_followup_recent_v1",
+      "install": "supabase/release-procedures/gx_followup_recent_v1.sql",
+      "installSha256": "3b0345beae182e7ddc61e355b7077a7c3c93a1e4b2006f850ef151fb39f11f22",
+      "rollback": "supabase/release-procedures/gx_followup_recent_v1.rollback.sql",
+      "rollbackSha256": "24bc2d65008ba626acfc728b5d439d8b0e26b85d377f3bb48191191ed2552fc5"
+    },
+    {
+      "name": "gx_followup_detail_v1",
+      "install": "supabase/release-procedures/gx_followup_detail_v1.sql",
+      "installSha256": "e33921e812ac142c53a508a05d51a816d67885eae410c87954b18bf9b1243530",
+      "rollback": "supabase/release-procedures/gx_followup_detail_v1.rollback.sql",
+      "rollbackSha256": "d5a9f17cd0310695927393fc5e5fffc889d09bd74e89d128100a38f0c8a5039d"
+    },
+    {
+      "name": "gx_publication_v1",
+      "install": "supabase/release-procedures/gx_publication_v1.sql",
+      "installSha256": "5e8cf45d5f8a8c1cfaccd25a99e83ffded4d51a3a8717991706f00e685645673",
+      "rollback": "supabase/release-procedures/gx_publication_v1.rollback.sql",
+      "rollbackSha256": "ab1d4a567422ca86170bac844946980f21a6b6469d62e3492d1f9bceb09ed6af"
+    },
+    {
+      "name": "gx_report_proof_v1",
+      "install": "supabase/release-procedures/gx_report_proof_v1.sql",
+      "installSha256": "7cf9a4d6f35e2544e3387bc814148220d1abe88ee8738c4376c488f1b24083a1",
+      "rollback": "supabase/release-procedures/gx_report_proof_v1.rollback.sql",
+      "rollbackSha256": "0836666cc160e4d84079555b2509058f8820b80231c0704387e7c5fe1c669d4a"
+    },
+    {
+      "name": "gx_report_evidence_v1",
+      "install": "supabase/release-procedures/gx_report_evidence_v1.sql",
+      "installSha256": "f98b2bef7226e5efa952533bacfb1bc2584070996a8f400a4a75c001fb565581",
+      "rollback": "supabase/release-procedures/gx_report_evidence_v1.rollback.sql",
+      "rollbackSha256": "2c6f172c097a76ded47bd63c74a6af76ae65e84ebd912521fb0751103ef1d183"
+    },
+    {
+      "name": "gx_report_guards_v1",
+      "install": "supabase/release-procedures/gx_report_guards_v1.sql",
+      "installSha256": "d556bc7f421e5b4f68507a59a5176bcaa7126d4927c8555610819a51b02e2013",
+      "rollback": "supabase/release-procedures/gx_report_guards_v1.rollback.sql",
+      "rollbackSha256": "edc7e9f0b22b42cade389c93397c06ed5e5b2c3d776447432197483e8f5382db"
+    },
+    {
+      "name": "gx_admin_create_replay_v1",
+      "install": "supabase/release-procedures/gx_admin_create_replay_v1.sql",
+      "installSha256": "a6a22d1e6c4b064fc554a8f3321214a8ce4154a54b7cf818df593c14a2d5a8aa",
+      "rollback": "supabase/release-procedures/gx_admin_create_replay_v1.rollback.sql",
+      "rollbackSha256": "fb82c2fca34e559c1ce3984a6d7a21358430501a74f03f44422984150929cc04"
+    }
+  ],
+  "qaOnly": [
+    "qa/gx/gx_goal_measurement_sql_test.sql",
+    "qa/gx/gx_publication_sql_test.sql",
+    "qa/gx/gx_full_auth_acceptance_v1.sql"
+  ]
+}

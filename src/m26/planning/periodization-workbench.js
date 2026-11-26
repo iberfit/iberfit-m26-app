@@ -2,6 +2,8 @@ import {parseCivilDate,reportCivilDate,isWithinCivilPeriod} from '../domain/civi
 import {evidenceNumber,observedSet,observedLoadKg} from '../domain/evidence-signal.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionCompletionDate,sessionExecutionId} from '../domain/session-execution-truth.js';
 import {recordsForClient} from '../modules/domain-selectors.js';
+import {readGoalMeasurement,GOAL_UNITS} from './goal-measurement.js';
+import {buildGoalMeasurementReview,goalReviewText} from './goal-review.js';
 const unwrap=x=>x?.body&&typeof x.body==='object'&&!Array.isArray(x.body)?{...x,...x.body}:x||{};
 const val=(x,...fields)=>fields.map(k=>x?.[k]).find(v=>v!==null&&v!==undefined&&v!=='')??null;
 const finite=(x,min=0,max=1000000)=>evidenceNumber(typeof x==='string'?x.trim().replace(',','.'):x,{min,max});
@@ -87,11 +89,25 @@ export function buildPeriodizationSnapshot(state,clientId,{cycle,now=new Date()}
     goal:String(val(c,'goal','objetivo')||'').slice(0,500),start:new Date(start).toISOString().slice(0,10),
     end:new Date(end).toISOString().slice(0,10),currentWeek:week,
     weeklyFrequency,
+    goalMeasurement:readGoalMeasurement(cycle,{clientId:safeId,now}),
+    goalReview:buildGoalMeasurementReview(state,safeId,cycle,{now}),
     weeks:Object.freeze(finalized),blocks:Object.freeze(blocks),
     completed:finalized.reduce((n,w)=>n+w.completed,0),
     scheduled:finalized.reduce((n,w)=>n+w.scheduled,0),
     evidence:'confirmed-only',chartMetric:'completedExecutions',
   });
+}
+function renderMeasurableGoalSummary(goal){
+  if(!goal||!Object.hasOwn(GOAL_UNITS,goal.unit))return '';
+  const unit=GOAL_UNITS[goal.unit];
+  return '<div class="m28-cycle-goal" data-m26-measurable-goal-summary><strong>'+escape(goal.metric)+'</strong>'
+    +'<p>'+escape(String(goal.baseline)+' '+unit)+' · '+escape(goal.baselineDate)+' → '+escape(String(goal.target)+' '+unit)+'</p>'
+    +'<p>'+escape(goal.direction==='increase'?'Aumentar':'Reducir')+' · '+escape('Plazo: '+goal.deadline)+'</p>'
+    +'<p>'+escape('Protocolo: '+goal.protocol)+'</p><small>Línea base declarada. Logro pendiente de revisión profesional.</small></div>';
+}
+function renderGoalReview(review){
+  const text=goalReviewText(review);
+  return text?'<p class="m26-data-footnote" data-m26-goal-review>'+escape(text)+'</p>':'';
 }
 /** A client goal is a confirmed coaching intention, never a calculated achievement. */
 export function renderClientCycleGoal(snapshot){
@@ -104,6 +120,8 @@ export function renderClientCycleGoal(snapshot){
   return '<section class="m26-panel m26-client-cycle-goal" data-m26-client-cycle-goal aria-label="Objetivo acordado del ciclo">'
     +'<div class="m26-panel-heading"><div><p class="m26-eyebrow">Tu objetivo actual</p><h2>'+escape(title)+'</h2></div></div>'
     +'<p>'+escape(snapshot.cycleName)+' · '+escape(week)+'</p>'
+    +renderMeasurableGoalSummary(snapshot.goalMeasurement)
+    +renderGoalReview(snapshot.goalReview)
     +'<small>Objetivo acordado con tu entrenador. El progreso se evalúa con sesiones y mediciones confirmadas; no se supone alcanzado por el paso del tiempo.</small>'
     +'<div class="m26-inline-actions"><button type="button" data-m26-area="planificacion">Ver mi planificación</button></div>'
     +'</section>';
@@ -137,6 +155,8 @@ export function renderPeriodizationBoard(snapshot,{role='coach',compact=false}={
     +'<div class="m26-panel-heading"><div><p class="m26-eyebrow">Planificación por bloques</p><h2>'+escape(snapshot.cycleName)+'</h2>'
     +'<p>'+escape(snapshot.start)+' — '+escape(snapshot.end)+' · '+selected+'</p></div></div>'
     +(snapshot.goal?'<p class="m28-cycle-goal"><strong>Objetivo acordado:</strong> '+escape(snapshot.goal)+'</p>':'')
+    +renderMeasurableGoalSummary(snapshot.goalMeasurement)
+    +renderGoalReview(snapshot.goalReview)
     +totals+frequency+'<div class="m28-week-chart" role="img" aria-label="Sesiones terminadas y confirmadas por semana">'
     +bars+'</div><p class="m26-data-footnote">Cada bloque contiene hasta cuatro semanas desde el inicio del ciclo. Barras: sesiones ejecutadas y confirmadas, no carga fisiológica. Las semanas futuras se muestran con trazo discontinuo; la frecuencia acordada no es una tasa de adherencia. Citas y ejecuciones son conteos independientes; no se equiparan sin vínculo verificado.</p>'
     +overview+detailed+actions+'</section>';

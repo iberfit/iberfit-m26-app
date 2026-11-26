@@ -2,9 +2,62 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {buildPlanExecutionSummary} from '../src/m26/engagement/progress-engine.js';
+import {originalSeriesCoverage} from '../src/m26/domain/session-execution-truth.js';
 import {renderProgressRoute} from '../src/m26/modules/route-render.js';
 
 const NOW=new Date('2026-09-12T12:00:00Z');
+
+test('Evolución fechada usa la prescripción congelada, no el plan modificado después',()=>{
+ const block={id:'b1',type:'exercise',exerciseId:'sq',sets:2,reps:'8'};
+ const sourceSnapshot={clientId:'c1',sessionId:'s1',cycleId:'cycle',title:'Sesión original',blocks:[block],queue:[{blockId:'b1',exerciseId:'sq',sets:2,prescription:{reps:'8'}}]};
+ const execution={id:'e-date',clientId:'c1',sessionId:'s1',occurrenceId:'o1',sourceRevision:2,status:'completed',syncStatus:'clean',completedAt:'2026-09-11T11:00:00Z',sourceSnapshot,results:[{exerciseId:'sq',setNumber:1,reps:8},{exerciseId:'sq',setNumber:2,reps:8}]};
+ const state={collections:{sessions:[{id:'s1',clientId:'c1',title:'Plan actualizado',blocks:[{...block,sets:8}]}],sessionExecutions:[execution]}};
+ for(const requireSnapshot of [true,false]){
+  const opts={now:NOW,days:28,civilPeriod:true,requireSnapshot};
+  const valid=buildPlanExecutionSummary(state,'c1',opts);assert.equal(valid.comparedSessions,1);assert.equal(valid.plannedSets,2);assert.equal(valid.recordedSets,2);assert.equal(valid.latest.sessionTitle,'Sesión original');
+  for(const invalid of [{...execution,sourceRevision:null},{...execution,sourceSnapshot:{...sourceSnapshot,clientId:'otro'}},{...execution,body:{sourceSnapshot:{...sourceSnapshot,cycleId:'otro'}}}]){
+   const r=buildPlanExecutionSummary({...state,collections:{...state.collections,sessionExecutions:[invalid]}},'c1',opts);assert.equal(r.comparedSessions,0);assert.equal(r.unmatchedExecutions,1);
+  }
+ }
+});
+
+function frozenCoverageFixture(){
+ const blocks=[{id:'b1',type:'exercise',exerciseId:'sq',sets:2},{id:'b2',type:'exercise',exerciseId:'row',sets:1}];
+ const snapshot={sessionId:'s1',blocks};
+ const row=(exerciseId,blockId,setNumber)=>({exerciseId,blockId,setNumber,reps:8});
+ const rows=[row('sq','b1',1),row('sq','b1',2),row('row','b2',1)];
+ const execution={id:'e1',clientId:'c1',sessionId:'s1',status:'completed',syncStatus:'clean',completedAt:'2026-09-11T11:00:00Z',planSnapshot:snapshot,results:rows};
+ return {snapshot,execution,rows,row};
+}
+test('GX: igualdad de recuentos no acredita correspondencia cuando cambia un ejercicio',()=>{
+ const {snapshot,execution,rows,row}=frozenCoverageFixture();
+ const changed={...execution,results:[rows[0],rows[1],row('press','b2',1)]};
+ const state={collections:{sessionExecutions:[changed]}};
+ const p=buildPlanExecutionSummary(state,'c1',{now:NOW,requireSnapshot:true});
+ assert.equal(p.plannedSets,3);assert.equal(p.recordedSets,3);assert.equal(p.matchedRecordedSets,2);assert.equal(p.unlinkedRecordedSets,1);assert.equal(p.unresolvedPlannedSets,1);assert.equal(p.asPlannedSessions,0);
+ const good=buildPlanExecutionSummary({collections:{sessionExecutions:[execution]}},'c1',{now:NOW,requireSnapshot:true});
+ assert.equal(good.asPlannedSessions,1);assert.equal(good.matchedRecordedSets,3);assert.equal(good.unresolvedPlannedSets,0);
+});
+test('GX: duplicado y omisión simultánea no certifican la serie',()=>{
+ const {snapshot,execution,rows}=frozenCoverageFixture();
+ const c=originalSeriesCoverage({...execution,results:[...rows,rows[0]],skippedSets:[rows[1]]},snapshot);
+ assert.equal(c.matchedRecordedSets,1);assert.equal(c.matchedSkippedSets,0);assert.equal(c.conflictingCoordinates,2);assert.equal(c.unresolvedPlannedSets,2);assert.equal(c.completeEvidence,false);
+ const omitted=originalSeriesCoverage({...execution,results:[rows[0],rows[2]],skippedSets:[rows[1]]},snapshot);assert.equal(omitted.matchedSkippedSets,1);assert.equal(omitted.unresolvedPlannedSets,0);
+});
+test('GX: ejercicio repetido requiere bloque o clave original inequívoca',()=>{
+ const {snapshot,execution,row}=frozenCoverageFixture();const p={...snapshot,blocks:[{id:'b1',type:'exercise',exerciseId:'sq',sets:1},{id:'b2',type:'exercise',exerciseId:'sq',sets:1}]};
+ const ambiguous=originalSeriesCoverage({...execution,results:[{exerciseId:'sq',setNumber:1,reps:8}]},p);assert.equal(ambiguous.matchedRecordedSets,0);assert.equal(ambiguous.conflictingCoordinates,2);
+ const scoped=originalSeriesCoverage({...execution,results:{'b1:sq:1':{exerciseId:'sq',setNumber:1,reps:8},'b2:sq:1':{exerciseId:'sq',setNumber:1,reps:8}}},p);assert.equal(scoped.matchedRecordedSets,2);assert.equal(scoped.completeEvidence,true);
+ const forged=originalSeriesCoverage({...execution,results:{'b1:sq:1':row('sq','b2',1)}},p);assert.equal(forged.matchedRecordedSets,0);assert.equal(forged.completeEvidence,false);
+});
+test('GX: alias contradictorios, registros no observados y claves incompatibles se excluyen',()=>{
+ const {snapshot,execution,rows}=frozenCoverageFixture();
+ for(const bad of [{...rows[0],set_number:2},{...rows[0],completed:false},{...rows[0],exercise_id:'row'},{exerciseId:'sq',blockId:'b1',setNumber:1,rpe:7}]){
+  const c=originalSeriesCoverage({...execution,results:[bad,...rows]},snapshot);assert.ok(c.matchedRecordedSets<3);assert.equal(c.completeEvidence,false);
+ }
+ const alias=originalSeriesCoverage({...execution,body:{results:[rows[0]]}},snapshot);assert.equal(alias.collectionConflict,true);assert.equal(alias.matchedRecordedSets,0);
+ const wrongKey=originalSeriesCoverage({...execution,results:{'row:1':rows[0]}},snapshot);assert.equal(wrongKey.matchedRecordedSets,0);assert.equal(wrongKey.completeEvidence,false);
+});
 
 function results(count){
   const out={};
@@ -67,7 +120,8 @@ test('Evolución compara planificación publicada y ejecución confirmada sin sc
   assert.equal(summary.unresolvedPlannedSets,0);
   assert.equal(summary.substitutions,1);
   assert.equal(summary.explicitAdjustments,1);
-  assert.equal(summary.asPlannedSessions,1);
+  assert.equal(summary.asPlannedSessions,0);
+  assert.equal(summary.unverifiedSessions,2);
   assert.equal(summary.adjustedSessions,1);
   assert.equal(summary.quality,'media');
   assert.equal(Object.hasOwn(summary,'score'),false);
@@ -90,7 +144,8 @@ test('Evolución excluye ejecuciones pendientes de confirmación',()=>{
   assert.equal(summary.plannedSets,7);
   assert.equal(summary.recordedSets,7);
   assert.equal(summary.skippedSets,0);
-  assert.equal(summary.asPlannedSessions,1);
+  assert.equal(summary.asPlannedSessions,0);
+  assert.equal(summary.unverifiedSessions,1);
 });
 
 test('Evolución mantiene ausencias explícitas cuando no existe plan publicado comparable',()=>{

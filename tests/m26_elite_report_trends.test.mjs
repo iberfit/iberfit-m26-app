@@ -1,8 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {buildDatedTrendEvidence,readDatedTrends,trendGeometry} from '../src/m26/workflows/report-trend-contract.js';
+import {buildDatedTrendEvidence,readDatedTrends,trendGeometry,buildWellbeingBundle,wellbeingBundleDescription} from '../src/m26/workflows/report-trend-contract.js';
 const start='2026-01-01',end='2026-03-31';
+test('Todas las variables de bienestar conservan sus fechas, valores y cobertura en una evidencia firmada',()=>{
+ const labels=['Energía','Sueño','Estrés','Dolor','Fatiga','Motivación'];
+ const rows=labels.map((label,j)=>buildDatedTrendEvidence(label,Array.from({length:16},(_,i)=>({date:'2026-01-'+String(i+1+j).padStart(2,'0'),value:(i+j)%11})),start,end));
+ const bundled=buildWellbeingBundle(rows,start,end);assert.ok(bundled.text.length<=500);
+ assert.deepEqual(readDatedTrends([bundled],start,end),readDatedTrends(rows,start,end));
+ assert.match(wellbeingBundleDescription([bundled],start,end),/Motivación/);assert.doesNotMatch(wellbeingBundleDescription([bundled],start,end),/v1\|/u);
+ assert.equal(readDatedTrends([{...bundled,text:bundled.text+'|'+bundled.text.split('|')[1]}],start,end).length,0);
+ assert.equal(readDatedTrends([bundled,bundled],start,end).length,0);
+ assert.equal(readDatedTrends([bundled,rows[0]],start,end).some(s=>s.label==='Energía'),false);
+ assert.equal(readDatedTrends([{...bundled,source:'wearableDailySummaries'}],start,end).length,0);
+});
 test('Elite data transport is identical in browser and Edge',async()=>{
  assert.equal(await readFile(new URL('../src/m26/workflows/report-trend-contract.js',import.meta.url),'utf8'),await readFile(new URL('../supabase/functions/iberfit-evolution-report-emission-v1/report-trend-contract.js',import.meta.url),'utf8'));
 });

@@ -62,7 +62,7 @@ test('portfolio automático conserva seis modelos evidenciables y deja reevaluac
   assert.equal(reports.find(report=>report.id==='reassessment').ready,false);
   assert.ok(reports.filter(report=>report.id!=='reassessment').every(report=>report.status==='ready'));
   assert.ok(reports.every((report)=>report.dataPolicy==='canonical-only'));
-  assert.ok(reports.every((report)=>report.coachCommentLabel==='Comentario del coach'));
+  assert.ok(reports.every((report)=>report.coachCommentLabel==='Comentario del entrenador'));
   assert.ok(reports.filter(report=>report.ready).every(report=>report.evidence.length>0));
   assert.equal(reports.find(report=>report.id==='iri').assessmentRevision,3);
   assert.ok(reports.filter(report=>report.id!=='iri').every(report=>report.assessmentId===null&&report.assessmentRevision===null));

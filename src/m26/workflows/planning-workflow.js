@@ -1,6 +1,7 @@
 function required(v,c){if(!v)throw new Error(c);}
 import {createM26Id} from '../platform/id.js';
 import {reportCivilDate} from '../domain/civil-date.js';
+import {validateGoalMeasurement} from '../planning/goal-measurement.js';
 import {evidenceNumber,stableEvidenceJson} from '../domain/evidence-signal.js';
 function cycleCivilDate(value){
   if(value instanceof Date){
@@ -97,8 +98,10 @@ export function validateCycleDraft(d={}){
     if(value===undefined||value===null||value==='')continue; // optional in historic command format
     if(evidenceNumber(value,{min,max,integer:true})===null)errors.push(field);
   }
+  const measured=validateGoalMeasurement(d.goalMeasurement,{startDate:d.startDate,endDate:d.endDate});
+  if(!measured.ok)errors.push(...measured.errors);
   return {ok:!errors.length,errors:[...new Set(errors)]};
 }
-export function buildCycleCommand(draft,revision=0){ const v=validateCycleDraft(draft); if(!v.ok) throw new Error(`M26_CYCLE_INVALID:${v.errors.join(',')}`); return {type:'PLAN_VALIDAR',entityType:'planning',entityId:draft.id||createM26Id(),clientId:draft.clientId,baseRevision:revision,payload:{draft:structuredClone(draft)}}; }
+export function buildCycleCommand(draft,revision=0){ const v=validateCycleDraft(draft); if(!v.ok) throw new Error(`M26_CYCLE_INVALID:${v.errors.join(',')}`); const body=structuredClone(draft); if(Object.hasOwn(draft,'goalMeasurement'))body.goalMeasurement=validateGoalMeasurement(draft.goalMeasurement,{startDate:draft.startDate,endDate:draft.endDate}).value; return {type:'PLAN_VALIDAR',entityType:'planning',entityId:draft.id||createM26Id(),clientId:draft.clientId,baseRevision:revision,payload:{draft:body}}; }
 export function buildPlanCommand(draft,revision=0){ required(draft?.clientId,'M26_PLAN_CLIENT_REQUIRED'); required(draft?.cycleId,'M26_PLAN_CYCLE_REQUIRED'); if(!Array.isArray(draft.sessions)||!draft.sessions.length) throw new Error('M26_PLAN_SESSIONS_REQUIRED'); return {type:'PLAN_VALIDAR',entityType:'planning',entityId:draft.cycleId,clientId:draft.clientId,baseRevision:revision,payload:{draft:structuredClone(draft)}}; }
 export function buildPublishPlanCommand({clientId,planId,previewAccepted},revision=0){ if(!previewAccepted) throw new Error('M26_PLAN_PREVIEW_REQUIRED'); return {type:'PLAN_PUBLICAR',entityType:'planning',entityId:planId,clientId,baseRevision:revision,previewAccepted:true,payload:{patch:{publishedAt:new Date().toISOString()}}}; }

@@ -1,11 +1,8 @@
 name: IBERFIT GLOBAL EXCELLENCE — consolidated local certification
 on:
   push:
+    # Every new candidate SHA requires its own offline proof.
     branches: [feature/global-excellence-intelligence-360]
-    paths:
-      - '.github/workflows/gx-consolidated-local.yml'
-      - 'scripts/ops/m44_prod_edge_recovery_sources.json'
-      - 'docs/global-excellence-intelligence-360-checkpoint.md'
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,6 +23,12 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Check generated PWA shell against tracked runtime files
+        run: node scripts/generate_rc58_app_shell.mjs --check
+      - name: Verify all backend release procedures and reversal without credentials
+        run: |
+          node scripts/ops/gx_backend_release_v1.mjs install --check
+          node scripts/ops/gx_backend_release_v1.mjs rollback --check
       - name: Full offline regression suite, network guard and no credentials
         run: npm run test:offline
   native-browser-and-build:

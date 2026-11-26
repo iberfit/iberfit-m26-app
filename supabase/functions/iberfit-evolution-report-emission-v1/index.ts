@@ -3,6 +3,7 @@ import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
 import fontkit from 'npm:@pdf-lib/fontkit@1.1.1';
 import {renderEvolutionReportPdf,M44_ACCEPTED_REPLAY_TEMPLATES} from './pdf-renderer.js';
 import {ensureStoredPdfArtifact} from './storage-recovery.js';
+import {authorizedArtifactIdentity,verifyFreshArtifactAuthorization,verifyFreshReportPreparation} from './artifact-authorization.js';
 
 const VERSION='m44-issued-pdf-broker-2026.10-v1';
 const BUCKET='iberfit-evolution-issued-reports';
@@ -81,7 +82,7 @@ type Prepared={ok:boolean;reportId:string;clientId:string;sourceRevision:number;
 type Previous={id:string;report_id:string;report_revision:number;source_sha256:string;
  artifact_sha256:string;artifact_path:string;status:string;version:number};
 type Finalized={ok:boolean;kind:string;issuanceId:string;version:number;artifactPath:string;artifactSha256:string;withdrawn?:boolean};
-type Access={ok:boolean;withdrawn:boolean;artifactBucket:string;artifactPath:string;artifactSha256:string;version:number};
+type Access={ok:boolean;withdrawn:boolean;issuanceId:string;reportId:string;artifactBucket:string;artifactPath:string;artifactSha256:string;artifactSizeBytes:number;version:number};
 type Withdrawn={ok:boolean;kind:string;issuanceId:string};
 async function callRpc<T>(client:BrokerClient,name:string,args:Record<string,unknown>):Promise<T>{
  // The new migration RPCs are not yet reflected in generated supabase-js types.
@@ -118,6 +119,8 @@ async function issue({user,service,actor,body}:{
   if(previous.report_id!==id||previous.report_revision!==Number(src.sourceRevision)||
      previous.source_sha256!==src.sourceSha256||previous.status!=='issued')
    throw Error('M44_PDF_ISSUE_REPLAY_COLLISION');
+  const priorAccess=authorizedArtifactIdentity(await callRpc<Access>(user,'iberfit_m44_authorize_evolution_report_pdf_v1',{p_issuance_id:previous.id}),previous.id);
+  if(priorAccess.reportId!==id||priorAccess.version!==previous.version||priorAccess.path!==previous.artifact_path||priorAccess.sha256!==previous.artifact_sha256)throw Error('M44_PDF_AUTHORIZATION_CHANGED');
   return {kind:'already-issued',issuanceId:previous.id,version:previous.version,
    artifactSha256:previous.artifact_sha256,delivery:'authenticated-pdf'};
  }
@@ -153,6 +156,9 @@ async function issue({user,service,actor,body}:{
   });
   // Only the service role may bind these verified bytes to an issuance.
   // The finalizer rejects a changed source revision under a database lock.
+  // Storage generation can take seconds. Recheck current privileged assurance,
+  // scope and the source fingerprint using the original caller before finalization.
+  verifyFreshReportPreparation(src,await callRpc<Prepared>(user,'iberfit_m44_prepare_evolution_report_issue_v1',{p_report_id:id}));
   const persisted=await callRpc<Finalized>(service,'iberfit_m44_finalize_evolution_report_issue_v1',{
    p_report_id:id,p_issue_request_id:requestId,
    p_source_revision:Number(src.sourceRevision),p_source_sha256:src.sourceSha256,
@@ -170,6 +176,8 @@ async function issue({user,service,actor,body}:{
   if(record.kind==='already-issued'&&canonicalPath!==path){
    await service.storage.from(BUCKET).remove([path]);
   }
+  const finalAccess=authorizedArtifactIdentity(await callRpc<Access>(user,'iberfit_m44_authorize_evolution_report_pdf_v1',{p_issuance_id:record.issuanceId}),record.issuanceId);
+  if(finalAccess.reportId!==id||finalAccess.version!==record.version||finalAccess.path!==canonicalPath||finalAccess.sha256!==(record.artifactSha256||artifact.sha256))throw Error('M44_PDF_AUTHORIZATION_CHANGED');
   return {kind:record.kind,issuanceId:record.issuanceId,version:record.version,
    artifactSha256:record.artifactSha256||artifact.sha256,pages:rendered.pages,
    delivery:'authenticated-pdf'};
@@ -225,17 +233,18 @@ async function downloadVerified({user,service,body}:{
  const row=await callRpc<Access>(user,'iberfit_m44_authorize_evolution_report_pdf_v1',{
   p_issuance_id:id,
  });
- if(!row?.ok||row.withdrawn||row.artifactBucket!==BUCKET||
-    !SHA.test(String(row.artifactSha256||'')))
-  throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
- const downloaded=await service.storage.from(BUCKET).download(row.artifactPath);
+ const identity=authorizedArtifactIdentity(row,id);
+ const downloaded=await service.storage.from(BUCKET).download(identity.path);
  if(downloaded.error||!downloaded.data)throw Error('M44_PDF_STORAGE_READBACK_FAILED');
  const bytes=new Uint8Array(await downloaded.data.arrayBuffer());
- if(bytes.length<1024||bytes.length>20*1024*1024)
+ if(bytes.length!==identity.size||bytes.length<1024||bytes.length>20*1024*1024)
   throw Error('M44_PDF_STORAGE_BYTES_INVALID');
- if(await digest(bytes)!==row.artifactSha256)
+ if(await digest(bytes)!==identity.sha256)
   throw Error('M44_PDF_STORAGE_CHECKSUM_MISMATCH');
- return {bytes,version:row.version,sha256:row.artifactSha256};
+ // A withdrawal or permission change while fetching private bytes must not
+ // release those bytes merely because the first check succeeded.
+ verifyFreshArtifactAuthorization(identity,await callRpc<Access>(user,'iberfit_m44_authorize_evolution_report_pdf_v1',{p_issuance_id:id}),id);
+ return {bytes,version:identity.version,sha256:identity.sha256};
 }
 Deno.serve(async(req)=>{
  const origin=String(req.headers.get('origin')||'').trim().toLowerCase();

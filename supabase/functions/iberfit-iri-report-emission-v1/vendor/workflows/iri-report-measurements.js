@@ -32,11 +32,15 @@ export function bodyMeasurements(body={}){
  const calculatedFat=weight!==null&&fatPct!==null?Math.round(weight*fatPct*10/100)/10:null;
  // Explicit values are not silently substituted with muscle mass.
  const fatMass=explicitFat??calculatedFat;
- const calculatedLean=weight!==null&&fatMass!==null?Math.round((weight-fatMass)*10)/10:null;
- const plausible=rawLean!==null&&(muscle===null||rawLean>=muscle);
+ // Tolerate instrument rounding but never derive one compartment from conflicting inputs.
+ const tolerance=Math.max(.5,(weight??0)*.01);
+ const fatConflict=explicitFat!==null&&calculatedFat!==null&&Math.abs(explicitFat-calculatedFat)>tolerance;
+ const calculatedLean=!fatConflict&&weight!==null&&fatMass!==null?Math.round((weight-fatMass)*10)/10:null;
+ const leanConflict=rawLean!==null&&calculatedLean!==null&&Math.abs(rawLean-calculatedLean)>tolerance;
+ const plausible=rawLean!==null&&!leanConflict&&(muscle===null||rawLean>=muscle);
  const lean=plausible?rawLean:(calculatedLean!==null&&(muscle===null||calculatedLean>=muscle)?calculatedLean:null);
  return {weightKg:weight,bodyFatPercent:fatPct,muscleMassKg:muscle,fatMassKg:fatMass,leanMassKg:lean,
   bodyWaterPercent:get('bodyWaterPercent',0,100),waistCm:get('waistCm',1,500),visceralFatLevel:get('visceralFatLevel',0,1000),
   fatMassDerived:explicitFat===null&&calculatedFat!==null,leanMassDerived:!plausible&&lean!==null,
-  rawLeanInconsistent:body.leanMassKg!=null&&!plausible&&!skipped,skipped};
+  rawLeanInconsistent:body.leanMassKg!=null&&!plausible&&!skipped,fatConflict,leanConflict,skipped};
 }

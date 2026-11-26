@@ -5,6 +5,7 @@ import {selectCurrentTrainingCycle} from '../workflows/planning-workflow.js';
 import {linkableSessionsForCoachAgenda} from '../workflows/agenda-workflow.js';
 export {linkableSessionsForCoachAgenda} from '../workflows/agenda-workflow.js';
 import {buildPeriodizationSnapshot} from '../planning/periodization-workbench.js';
+import {buildGoalBaselineOptions} from '../workflows/report-reassessment-evidence.js';
 import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
 import {createAdminRouteViewModel} from '../admin/view-model.js';
@@ -47,6 +48,7 @@ import {
 } from '../domain/civil-date.js';
 import { deriveAgeYears } from '../workflows/iri-profile.js';
 import {confirmedFirstSessionDraft} from '../workflows/iri-first-session.js';
+import {buildReassessmentReview} from '../workflows/report-reassessment-evidence.js';
 import {scoreIriPerformance} from '../norms/iri-scoring.js';
 import {buildIri2DecisionLog,buildIriPlanningSeed,isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
 import {getIberfitLanguage,iberfitLanguageOptions,iberfitLocaleOptions,iberfitPlannedLanguages} from '../ui/i18n.js';
@@ -814,7 +816,10 @@ if (area === 'clientes') {
         role,
         options,
       );
-    return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
+    const canReview=trainingActive&&['coach','admin'].includes(role)&&state?.identity?.role===role&&String(state?.selectedClientId||'')===String(clientId||'')&&Boolean(clientId);
+    const review=canReview?buildReassessmentReview(state,clientId,{now}):null;
+    const reassessmentReview=review?Object.freeze({periodStart:review.periodStart,periodEnd:review.periodEnd,comparisons:Object.freeze(review.comparisons.map(({label,previous,value,delta,unit,deltaUnit})=>Object.freeze({label,previous,value,delta,unit,deltaUnit})))}):null;
+    return Object.freeze({reassessmentReview,exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'progreso',
       clientId,
       role,
@@ -976,6 +981,7 @@ if (area === 'clientes') {
         :[]),
       canEdit,
       iriPlanningSeed,
+      goalBaselineOptions:canEdit?buildGoalBaselineOptions(state,clientId,{now}):[],
       profile,
       clientContext:['admin','coach'].includes(role)?professionalClientContext(state,clientId):null,
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),

@@ -188,14 +188,15 @@ function creationSuccess(result={},context={}){
   const reason=String(invitation.reason||'').toLowerCase();
   const internal=context.accessMode==='internal'||reason==='internal_record'||String(invitation.accessStatus||'').toLowerCase()==='sin_acceso';
   const subject=context.iriEntry?'Persona':'Cliente';
+  if(reason==='creation_recovered_review_access'||result?.response?.recoveryOnly===true||result?.recoveryOnly===true)return 'Alta anterior localizada. Revisa el estado actual de la persona y su acceso antes de solicitar una invitación.';
   if(internal)return `${subject} creado sin enviar invitación. El acceso puede habilitarse después.`;
-  if(delivery==='sent')return `${subject} creado. Invitación enviada correctamente.`;
+  if(delivery==='sent')return `${subject} creado. El proveedor aceptó la invitación; confirma la recepción con la persona.`;
   if(delivery==='error')return `${subject} creado, pero la invitación no pudo enviarse. Queda pendiente para reintento.`;
   if(delivery==='pending')return `${subject} creado. Invitación en proceso.`;
   return `${subject} creado y acceso preparado.`;
 }
 function invitationSuccess(result={}){return creationSuccess(result,{iriEntry:false,accessMode:'app'});}
-function invitationResendSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();const reason=String(invitation.reason||'').toLowerCase();if(delivery==='sent')return 'Invitación reenviada correctamente.';if(reason==='already_sent')return 'La invitación ya constaba como enviada; no se duplicó el correo.';if(delivery==='pending')return 'Reenvío solicitado. La invitación queda pendiente de confirmación.';if(delivery==='error')return 'El reenvío no pudo completarse. La invitación sigue pendiente para reintento.';return 'Estado de invitación actualizado.';}
+function invitationResendSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();const reason=String(invitation.reason||'').toLowerCase();if(reason==='already_sent')return 'La invitación ya constaba como enviada; no se duplicó el correo.';if(reason==='already_active')return 'La persona ya tiene acceso activo.';if(delivery==='sent')return 'El proveedor aceptó la invitación. Confirma la recepción con la persona.';if(delivery==='pending')return 'La invitación está pendiente de confirmación. Revisa el estado antes de solicitar otro envío.';if(delivery==='error')return 'El reenvío no pudo completarse. La invitación sigue pendiente para reintento.';return 'Estado de invitación actualizado.';}
 function createdClientId(result={}){
   const response=Array.isArray(result?.response)?result.response[0]:result?.response;
   const candidates=[
@@ -224,16 +225,23 @@ export function adminDeletionOutcome(kind,result={}){
   throw new Error('M26_ADMIN_DELETION_OUTCOME_INVALID');
 }
 
-export function createAdminController({root,store,service,render=()=>{}}={}){
+export function createAdminController({root,store,service,render=()=>{},getSessionLease=null}={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_ADMIN_CONTROLLER_CONTEXT_REQUIRED');
   const pendingLocks=new Set();
   const submitLabels=new WeakMap();
   let mounted=false;
   let clientEditReturnFocus=null;
   let pendingCreatedClientId='';
+  function adminScope(){
+    const state=store.getState();
+    const actor=String(state.identity?.id||'').trim(),org=String(state.admin?.organization?.id||'').trim();
+    const id=/^[0-9a-zA-Z-]{1,54}$/u;
+    return state.identity?.role==='admin'&&id.test(actor)&&id.test(org)?'org:'+org+':actor:'+actor:'';
+  }
   const clientWizard=createClientCreateWizard({
     root,
-    getScopeKey:()=>String(store.getState().admin?.organization?.id||'default'),
+    getScopeKey:adminScope,
+    getLegacyScopeKey:()=>String(store.getState().admin?.organization?.id||''),
   });
   function restoreCreatedClientFocus(){
     const clientId=String(pendingCreatedClientId||'').trim();
@@ -289,6 +297,9 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       toast('Ese registro ya tiene un cambio en curso.');
       return false;
     }
+    const scope=adminScope(),lease=typeof getSessionLease==='function'?getSessionLease():null;
+    if(!scope||(typeof getSessionLease==='function'&&!lease)){toast('No se pudo confirmar la sesión administrativa. Vuelve a acceder.');return false;}
+    const sameScope=()=>mounted&&adminScope()===scope&&(typeof getSessionLease!=='function'||getSessionLease()===lease);
     pendingLocks.add(key);
     setFormPending(form,true);
     syncPendingUserForms();
@@ -301,6 +312,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     };
     try{
       const result=await service.execute(input);
+      if(!sameScope())return false;
       try{onSuccess?.(result);}catch{}
       const successMessage=typeof success==='function'?success(result):success;
       const initialMessage=result?.refreshPending===true
@@ -311,6 +323,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       toast(initialMessage);
       if(result?.refreshPending===true&&result?.whenRefreshed?.then){
         void result.whenRefreshed.then((outcome)=>{
+          if(!sameScope())return;
           if(outcome?.ok===true){
             render();
             restoreUserDirectoryDisclosures(root,disclosures);
@@ -334,12 +347,11 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       }
       return true;
     }catch(error){
-      toast(adminError(error));
+      if(sameScope())toast(adminError(error));
       return false;
     }finally{
       pendingLocks.delete(key);
-      setFormPending(form,false);
-      syncPendingUserForms();
+      if(sameScope()){setFormPending(form,false);syncPendingUserForms();}
     }
   }
   async function onSubmit(event){

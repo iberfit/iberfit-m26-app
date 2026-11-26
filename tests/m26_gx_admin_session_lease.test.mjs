@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createAdminCommandService} from '../src/m26/admin/service.js';
+// Real command policy is tested in existing Admin suites. This test uses
+// valid application permission state, no actual network or Auth credentials.
+const state={available:true,organization:{id:'00000000-0000-4000-8000-000000000140'},permissions:{scopeType:'organization',capabilities:['client.lifecycle.manage']}};
+const command={type:'ADMIN_CLIENTE_REENVIAR_INVITACION',operationId:'00000000-0000-4000-8000-000000000001',entityId:'00000000-0000-4000-8000-000000000002',payload:{clientId:'00000000-0000-4000-8000-000000000002'}};
+function deferred(){let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};}
+function setup({getToken,execute,refreshState,initialLease={}}={}){let lease=initialLease,requests=0,refreshes=0;const service=createAdminCommandService({transport:{execute:async(...args)=>{requests++;return execute?execute(...args):{ok:true,kind:'ack'};}},getToken:getToken||(()=>Promise.resolve('token')),getAdminState:()=>state,getSessionLease:()=>lease,refreshState:async(...args)=>{refreshes++;return refreshState?.(...args);},refreshWaitMs:0});return {service,change:()=>{lease={};},counts:()=>({requests,refreshes})};}
+test('GX331 does not dispatch command after new login during token refresh',async()=>{const d=deferred(),h=setup({getToken:()=>d.promise});const promise=h.service.execute(command);h.change();d.resolve('new-token');await assert.rejects(promise,/M26_ADMIN_SESSION_CHANGED/);assert.deepEqual(h.counts(),{requests:0,refreshes:0})});
+test('GX331 valid token rotation in same lease permits exactly one dispatch',async()=>{const d=deferred(),h=setup({getToken:()=>d.promise});const promise=h.service.execute(command);d.resolve('rotated-token');const r=await promise;assert.equal(r.ok,true);assert.deepEqual(h.counts(),{requests:1,refreshes:1})});
+test('GX331 stale ACK must not refresh the new session',async()=>{const sent=deferred(),ack=deferred(),h=setup({execute:()=>{sent.resolve();return ack.promise;}});const promise=h.service.execute(command);await sent.promise;h.change();ack.resolve({ok:true,kind:'ack'});await assert.rejects(promise,/M26_ADMIN_SESSION_CHANGED/);assert.deepEqual(h.counts(),{requests:1,refreshes:0})});
+test('GX331 duplicate operation across different login never joins old pending promise',async()=>{const d=deferred(),h=setup({getToken:()=>d.promise});const promise=h.service.execute(command);h.change();await assert.rejects(h.service.execute(command),/M26_ADMIN_OPERATION_ID_COLLISION/);d.resolve('new-token');await assert.rejects(promise,/M26_ADMIN_SESSION_CHANGED/);assert.deepEqual(h.counts(),{requests:0,refreshes:0})});

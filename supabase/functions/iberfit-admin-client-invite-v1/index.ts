@@ -1,6 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 
-const FUNCTION_VERSION='admin-client-invite-v26.6';
+const FUNCTION_VERSION='admin-client-invite-v26.8';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
 function deploymentProjectRef(value:string){
@@ -39,11 +39,16 @@ function reply(status:number,body:unknown,origin=''){
 }
 function codeOf(error:unknown,fallback='V26_INVITATION_SEND_FAILED'){
   const raw=String((error as {message?:string})?.message||error||'').toUpperCase();
-  const match=raw.match(/\b(?:V|M26|IBERFIT)_[A-Z0-9_:-]{2,100}\b/u);
+  const match=raw.match(/\b(?:V(?:[0-9]{1,3})?|M26|IBERFIT|GX333)_[A-Z0-9_:-]{2,100}\b/u);
   if(match)return match[0].slice(0,100);
   if(/ALREADY.*REGISTER|USER.*EXISTS|ALREADY.*EXISTS/u.test(raw))return 'V26_AUTH_USER_ALREADY_EXISTS';
   if(/RATE|LIMIT/u.test(raw))return 'V26_INVITATION_RATE_LIMITED';
   return fallback;
+}
+function providerDefinitelyRejected(error:unknown){
+  const item=error as {name?:string;status?:number;code?:string};
+  return item?.name==='AuthApiError'&&[400,403,422,429].includes(Number(item.status))
+    &&['over_email_send_rate_limit','email_address_invalid','email_address_not_authorized','validation_failed','user_banned','signup_disabled'].includes(String(item.code||''));
 }
 function normalizeEmail(value:unknown){
   const email=String(value||'').trim().toLowerCase();
@@ -111,7 +116,7 @@ Deno.serve(async(req:Request)=>{
   let createReceipt:Record<string,unknown>|null=null;
   let clientId=normalized.clientId||'';
   let email='';
-  let providerAccepted=false;
+  let providerAccepted=false,providerDispatched=false,preparedForSend=false,creationConfirmed=false;
 
   try{
     if(normalized.type==='ADMIN_CLIENTE_CREAR'){
@@ -119,8 +124,19 @@ Deno.serve(async(req:Request)=>{
       if(createError)throw createError;
       const item=(Array.isArray(createData)?createData[0]:createData) as Record<string,unknown>|null;
       clientId=String(item?.clientId||item?.entityId||'').trim();
-      if(!item||item.ok!==true||!UUID.test(clientId))throw new Error('V26_ADMIN_CLIENT_CREATE_INVALID_RESPONSE');
-      createReceipt=item;
+      if(!item||item.ok!==true||!['ack','duplicate'].includes(String(item.kind||'').toLowerCase())
+        ||item.operationId!==normalized.operationId||item.commandType!==normalized.type
+        ||!UUID.test(clientId)||String(item.entityId||'').toLowerCase()!==clientId.toLowerCase())
+        throw new Error('V26_ADMIN_CLIENT_CREATE_INVALID_RESPONSE');
+      createReceipt=item;creationConfirmed=true;
+      // A recovered creation is historical. It cannot authorize another email,
+      // even if the original request selected app access. Review current access
+      // and use the separate, explicitly authorized invitation action instead.
+      if(String(item.kind).toLowerCase()==='duplicate'||item.recoveryOnly===true){
+        const {invitation:historicalInvitation,trainingServiceStatus:historicalService,coachAssignment:historicalAssignment,gx333CommandHash:privateHash,...historical}=item;
+        return reply(200,{...historical,ok:true,kind:'duplicate',recoveryOnly:true,version:FUNCTION_VERSION,
+          invitation:{deliveryStatus:null,accessStatus:null,reason:'creation_recovered_review_access'}},origin);
+      }
 
       const payload=normalized.command.payload&&typeof normalized.command.payload==='object'&&!Array.isArray(normalized.command.payload)
         ?normalized.command.payload as Record<string,unknown>
@@ -162,7 +178,10 @@ Deno.serve(async(req:Request)=>{
     const {data:prepareData,error:prepareError}=await userClient.rpc('iberfit_admin_client_invitation_prepare_v26',{p_client_id:clientId,p_operation_id:normalized.operationId});
     if(prepareError)throw prepareError;
     const prepared=(Array.isArray(prepareData)?prepareData[0]:prepareData) as Record<string,unknown>|null;
-    if(!prepared||prepared.ok!==true)throw new Error('V26_INVITATION_PREPARE_INVALID_RESPONSE');
+    if(!prepared||prepared.ok!==true||typeof prepared.shouldSend!=='boolean'
+      ||String(prepared.clientId||'').toLowerCase()!==clientId.toLowerCase())
+      throw new Error('V26_INVITATION_PREPARE_INVALID_RESPONSE');
+    preparedForSend=prepared.shouldSend;
     email=normalizeEmail(prepared.email);
     if(prepared.shouldSend!==true){
       return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,invitation:{deliveryStatus:prepared.deliveryStatus||null,accessStatus:prepared.accessStatus||null,reason:prepared.reason||'not_required',email}},origin);
@@ -181,14 +200,16 @@ Deno.serve(async(req:Request)=>{
       const {data:bindData,error:bindError}=await userClient.rpc('iberfit_admin_client_invitation_bind_v26',{p_client_id:clientId,p_auth_user_id:authUserId});
       if(bindError)throw bindError;
       if(!(Array.isArray(bindData)?bindData[0]:bindData)?.ok)throw new Error('V26_INVITATION_BIND_INVALID_RESPONSE');
+      providerDispatched=true;
       const {error:recoveryError}=await publicAuth.auth.resetPasswordForEmail(email,{redirectTo});
-      if(recoveryError)throw recoveryError;
+      if(recoveryError){if(providerDefinitelyRejected(recoveryError))providerDispatched=false;throw recoveryError;}
       providerAccepted=true;
       deliveryMode='recovery-existing-user';
     }else{
       const name=String(prepared.name||'Cliente IBERFIT').trim().slice(0,200)||'Cliente IBERFIT';
+      providerDispatched=true;
       const {data:inviteData,error:inviteError}=await service.auth.admin.inviteUserByEmail(email,{redirectTo,data:{name,role:'client',client_id:clientId}});
-      if(inviteError)throw inviteError;
+      if(inviteError){if(providerDefinitelyRejected(inviteError))providerDispatched=false;throw inviteError;}
       providerAccepted=true;
       authUserId=String(inviteData?.user?.id||'');
       if(!UUID.test(authUserId))throw new Error('V26_INVITATION_AUTH_USER_INVALID');
@@ -200,27 +221,37 @@ Deno.serve(async(req:Request)=>{
     const {data:finalData,error:finalError}=await userClient.rpc('iberfit_admin_client_invitation_finalize_v26',{p_client_id:clientId,p_operation_id:normalized.operationId,p_delivery_status:'sent',p_error_code:null});
     if(finalError)throw finalError;
     const finalized=(Array.isArray(finalData)?finalData[0]:finalData) as Record<string,unknown>|null;
-    if(!finalized||finalized.ok!==true)throw new Error('V26_INVITATION_FINALIZE_INVALID_RESPONSE');
+    if(!finalized||finalized.ok!==true||String(finalized.clientId||'').toLowerCase()!==clientId.toLowerCase()
+      ||finalized.deliveryStatus!=='sent')throw new Error('V26_INVITATION_FINALIZE_INVALID_RESPONSE');
     return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,invitation:{...finalized,email,deliveryMode}},origin);
   }catch(error){
     const errorCode=codeOf(error);
     // An accepted Auth email is irreversible. Never delete its identity or claim delivery failed.
     // Leave the invitation pending for reconciliation instead of issuing another email.
-    if(providerAccepted&&clientId&&UUID.test(clientId)){
+    // A failed or timed-out provider request is not proof that no email was sent.
+    if((providerAccepted||providerDispatched)&&clientId&&UUID.test(clientId)){
       return reply(200,{...(createReceipt||{}),ok:true,
         kind:String(createReceipt?.kind||'ack'),operationId:normalized.operationId,
         commandType:normalized.type,entityId:clientId,clientId,version:FUNCTION_VERSION,
         invitation:{deliveryStatus:'pending',accessStatus:'invitacion_pendiente',
-          reason:'provider_accepted_reconciliation_pending',
+          reason:providerAccepted?'provider_accepted_reconciliation_pending':'provider_delivery_unconfirmed',
           errorCode:'V26_INVITATION_RECONCILIATION_REQUIRED',email:email||null}},origin);
     }
     if(/ADMIN_REQUIRED|AUTH_REQUIRED|WEBAUTHN|ASSURANCE|FORBIDDEN/u.test(errorCode)){
       return reply(403,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
     }
-    if(clientId&&UUID.test(clientId)){
-      try{await userClient.rpc('iberfit_admin_client_invitation_finalize_v26',{p_client_id:clientId,p_operation_id:normalized.operationId,p_delivery_status:'error',p_error_code:errorCode});}catch{}
-      return reply(200,{...(createReceipt||{}),ok:true,kind:String(createReceipt?.kind||'ack'),operationId:normalized.operationId,commandType:normalized.type,entityId:clientId,clientId,version:FUNCTION_VERSION,invitation:{deliveryStatus:'error',accessStatus:'invitacion_pendiente',errorCode,email:email||null}},origin);
+    if(preparedForSend&&clientId&&UUID.test(clientId)){
+      let failed=false;
+      try{
+        const {data,error}=await userClient.rpc('iberfit_admin_client_invitation_finalize_v26',{p_client_id:clientId,p_operation_id:normalized.operationId,p_delivery_status:'error',p_error_code:errorCode});
+        const result=Array.isArray(data)?data[0]:data;
+        failed=!error&&result?.ok===true&&String(result.clientId||'').toLowerCase()===clientId.toLowerCase()&&result.deliveryStatus==='error';
+      }catch{}
+      return reply(200,{...(createReceipt||{}),ok:true,kind:String(createReceipt?.kind||'ack'),operationId:normalized.operationId,commandType:normalized.type,entityId:clientId,clientId,version:FUNCTION_VERSION,invitation:{deliveryStatus:failed?'error':'pending',accessStatus:'invitacion_pendiente',reason:failed?'delivery_rejected_confirmed':'pre_dispatch_reconciliation_pending',errorCode,email:email||null}},origin);
     }
-    return reply(400,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
+    // A failed prepare (rate limit, stale operation, etc.) is not a resend ACK.
+    // If creation was confirmed, preserve only that fact and make access uncertainty explicit.
+    if(creationConfirmed&&createReceipt)return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,invitation:{deliveryStatus:'pending',accessStatus:null,reason:'creation_confirmed_invitation_unconfirmed',errorCode}},origin);
+    return reply(errorCode==='V26_INVITATION_RATE_LIMITED'?429:400,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
   }
 });

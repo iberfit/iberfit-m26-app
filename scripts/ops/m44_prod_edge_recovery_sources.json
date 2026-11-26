@@ -7,9 +7,9 @@
       "slug": "iberfit-admin-client-invite-v1",
       "verify_jwt": false,
       "live_bundle_sha256": "c847ac0732966de086e82a4b4a5570719a18a9159b75a141305b3e136efc0e5d",
-      "source_path": "supabase/functions/iberfit-admin-client-invite-v1/index.ts",
+      "source_path": "scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261119/index.ts",
       "source_git_blob_sha1": "9124e4e5c46419f4cc339fed05f6be34ac67524b",
-      "source_state": "canonical"
+      "source_state": "canonical_live_snapshot_pending_release"
     },
     {
       "slug": "iberfit-admin-media-review-v1",

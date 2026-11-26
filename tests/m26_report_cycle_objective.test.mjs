@@ -11,5 +11,6 @@ test('unpublished, stale, pending, contradictory or other-owner objectives fail 
  for(const c of [{...cycle,status:'draft'},{...cycle,publishedAt:null},{...cycle,publishedAt:'2026-12-01T00:00:00Z'},{...cycle,syncStatus:'pending'},{...cycle,clientId:'c2'},{...cycle,body:{clientId:'c2'}},{...cycle,body:{status:'draft'}},{...cycle,endDate:'2026-11-01'}])assert.equal(buildReportCycleObjective(state([c]),'c1',period),null);
  assert.equal(buildReportCycleObjective(state([cycle,{...cycle,revision:2,status:'draft'}]),'c1',period),null);
  assert.equal(buildReportCycleObjective(state([cycle],{pendingOperations:[{command:{entityId:'cycle'}}]}),'c1',period),null);
+ for(const c of [{...cycle,client_id:'c2'},{...cycle,body:{cliente_id:'c2'}},{...cycle,server_confirmed:false},{...cycle,serverConfirmed:true,body:{server_confirmed:false}}])assert.equal(buildReportCycleObjective(state([c]),'c1',period),null);
  assert.equal(buildReportCycleObjective(state(),'c1',{...period,end:'2026-11-24'}),null);
 });

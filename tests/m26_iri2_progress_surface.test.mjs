@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 import {computeProgressSummary,progressSummaryHasEvolutionEvidence,buildProgressTimeline} from '../src/m26/engagement/progress-engine.js';
 import {normalizeFirstSessionDraft,buildIriCommandDraftFromFirstSession} from '../src/m26/workflows/iri-first-session.js';
-import {renderProgressRoute} from '../src/m26/modules/route-render.js';
+import {renderProgressRoute,renderProfessionalReassessmentReview} from '../src/m26/modules/route-render.js';
 
 const NOW=new Date('2026-09-11T12:00:00Z');
 
@@ -102,6 +102,13 @@ test('la superficie Progreso presenta el IRI como punto de partida, nunca como s
   assert.doesNotMatch(html,/data-iri-milestones|data-iri2-progress|Diagnóstico y reevaluación IRI|Hitos IRI comparables|reevaluación IRI anterior/iu);
 });
 
+test('La revisión protocolizada solo se muestra al profesional y escapa los datos',()=>{
+ const review={periodStart:'2026-06-11',periodEnd:'2026-09-11',comparisons:[{label:'Grasa corporal <script>',previous:25,value:24,delta:-1,unit:'%',deltaUnit:'p. p.'}]};
+ for(const role of ['coach','admin']){const html=renderProfessionalReassessmentReview(review,role);assert.match(html,/data-m26-reassessment-review/);assert.match(html,/p\. p\./);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>/);assert.match(html,/data-m26-area="informes"/);}
+ for(const role of ['client','',undefined])assert.equal(renderProfessionalReassessmentReview(review,role),'');
+ assert.equal(renderProfessionalReassessmentReview(null,'coach'),'');
+ assert.match(renderProfessionalReassessmentReview({...review,comparisons:[]},'coach'),/No hay mediciones con protocolo equivalente/);
+});
 test('el motor de Progreso ya no conecta iriAssessments con el comparador longitudinal legacy',()=>{
   const source=fs.readFileSync(new URL('../src/m26/engagement/progress-engine.js',import.meta.url),'utf8');
   assert.doesNotMatch(source,/buildEvolutionProfile|evolutionComparisonSummary|EVOLUTION_FOLLOWUP_KIND/u);

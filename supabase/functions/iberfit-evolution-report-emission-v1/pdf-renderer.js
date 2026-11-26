@@ -1,6 +1,6 @@
 // Branded, server-owned M44 evolution PDF renderer. pdf-lib injected by Edge.
 // Rendering is based on the canonical, redacted, published server snapshot.
-import {readDatedTrends,trendGeometry,readTrainingCalendar,calendarDescription} from './report-trend-contract.js';
+import {readDatedTrends,trendGeometry,readTrainingCalendar,calendarDescription,WELLBEING_BUNDLE_LABEL,wellbeingBundleDescription} from './report-trend-contract.js';
 export const M44_PDF_TEMPLATE='iberfit-evolution-a4-brand-v3';
 export const M44_ACCEPTED_REPLAY_TEMPLATES=Object.freeze(['iberfit-evolution-a4-brand-v2',M44_PDF_TEMPLATE]);
 const W=595.28,H=841.89;
@@ -221,7 +221,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  for(const [i,item] of source.evidence.entries()){
   const title=safe(item?.label,120);
  const parsedTrend=trends.find(t=>'Tendencia: '+t.label===item?.label);
- const value=parsedTrend?parsedTrend.points.length+' de '+parsedTrend.total+' días registrados ('+parsedTrend.unit+'). '+parsedTrend.points.map(p=>humanDate(p.date)+': '+fmt(p.value)).join(' · '):item?.label==='Calendario de entrenamiento'?(calendar?calendarDescription(calendar):'Registro diario no interpretable; requiere revisión.'):rowText(item);
+ const value=item?.label===WELLBEING_BUNDLE_LABEL?wellbeingBundleDescription(source.evidence,source.periodStart,source.periodEnd):parsedTrend?parsedTrend.points.length+' de '+parsedTrend.total+' días registrados ('+parsedTrend.unit+'). '+parsedTrend.points.map(p=>humanDate(p.date)+': '+fmt(p.value)).join(' · '):item?.label==='Calendario de entrenamiento'?(calendar?calendarDescription(calendar):'Registro diario no interpretable; requiere revisión.'):rowText(item);
   const provenance='Fuente: '+publicLabel(SOURCE_LABELS,item?.source,safe(item?.source,100))+' / '+(safe(item?.quality,70)||'registrada');
   const titleLines=wrap(bold,10,title,WIDTH-26),valueLines=wrap(sans,10.2,value,WIDTH-26),sourceLines=wrap(sans,8,provenance,WIDTH-26);
   const h=titleLines.length*13+valueLines.length*14+sourceLines.length*10+15;

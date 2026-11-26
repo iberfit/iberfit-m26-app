@@ -32,11 +32,50 @@ export function buildDatedTrendEvidence(label,readings,start,end){
   if(text.length>500)return null;
   return Object.freeze({label:'Tendencia: '+label,text,source:metric.source,quality:'registrada'});
 }
+const WELLBEING_CODES=Object.freeze({E:'Energía',S:'Sueño',T:'Estrés',D:'Dolor',F:'Fatiga',M:'Motivación'});
+export const WELLBEING_BUNDLE_LABEL='Tendencias de bienestar';
+function decodeWellbeingBundle(row,start,end){
+ const from=day(start),to=day(end),length=(to-from)/DAY+1;
+ if(from===null||to===null||length<1||length>366||row?.label!==WELLBEING_BUNDLE_LABEL||row.source!=='checkins'||typeof row.text!=='string'||row.text.length>500||!row.text.startsWith('v1|'))return [];
+ const chunks=row.text.slice(3).split('|');if(chunks.length<2||chunks.length>6)return [];
+ const result=[],seen=new Set();
+ for(const chunk of chunks){
+  const match=chunk.match(/^([ESTDFM]):([1-9][0-9]{0,2}):([0-9a-z=,.]+)$/u);if(!match||seen.has(match[1]))return [];
+  seen.add(match[1]);const label=WELLBEING_CODES[match[1]],total=Number(match[2]),raw=match[3].split(',');
+  if(raw.length<3||raw.length>10||total<raw.length||total>length)return [];
+  let previous=-1;const points=[];
+  for(const token of raw){const a=token.match(/^([0-9a-z]{1,2})=([0-9a-z]{1,2})$/u);if(!a)return [];const offset=parseInt(a[1],36),hundredths=parseInt(a[2],36);if(offset.toString(36)!==a[1]||hundredths.toString(36)!==a[2]||offset<=previous||offset>=length||hundredths>1000)return [];previous=offset;points.push(new Date(from+offset*DAY).toISOString().slice(0,10)+': '+hundredths/100);}
+  result.push({label:'Tendencia: '+label,source:'checkins',quality:'registrada',text:'/10 | '+points.length+' de '+total+' días registrados | '+points.join('; ')});
+ }
+ return result;
+}
+export function buildWellbeingBundle(evidence,start,end){
+ const from=day(start),to=day(end);if(from===null||to===null||to<from||(to-from)/DAY>=366)return null;
+ const series=readDatedTrends(evidence,start,end).filter(s=>s.unit==='/10');if(series.length<2)return null;
+ const codes=Object.fromEntries(Object.entries(WELLBEING_CODES).map(([a,b])=>[b,a]));
+ const text='v1|'+series.map(s=>codes[s.label]+':'+s.total+':'+s.points.map(p=>((p.time-from)/DAY).toString(36)+'='+Math.round(p.value*100).toString(36)).join(',')).join('|');
+ if(text.length>500)return null;
+ const result=Object.freeze({label:WELLBEING_BUNDLE_LABEL,text,source:'checkins',quality:'registrada'});
+ return decodeWellbeingBundle(result,start,end).length===series.length?result:null;
+}
+export function wellbeingBundleDescription(evidence,start,end){
+ const rows=(evidence??[]).filter(r=>r?.label===WELLBEING_BUNDLE_LABEL),decoded=rows.length===1?decodeWellbeingBundle(rows[0],start,end):[];
+ if(!decoded.length)return 'Registro de tendencias no interpretable; requiere revisión.';
+ const series=readDatedTrends(evidence,start,end).filter(s=>s.unit==='/10');
+ if(series.length!==decoded.length)return 'Registro de tendencias no interpretable; requiere revisión.';
+ return series.map(s=>s.label+': '+s.points.length+' de '+s.total+' días registrados').join(' · ')+'. Variables independientes, escala de 0 a 10.';
+}
 export function readDatedTrends(evidence,start,end){
   const from=day(start),to=day(end);
   if(from===null||to===null||from>to)return [];
   const result=[],seen=new Set();
-  for(const row of evidence??[]){
+  const rows=Array.isArray(evidence)?evidence:[];
+  const bundles=rows.filter(r=>r?.label===WELLBEING_BUNDLE_LABEL);
+  const expanded=bundles.length===1?decodeWellbeingBundle(bundles[0],start,end):[];
+  const candidates=[...rows.filter(r=>r?.label!==WELLBEING_BUNDLE_LABEL),...expanded];
+  const counts=new Map();for(const r of candidates)counts.set(r?.label,(counts.get(r?.label)||0)+1);
+  for(const row of candidates){
+    if(counts.get(row?.label)!==1)continue;
     if(typeof row?.label!=='string'||!row.label.startsWith('Tendencia: '))continue;
     const label=row.label.slice(11);
     if(!Object.hasOwn(METRICS,label)||seen.has(label))continue;

@@ -12,6 +12,8 @@ import {
   sessionExecutionId,
   sessionExecutionCompletionDate,
   reconcileSessionExecutionsForClient,
+  readOriginalExecutionPrescription,
+  originalSeriesCoverage,
 } from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
@@ -194,14 +196,6 @@ function sessionPlanShape(record={}){
   return Object.freeze({plannedSets,plannedExercises});
 }
 
-function executionPlanSnapshot(record={}){
-  const execution=unwrap(record)||{};
-  const snapshot=first(execution,'planSnapshot','plan_snapshot');
-  return snapshot&&typeof snapshot==='object'&&!Array.isArray(snapshot)
-    ?snapshot
-    :null;
-}
-
 function skippedSetCount(record={}){
   const execution=unwrap(record)||{};
   const skipped=execution.skippedSets??execution.skipped_sets;
@@ -222,7 +216,7 @@ function planExecutionQuality(compared){
   return compared>=6?'alta':compared>=2?'media':compared>=1?'limitada':'insuficiente';
 }
 
-export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false}={}){
+export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false,requireSnapshot=false}={}){
   if(!clientId)return null;
   const window=progressWindow({now,days,civilPeriod});
   const expectedClient=String(clientId);
@@ -241,16 +235,19 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     clientId,
     {requireCompleted:true,requireDate:false},
   )
-    .map(unwrap)
-    .filter((item)=>executionWithinWindow(item,window))
-    .sort((a,b)=>executionTime(b,window)-executionTime(a,window));
+    .filter((item)=>executionWithinWindow(unwrap(item),window))
+    .sort((a,b)=>executionTime(unwrap(b),window)-executionTime(unwrap(a),window));
 
   const rows=[];
   let unmatchedExecutions=0;
-  for(const execution of completed){
+  for(const original of completed){
+    const execution=unwrap(original);
     const sessionId=String(first(execution,'sessionId','session_id')||'').trim();
     const session=sessionId?sessions.get(sessionId):null;
-    const planSnapshot=executionPlanSnapshot(execution);
+    const historical=readOriginalExecutionPrescription(original);
+    if(historical.kind==='invalid'){unmatchedExecutions+=1;continue;}
+    const planSnapshot=historical.snapshot;
+    if(requireSnapshot&&(!planSnapshot||!sessionId||String(first(planSnapshot,'sessionId','session_id')||'').trim()!==sessionId)){unmatchedExecutions+=1;continue;}
     if(planSnapshot){
       const snapshotSessionId=String(first(planSnapshot,'sessionId','session_id')||'').trim();
       if(snapshotSessionId&&snapshotSessionId!==sessionId){unmatchedExecutions+=1;continue;}
@@ -260,15 +257,20 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     const shape=sessionPlanShape(planSource);
     if(!shape.plannedSets){unmatchedExecutions+=1;continue;}
 
-    const recordedSets=setRows(execution).length;
-    const skippedSets=skippedSetCount(execution);
+    const coverage=planSnapshot?originalSeriesCoverage(original,planSnapshot):null;
+    const coordinateVerified=Boolean(coverage&&coverage.plannedSets===shape.plannedSets);
+    const verified=coordinateVerified?coverage:null;
+    // Preserve legacy descriptive counts without certifying the old plan.
+    const recordedSets=verified?verified.matchedRecordedSets+verified.unlinkedRecordedSets:setRows(execution).filter(observedSet).length;
+    const skippedSets=verified?verified.matchedSkippedSets+verified.unlinkedSkippedSets:skippedSetCount(execution);
     const addedSets=executionEventCount(execution,'SET_ADDED');
     const addedExercises=executionEventCount(execution,'EXERCISE_ADDED');
     const substitutions=executionEventCount(execution,'EXERCISE_SUBSTITUTED');
     const explicitAdjustments=addedSets+addedExercises+substitutions;
     const resolvedPlannedSets=Math.min(shape.plannedSets,recordedSets+skippedSets);
-    const unresolvedPlannedSets=Math.max(0,shape.plannedSets-resolvedPlannedSets);
-    const asPlanned=recordedSets===shape.plannedSets&&skippedSets===0&&explicitAdjustments===0;
+    const unresolvedPlannedSets=verified?verified.unresolvedPlannedSets:Math.max(0,shape.plannedSets-resolvedPlannedSets);
+    const countMatched=recordedSets===shape.plannedSets&&skippedSets===0&&explicitAdjustments===0;
+    const asPlanned=Boolean(verified&&verified.completeEvidence&&verified.matchedRecordedSets===shape.plannedSets&&verified.unlinkedRecordedSets===0&&verified.unlinkedSkippedSets===0&&countMatched);
 
     rows.push(Object.freeze({
       executionId:String(first(execution,'id','executionId','execution_id')||''),
@@ -285,6 +287,8 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
       substitutions,
       explicitAdjustments,
       asPlanned,
+      countMatched,
+      coordinateCoverage:verified,
     }));
   }
 
@@ -298,10 +302,15 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     acc.addedExercises+=row.addedExercises;
     acc.substitutions+=row.substitutions;
     acc.explicitAdjustments+=row.explicitAdjustments;
+    const c=row.coordinateCoverage;
     if(row.asPlanned)acc.asPlannedSessions+=1;
-    else acc.adjustedSessions+=1;
+    if(row.explicitAdjustments>0)acc.explicitlyAdjustedSessions+=1;
+    // Backward-compatible descriptive difference counter, not a judgement.
+    if(!row.countMatched||c&&!row.asPlanned)acc.adjustedSessions+=1;
+    if(!c)acc.unverifiedSessions+=1;
+    else{acc.coordinateSessions+=1;acc.matchedRecordedSets+=c.matchedRecordedSets;acc.matchedSkippedSets+=c.matchedSkippedSets;acc.unlinkedRecordedSets+=c.unlinkedRecordedSets;acc.unlinkedSkippedSets+=c.unlinkedSkippedSets;acc.excludedRows+=c.excludedRows;acc.conflictingCoordinates+=c.conflictingCoordinates;if(!c.completeEvidence)acc.incompleteCoordinateSessions+=1;}
     return acc;
-  },{plannedExercises:0,plannedSets:0,recordedSets:0,skippedSets:0,unresolvedPlannedSets:0,addedSets:0,addedExercises:0,substitutions:0,explicitAdjustments:0,asPlannedSessions:0,adjustedSessions:0});
+  },{plannedExercises:0,plannedSets:0,recordedSets:0,skippedSets:0,unresolvedPlannedSets:0,addedSets:0,addedExercises:0,substitutions:0,explicitAdjustments:0,asPlannedSessions:0,adjustedSessions:0,explicitlyAdjustedSessions:0,coordinateSessions:0,unverifiedSessions:0,incompleteCoordinateSessions:0,matchedRecordedSets:0,matchedSkippedSets:0,unlinkedRecordedSets:0,unlinkedSkippedSets:0,excludedRows:0,conflictingCoordinates:0});
 
   const comparedSessions=rows.length;
   return Object.freeze({
@@ -323,6 +332,7 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
       skipped:'Una serie omitida se conserva como omitida y nunca se cuenta como registrada.',
       adjustments:'Sustituciones, series añadidas y ejercicios añadidos se informan como ajustes explícitos; el Coach interpreta el contexto.',
       missing:'Una ejecución sin una sesión publicada comparable queda fuera del recuento y se informa por separado.',
+      coordinates:'La coincidencia de series acredita únicamente las coordenadas registradas, no la intensidad, técnica ni el logro deportivo. Los recuentos sin prescripción original son descriptivos.',
     }),
   });
 }
@@ -662,7 +672,10 @@ function epExerciseMeta(session,exerciseId){
 function epExecutionPlanSnapshotForSession(source,original,sessionId){
   const expectedSessionId=String(sessionId||'').trim();
   if(!expectedSessionId)return null;
-
+  const historical=readOriginalExecutionPrescription(original);
+  if(historical.kind==='invalid')return null;
+  if(historical.snapshot)return String(historical.snapshot.sessionId??historical.snapshot.session_id??'')===expectedSessionId?historical.snapshot:null;
+  // Historical nested progress snapshots remain descriptive legacy metadata.
   for(const candidate of [source,original]){
     const item=unwrap(candidate)||{};
     const snapshot=epFirst(item,'planSnapshot','plan_snapshot');

@@ -670,7 +670,8 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
     page.drawText('DOCUMENTO COMPLEMENTARIO',{x:PDF_M,y:268,size:6.1,font:fonts.bold,color:PDF_C.gold});
     page.drawText(annex?'Informe de bioimpedancia incorporado':'Sin documento original incorporado',{x:PDF_M,y:244,size:11.5,font:fonts.serifBold,color:PDF_C.ink});
     pdfText(page,fonts.regular,annex?'El archivo original se incorpora íntegro al final de este informe emitido. Sus valores no se reconstruyen ni se inventan; se conserva como evidencia del punto de partida.':'La composición registrada se conserva con el método y las condiciones disponibles en la evaluación.',PDF_M,219,487,8.3,11.6,PDF_C.ink2,6);
-    if(measured.fatMassDerived||measured.leanMassDerived)pdfText(page,fonts.regular,'Masa grasa y/o masa libre de grasa calculada a partir de las mediciones disponibles. Masa muscular se conserva como variable distinta.',PDF_M,155,487,6.4,8.2,PDF_C.muted,3);
+    const compositionNotes=[measured.fatMassDerived||measured.leanMassDerived?'Masa grasa y/o masa libre de grasa calculada. Masa muscular es una variable distinta.':'',measured.fatConflict||measured.leanConflict?'Mediciones de composición discordantes; requieren revisión profesional.':''].filter(Boolean).join(' ');
+    if(compositionNotes)pdfText(page,fonts.regular,compositionNotes,PDF_M,155,487,6.4,8.2,PDF_C.muted,3);
     page.drawText('CONDICIONES REGISTRADAS',{x:PDF_M,y:114,size:6.1,font:fonts.bold,color:PDF_C.gold});
     pdfText(page,fonts.regular,body?.measurementConditions||'Sin condiciones de medición adicionales registradas.',PDF_M,96,487,7.4,10,PDF_C.ink2,3);
   }

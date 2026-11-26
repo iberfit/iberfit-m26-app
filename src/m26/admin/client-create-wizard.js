@@ -77,9 +77,14 @@ function stepControls(form,step){
   return panel?[...(panel.querySelectorAll?.('input,select,textarea')||[])]:[];
 }
 function firstInvalid(form,step){
+  const panel=form?.querySelector?.(`[data-client-step="${step}"]`);
   return stepControls(form,step).find((control)=>{
-    if(control.disabled||control.closest?.('[hidden]'))return false;
-    return typeof control.checkValidity==='function'&&!control.checkValidity();
+    if(control.disabled||control.willValidate===false)return false;
+    // Other wizard steps are hidden by navigation, not inapplicable.
+    // Skip only hidden subgroups inside this step, never the step itself.
+    const hidden=control.closest?.('[hidden]');
+    if(hidden&&hidden!==panel&&panel?.contains?.(hidden))return false;
+    return control.validity?.valid===false||(!control.validity&&typeof control.checkValidity==='function'&&!control.checkValidity());
   })||null;
 }
 function labelFor(form,name,fallback='Sin completar'){
@@ -236,7 +241,7 @@ function setStep(form,step,{focus=false}={}){
 function readDraft(storage,key,{now=Date.now(),maxAgeMs=DRAFT_MAX_AGE_MS}={}){
   try{
     const parsed=JSON.parse(storage?.getItem?.(key)||'null');
-    if(parsed?.schema!==DRAFT_SCHEMA||typeof parsed?.fields!=='object'){
+    if(parsed?.schema!==DRAFT_SCHEMA||!parsed.fields||typeof parsed.fields!=='object'||Array.isArray(parsed.fields)){
       removeStored(storage,key);
       return null;
     }
@@ -261,40 +266,52 @@ function writeDraft(storage,key,form){
     fields:collect(form),
     savedAt:new Date().toISOString(),
   };
-  try{storage?.setItem?.(key,JSON.stringify(payload));}catch{}
+  let saved=false;
+  try{if(key&&typeof storage?.setItem==='function'){storage.setItem(key,JSON.stringify(payload));saved=true;}}catch{}
   const status=form.querySelector?.('[data-client-draft-status]');
-  if(status)status.textContent='Borrador guardado automáticamente';
-  return payload;
+  if(status)status.textContent=saved?'Borrador guardado automáticamente':'No se pudo guardar el borrador. Conserva esta pantalla para no perder los datos.';
+  return saved?payload:null;
 }
 
 export function createClientCreateWizard({
   root,
   storage=defaultDraftStorage(),
   persistentStorage=defaultPersistentStorage(),
-  getScopeKey=()=> 'default',
+  getScopeKey=()=> '',
+  getLegacyScopeKey=()=> '',
 }={}){
   if(!root?.addEventListener)throw new Error('M26_CLIENT_CREATE_WIZARD_ROOT_REQUIRED');
   let mounted=false;
   let saveTimer=null;
-  let pendingForm=null;
-  const draftKey=()=>keyFor(getScopeKey?.());
+  let pendingForm=null,pendingKey=null;
+  const formKeys=new WeakMap();
+  const draftKey=()=>{const scope=String(getScopeKey?.()||'').trim();return scope?keyFor(scope):null;};
   function clearPersistentDraftResidue(){
     if(!persistentStorage||persistentStorage===storage)return;
-    removeStored(persistentStorage,legacyKeyFor(getScopeKey?.()));
-    removeStored(persistentStorage,legacyV2KeyFor(getScopeKey?.()));
-    removeStored(persistentStorage,keyFor(getScopeKey?.()));
+    // The old organization-only keys cannot prove the identity of their author.
+    // Never restore them into a different operator's form.
+    for(const scope of [getScopeKey?.(),getLegacyScopeKey?.()]){
+      if(!scope)continue;
+      removeStored(persistentStorage,legacyKeyFor(scope));
+      removeStored(persistentStorage,legacyV2KeyFor(scope));
+      removeStored(persistentStorage,keyFor(scope));
+    }
   }
   function cancelScheduledSave(){
     if(saveTimer!==null)globalThis.clearTimeout?.(saveTimer);
     saveTimer=null;
-    pendingForm=null;
+    pendingForm=null;pendingKey=null;
   }
 
   function initialize(form){
-    if(!form||form.dataset.clientWizardReady==='true')return false;
+    if(!form)return false;
+    const key=draftKey();
+    if(formKeys.has(form)&&formKeys.get(form)===key)return false;
+    if(formKeys.has(form)){cancelScheduledSave();form.reset?.();}
+    formKeys.set(form,key);
     form.dataset.clientWizardReady='true';
     clearPersistentDraftResidue();
-    const draft=readDraft(storage,draftKey());
+    const draft=key?readDraft(storage,key):null;
     if(draft){
       const disclosure=form.closest?.('details.m26-crm-create');
       if(disclosure)disclosure.open=true;
@@ -319,30 +336,24 @@ export function createClientCreateWizard({
   function save(form){
     if(!form)return null;
     cancelScheduledSave();
+    if(formKeys.has(form)&&formKeys.get(form)!==draftKey())return null;
     initialize(form);
-    return writeDraft(storage,draftKey(),form);
+    return writeDraft(storage,formKeys.get(form),form);
   }
   function scheduleSave(form){
     if(!form)return;
-    pendingForm=form;
+    pendingForm=form;pendingKey=formKeys.get(form);
     if(saveTimer!==null)globalThis.clearTimeout?.(saveTimer);
-    saveTimer=globalThis.setTimeout?.(()=>{
-      const target=pendingForm;
-      saveTimer=null;
-      pendingForm=null;
-      if(target)writeDraft(storage,draftKey(),target);
-    },INPUT_SAVE_DELAY_MS)??null;
+    saveTimer=globalThis.setTimeout?.(flushScheduledSave,INPUT_SAVE_DELAY_MS)??null;
   }
   function flushScheduledSave(){
-    const target=pendingForm;
-    if(saveTimer!==null)globalThis.clearTimeout?.(saveTimer);
-    saveTimer=null;
-    pendingForm=null;
-    if(target)writeDraft(storage,draftKey(),target);
+    const target=pendingForm,key=pendingKey;
+    cancelScheduledSave();
+    if(target&&key&&key===draftKey()&&formKeys.get(target)===key)writeDraft(storage,key,target);
   }
   function clear(){
     cancelScheduledSave();
-    removeStored(storage,draftKey());
+    const key=draftKey();if(key)removeStored(storage,key);
     clearPersistentDraftResidue();
   }
   function revealFirstInvalid(form){
@@ -358,6 +369,11 @@ export function createClientCreateWizard({
     return null;
   }
   function validateForSubmit(form){
+    if(!draftKey()||(formKeys.has(form)&&formKeys.get(form)!==draftKey())){
+      const status=form?.querySelector?.('[data-client-draft-status]');
+      if(status)status.textContent='No se pudo confirmar la sesión de este borrador. Vuelve a abrir el formulario.';
+      return false;
+    }
     return !revealFirstInvalid(form);
   }
   function onClick(event){
@@ -369,6 +385,7 @@ export function createClientCreateWizard({
     const discard=event.target.closest?.('[data-client-wizard-discard]');
     if(!nextButton&&!prevButton&&!jumpButton&&!discard)return;
     event.preventDefault();
+    if(formKeys.has(form)&&formKeys.get(form)!==draftKey()){initialize(form);return;}
     initialize(form);
     const current=clampStep(form.dataset.clientCurrentStep);
     if(discard){
@@ -404,6 +421,7 @@ export function createClientCreateWizard({
   function onInput(event){
     const form=currentForm(event.target);
     if(!form)return;
+    if(formKeys.has(form)&&formKeys.get(form)!==draftKey()){initialize(form);return;}
     initialize(form);
     if(event.target?.name==='accessMode'){
       const explicit=form.elements?.namedItem?.('accessModeExplicit');
@@ -447,5 +465,5 @@ export function createClientCreateWizard({
 
 export const __clientCreateWizardInternals=Object.freeze({
   DRAFT_SCHEMA,DRAFT_PREFIX,LEGACY_DRAFT_PREFIX,LEGACY_DRAFT_PREFIX_V2,DRAFT_MAX_AGE_MS,INPUT_SAVE_DELAY_MS,MAX_STEP,
-  clampStep,keyFor,legacyKeyFor,legacyV2KeyFor,collect,assign,setStep,readDraft,writeDraft,updateServiceIntent,
+  clampStep,keyFor,legacyKeyFor,legacyV2KeyFor,collect,assign,setStep,readDraft,writeDraft,updateServiceIntent,firstInvalid,
 });

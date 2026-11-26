@@ -1371,6 +1371,14 @@ function carrySetEntryFields(planned={},isCoach=false){
     <small>Registra distancia, tiempo o ambos; la carga sigue siendo opcional si corresponde.</small>
   </div>`;
 }
+function actualStrengthContextFields(recorded={}){
+ const select=(name,label,options)=>'<label>'+e(label)+'<select data-set-field="'+name+'"><option value="">Sin registrar</option>'+options.map(([value,text])=>'<option value="'+value+'"'+(recorded[name]===value?' selected':'')+'>'+e(text)+'</option>').join('')+'</select></label>';
+ return '<details class="m26-session-options" data-session-observed-context><summary>Contexto real del ejercicio (opcional)</summary><p>Registra las condiciones realizadas para comparar sesiones equivalentes. No se completan automáticamente.</p><div class="m26-field-grid">'+
+ '<label>Variante realizada<input maxlength="80" type="text" data-set-field="variantId" value="'+e(recorded.variantId??'')+'" placeholder="Ej.: agarre neutro"></label>'+
+ '<label>Equipo utilizado<input maxlength="80" type="text" data-set-field="equipmentId" value="'+e(recorded.equipmentId??'')+'" placeholder="Ej.: mancuernas"></label>'+
+ select('loadBasis','Base de carga',[['total','Carga externa total'],['per-hand','Por mano'],['per-side','Por lado'],['per-implement','Por implemento'],['assistance','Carga de asistencia'],['bodyweight','Peso corporal']])+
+ select('side','Lateralidad',[['bilateral','Bilateral'],['left','Izquierda'],['right','Derecha'],['alternating','Alterna']])+select('loadUnit','Unidad de la carga registrada',[['kg','Kilogramos (kg)'],['lb','Libras (lb)']])+'</div></details>';
+}
 function recordedSportCorrectionFields(profile,recorded={}){
   const field=(name,label,options={})=>{
     const type=options.type||'number';
@@ -1950,6 +1958,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <div class="m26-field-grid" data-session-correction-profile="${e(executionProfile.kind)}">
             ${recordedSportCorrectionFields(executionProfile,recorded)}
           </div>
+          ${executionProfile.kind==='strength'?actualStrengthContextFields(recorded):''}
           <label>Notas<textarea maxlength="1000" data-set-field="notes">${e(recorded.notes||'')}</textarea></label>
           <button type="button" data-session-action="correct-set">Guardar corrección</button>
         </details>
@@ -1967,6 +1976,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         ${plannedSetReuse}
         ${previousSetReuse}
         ${setEntryFields}
+        ${executionProfile.kind==='strength'?actualStrengthContextFields():''}
         ${clientQuickRpe}
         <details>
           <summary>Añadir una nota a esta serie</summary>

@@ -18,3 +18,8 @@ test('body composition does not conflate muscle and lean mass or fabricate skipp
  assert.equal(bodyMeasurements({bodyFatPercent:101,weightKg:'0x50'}).bodyFatPercent,null);
  assert.equal(measuredNumber('8,5'),8.5);assert.equal(measuredNumber(false),null);
 });
+test('Elite body composition exposes contradictory measured compartments without deriving from inconsistent inputs',()=>{
+ const a=bodyMeasurements({weightKg:80,bodyFatPercent:25,fatMassKg:32});assert.equal(a.fatConflict,true);assert.equal(a.fatMassKg,32);assert.equal(a.leanMassKg,null);
+ const b=bodyMeasurements({weightKg:80,bodyFatPercent:25,leanMassKg:50});assert.equal(b.leanConflict,true);assert.equal(b.leanMassKg,60);assert.equal(b.leanMassDerived,true);
+ assert.equal(bodyMeasurements({weightKg:80,bodyFatPercent:25,fatMassKg:20.2}).fatConflict,false);
+});

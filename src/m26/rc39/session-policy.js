@@ -90,8 +90,21 @@ export function sessionReadyToStart(record){
   const legacyReady=new Set(['published','publicado','active','activo','enabled','habilitado']);
   return (status==='disponible'||legacyReady.has(status))&&sessionHasExecutableBlocks(record);
 }
+// A declared invalid or contradictory permission-bearing alias must not
+// become an autonomous session. Preserve default only when no alias exists.
+function explicitSessionDelivery(record,keys,normalize){
+  const body=bodyOf(record),values=[];
+  for(const source of [record,body])for(const key of keys){
+    const raw=source?.[key];if(raw!==undefined&&raw!==null&&raw!=='')values.push(normalize(raw));
+  }
+  if(!values.length)return {declared:false,value:null};
+  return {declared:true,value:values[0]&&values.every(v=>v===values[0])?values[0]:null};
+}
+
 export function sessionDeliveryModality(session={},appointment=null){
-  const explicitSession=field(session,'deliveryModality','delivery_modality','modality','modalidad');
+  const declared=explicitSessionDelivery(session,['deliveryModality','delivery_modality','modality','modalidad'],normalizeDeliveryModality);
+  if(declared.declared&&!declared.value)return 'unknown';
+  const explicitSession=declared.value;
   // Session ownership outranks appointment labels, including legacy records.
   // A contradictory explicit session modality must not silently become guided.
   const legacySession=normalizeDeliveryModality(field(session,'execution_type','executionType'));
@@ -103,15 +116,14 @@ export function sessionDeliveryModality(session={},appointment=null){
   return raw===null?'guiada_en_app':normalizeDeliveryModality(raw)||'unknown';
 }
 export function sessionDeliveryOwnership(session={},appointment=null){
-  const explicit=normalizeDeliveryOwnership(
-    field(session,'deliveryOwnership','delivery_ownership','executionMode','execution_mode')
-  );
+  const declared=explicitSessionDelivery(session,['deliveryOwnership','delivery_ownership','executionMode','execution_mode'],normalizeDeliveryOwnership);
+  if(declared.declared&&!declared.value)return 'coach_led';
+  const explicit=declared.value;
   const modality=sessionDeliveryModality(session,appointment);
   // Presencial cannot be made autonomous by a stale or contradictory flag.
-  if(modality==='presencial')return 'coach_led';
+  if(modality==='presencial'||modality==='unknown')return 'coach_led';
+  if(modality==='online')return explicit==='coach_led'?'coach_led':'live_online';
   if(explicit)return explicit;
-  if(modality==='online')return 'live_online';
-  if(modality==='unknown')return 'coach_led';
   return 'client_autonomous';
 }
 export function sessionVisibilityLevel(session={},appointment=null){
@@ -128,6 +140,7 @@ export function sessionVisibilityLevel(session={},appointment=null){
     body?.visible_to_client,body?.clientVisible,body?.client_visible];
   if(levelValues.some(v=>normalizeClientVisibilityLevel(v)==='hidden')||
     visibleValues.some(v=>v!==undefined&&v!==null&&['false','0','no'].includes(fold(v))))return 'hidden';
+  if(levelValues.some(v=>v!==undefined&&v!==null&&v!==''&&(!normalizeClientVisibilityLevel(v)||normalizeClientVisibilityLevel(v)==='summary_only')))return 'summary_only';
   const ownership=sessionDeliveryOwnership(session,appointment);
   // A contradictory legacy full-visibility flag cannot expose a supervised session.
   if(ownership==='coach_led'||ownership==='live_online')return 'summary_only';

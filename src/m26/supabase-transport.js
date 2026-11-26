@@ -1,6 +1,8 @@
 import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
+import {verifyInvitationReceipt} from './workflows/coach-invitation-outcome.js';
 import {createQaInFlightReadGate} from './domain/qa-inflight-read-gate.js';
 import {compactQaCanonicalExecutionSummaries} from './domain/qa-canonical-summary-transport.js';
+import {professionalFollowupParams,verifyProfessionalFollowupReceipt,professionalFollowupPageParams,verifyProfessionalFollowupPage,professionalFollowupVoidParams,verifyProfessionalFollowupVoidReceipt,professionalFollowupRecentParams,verifyProfessionalFollowupRecent,professionalFollowupDetailParams,verifyProfessionalFollowupDetail,professionalPublicationWriteParams,professionalPublicationReadParams,verifyProfessionalPublicationReceipt,verifyProfessionalPublicationRead,professionalPublicationFindParams,verifyProfessionalPublicationFind,professionalPublicationListParams,verifyProfessionalPublicationList,professionalPublicationWithdrawParams,verifyProfessionalPublicationWithdrawal,professionalPublicationOperationParams,verifyProfessionalPublicationRecovery,professionalReportProofParams,verifyProfessionalReportEvidence} from './domain/professional-followup.js';
 const DEFAULT_TIMEOUT_MS = 12_000;
 const EXACT_REMOTE_HOSTS = new Set(['app.iberfit.cl', 'coach.iberfit.cl', 'm26-canary.iberfit.cl']);
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
@@ -1168,6 +1170,74 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return normalizeRc43Result(await rc43Rpc(RC43_RPC.recordMeasurement,token,{p_payload:payload}),'M26_RC43_MEASUREMENT_INVALID_RESPONSE');
   }
 
+  // GX13: independent professional evidence. Explicit calls only; no bootstrap,
+  // no background refresh and no automatic write retry. The caller must reuse
+  // the same persisted observation id after an uncertain acknowledgement.
+  async function recordProfessionalFollowup(token,draft,{signal}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=professionalFollowupParams(draft);
+    const response=await request('/rest/v1/rpc/iberfit_gx_followup_record_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    return verifyProfessionalFollowupReceipt(response,params);
+  }
+  async function voidProfessionalFollowup(token,draft,{signal}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=professionalFollowupVoidParams(draft);
+    const response=await request('/rest/v1/rpc/iberfit_gx_followup_void_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    return verifyProfessionalFollowupVoidReceipt(response,params);
+  }
+  // Prepared only: do not expose a write action until listing, duplicate
+  // prevention and authenticated backend acceptance have been certified.
+  async function publishProfessionalComparison(token,draft,operationId,{signal}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=professionalPublicationWriteParams(draft,operationId);
+    const result=await request('/rest/v1/rpc/iberfit_gx_publication_write_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    return verifyProfessionalPublicationReceipt(result,{id:params.p_publication,clientId:params.p_client,expectedRevision:params.p_expected,pair:params.p_pair});
+  }
+  async function readProfessionalPublication(token,clientId,publicationId,{signal}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=professionalPublicationReadParams(clientId,publicationId);
+    const result=await request('/rest/v1/rpc/iberfit_gx_publication_read_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    return verifyProfessionalPublicationRead(result,params);
+  }
+  async function findProfessionalPublication(token,clientId,previousId,currentId,{signal}={}){
+    if(!token)throw Error('M26_AUTH_REQUIRED');const params=professionalPublicationFindParams(clientId,previousId,currentId);
+    return verifyProfessionalPublicationFind(await request('/rest/v1/rpc/iberfit_gx_publication_find_v1',{method:'POST',token,body:JSON.stringify(params),signal}),params);
+  }
+  async function listProfessionalPublications(token,clientId,{cursor=null,limit=10,signal}={}){
+    if(!token)throw Error('M26_AUTH_REQUIRED');const params=professionalPublicationListParams(clientId,{cursor,limit});
+    return verifyProfessionalPublicationList(await request('/rest/v1/rpc/iberfit_gx_publication_list_v1',{method:'POST',token,body:JSON.stringify(params),signal}),params);
+  }
+  async function withdrawProfessionalPublication(token,draft,operationId,{signal}={}){
+    if(!token)throw Error('M26_AUTH_REQUIRED');const params=professionalPublicationWithdrawParams(draft,operationId);
+    return verifyProfessionalPublicationWithdrawal(await request('/rest/v1/rpc/iberfit_gx_publication_write_v1',{method:'POST',token,body:JSON.stringify(params),signal}),params);
+  }
+  async function recoverProfessionalPublication(token,op,{signal}={}){
+    if(!token)throw Error('M26_AUTH_REQUIRED');const params=professionalPublicationOperationParams(op);
+    return verifyProfessionalPublicationRecovery(await request('/rest/v1/rpc/iberfit_gx_publication_recover_v1',{method:'POST',token,body:JSON.stringify(params),signal}),params);
+  }
+  async function readProfessionalReportProof(token,heads,{clientId,periodStart,periodEnd,signal}={}){
+    if(!token)throw Error('M26_AUTH_REQUIRED');const params=professionalReportProofParams(heads,{clientId,periodStart,periodEnd});
+    return verifyProfessionalReportEvidence(await request('/rest/v1/rpc/iberfit_gx_report_evidence_v1',{method:'POST',token,body:JSON.stringify(params),signal}),params,heads);
+  }
+  async function professionalFollowupDetail(token,clientId,operationId,{signal}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=professionalFollowupDetailParams(clientId,operationId);
+    const response=await request('/rest/v1/rpc/iberfit_gx_followup_detail_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    return verifyProfessionalFollowupDetail(response,params);
+  }
+  async function professionalFollowupRecent(token,clientId,{signal}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=professionalFollowupRecentParams(clientId);
+    const response=await request('/rest/v1/rpc/iberfit_gx_followup_recent_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    return verifyProfessionalFollowupRecent(response,params);
+  }
+  async function professionalFollowupHistory(token,clientId,{limit=30,cursor=null,signal}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=professionalFollowupPageParams(clientId,{limit,cursor});
+    const response=await request('/rest/v1/rpc/iberfit_gx_followup_list_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    return verifyProfessionalFollowupPage(response,params);
+  }
+
   async function sendMessage(token,payload={}){
     if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_RC43_PAYLOAD_INVALID');
     return normalizeRc43Result(await rc43Rpc(RC43_RPC.sendMessage,token,{p_payload:payload}),'M26_RC43_MESSAGE_INVALID_RESPONSE');
@@ -1841,8 +1911,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     const result=await request('/functions/v1/iberfit-admin-client-invite-v1',{
       method:'POST',token,body:JSON.stringify({command}),
     });
-    if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))
-      throw new Error('M26_COACH_INVITE_NOT_CONFIRMED');
+    verifyInvitationReceipt(result,{clientId,operationId:command.operationId});
     return Object.freeze(result);
   }
 
@@ -2173,6 +2242,18 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     deleteWearableData,
     importTelemetryBatch,
     recordMeasurement,
+    recordProfessionalFollowup,
+    voidProfessionalFollowup,
+    professionalFollowupRecent,
+    professionalFollowupDetail,
+    publishProfessionalComparison,
+    readProfessionalPublication,
+    findProfessionalPublication,
+    listProfessionalPublications,
+    withdrawProfessionalPublication,
+    recoverProfessionalPublication,
+    readProfessionalReportProof,
+    professionalFollowupHistory,
     sendMessage,
     createCustomExercise,
     renameExercise,
