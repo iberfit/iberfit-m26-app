@@ -5,6 +5,7 @@ import {readQaClientIdentity} from './qa_client_identity_rpc.mjs';
 
 const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
+const EXPECTED_INVITE_VERSION='admin-client-invite-v26.8';
 const required=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
   'M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD',
@@ -158,13 +159,16 @@ const invalidInviteAuth=await requestResult(`${base}/functions/v1/iberfit-admin-
     },
   }),
 });
-if(
-  invalidInviteAuth.status!==401||
-  String(invalidInviteAuth.body?.code||'')!=='V26_AUTH_REQUIRED'||
-  String(invalidInviteAuth.body?.version||'')!=='admin-client-invite-v26.8'
-){
+const inviteInvalidBearerDenied=
+  invalidInviteAuth.status===401&&
+  String(invalidInviteAuth.body?.code||'')==='V26_AUTH_REQUIRED'&&
+  String(invalidInviteAuth.body?.version||'')===EXPECTED_INVITE_VERSION;
+if(!inviteInvalidBearerDenied){
+  // Report only a bounded version identifier, never a response body or token.
+  const observed=String(invalidInviteAuth.body?.version||'');
+  const observedVersion=/^admin-client-invite-v[0-9]{1,3}\.[0-9]{1,3}$/u.test(observed)?observed:'unknown';
   throw new Error(
-    `QA_WRITE_INVITE_CUSTOM_AUTH_FAIL_CLOSED_MISMATCH:${invalidInviteAuth.status}:${String(invalidInviteAuth.body?.code||'unknown')}`,
+    `QA_WRITE_INVITE_CUSTOM_AUTH_FAIL_CLOSED_MISMATCH:${invalidInviteAuth.status}:${String(invalidInviteAuth.body?.code||'unknown')}:expected=${EXPECTED_INVITE_VERSION}:observed=${observedVersion}`,
   );
 }
 
@@ -438,10 +442,7 @@ const evidence={
     collisionExecuteReason:String(collisionExecute?.reason||''),
   },
   authorization:{
-    inviteInvalidBearerDenied:
-      invalidInviteAuth.status===401&&
-      String(invalidInviteAuth.body?.code||'')==='V26_AUTH_REQUIRED'&&
-      String(invalidInviteAuth.body?.version||'')==='admin-client-invite-v26.4',
+    inviteInvalidBearerDenied,
     inviteCoachRoleDenied:coachInviteAttempt.status===403,
     directInsertDenied:directInsert.status===403,
     directUpdateDenied:directPatch.status===403,
