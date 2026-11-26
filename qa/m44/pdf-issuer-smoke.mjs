@@ -25,8 +25,10 @@ const sourceFingerprint=`IBERFIT M44 | ${source.reportId} | revision ${source.re
 const result=await renderEvolutionReportPdf({
  source,sourceFingerprint,pdfLib:{PDFDocument,StandardFonts,rgb},fontkit,
  brandFonts:{
-  inter:await Deno.readFile('public/m26/fonts/inter-latin-wght-normal.woff2'),
-  serif:await Deno.readFile('public/m26/fonts/source-serif-4-latin-wght-normal.woff2'),
+  inter:await Deno.readFile('public/m26/fonts/report-inter-regular.ttf'),
+  serif:await Deno.readFile('public/m26/fonts/report-serif-regular.ttf'),
+  interBold:await Deno.readFile('public/m26/fonts/report-inter-bold.ttf'),
+  serifBold:await Deno.readFile('public/m26/fonts/report-serif-bold.ttf'),
  },
  generatedAt:'2026-10-15T12:00:00.000Z',
 });

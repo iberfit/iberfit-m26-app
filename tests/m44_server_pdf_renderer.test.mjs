@@ -68,7 +68,8 @@ test('GX05 official report uses public labels, civil dates and bounded chart/tit
   conclusions:'Conclusiones',recommendations:'Próximos pasos',coachComment:'PRIVADO NO EMITIR',
   evidence:[{label:'W'.repeat(120),text:'2 sesiones',source:'sessionExecutions',quality:'confirmada'}],
   activitySeries:[{from:'2026-10-01',to:'2026-10-15',count:0},{from:'2026-10-16',to:'2026-10-31',count:2}]};
- await renderEvolutionReportPdf({source,pdfLib,brandFonts:{inter:1,serif:1},fontkit:{},generatedAt:'2026-11-25'});
+ const staticFont=new Uint8Array(1001);staticFont[1]=1;
+ await renderEvolutionReportPdf({source,pdfLib,brandFonts:{inter:staticFont,serif:staticFont,interBold:staticFont,serifBold:staticFont},fontkit:{},generatedAt:'2026-11-25'});
  for(const label of ['Informe mensual','16/10','2026-10-16 a 2026-10-31','Total representado: 2','Sesiones IBERFIT confirmadas'])
   assert.ok(calls.some(row=>row.t.includes(label)),label);
  assert.ok(!calls.some(row=>row.t.includes('PRIVADO NO EMITIR')));

@@ -1,5 +1,4 @@
 """Build report-only, static TrueType instances from the first-party web fonts."""
-import base64
 import hashlib
 from pathlib import Path
 from fontTools.ttLib import TTFont
@@ -17,7 +16,4 @@ for stem, family in [("inter","inter-latin-wght-normal.woff2"),("serif","source-
         data=path.read_bytes()
         assert data[:4]==b"\x00\x01\x00\x00" and "fvar" not in font
         sha=hashlib.sha1(b"blob "+str(len(data)).encode()+b"\x00"+data).hexdigest()
-        encoded=base64.b64encode(data).decode("ascii")
         print("GX_FONT_META",path.name,len(data),sha)
-        for i in range(0,len(encoded),2400):
-            print("GX_FONT_CHUNK",path.name,i//2400,encoded[i:i+2400])

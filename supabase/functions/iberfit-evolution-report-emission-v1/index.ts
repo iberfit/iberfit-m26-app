@@ -126,8 +126,10 @@ async function issue({user,service,actor,body}:{
   source:src.sourceSnapshot,sourceFingerprint,pdfLib:{PDFDocument,StandardFonts,rgb},
   brandImageBytes:await logoBytes(),
   brandFonts:{
-   inter:await fontBytes('inter-latin-wght-normal.woff2'),
-   serif:await fontBytes('source-serif-4-latin-wght-normal.woff2'),
+   inter:await fontBytes('report-inter-regular.ttf'),
+   serif:await fontBytes('report-serif-regular.ttf'),
+   interBold:await fontBytes('report-inter-bold.ttf'),
+   serifBold:await fontBytes('report-serif-bold.ttf'),
   },fontkit,generatedAt:new Date().toISOString(),
  });
  const bytes=rendered.bytes;
