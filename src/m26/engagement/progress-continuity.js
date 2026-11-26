@@ -1,4 +1,5 @@
 import {computeProgressSummary} from './progress-engine.js';
+import {evidenceNumber} from '../domain/evidence-signal.js';
 
 export const M26_ADHERENCE_WINDOWS=Object.freeze([7,28,90]);
 
@@ -66,12 +67,13 @@ export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26
     normalizedWindows(windows).map((days)=>{
       const summary=reusableSummary(summaries,clientId,days)
         ??computeProgressSummary(state,clientId,{now,days});
-      const plannedSessions=Number(summary?.plannedSessions||0);
-      const activityCompletedSessions=Number(summary?.completedSessions||0);
+      const plannedSessions=evidenceNumber(summary?.plannedSessions,{min:0,integer:true});
+      const activityCompletedSessions=evidenceNumber(summary?.completedSessions,{min:0,integer:true});
       // The Constancia numerator is booked sessions fulfilled, not every
       // autonomous training performed in the same 7/28/90 day period.
       const scheduled=confirmedScheduledCompletion(summary,{allowLegacy:true});
-      const completedSessions=scheduled?.completed??0;
+      const knownEmpty=plannedSessions===0&&summary?.scheduledCompletedSessions===0;
+      const completedSessions=scheduled?.completed??(knownEmpty?0:null);
       const adherence=scheduled?.adherence??null;
 
       return Object.freeze({
@@ -81,9 +83,9 @@ export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26
         completedSessions,
         activityCompletedSessions,
         adherence,
-        hasPlan:plannedSessions>0,
+        hasPlan:plannedSessions===null?null:plannedSessions>0,
         dataQuality:String(summary?.dataQuality||'limitada'),
-        unconfirmedExecutions:Number(summary?.unconfirmedExecutions||0),
+        unconfirmedExecutions:evidenceNumber(summary?.unconfirmedExecutions,{min:0,integer:true}),
       });
     }),
   );

@@ -1,0 +1,20 @@
+# GLOBAL EXCELLENCE & INTELLIGENCE 360 — checkpoint 2026-11-25 Chile
+
+Base Canary: `50ba022115091478a86900be6f0b0e4c816044ef`. Historical production promotion #45732501319 succeeded; direct served identity was not accessible in this session. Existing open PRs include #1319 (erasure), M44 branches #995/#983/#980/#970, and staged dated training/legacy work: do not overwrite or blindly merge them.
+
+## Initial change
+- GX06 (partial): shared strict numeric evidence and current wearable provenance, not the full EvidenceSignal contract or graph.
+- GX07/GX15 (partial): decision brief distinguishes unknown planning from confirmed zero.
+- GX10 (partial): adherence windows preserve unknown booked counts and unknown activity counts.
+- GX19 (partial): Progress Hub and decision brief share wearable eligibility logic.
+- GX26 (partial): volume comparison copy describes the actual within-window chronological comparison, not a prior period.
+- Regression tests added; execution and review pending. No DB migrations or new services.
+
+## Certification
+- Seven prior gates green at base SHA only; not valid evidence for new commit.
+- M43 run 45709299367 / job 139539313119: authenticated log confirms M43_QA_INTERACTIVE_FIXTURE_BUDGET_RESERVED, phase environment. Runner reserves three fixtures before mutation, limit 150. Do not bypass or rerun without verified capacity; inspect existing QA ledger and use isolated authorized fixture strategy.
+- M44 run 45731453075 passed historically; integral Hosted Auth/Vault/Edge remains not certified.
+- No remote writes performed; no production promotion for this block.
+
+## Remaining inventory
+GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19, GX26: partial as above. GX08–09, GX11–14, GX16–18, GX20–25, GX27–48: not implemented or verified in this block yet; inspect existing capabilities first. Next: validate changes and consumers, expand EvidenceSignal with explicit period/source/sample/comparability, inspect PDF official model and IRI independent lifecycle, consolidate before final exact-SHA gates.

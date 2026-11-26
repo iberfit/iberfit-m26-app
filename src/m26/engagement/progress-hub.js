@@ -1,5 +1,6 @@
 import {buildAdherenceWindows,reusableConfirmedSummary,confirmedScheduledCompletion} from './progress-continuity.js';
 import {computeProgressSummary} from './progress-engine.js';
+import {evidenceNumber,currentWearableEvidence} from '../domain/evidence-signal.js';
 import {sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {
   assessExercisePerformance,
@@ -7,12 +8,7 @@ import {
   listExercisePerformanceMemories,
 } from './exercise-performance-engine.js';
 
-function finite(value){
-  if(typeof value!=='number'&&typeof value!=='string')return null;
-  if(typeof value==='string'&&!value.trim())return null;
-  const number=Number(value);
-  return Number.isFinite(number)?number:null;
-}
+function finite(value){return evidenceNumber(value);}
 function count(value){
   const number=finite(value);
   return number!==null&&Number.isSafeInteger(number)&&number>=0?number:null;
@@ -109,13 +105,11 @@ export function buildProgressHub(
   const adherence28=scheduled28?.adherence??null;
   const adherence90=byDays.get(90)?.adherence??null;
   const wearableDecision=summary28?.wearable?.decision||{};
-  const wearableDays=count(wearableDecision.currentEvidenceDays)??0;
+  const wearableSignal=currentWearableEvidence(summary28?.wearable);
+  const wearableDays=wearableSignal.days;
   const wearableHistoricalDays=count(wearableDecision.historicalContextDays)??0;
-  const wearableAvailableDays=count(summary28?.wearable?.daysWithData)??0;
-  const providers=Array.isArray(wearableDecision.providers)?wearableDecision.providers:[];
-  const wearableEligible=wearableDecision.eligible===true&&wearableDays>0
-    &&wearableDays<=wearableAvailableDays&&providers.length===1
-    &&typeof providers[0]==='string'&&providers[0].trim().length>0;
+  const wearableAvailableDays=wearableSignal.availableDays;
+  const wearableEligible=wearableSignal.eligible;
   const checkins=count(summary28.checkins)??0;
   const iriCoverage=finite(summary28.iriCurrent);
 
@@ -157,8 +151,8 @@ export function buildProgressHub(
       status:Number.isFinite(summary28.volumeDelta)?(summary28.volumeDelta>5?'strong':summary28.volumeDelta>=-5?'building':'review'):'insufficient',
       value:Number.isFinite(summary28.volume)?summary28.volume:null,
       unit:'kg·rep medio',
-      evidence:Number.isFinite(summary28.volumeDelta)?`Cambio reciente ${summary28.volumeDelta>0?'+':''}${summary28.volumeDelta}% frente al periodo anterior`:'Sin suficiente volumen comparable',
-      context:'Solo carga × repeticiones en kg; la tendencia exige ejercicios, variantes y series comparables',
+      evidence:Number.isFinite(summary28.volumeDelta)?`Cambio reciente ${summary28.volumeDelta>0?'+':''}${summary28.volumeDelta}% entre grupos cronológicos de sesiones comparables de la ventana de 28 días`:'Sin suficiente volumen comparable',
+      context:'Solo carga × repeticiones en kg; exige ejercicios, variantes y series comparables. Más volumen no equivale a mejor rendimiento.',
       source:'sessionExecutions',
       quality:summary28.dataQuality,
     }),
