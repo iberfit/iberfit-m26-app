@@ -58,3 +58,14 @@ test('Life360 weekly rail never calls an upcoming-only window a complete weekly 
     assert.notEqual(iberfitSurfaceTranslate('No se muestran próximas citas confirmadas esta semana',{language}),
       'No se muestran próximas citas confirmadas esta semana');
 });
+
+
+test('GX08 home keeps the real hero primary and does not repeat its destination in daily context',()=>{
+ const item={asOf:'2026-11-05',wellbeing:{status:'missing',metrics:{}},movement:{status:'missing',metrics:{}},training:{}};
+ const training=renderClientDayContext(item,{heroArea:'sesion'});
+ assert.doesNotMatch(training,/class="m26-primary-action"/u);
+ assert.match(training,/data-m26-area="actividad"/u);
+ const wellbeing=renderClientDayContext(item,{heroArea:'actividad'});
+ assert.doesNotMatch(wellbeing,/data-m26-area="actividad"/u);
+ assert.match(wellbeing,/data-m26-area="progreso"/u);
+});

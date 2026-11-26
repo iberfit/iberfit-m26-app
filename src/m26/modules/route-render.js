@@ -947,7 +947,7 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${trainingSurface?renderAthleticClientEvidence(vm.clientProgressSummary):''}
-    ${renderClientDayContext(vm.clientDayContext)}
+    ${renderClientDayContext(vm.clientDayContext,{heroArea:primary.area})}
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
       ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">

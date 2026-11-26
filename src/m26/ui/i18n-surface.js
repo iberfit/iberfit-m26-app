@@ -5,6 +5,9 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  ['Origen no identificado','Source not identified','Source non identifiée','Origem não identificada'],
+  ['Actividad registrada · 28 días','Recorded activity · 28 days','Activité enregistrée · 28 jours','Atividade registada · 28 dias'],
+  ['Salud de Apple (HealthKit)','Apple Health (HealthKit)','Santé Apple (HealthKit)','Saúde da Apple (HealthKit)'],
   ['Resultados favorables','Favourable outcomes','Résultats favorables','Resultados favoráveis'],
   ['Resultados favorables entre revisiones con evidencia documentada. No implican causalidad.','Favourable outcomes among reviews with documented evidence. They do not imply causation.','Résultats favorables parmi les révisions avec preuves documentées. Ils ne démontrent pas de causalité.','Resultados favoráveis entre revisões com evidência documentada. Não implicam causalidade.'],
   ['Sin resultados evaluables con evidencia documentada.','No assessable outcomes with documented evidence.','Aucun résultat évaluable avec preuves documentées.','Sem resultados avaliáveis com evidência documentada.'],

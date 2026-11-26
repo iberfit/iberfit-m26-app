@@ -2300,3 +2300,6 @@ body {
 .m26-action-outcome-metrics>.m26-action-outcome-metric-note{grid-column:1/-1;margin:0;line-height:1.5}
 .m26-action-outcome-more{min-height:44px;width:100%;justify-content:center}
 .m26-action-outcome-more[hidden]{display:none!important}
+
+/* GX08/GX19: source labels remain subordinate to measured values. */
+.m26-client-day-metric .m26-client-day-source{font-size:.69rem;font-weight:400;line-height:1.45;overflow-wrap:anywhere;color:var(--iberfit-color-text-secondary,#d6d9d1);margin-top:.15rem}

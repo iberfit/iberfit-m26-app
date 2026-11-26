@@ -1,7 +1,8 @@
 // IBERFIT U63 · bounded, owner-scoped daily context; no extra requests or medical scoring.
 import {formatSleepDuration} from '../wearables/duration-format.js';
+import {parseCivilDate,reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
+import {wearableProviderDefinition} from '../wearables/contracts.js';
 
-const DAY=/^\d{4}-\d{2}-\d{2}$/u;
 const CHECKIN_FIELDS=Object.freeze([
   ['energy','Energía'],['sleep','Sueño percibido'],['stress','Estrés'],
   ['pain','Dolor'],['fatigue','Fatiga'],['motivation','Motivación'],
@@ -11,23 +12,8 @@ const ACTIVITY_FIELDS=Object.freeze([
   ['sleepMinutes','Sueño registrado',0,1440],
   ['workoutMinutes','Deporte',0,1440],
 ]);
-function civilDate(value){
-  const date=String(value??'');
-  if(!DAY.test(date))return null;
-  const parsed=new Date(date+'T12:00:00Z');
-  return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===date?date:null;
-}
-function chileDate(value){
-  if(typeof value==='string'&&DAY.test(value))return civilDate(value);
-  if(value===null||value===undefined||value==='')return null;
-  const date=value instanceof Date?value:new Date(value);
-  if(!Number.isFinite(date.getTime()))return null;
-  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{
-    timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit',
-  }).formatToParts(date).filter(part=>part.type!=='literal')
-    .map(part=>[part.type,part.value]));
-  return civilDate(parts.year+'-'+parts.month+'-'+parts.day);
-}
+function civilDate(value){return parseCivilDate(value)?.iso??null;}
+function chileDate(value){return reportCivilDate(value);}
 function ageDays(day,today){
   if(!day||!today)return null;
   return Math.round((Date.parse(today+'T12:00:00Z')-Date.parse(day+'T12:00:00Z'))/86400000);
@@ -35,16 +21,28 @@ function ageDays(day,today){
 function value(value,min,max){
   return typeof value==='number'&&Number.isFinite(value)&&value>=min&&value<=max?value:null;
 }
+function sourceLabel(provider){
+  const definition=wearableProviderDefinition(provider);
+  if(!definition)return 'Origen no identificado';
+  // HealthKit/Health Connect identify an authorized data channel, not the
+  // physical watch or phone that actually measured the observation.
+  if(definition.key==='apple_health')return 'Salud de Apple (HealthKit)';
+  if(definition.key==='health_connect')return 'Health Connect';
+  return definition.label;
+}
 function metricRows(rows,day){
   const onDay=rows.filter(row=>row.date===day);
-  const metrics={};let ambiguous=false;
+  const metrics={},provenance={};let ambiguous=false;
   for(const [key,,min,max] of ACTIVITY_FIELDS){
-    const values=[...new Set(onDay.map(row=>value(row.metrics?.[key],min,max))
-      .filter(item=>item!==null))];
+    const measured=onDay.map(row=>({row,number:value(row.metrics?.[key],min,max)}))
+      .filter(item=>item.number!==null);
+    const values=[...new Set(measured.map(item=>item.number))];
     metrics[key]=values.length===1?values[0]:null;
     if(values.length>1)ambiguous=true;
+    // Equal measurements may be shown once, but must retain their sources.
+    if(metrics[key]!==null)provenance[key]=Object.freeze([...new Set(measured.map(item=>sourceLabel(item.row.provider)))].sort());
   }
-  return {metrics:Object.freeze(metrics),ambiguous};
+  return {metrics:Object.freeze(metrics),provenance:Object.freeze(provenance),ambiguous};
 }
 /** Inputs are already authorized in route-view-model; double-fence clientId. */
 export function buildClientDayContext({clientId,progress=null,wearables=null,now=new Date()}={}){
@@ -53,7 +51,9 @@ export function buildClientDayContext({clientId,progress=null,wearables=null,now
   const today=chileDate(now);
   if(!today)throw new Error('M26_DAY_CONTEXT_DATE_REQUIRED');
   const scopedProgress=String(progress?.clientId||'')===id?progress:null;
-  const checkinDay=chileDate(scopedProgress?.latestCheckinAt);
+  const currentWindow=scopedProgress?.days==null||scopedProgress.days===28;
+  const checkinAt=scopedProgress?.latestCheckinAt;
+  const checkinDay=isWithinCivilPeriod(checkinAt,'0001-01-01',today,now)?chileDate(checkinAt):null;
   const checkinAge=ageDays(checkinDay,today);
   const checkinCurrent=checkinAge!==null&&checkinAge>=0&&checkinAge<=6;
   const feelings=Object.fromEntries(CHECKIN_FIELDS.map(([key])=>[
@@ -80,11 +80,14 @@ export function buildClientDayContext({clientId,progress=null,wearables=null,now
     .filter(row=>row&&String(row.clientId||'')===id&&civilDate(row.date)===row.date)
     .filter(row=>{const days=ageDays(row.date,today);return days!==null&&days>=7;})
     .sort((a,b)=>b.date.localeCompare(a.date))[0]?.date||null;
-  const lastTraining=chileDate(scopedProgress?.lastExecutionAt);
+  const executionAt=scopedProgress?.lastExecutionAt;
+  const lastTraining=isWithinCivilPeriod(executionAt,'0001-01-01',today,now)?chileDate(executionAt):null;
   const lastTrainingAge=ageDays(lastTraining,today);
-  const confirmedSessions=Number.isSafeInteger(scopedProgress?.completedSessions)
-    &&scopedProgress.completedSessions>=0?scopedProgress.completedSessions:null;
-  const volumeTrend=value(scopedProgress?.volumeDelta,-100,10000);
+  const canonicalCount=scopedProgress?.confirmedWorkoutExecutions;
+  const countSource=canonicalCount===undefined?'legacy-activity':'confirmed-execution';
+  const count=canonicalCount===undefined?scopedProgress?.completedSessions:canonicalCount;
+  const confirmedSessions=currentWindow&&Number.isSafeInteger(count)&&count>=0?count:null;
+  const volumeTrend=currentWindow?value(scopedProgress?.volumeDelta,-100,10000):null;
   return Object.freeze({
     asOf:today,
     wellbeing:Object.freeze({
@@ -95,11 +98,12 @@ export function buildClientDayContext({clientId,progress=null,wearables=null,now
     movement:Object.freeze({
       date:lastDay||historical,
       status:observed?(lastDay===today?'today':'recent'):'missing',
-      metrics:day.metrics,ambiguous,
+      metrics:day.metrics,provenance:day.provenance||Object.freeze({}),ambiguous,
     }),
     training:Object.freeze({
       completed28:confirmedSessions,
-      lastDate:lastTrainingAge!==null&&lastTrainingAge>=0?lastTraining:null,
+      countSource,
+      lastDate:lastTrainingAge!==null&&lastTrainingAge>=0&&lastTrainingAge<=28?lastTraining:null,
       volumeDelta:volumeTrend,
     }),
   });
@@ -108,8 +112,9 @@ function esc(text){return String(text??'').replaceAll('&','&amp;')
   .replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;')
   .replaceAll("'",'&#039;');}
 function dateLabel(date){return civilDate(date)?date.slice(8,10)+'/'+date.slice(5,7)+'/'+date.slice(0,4):'Fecha no disponible';}
-function metric(label,display){return '<div class="m26-client-day-metric"><dt>'+esc(label)
-  +'</dt><dd>'+esc(display)+'</dd></div>';}
+function metric(label,display,sources=[]){return '<div class="m26-client-day-metric"><dt>'+esc(label)
+  +'</dt><dd>'+esc(display)+'</dd>'
+  +(sources.length?'<dd class="m26-client-day-source">'+esc(sources.join(' · '))+'</dd>':'')+'</div>';}
 export function deriveClientDayNextAction(snapshot){
   if(!snapshot||snapshot.wellbeing?.status!=='today')
     return Object.freeze({area:'actividad',label:'Registrar cómo estoy',
@@ -117,7 +122,7 @@ export function deriveClientDayNextAction(snapshot){
   return Object.freeze({area:'progreso',label:'Ver mi evolución',
     detail:'Tu bienestar confirmado es contexto, no un diagnóstico automático.'});
 }
-export function renderClientDayContext(snapshot){
+export function renderClientDayContext(snapshot,{heroArea=null}={}){
   if(!snapshot)return '';
   const wellbeing=snapshot.wellbeing||{};
   const movement=snapshot.movement||{};
@@ -139,16 +144,19 @@ export function renderClientDayContext(snapshot){
   const activityMetrics=activityData.map(([key,label])=>{
     const n=movement.metrics[key];
     return metric(label,key==='steps'?Math.round(n).toLocaleString('es-CL')
-      :key==='sleepMinutes'?formatSleepDuration(n):Math.round(n)+' min');
+      :key==='sleepMinutes'?formatSleepDuration(n):Math.round(n)+' min',movement.provenance?.[key]||[]);
   }).join('');
   const feelingMetrics=feelingData.map(([key,label])=>
     metric(label,wellbeing.metrics[key]+' / 10')).join('');
   const lastTraining=training.lastDate?'Última sesión: '+dateLabel(training.lastDate)
     :'Sin fecha reciente confirmada';
-  const trainingMetrics=Number.isSafeInteger(training.completed28)?metric('Sesiones confirmadas · 28 días',training.completed28):'';
+  const trainingMetrics=Number.isSafeInteger(training.completed28)?metric(training.countSource==='legacy-activity'?'Actividad registrada · 28 días':'Sesiones confirmadas · 28 días',training.completed28):'';
   const trend=Number.isFinite(training.volumeDelta)
     ?metric('Volumen comparable', (training.volumeDelta>0?'+':'')+training.volumeDelta+' %')
     :'';
+  const alternateArea=next.area==='progreso'?'actividad':'progreso';
+  const actions=(next.area!==heroArea?'<button type="button"'+(heroArea?'':' class="m26-primary-action"')+' data-m26-area="'+esc(next.area)+'">'+esc(next.label)+'</button>':'')
+    +(alternateArea!==heroArea?'<button type="button" data-m26-area="'+alternateArea+'">'+(next.area==='progreso'?'Mi bienestar y actividad':'Ver evolución')+'</button>':'');
   return '<section class="m26-client-day-context" data-m26-client-day-context aria-labelledby="m26-client-day-heading">'
     +'<header class="m26-client-day-heading"><div><p class="m26-eyebrow">TU VIDA ACTIVA</p>'
     +'<h2 id="m26-client-day-heading">Tu día, con perspectiva</h2>'
@@ -167,6 +175,5 @@ export function renderClientDayContext(snapshot){
       :'<p class="m26-client-day-empty">Tu evolución aparecerá con entrenamientos confirmados.</p>')+'</article>'
     +'</div><footer class="m26-client-day-footer"><span>Bienestar percibido, actividad y entrenamiento son fuentes distintas; no cambian tu plan por sí solas.</span>'
     +'<p class="m26-client-day-next">'+esc(next.detail)+'</p>'
-    +'<nav aria-label="Explorar tu día"><button type="button" class="m26-primary-action" data-m26-area="'+esc(next.area)+'">'+esc(next.label)+'</button>'
-    +'<button type="button" data-m26-area="'+(next.area==='progreso'?'actividad':'progreso')+'">'+(next.area==='progreso'?'Mi bienestar y actividad':'Ver evolución')+'</button></nav></footer></section>';
+    +(actions?'<nav aria-label="Explorar tu día">'+actions+'</nav>':'')+'</footer></section>';
 }
