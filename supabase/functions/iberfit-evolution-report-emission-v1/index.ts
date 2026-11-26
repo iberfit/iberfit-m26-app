@@ -1,7 +1,7 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
 import fontkit from 'npm:@pdf-lib/fontkit@1.1.1';
-import {renderEvolutionReportPdf,M44_PDF_TEMPLATE} from './pdf-renderer.js';
+import {renderEvolutionReportPdf,M44_ACCEPTED_REPLAY_TEMPLATES} from './pdf-renderer.js';
 import {ensureStoredPdfArtifact} from './storage-recovery.js';
 
 const VERSION='m44-issued-pdf-broker-2026.10-v1';
@@ -145,7 +145,7 @@ async function issue({user,service,actor,body}:{
     // Read the original producer; pdf-lib otherwise updates metadata on load.
     const pdf=await PDFDocument.load(stored,{updateMetadata:false});
     if(pdf.getSubject()!==sourceFingerprint||
-       pdf.getProducer()!==M44_PDF_TEMPLATE||pdf.getPageCount()<1)
+       !M44_ACCEPTED_REPLAY_TEMPLATES.includes(pdf.getProducer()||'')||pdf.getPageCount()<1)
       throw Error('M44_PDF_ORPHAN_REPLAY_COLLISION');
    },
   });

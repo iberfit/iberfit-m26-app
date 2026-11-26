@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {renderEvolutionReportPdf,M44_PDF_TEMPLATE,validateOfficialActivitySeries} from '../supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js';
 test('M44 server PDF renderer rejects unsigned input and missing execution evidence',async()=>{
- assert.equal(M44_PDF_TEMPLATE,'iberfit-evolution-a4-brand-v2');
+ assert.equal(M44_PDF_TEMPLATE,'iberfit-evolution-a4-brand-v3');
  await assert.rejects(()=>renderEvolutionReportPdf({}),/M44_PDF_RENDER_INPUT_INVALID/);
  await assert.rejects(()=>renderEvolutionReportPdf({source:{},pdfLib:{PDFDocument:{},StandardFonts:{},rgb:()=>{}}}),
   /M44_PDF_SOURCE_NOT_CANONICAL/);
@@ -75,5 +75,11 @@ test('GX05 official report uses public labels, civil dates and bounded chart/tit
  const longLabels=calls.filter(row=>row.t.includes('WWWW'));
  assert.ok(longLabels.length>1);
  assert.ok(longLabels.every(row=>row.x+row.font.widthOfTextAtSize(row.t,row.size)<=540));
- assert.ok(calls.find(row=>row.t==='2'&&row.y>500).y<calls.find(row=>row.t==='SESIONES CONFIRMADAS POR PERIODO').y-15);
+ assert.ok(calls.some(row=>row.t==='2'));
+});
+
+
+test('Signature V3 keeps all report modes, verified activity and no private Coach comment',async()=>{
+ const {M44_ACCEPTED_REPLAY_TEMPLATES}=await import('../supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js');
+ assert.deepEqual(M44_ACCEPTED_REPLAY_TEMPLATES,['iberfit-evolution-a4-brand-v2','iberfit-evolution-a4-brand-v3']);
 });

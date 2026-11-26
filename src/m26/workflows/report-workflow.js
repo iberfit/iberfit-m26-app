@@ -79,7 +79,12 @@ function periodEditorial(sessions,signals,comparisonRow){
   ];
   return Object.freeze({
     context:latest?`Entrenamiento confirmado en ${days} día${days===1?'':'s'} distintos. Última sesión: ${sessionLabel(latest)} (${executionDate(latest)}).`:'',
-    conclusions:narrative([...signals.map(row=>`${row.label}: ${trimTrailingPeriods(row.evidence)}.`),comparisonRow?.text,'Estos resultados describen los registros disponibles; no acreditan por sí solos una mejora funcional.']),
+    conclusions:narrative([
+      byId.has('consistency')?'El seguimiento de las citas permite valorar cómo se ha mantenido el compromiso acordado.':'La frecuencia registrada permite conversar sobre una rutina sostenible, sin confundir actividad con adherencia.',
+      byId.has('strength')||byId.has('volume')?'Las comparaciones de entrenamiento aportan contexto para revisar la carga, las repeticiones y el esfuerzo; no constituyen por sí solas una medida de mejora funcional.':'Todavía no hay una base comparable suficiente para interpretar cambios de rendimiento.',
+      byId.has('wellbeing')?'Los registros de bienestar ayudan a contextualizar la recuperación y la siguiente etapa.':'',
+      comparisonRow?.quality==='limitada'?'No hay un periodo anterior suficientemente documentado para establecer una comparación histórica.':'La comparación histórica describe registros, no una calificación del rendimiento.'
+    ]),
     recommendations:narrative(prompts),
     evidence:latest?[evidence('Días con entrenamiento confirmado',String(days),'sessionExecutions'),evidence('Última sesión confirmada',`${sessionLabel(latest)} · ${executionDate(latest)}`,'sessionExecutions')]:[],
   });

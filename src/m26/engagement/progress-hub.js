@@ -83,7 +83,7 @@ export function buildPeriodProgressEvidence(state,clientId,{now=new Date(),days}
     const variation=Number.isFinite(summary.volumeDelta)?`Variación descriptiva ${summary.volumeDelta>0?'+':''}${summary.volumeDelta}%`:'Variación porcentual no calculable desde una referencia de cero';
     rows.push({id:'volume',label:'Volumen comparable',evidence:`${variation} entre grupos cronológicos de sesiones comparables del mismo periodo (${v.olderSessions} y ${v.recentSessions} sesiones; medias ${v.olderMean} y ${v.recentMean} kg·rep); no equivale a una mejora automática`,source:'sessionExecutions',quality:v.comparableSessions>=3?'media':'limitada'});
   }
-  if(summary.checkins>0)rows.push({id:'wellbeing',label:'Bienestar',evidence:`${summary.checkins} registro${summary.checkins===1?'':'s'} en el periodo; último registro ${summary.latestCheckinAt||'confirmado'}`,source:'checkins',quality:summary.checkins>=8?'alta':summary.checkins>=3?'media':'limitada'});
+  if(summary.checkins>0)rows.push({id:'wellbeing',label:'Bienestar',evidence:`${summary.checkins} registro${summary.checkins===1?'':'s'} en el periodo; último registro ${summary.latestCheckinAt?String(summary.latestCheckinAt).slice(0,10).split('-').reverse().join('/'):'confirmado'}`,source:'checkins',quality:summary.checkins>=8?'alta':summary.checkins>=3?'media':'limitada'});
   return Object.freeze(rows.map(row=>Object.freeze({...row,status:'available'})));
 }
 

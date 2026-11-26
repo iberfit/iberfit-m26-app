@@ -12,7 +12,7 @@ const EDITORIAL=Object.freeze({
   weekly:['Tu semana de entrenamiento','La actividad confirmada, lo que conviene revisar y cómo dar continuidad al proceso.'],
   monthly:['Un mes de seguimiento','Los registros del periodo, sus comparaciones y las decisiones que merecen una revisión profesional.'],
   quarterly:['El ciclo en perspectiva','Continuidad, evidencia comparable y prioridades para la siguiente etapa.'],
-  'year-in-iberfit':['Un año de recorrido','El historial confirmado y los aprendizajes que orientan el próximo ciclo.'],
+  'year-in-iberfit':['Tu recorrido, tus resultados','El entrenamiento realizado, los cambios observados y las prioridades de la siguiente etapa.'],
 });
 const TRUSTED_SOURCES=Object.freeze({
   sessionExecutions:'Sesiones IBERFIT confirmadas',
@@ -104,7 +104,7 @@ function footer(page,total){
 function page(index,total,eyebrow,title,inner){
   return '<section class="m44-sheet m44-interior" aria-label="Página '+index+' de '+total+'"><header class="m44-page-head"><span class="m44-page-index">'+String(index-1).padStart(2,'0')+'</span><div><p class="m44-kicker">'+esc(eyebrow)+'</p><h2>'+esc(title)+'</h2></div></header><main class="m44-page-content">'+inner+'</main>'+footer(index,total)+'</section>';
 }
-export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44wip-1',publicationStatus='draft'}={}){
+export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-signature-3',publicationStatus='draft'}={}){
   if(!report||report.ready!==true||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
     throw new Error('M44_REPORT_PREVIEW_EVIDENCE_REQUIRED');
   if(!report.periodStart||!report.periodEnd||dateLabel(report.periodStart)==='Fecha pendiente'||dateLabel(report.periodEnd)==='Fecha pendiente'||report.periodStart>report.periodEnd)
@@ -157,6 +157,19 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   const total=1+summaryChunks.length+evidenceChunks.length+(showActivity?1:0)+
     (longDecision?decisionSections.length:1);
   const pages=[];
+  const summaryMetrics=[];
+  const countEvidence=(labels,source)=>lines.find(item=>labels.includes(item.label)&&item.source===source&&/^\d+$/u.test(item.text));
+  const sessionCount=countEvidence(['Sesiones confirmadas','Sesiones ejecutadas','Sesiones del último año'],'sessionExecutions');
+  const trainingDays=countEvidence(['Días con entrenamiento confirmado'],'sessionExecutions');
+  const booked=lines.find(item=>item.label==='Constancia'&&item.source==='appointments+sessionExecutions')?.text.match(/^(\d+) de (\d+) citas programadas cumplidas/u);
+  const checkins=lines.find(item=>item.label==='Bienestar'&&item.source==='checkins')?.text.match(/^(\d+) registros? en el periodo/u);
+  const fmt=n=>new Intl.NumberFormat('es-CL',{maximumFractionDigits:1}).format(n);
+  if(sessionCount)summaryMetrics.push([fmt(Number(sessionCount.text)),'Sesiones confirmadas']);
+  if(booked&&Number(booked[2])>0&&Number(booked[1])<=Number(booked[2]))summaryMetrics.push([fmt(100*Number(booked[1])/Number(booked[2]))+'%','Citas cumplidas']);
+  else if(trainingDays)summaryMetrics.push([fmt(Number(trainingDays.text)),'Días con entrenamiento']);
+  if(checkins)summaryMetrics.push([fmt(Number(checkins[1])),'Registros de bienestar']);
+  if(summaryMetrics.length<3&&trainingDays&&!summaryMetrics.some(m=>m[1]==='Días con entrenamiento'))summaryMetrics.push([fmt(Number(trainingDays.text)),'Días con entrenamiento']);
+  const summaryBand=summaryMetrics.length?'<div class="m44-summary-metrics">'+summaryMetrics.map(([v,label])=>'<div><strong>'+esc(v)+'</strong><span>'+esc(label)+'</span></div>').join('')+'</div>':'';
   pages.push('<section class="m44-sheet m44-cover" aria-label="Portada del informe">'+
     '<div class="m44-cover-accent" aria-hidden="true"></div>'+
     '<div class="m44-brand"><img src="/public/isotipo-iberfit.png" alt="" width="66" height="66"><div><strong>IBERFIT</strong><small>ENTRENAMIENTO PERSONAL CON CRITERIO</small></div></div>'+
@@ -167,7 +180,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     '<div class="m44-cover-meta"><div><span>Preparado para</span><strong>'+esc(name)+'</strong></div><div><span>Periodo analizado</span><strong>'+esc(dateLabel(report.periodStart))+' — '+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Revisión profesional</span><strong>'+esc(coach)+'</strong></div></div>'+
     '<div class="m44-cover-bottom"><span>'+(published?'CONSULTA DE INFORME PUBLICADO EN PLATAFORMA':'BORRADOR PRIVADO · VISTA PREVIA SIN PUBLICAR')+'</span><span>IBERFIT · INFORME DE EVOLUCIÓN</span></div></section>');
   pages.push(page(2,total,'01 · LA LECTURA','Qué hemos hecho',
-    '<p class="m44-section-lead">'+esc(title===TYPES[report.id]?'El periodo en contexto':title)+'</p>'+
+    '<p class="m44-section-lead">'+esc(title===TYPES[report.id]?'El periodo en contexto':title)+'</p>'+summaryBand+
     '<div class="m44-prose m44-report-summary">'+paragraphs(summaryChunks[0],2500)+'</div>'+
     '<div class="m44-period-line"><div><span>Desde</span><strong>'+esc(dateLabel(report.periodStart))+'</strong></div><div><span>Hasta</span><strong>'+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Tipo de seguimiento</span><strong>'+esc(TYPES[report.id])+'</strong></div></div>'+
     '<div class="m44-reading-rule"><span>Cómo interpretar estos resultados</span><p>Los hechos describen lo que está confirmado; las conclusiones y próximos pasos corresponden a la revisión del coach. Un cambio de carga, volumen o frecuencia no implica por sí mismo una mejora funcional.</p></div>'));
@@ -274,7 +287,7 @@ async function verifyA4Layout(doc,popup,scope){
 export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',scope=globalThis}={}){
   const origin=String(scope.location?.origin||'');
   if(!/^https?:\/\/[^/]+$/i.test(origin))throw new Error('M44_REPORT_PREVIEW_ORIGIN_REQUIRED');
-  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,stylesheetHref:origin+'/m26/evolution-report.css?v=m44wip-1'});
+  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-signature-3'});
   const popup=scope.open?.('about:blank','_blank');
   if(!popup?.document)throw new Error('M44_REPORT_PREVIEW_POPUP_BLOCKED');
   try{

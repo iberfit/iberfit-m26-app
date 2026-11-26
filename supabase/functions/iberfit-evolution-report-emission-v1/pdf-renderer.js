@@ -1,6 +1,7 @@
 // Branded, server-owned M44 evolution PDF renderer. pdf-lib injected by Edge.
 // Rendering is based on the canonical, redacted, published server snapshot.
-export const M44_PDF_TEMPLATE='iberfit-evolution-a4-brand-v2';
+export const M44_PDF_TEMPLATE='iberfit-evolution-a4-brand-v3';
+export const M44_ACCEPTED_REPLAY_TEMPLATES=Object.freeze(['iberfit-evolution-a4-brand-v2',M44_PDF_TEMPLATE]);
 const W=595.28,H=841.89;
 // Keep the public report vocabulary aligned with the existing A4 preview.
 const REPORT_LABELS=Object.freeze({'post-session':'Informe post-sesión',weekly:'Resumen semanal',monthly:'Informe mensual',quarterly:'Informe trimestral','year-in-iberfit':'Tu año en IBERFIT'});
@@ -8,9 +9,9 @@ const SOURCE_LABELS=Object.freeze({sessionExecutions:'Sesiones IBERFIT confirmad
 const publicLabel=(dictionary,key,fallback)=>Object.hasOwn(dictionary,key)?dictionary[key]:fallback;
 const shortDate=value=>value.slice(8,10)+'/'+value.slice(5,7);
 const C={forest:[.064,.145,.117],forest2:[.15,.27,.21],gold:[.73,.58,.30],
- cream:[.975,.965,.94],ink:[.12,.20,.17],muted:[.37,.44,.40],rule:[.80,.83,.79]};
+ cream:[.975,.965,.94],ink:[.075,.133,.11],muted:[.30,.37,.33],rule:[.80,.83,.79],paper:[.993,.985,.963],soft:[.933,.936,.907],darkGold:[.45,.34,.16]};
 function safe(v,n=2500){
- return String(v??'').replace(/[\u{10000}-\u{10ffff}]/gu,'')
+ return String(v??'').replace(/[–—]/gu,'-').replace(/[“”]/gu,'"').replace(/[‘’]/gu,"'").replace(/[\u{10000}-\u{10ffff}]/gu,'')
  .replace(/[^\x20-\xff\n]/gu,' ').replace(/[ \t]+/gu,' ').trim().slice(0,n);
 }
 function validCivilDate(value){
@@ -59,153 +60,130 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  // This is the same Inter/Source Serif identity used by the HTML A4 preview.
  if(!fontkit||!brandFonts?.inter||!brandFonts?.serif)
   throw Error('M44_PDF_BRAND_FONTS_REQUIRED');
- // Variable WOFF2 subsetting in fontkit 1.1.1 can corrupt glyph offsets.
- // Embed the complete first-party typefaces instead of accepting clipped output.
+ // Embed an actual subset font program, not a raw WOFF2 webfont in FontFile2.
+ // Real PDF raster/extraction acceptance must verify glyphs before promotion.
  doc.registerFontkit(fontkit);
- const serif=await doc.embedFont(brandFonts.serif,{subset:false});
- const sans=await doc.embedFont(brandFonts.inter,{subset:false});
+ const serif=await doc.embedFont(brandFonts.serif,{subset:true});
+ const sans=await doc.embedFont(brandFonts.inter,{subset:true});
  const serifBold=await doc.embedFont(StandardFonts.TimesRomanBold);
  const bold=await doc.embedFont(StandardFonts.HelveticaBold);
  const color=k=>rgb(...C[k]),pages=[];
- function add(kind='inside'){
-  const p=doc.addPage([W,H]);pages.push(p);
-  p.drawRectangle({x:0,y:0,width:W,height:H,color:color(kind==='cover'?'forest':'cream')});
-  if(kind!=='cover'){
-   p.drawRectangle({x:0,y:H-13,width:W,height:13,color:color('forest')});
-   p.drawText('IBERFIT',{x:52,y:792,size:12,font:bold,color:color('forest')});
-   p.drawLine({start:{x:52,y:782},end:{x:543,y:782},thickness:1,color:color('gold')});
+ const M=43,R=W-M,WIDTH=R-M,BASE=72;
+ const fmt=n=>new Intl.NumberFormat('es-CL',{maximumFractionDigits:1}).format(n);
+ const humanDate=v=>validCivilDate(v)?v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4):safe(v);
+ const reportName=publicLabel(REPORT_LABELS,source.reportType,'Informe de evolución');
+ const interval=humanDate(source.periodStart)+' - '+humanDate(source.periodEnd);
+ const series=source.activitySeries??[];
+ let logo=null;
+ if(brandImageBytes){try{logo=await doc.embedPng(brandImageBytes);}catch{/* wordmark remains */}}
+ let current,y,section='Tu seguimiento';
+ const text=(v,x,at,size=10,font=sans,c='ink')=>current.drawText(safe(v),{x,y:at,size,font,color:color(c)});
+ const line=(x,at,x2,c='rule')=>current.drawLine({start:{x,y:at},end:{x:x2,y:at},thickness:.65,color:color(c)});
+ const rect=(x,at,width,height,c)=>current.drawRectangle({x,y:at,width,height,color:color(c)});
+ function add(title,first=false){
+  current=doc.addPage([W,H]);pages.push(current);section=title;
+  rect(0,0,W,H,'paper');rect(0,H-7,W,7,'forest');
+  if(first){
+   rect(0,H-216,W,209,'forest');
+   text('IBERFIT',M,H-42,17,bold,'cream');
+   text('ENTRENAMIENTO PERSONAL CON CRITERIO',M,H-57,7.3,bold,'gold');
+   if(logo){const scale=Math.min(49/logo.width,49/logo.height);current.drawImage(logo,{x:R-logo.width*scale,y:H-64,width:logo.width*scale,height:logo.height*scale});}
+   let ty=H-103;
+   for(const t of wrap(serifBold,33,reportName,WIDTH-4)){text(t,M,ty,33,serifBold,'cream');ty-=36;}
+   text('PREPARADO PARA',M,H-158,7.8,bold,'gold');
+   for(const [i,t] of wrap(sans,11,safe(source.clientName,100)||'Cliente IBERFIT',WIDTH*.58).entries())text(t,M,H-174-i*13,11,sans,'cream');
+   text('PERIODO ANALIZADO',M+WIDTH*.60,H-158,7.8,bold,'gold');
+   text(interval,M+WIDTH*.60,H-174,10,sans,'cream');
+   y=H-239;
+  }else{
+   text('IBERFIT',M,H-36,13,bold,'forest');text(reportName,M+102,H-36,9,sans,'muted');line(M,H-46,R,'gold');
+   let ty=H-79;
+   for(const t of wrap(serifBold,25,title,WIDTH)){text(t,M,ty,25,serifBold,'forest');ty-=28;}
+   y=ty-9;
   }
-  return p;
  }
- const cover=add('cover');
- cover.drawRectangle({x:51,y:110,width:4,height:550,color:color('gold')});
- cover.drawText('IBERFIT',{x:78,y:736,size:23,font:bold,color:color('cream')});
- cover.drawText('ENTRENAMIENTO PERSONAL CON CRITERIO',{x:78,y:713,size:8.5,font:sans,color:color('gold')});
- if(brandImageBytes){try{
-  const logo=await doc.embedPng(brandImageBytes);
-  const scale=Math.min(70/logo.width,70/logo.height);
-  cover.drawImage(logo,{x:455,y:690,width:logo.width*scale,height:logo.height*scale});
- }catch{/* Logo optional, branded wordmark always present. */}}
- cover.drawText('EVOLUCION Y SEGUIMIENTO',{x:79,y:570,size:10,font:bold,color:color('gold')});
- const annual=source.reportType==='year-in-iberfit';
- cover.drawText(annual?'Tu año en':'Tu proceso,',{x:79,y:509,size:41,font:serifBold,color:color('cream')});
- cover.drawText(annual?'IBERFIT':'con perspectiva.',{x:79,y:462,size:39,font:serif,color:color('cream')});
- cover.drawLine({start:{x:79,y:429},end:{x:446,y:429},color:color('gold'),thickness:1.5});
- let yCover=393;
- for(const line of wrap(serif,15,'Comprender lo realizado. Interpretar la evidencia. Decidir que hacer despues.',425)){
-  cover.drawText(line,{x:79,y:yCover,size:15,font:serif,color:color('cream')});yCover-=22;
+ function next(){add(section+' · continuación');}
+ function ensure(h){if(y-h<BASE)next();}
+ function block(v,{font=sans,size=10.5,leading=14.5,c='ink',gap=10}={}){
+  for(const row of wrap(font,size,v,WIDTH)){
+   ensure(leading);text(row,M,y,size,font,c);y-=leading;
+  }y-=gap;
  }
- const meta=[['PREPARADO PARA',safe(source.clientName,100)||'Cliente IBERFIT'],
-  ['PERIODO',String(source.periodStart)+'  -  '+String(source.periodEnd)],
-  ['INFORME',publicLabel(REPORT_LABELS,source.reportType,safe(source.reportType,80)||'Evolución')]];
- let cy=284;
- for(const [k,v] of meta){
-  cover.drawText(k,{x:79,y:cy,size:8.2,font:bold,color:color('gold')});
-  for(const line of wrap(sans,12.2,v,425)){
-   cover.drawText(line,{x:79,y:cy-20,size:12.2,font:sans,color:color('cream')});cy-=15;
-  }
-  cy-=46;
+ function heading(v){ensure(43);line(M,y+7,R);text(safe(v,90).toUpperCase(),M,y-7,8.8,bold,'darkGold');y-=25;}
+ const rowText=item=>safe(item?.text,2500)||'Sin registro';
+ const rowBy=(labels,src)=>source.evidence.find(e=>labels.includes(e?.label)&&e?.source===src);
+ const countValue=item=>{const raw=rowText(item);return /^\d+$/u.test(raw)&&Number.isSafeInteger(Number(raw))?Number(raw):null;};
+ const sessions=countValue(rowBy(['Sesiones confirmadas','Sesiones ejecutadas','Sesiones del último año'],'sessionExecutions'));
+ const days=countValue(rowBy(['Días con entrenamiento confirmado'],'sessionExecutions'));
+ const consistency=rowText(rowBy(['Constancia'],'appointments+sessionExecutions')).match(/^(\d+) de (\d+) citas programadas cumplidas/u);
+ const wellbeing=rowText(rowBy(['Bienestar'],'checkins')).match(/^(\d+) registros? en el periodo/u);
+ const metrics=[];
+ if(sessions!==null)metrics.push([fmt(sessions),'Sesiones confirmadas']);
+ if(consistency&&Number(consistency[2])>0&&Number(consistency[1])<=Number(consistency[2]))metrics.push([fmt(100*Number(consistency[1])/Number(consistency[2]))+'%','Citas cumplidas']);
+ else if(days!==null)metrics.push([fmt(days),'Días con entrenamiento']);
+ if(wellbeing)metrics.push([fmt(Number(wellbeing[1])),'Registros de bienestar']);
+ if(metrics.length<3&&days!==null&&!metrics.some(m=>m[1]==='Días con entrenamiento'))metrics.push([fmt(days),'Días con entrenamiento']);
+ if(metrics.length<3&&series.length&&sessions===null)metrics.push([fmt(series.reduce((n,r)=>n+r.count,0)),'Sesiones representadas']);
+ function metricBand(){
+  if(!metrics.length)return;
+  const cell=WIDTH/metrics.length;rect(M,y-64,WIDTH,72,'soft');
+  metrics.forEach(([v,label],i)=>{const x=M+i*cell+13;if(i)current.drawLine({start:{x:x-13,y:y-53},end:{x:x-13,y:y-4},thickness:.65,color:color('rule')});
+   text(v,x,y-23,27,serifBold,'forest');
+   for(const [j,t] of wrap(sans,8.8,label,cell-26).entries())text(t,x,y-41-j*11,8.8,sans,'muted');
+  });y-=84;
  }
- cover.drawText('DOCUMENTO BASADO EN REGISTROS CANONICOS IBERFIT',
-  {x:79,y:62,size:8,font:sans,color:color('cream')});
- let current,y,section;
- function sectionPage(kicker,title){
-  section=title;current=add();
-  current.drawText(safe(kicker,90),{x:52,y:743,size:9,font:bold,color:color('gold')});
-  let ty=707;
-  for(const row of wrap(serifBold,26,title,490)){
-   current.drawText(row,{x:52,y:ty,size:26,font:serifBold,color:color('forest')});ty-=31;
-  }
-  y=ty-18;
- }
- function continuation(){sectionPage('CONTINUACION',section);}
- function flow(v,{font=sans,size=11.6,leading=17,colorName='ink',gap=17}={}){
-  for(const p of String(v??'').split(/\n+/u)){
-   for(const row of wrap(font,size,p,483)){
-    if(y<110+leading)continuation();
-    current.drawText(row,{x:55,y,size,font,color:color(colorName)});y-=leading;
-   }
-   y-=5;
-  }
-  y-=gap;
- }
- function heading(v){
-  const lines=wrap(bold,9,safe(v,130).toUpperCase(),483);
-  if(y<170+lines.length*13)continuation();
-  current.drawLine({start:{x:55,y:y+10},end:{x:540,y:y+10},color:color('rule'),thickness:.75});
-  y-=8;
-  for(const line of lines){current.drawText(line,{x:55,y,size:9,font:bold,color:color('gold')});y-=13;}
-  y-=14;
- }
- const fallback=v=>safe(v)||'No hay datos adicionales confirmados para esta lectura.';
- sectionPage('01  /  CONTEXTO','Que hemos hecho');
- flow(String(source.periodStart)+' a '+String(source.periodEnd),{font:serifBold,size:17,gap:21});
- heading('Lectura del periodo');flow(fallback(source.summary));
- heading('Como interpretar los resultados');
- flow('Los datos describen lo confirmado. Un cambio de carga, volumen o frecuencia no demuestra por si solo una mejora funcional.');
- flow('El diagnostico inicial IRI se mantiene separado de la evolucion.',{colorName:'muted'});
- if(Array.isArray(source.activitySeries)&&source.activitySeries.length){
-  const series=source.activitySeries.map(item=>({
-   date:shortDate(item.from),
-   from:item.from,to:item.to,
-   count:item.count,
-  }));
-  sectionPage('02  /  CONTINUIDAD','El ritmo del periodo');
-  flow('SESIONES CONFIRMADAS POR PERIODO',{font:bold,size:9,colorName:'gold',gap:0});
-  // Reserve space below the caption for the highest value label.
-  const max=Math.max(1,...series.map(item=>item.count)),bottom=440,top=Math.min(620,y-25),left=77,right=535,step=(right-left)/series.length;
-  current.drawLine({start:{x:left,y:bottom},end:{x:right,y:bottom},color:color('muted'),thickness:1});
-  current.drawLine({start:{x:left,y:top},end:{x:right,y:top},color:color('rule'),thickness:.8});
-  current.drawText('0',{x:55,y:bottom-4,size:8,font:sans,color:color('muted')});
-  current.drawText(String(max),{x:49,y:top-4,size:8,font:sans,color:color('muted')});
-  series.forEach((item,i)=>{
-   const width=Math.min(24,step*.56),height=(top-bottom)*item.count/max;
-   const bx=left+i*step+(step-width)/2;
-   if(height)current.drawRectangle({x:bx,y:bottom,width,height,color:color('forest2')});
-   const n=String(item.count);
-   current.drawText(n,{x:bx+width/2-bold.widthOfTextAtSize(n,8)/2,
-    y:bottom+height+8,size:8,font:bold,color:color('forest')});
-   current.drawText(item.date,{x:bx+width/2-sans.widthOfTextAtSize(item.date,7)/2,
-    y:bottom-19,size:7,font:sans,color:color('muted')});
+ add('Tu seguimiento',true);metricBand();
+ heading('El periodo en perspectiva');block(source.summary||'Sin resumen confirmado.');
+ if(series.length){
+  const chartH=133,rows=Math.ceil(series.length/2),required=chartH+rows*16+96;
+  if(y-required<BASE)add('Continuidad del entrenamiento');
+  heading('Sesiones confirmadas por periodo');
+  const max=Math.max(1,...series.map(r=>r.count)),top=y-14,bottom=top-chartH,left=M+24,right=R-4,slot=(right-left)/series.length;
+  [0,.5,1].forEach(r=>{const at=bottom+chartH*r;line(left,at,right);const value=max*r;if(Number.isInteger(value))text(String(value),M,at-3,8,sans,'muted');});
+  series.forEach((r,i)=>{const bw=Math.min(29,slot*.60),x=left+i*slot+(slot-bw)/2,h=chartH*r.count/max;
+   if(h)rect(x,bottom,bw,h,'forest2');
+   const v=String(r.count);text(v,x+bw/2-bold.widthOfTextAtSize(v,8.5)/2,bottom+h+6,8.5,bold,'forest');
+   const tick=shortDate(r.from);text(tick,x+bw/2-sans.widthOfTextAtSize(tick,7.3)/2,bottom-15,7.3,sans,'muted');
   });
-  y=392;
-  heading('Detalle y contexto');
-  flow('El eje comienza en cero; sin registro de sesion confirmada no equivale a inactividad. La grafica no mide adherencia ni esfuerzo.',{gap:8});
-  flow('Total representado: '+series.reduce((sum,item)=>sum+item.count,0)+' sesiones confirmadas.',{font:bold,size:10,gap:4});
-  for(const item of series){
-   if(y<112)continuation();
-   current.drawText(item.from+' a '+item.to,{x:55,y,size:9,font:sans,color:color('muted')});
-   current.drawText(String(item.count)+' sesiones',{x:367,y,size:9,font:bold,color:color('ink')});
-   y-=19;
-  }
+  y=bottom-34;block('Total representado: '+series.reduce((n,r)=>n+r.count,0)+' sesiones confirmadas.',{font:bold,size:10,gap:5});
+  const cell=(WIDTH-16)/2;
+  series.forEach((r,i)=>{
+   const col=i%2,x=M+col*(cell+16);
+   if(col===0)ensure(17);
+   line(x,y+6,x+cell);
+   text(r.from+' a '+r.to,x,y-4,8,sans,'muted');
+   const v=String(r.count);text(v,x+cell-bold.widthOfTextAtSize(v,9),y-4,9,bold,'forest');
+   if(col===1||i===series.length-1)y-=16;
+  });
+  y-=9;block('Actividad registrada, no esfuerzo ni adherencia. Cero sesiones confirmadas no demuestra inactividad.',{size:8.5,leading:11,c:'muted',gap:8});
  }
- sectionPage('03  /  EVIDENCIA','Resultados verificables');
- flow('Cada dato conserva su procedencia. No se rellenan mediciones ausentes con estimaciones.',
-   {colorName:'muted',gap:16});
+ // Preserve every approved evidence row; compact typography and measured
+ // keep-together layout replace arbitrary page breaks and orphan rows.
+ if(y<235)add('Resultados y comparaciones');
+ heading('Resultados verificables');
+ block('No se rellenan mediciones ausentes con estimaciones.',{size:8.8,leading:12,c:'muted',gap:8});
  for(const [i,item] of source.evidence.entries()){
-  if(y<183)continuation();
-  heading(String(i+1).padStart(2,'0')+'  /  '+safe(item?.label,120));
-  flow(fallback(safe(item?.text,500)),{gap:4});
-  flow('FUENTE: '+publicLabel(SOURCE_LABELS,item?.source,safe(item?.source,100))+'  /  '+(safe(item?.quality,70)||'registrada'),
-   {size:8.5,colorName:'muted',gap:13});
+  const title=safe(item?.label,120),value=rowText(item);
+  const provenance='Fuente: '+publicLabel(SOURCE_LABELS,item?.source,safe(item?.source,100))+' / '+(safe(item?.quality,70)||'registrada');
+  const titleLines=wrap(bold,10,title,WIDTH-26),valueLines=wrap(sans,10.2,value,WIDTH-26),sourceLines=wrap(sans,8,provenance,WIDTH-26);
+  const h=titleLines.length*13+valueLines.length*14+sourceLines.length*10+15;
+  ensure(h);line(M,y+6,R);
+  text(String(i+1).padStart(2,'0'),M,y-5,8,bold,'darkGold');
+  let yy=y-5;
+  for(const t of titleLines){text(t,M+26,yy,10,bold,'forest');yy-=13;}
+  for(const t of valueLines){text(t,M+26,yy,10.2,sans);yy-=14;}
+  for(const t of sourceLines){text(t,M+26,yy,8,sans,'muted');yy-=10;}
+  y=yy-9;
  }
- sectionPage('04  /  CRITERIO','Decidir el siguiente paso');
- heading('Interpretacion profesional');flow(fallback(source.conclusions));
- heading('Proximo paso propuesto');flow(fallback(source.recommendations));
- heading('Transparencia');
- flow('Fuente principal: '+publicLabel(SOURCE_LABELS,source.sourceType,'Evidencia canónica IBERFIT')+'. Periodo: '+source.periodStart+' a '+source.periodEnd+
-  '. Esta lectura no es un diagnostico medico ni presupone mejoras donde no hay pruebas.');
- flow('Wearables, si se integran, deben indicar origen y frescura y nunca sustituir una ejecucion confirmada.',
-  {colorName:'muted'});
- for(let i=1;i<pages.length;i++){
-  const p=pages[i];
-  p.drawLine({start:{x:55,y:65},end:{x:540,y:65},color:color('rule'),thickness:.8});
-  p.drawText('IBERFIT  /  EVOLUCION',{x:55,y:48,size:8,font:bold,color:color('muted')});
-  const count=String(i+1)+' / '+String(pages.length);
-  p.drawText(count,{x:540-sans.widthOfTextAtSize(count,8),y:48,size:8,
-   font:sans,color:color('muted')});
+ if(y<260)add('Tu siguiente paso');
+ heading('Interpretación profesional');block(source.conclusions||'Interpretación pendiente.');
+ heading('Próximo paso propuesto');block(source.recommendations||'Propuesta pendiente.');
+ heading('Transparencia');block('Fuente principal: '+publicLabel(SOURCE_LABELS,source.sourceType,'Evidencia canónica IBERFIT')+'. Periodo: '+interval+'. El diagnóstico inicial IRI se mantiene separado. Los datos de dispositivos no sustituyen una sesión confirmada.',{size:8.5,leading:12,c:'muted',gap:4});
+ for(let i=0;i<pages.length;i++){
+  current=pages[i];line(M,51,R);text('IBERFIT / EVOLUCIÓN Y SEGUIMIENTO',M,35,7.5,bold,'muted');
+  const count=String(i+1)+' / '+String(pages.length);text(count,R-sans.widthOfTextAtSize(count,8),35,8,sans,'muted');
  }
- doc.setTitle('IBERFIT / Informe de evolucion / '+safe(source.clientName,70));
+ doc.setTitle('IBERFIT / '+reportName+' / '+safe(source.clientName,70));
  doc.setCreator('IBERFIT');doc.setProducer(M44_PDF_TEMPLATE);
  if(sourceFingerprint)doc.setSubject(String(sourceFingerprint));
  doc.setCreationDate(new Date(generatedAt||new Date().toISOString()));
