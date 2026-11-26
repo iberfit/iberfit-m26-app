@@ -1,3 +1,5 @@
+import {evidenceNumber} from '../domain/evidence-signal.js';
+
 const EMPTY_TELEMETRY=Object.freeze({
   totalCount:0,
   pendingCount:0,
@@ -5,18 +7,25 @@ const EMPTY_TELEMETRY=Object.freeze({
   dueCount:0,
 });
 
-function safeCount(value){
-  const number=Number(value);
-  return Number.isInteger(number)&&number>=0?number:0;
+function count(value){return evidenceNumber(value,{min:0,integer:true});}
+function safeCount(value){return count(value)??0;}
+function safeFailureCode(error,fallback){
+  const code=String(error?.code||error?.message||'');
+  return /^M26_[A-Z0-9_]{1,100}$/u.test(code)?code:fallback;
+}
+function availableMethod(target,name){
+  return typeof target?.[name]==='function'?()=>target[name]():null;
 }
 
-async function inspect(label,fn,fallback,failures){
+async function inspect(label,fn,fallback,failures,validate=Array.isArray){
   try{
-    return await fn();
+    const value=await fn();
+    if(!validate(value))throw new Error('M26_DEVICE_INSPECTION_INVALID_RESULT');
+    return value;
   }catch(error){
     failures.push(Object.freeze({
       source:label,
-      code:String(error?.message||error||'M26_DEVICE_DATA_INSPECTION_FAILED').slice(0,160),
+      code:safeFailureCode(error,'M26_DEVICE_DATA_INSPECTION_FAILED'),
     }));
     return fallback;
   }
@@ -54,13 +63,16 @@ export async function inspectOwnerDeviceData({
     'telemetry',
     ()=>telemetry?.summary?.()??Promise.reject(new Error('M26_DEVICE_TELEMETRY_INSPECT_UNAVAILABLE')),
     EMPTY_TELEMETRY,
-    failures
+    failures,
+    value=>value!==null&&typeof value==='object'&&count(value.totalCount)!==null
+      &&['pendingCount','terminalCount','dueCount'].every(key=>value[key]===undefined||count(value[key])!==null)
   );
   const wearablePending=await inspect(
     'wearables',
     ()=>wearables?.pendingCount?.()??Promise.reject(new Error('M26_DEVICE_WEARABLE_INSPECT_UNAVAILABLE')),
     0,
-    failures
+    failures,
+    value=>count(value)!==null
   );
   const templateRows=await inspect(
     'sessionTemplates',
@@ -111,7 +123,7 @@ export function ownerDeviceClearPrompt(summary={}){
     'Los datos que ya están guardados en IBERFIT no se eliminarán. '+
     'Esta acción solo borra los datos locales de esta cuenta en este dispositivo.';
 
-  if(failures){
+  if(failures||summary.inspectionComplete===false){
     return (
       'No se pudo comprobar por completo si existen datos pendientes de sincronización. '+
       'Si continúas, algunos datos locales podrían perderse de forma permanente. '+
@@ -143,7 +155,7 @@ async function clearTarget(name,fn,results,failures){
   }catch(error){
     failures.push(Object.freeze({
       source:name,
-      code:String(error?.message||error||'M26_DEVICE_CLEAR_FAILED').slice(0,160),
+      code:safeFailureCode(error,'M26_DEVICE_CLEAR_FAILED'),
     }));
   }
 }
@@ -162,13 +174,13 @@ export async function clearOwnerDeviceData({
   const failures=[];
 
   const targets=[
-    ['operations',()=>operations?.clearOwner?.()],
-    ['drafts',()=>drafts?.clearOwner?.()],
-    ['recovery',()=>recovery?.clearOwner?.()],
-    ['telemetry',()=>telemetry?.clearOwner?.()],
-    ['wearables',()=>wearables?.clearOwner?.()],
-    ['sessionTemplates',()=>sessionTemplates?.clearOwner?.()],
-    ['productivity',()=>productivity?.clearOwner?.()],
+    ['operations',availableMethod(operations,'clearOwner')],
+    ['drafts',availableMethod(drafts,'clearOwner')],
+    ['recovery',availableMethod(recovery,'clearOwner')],
+    ['telemetry',availableMethod(telemetry,'clearOwner')],
+    ['wearables',availableMethod(wearables,'clearOwner')],
+    ['sessionTemplates',availableMethod(sessionTemplates,'clearOwner')],
+    ['productivity',availableMethod(productivity,'clearOwner')],
     ['preferences',clearPreferences],
   ];
 

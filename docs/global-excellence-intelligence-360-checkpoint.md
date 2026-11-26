@@ -101,3 +101,6 @@ GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19
 - The existing native dialog viewer fences asynchronous opens by connected trigger/request generation. Route teardown invalidates pending opens. Native close and fallback close restore focus without stale close events clearing a reopened dialog. Image listeners precede source assignment, cached success/failure is reconciled, and error placeholders hide broken images correctly. No new network calls, dependencies or backend mutations.
 - Added regression assertions; full native browser focus/keyboard validation remains pending.
 - Seventeenth commit 10/10 isolated evidence/challenge/adaptive checks passed (upstream aggregate fixtures); actual route performance SLA not certified.
+
+## Nineteenth commit — honest shared-device privacy inspection
+- GX20/GX21/GX24/GX32: the existing explicit local account cleanup no longer reports absent clearOwner adapters as successful. Genuine void-returning completed methods retain compatibility. Invalid inventory responses trigger incomplete inspection warning, not a falsely verified empty device. Error metadata exposes stable codes rather than raw adapter messages. No change to the explicit destructive confirmation, owner scopes, server data or normal logout; regression scenarios added.

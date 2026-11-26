@@ -204,3 +204,16 @@ test('RC65-B UI separa logout normal de borrado destructivo también bajo i18n',
   assert.match(retirement,/clearQaSensitiveSurface\(\)/u);
   assert.match(retirement,/return remoteSync\.clearOwner\(\)/u);
 });
+
+test('GX shared-device cleanup never reports missing adapters as cleared',async()=>{
+ const called=[];const result=await clearOwnerDeviceData({operations:{async clearOwner(){called.push('operations');}},clearPreferences:()=>true});
+ assert.equal(result.ok,false);assert.equal(result.failures.length,6);
+ assert.deepEqual(result.cleared,['operations','preferences']);assert.deepEqual(called,['operations']);
+ assert.ok(result.failures.every(x=>x.code==='M26_DEVICE_CLEAR_TARGET_UNAVAILABLE'));
+});
+test('GX invalid inspection results are not a verified empty device and errors do not expose raw details',async()=>{
+ const result=await inspectOwnerDeviceData({operations:{list:async()=>({})},drafts:{list:async()=>[]},recovery:{list:async()=>[]},telemetry:{summary:async()=>({totalCount:'0x2'})},wearables:{pendingCount:async()=>{throw Error('private raw data');}},sessionTemplates:{list:()=>[]}});
+ assert.equal(result.inspectionComplete,false);assert.equal(result.inspectionFailures.length,3);
+ assert.doesNotMatch(JSON.stringify(result),/private raw data/);
+ assert.match(ownerDeviceClearPrompt(result),/No se pudo comprobar por completo/);
+});
