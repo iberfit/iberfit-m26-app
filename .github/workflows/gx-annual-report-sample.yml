@@ -1,0 +1,35 @@
+name: IBERFIT synthetic annual report PDF sample
+on:
+  push:
+    branches: [feature/global-excellence-intelligence-360]
+    paths:
+      - 'qa/m44/generate-synthetic-annual-report.mjs'
+      - '.github/workflows/gx-annual-report-sample.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-report:
+    name: Exact report model and PDF renderer, synthetic data only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Generate official-template synthetic PDF
+        run: deno run --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json --allow-read --allow-write=qa-output/annual-report-sample --allow-env=GITHUB_SHA qa/m44/generate-synthetic-annual-report.mjs
+      - name: Raster preview of actual PDF pages
+        run: |
+          if command -v pdftoppm >/dev/null; then
+            pdftoppm -r 110 -png qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.pdf qa-output/annual-report-sample/page
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Tu-ano-en-IBERFIT-muestra
+          path: qa-output/annual-report-sample/
+          if-no-files-found: error
+          retention-days: 14

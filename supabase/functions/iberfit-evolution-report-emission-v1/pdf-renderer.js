@@ -3,7 +3,7 @@
 export const M44_PDF_TEMPLATE='iberfit-evolution-a4-brand-v2';
 const W=595.28,H=841.89;
 // Keep the public report vocabulary aligned with the existing A4 preview.
-const REPORT_LABELS=Object.freeze({'post-session':'Informe post-sesión',weekly:'Resumen semanal',monthly:'Informe mensual',quarterly:'Informe trimestral','year-in-iberfit':'Balance anual'});
+const REPORT_LABELS=Object.freeze({'post-session':'Informe post-sesión',weekly:'Resumen semanal',monthly:'Informe mensual',quarterly:'Informe trimestral','year-in-iberfit':'Tu año en IBERFIT'});
 const SOURCE_LABELS=Object.freeze({sessionExecutions:'Sesiones IBERFIT confirmadas','session_execution':'Sesión IBERFIT confirmada','session_execution_period':'Historial de sesiones confirmadas',appointments:'Citas verificadas','appointments+sessionExecutions':'Citas verificadas y sesiones IBERFIT confirmadas',checkins:'Registros de bienestar','canonical-store':'Historial canónico IBERFIT',wearableDailySummaries:'Datos de dispositivo, solo contexto'});
 const publicLabel=(dictionary,key,fallback)=>Object.hasOwn(dictionary,key)?dictionary[key]:fallback;
 const shortDate=value=>value.slice(8,10)+'/'+value.slice(5,7);

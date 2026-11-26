@@ -5,7 +5,7 @@ const TYPES=Object.freeze({
   weekly:'Resumen semanal',
   monthly:'Informe mensual',
   quarterly:'Informe trimestral',
-  'year-in-iberfit':'Balance anual',
+  'year-in-iberfit':'Tu año en IBERFIT',
 });
 const EDITORIAL=Object.freeze({
   'post-session':['Tu sesión en perspectiva','Resultados registrados y contexto para preparar el siguiente entrenamiento.'],

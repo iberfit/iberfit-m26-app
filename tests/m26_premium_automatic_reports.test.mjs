@@ -444,3 +444,12 @@ test('report editor ignores its own generated card and status mutations without 
  assert.equal(premiumReportNeedsRefresh([{target:inside},{target:outside}]),true);
  assert.equal(premiumReportNeedsRefresh([]),false);
 });
+
+
+test('GX46 annual report uses the approved Spanish name without changing its type ID',()=>{
+ const entry=PREMIUM_REPORT_TYPES.find(x=>x.id==='year-in-iberfit');
+ assert.equal(entry.label,'Tu año en IBERFIT');
+ const report=buildPremiumReportPortfolio(stateWithHistory(),'c1',{now:NOW}).find(x=>x.id==='year-in-iberfit');
+ assert.equal(report.title,'Tu año en IBERFIT');
+ assert.equal(report.label,'Tu año en IBERFIT');
+});

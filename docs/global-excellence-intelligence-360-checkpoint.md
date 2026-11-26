@@ -184,3 +184,7 @@ Status vocabulary: **Enhanced** = implementation in this branch, acceptance pend
 - Existing Client/Coach private composer gains report-review draft assists; no automatic send, report access, health data attachment or new route. Repeated taps no longer duplicate identical suggested text; typed content stays intact.
 - Renewal deadlines use Santiago calendar dates, retain the existing ISO transport field and expose civil date for the commercial portfolio. An explicitly overdue status with future date remains a human-review flag but no fabricated elapsed time. First28 rejects dated progress from a different rolling window while retaining legacy undated same-frame compatibility.
 - 10/10 isolated checks passed (actual renewal, First28 and draft functions; training-service/profile adapters simulated). Full Node/DOM, communication authorization, renewal edit and browser acceptance remain pending. No new database operations, schema or dependency.
+
+## Twenty-fifth commit — GX46 Spanish annual report naming and reproducible sample
+- Visible report title and label use “Tu año en IBERFIT” in report portfolio, browser A4 preview and official PDF renderer. Internal type remains year-in-iberfit. No change to stored records or issuance privileges.
+- Added isolated synthetic annual report generation script using actual portfolio, real PDF renderer and original fonts/logo; targeted workflow uploads PDF/manifest without hosted data or Supabase access. Source branch only; no certification of production. Actual job and visual QA pending.
