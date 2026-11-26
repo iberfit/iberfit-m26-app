@@ -63,10 +63,13 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  // Embed an actual subset font program, not a raw WOFF2 webfont in FontFile2.
  // Real PDF raster/extraction acceptance must verify glyphs before promotion.
  doc.registerFontkit(fontkit);
+ const validFont=b=>b instanceof Uint8Array&&b.length>1000&&b[0]===0&&b[1]===1&&b[2]===0&&b[3]===0;
+ if(![brandFonts.serif,brandFonts.inter,brandFonts.serifBold,brandFonts.interBold].every(validFont))
+  throw Error('M44_PDF_STATIC_TTF_REQUIRED');
  const serif=await doc.embedFont(brandFonts.serif,{subset:true});
  const sans=await doc.embedFont(brandFonts.inter,{subset:true});
- const serifBold=await doc.embedFont(StandardFonts.TimesRomanBold);
- const bold=await doc.embedFont(StandardFonts.HelveticaBold);
+ const serifBold=await doc.embedFont(brandFonts.serifBold,{subset:true});
+ const bold=await doc.embedFont(brandFonts.interBold,{subset:true});
  const color=k=>rgb(...C[k]),pages=[];
  const M=43,R=W-M,WIDTH=R-M,BASE=72;
  const fmt=n=>new Intl.NumberFormat('es-CL',{maximumFractionDigits:1}).format(n);

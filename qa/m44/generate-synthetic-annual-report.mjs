@@ -32,7 +32,7 @@ for(const report of reports){
 const hash=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('');
 const sourceSha256=await hash(new TextEncoder().encode(JSON.stringify(source)));
 const fingerprint='IBERFIT M44 | SYNTHETIC SAMPLE | '+sourceSha256;
-const result=await renderEvolutionReportPdf({source,sourceFingerprint:fingerprint,pdfLib:{PDFDocument,StandardFonts,rgb},fontkit,brandImageBytes:await Deno.readFile('public/isotipo-iberfit.png'),brandFonts:{inter:await Deno.readFile('public/m26/fonts/inter-latin-wght-normal.woff2'),serif:await Deno.readFile('public/m26/fonts/source-serif-4-latin-wght-normal.woff2')},generatedAt:now.toISOString()});
+const result=await renderEvolutionReportPdf({source,sourceFingerprint:fingerprint,pdfLib:{PDFDocument,StandardFonts,rgb},fontkit,brandImageBytes:await Deno.readFile('public/isotipo-iberfit.png'),brandFonts:{inter:await Deno.readFile('public/m26/fonts/report-inter-regular.ttf'),serif:await Deno.readFile('public/m26/fonts/report-serif-regular.ttf'),interBold:await Deno.readFile('public/m26/fonts/report-inter-bold.ttf'),serifBold:await Deno.readFile('public/m26/fonts/report-serif-bold.ttf')},generatedAt:now.toISOString()});
 // pdf-lib's default load updates producer metadata in memory. Verification must preserve it.
 const verified=await PDFDocument.load(result.bytes,{updateMetadata:false});
 if(verified.getPageCount()!==result.pages)throw Error('ANNUAL_DEMO_PAGE_COUNT_INVALID');
