@@ -4,7 +4,7 @@ import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionC
 import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
 import {observedSet,evidenceNumber,observedLoadKg} from '../domain/evidence-signal.js';
 import {normalizeExerciseLoad} from '../engagement/exercise-performance-engine.js';
-import {summarizePeriodSportEvidence} from './report-sport-evidence.js';
+import {buildPeriodSportProjection} from './report-sport-evidence.js';
 import {buildReportCycleObjective} from './report-cycle-objective.js';
 const LIMIT=360,ANALYSIS_LIMIT=48;
 const clean=(v,max=100)=>String(v??'').replace(/[\u0000-\u001f\u007f]/gu,' ').replace(/\s+/gu,' ').trim().slice(0,max);
@@ -121,5 +121,6 @@ export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}=
     }
     if(!count)emptySessions++;
   }
-  return Object.freeze({...summarizeExerciseGroups(exerciseGroups,comparisonGroups),...summarizeEffortGroups(effortGroups),sportSummary:summarizePeriodSportEvidence(executions,{clientId:owner}),role,objective:buildReportCycleObjective(state,owner,{start:report.periodStart,end:report.periodEnd,now}),periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
+  const sport=buildPeriodSportProjection(executions,{clientId:owner});
+  return Object.freeze({...summarizeExerciseGroups(exerciseGroups,comparisonGroups),...summarizeEffortGroups(effortGroups),sportSummary:sport.summary,sportComparisons:sport.comparisons.slice(0,ANALYSIS_LIMIT),sportComparisonTotal:sport.comparisons.length,role,objective:buildReportCycleObjective(state,owner,{start:report.periodStart,end:report.periodEnd,now}),periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
 }

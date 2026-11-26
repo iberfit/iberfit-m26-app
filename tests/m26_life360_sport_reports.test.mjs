@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildPostSessionSportEvidence,summarizePeriodSportEvidence,periodSportEvidence} from '../src/m26/workflows/report-sport-evidence.js';
+import {buildPostSessionSportEvidence,summarizePeriodSportEvidence,periodSportEvidence,buildPeriodSportProjection} from '../src/m26/workflows/report-sport-evidence.js';
 test('sport report fails closed with no workout evidence',()=>{assert.deepEqual(buildPostSessionSportEvidence(null,{}),[]);});
 test('running pace uses only measured duration and distance',()=>{
   const execution={clientId:'c1',sport:'running',distanceKm:6.5,durationSeconds:2145};
@@ -62,4 +62,15 @@ test('period sport totals keep disciplines separate, reject contradictory units 
  assert.deepEqual(run,{sport:'running',sessions:2,rows:3,metres:10000,pairedRows:2,pairedMetres:8000,pairedSeconds:2400});
  assert.equal(swim.metres,1000);assert.equal(swim.pairedSeconds,1800);
  const rows=periodSportEvidence(records,{clientId:'c1'});assert.match(rows[0].text,/10 km/);assert.match(rows[0].text,/5:00 min\/km/);assert.match(rows[1].text,/3:00 min\/100 m/);
+});
+
+test('Elite endurance uses actual matched distance and original explicit prescription, not inferred performance',()=>{
+ const fixture=(id,date,seconds,extra={},setExtra={})=>({id,clientId:'c1',sessionId:'run',status:'completed',syncStatus:'clean',completedAt:date+'T15:00:00Z',planSnapshot:{sessionId:'run',blocks:[{type:'exercise',exerciseId:'run',name:'Carrera suave',sets:1,restSeconds:0,plannedDistanceKm:'5',...extra}]},results:[{exerciseId:'run',setNumber:1,distanceKm:5,seconds,...setExtra}]});
+ const good=[fixture('a','2026-11-19',1800),fixture('b','2026-11-21',1750),fixture('c','2026-11-24',1700)];
+ const noise=[fixture('distance','2026-11-22',1200,{}, {distanceKm:3}),fixture('changed','2026-11-23',900,{plannedDistanceKm:'6'}),fixture('missing-rest','2026-11-20',900,{restSeconds:null}),fixture('duplicate','2026-11-25',900,{}, {setNumber:2}),fixture('conflict','2026-11-25',900,{}, {distanceM:100}),{...fixture('other','2026-11-25',700),clientId:'c2'},{...fixture('pending','2026-11-25',600),syncStatus:'pending'}];
+ const projection=buildPeriodSportProjection([...good,...noise],{clientId:'c1'});
+ assert.equal(projection.comparisons.length,1);
+ const c=projection.comparisons[0];assert.equal(c.days,3);assert.equal(c.observations,3);assert.equal(c.metres,5000);assert.deepEqual(c.points.map(p=>p.seconds),[1800,1750,1700]);
+ assert.equal(buildPeriodSportProjection(good.slice(0,2),{clientId:'c1'}).comparisons.length,0);
+ const text=periodSportEvidence(good,{clientId:'c1'})[0].text;assert.match(text,/Misma distancia/);assert.match(text,/No verifica condiciones reales/);assert.ok(text.length<=500);
 });

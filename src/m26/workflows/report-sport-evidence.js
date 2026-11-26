@@ -1,7 +1,8 @@
 // Life & Performance 360: conservative, owner-scoped workout evidence.
-import {exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
-import {observedSet,observedLoadKg} from '../domain/evidence-signal.js';
-import {sessionExecutionId,sessionExecutionClientId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
+import {exerciseMeasurementProfile,EXERCISE_METRIC_FIELDS} from '../exercises/measurement-profiles.js';
+import {reportCivilDate} from '../domain/civil-date.js';
+import {observedSet,observedLoadKg,evidenceNumber} from '../domain/evidence-signal.js';
+import {sessionExecutionId,sessionExecutionClientId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 // Only canonical confirmed session executions may call this projector.
 const clean=(x,max=100)=>String(x??'').trim().replace(/\s+/g,' ').slice(0,max);
 const finite=(x,min,max)=>typeof x==='number'&&Number.isFinite(x)&&x>=min&&x<=max?x:null;
@@ -83,7 +84,7 @@ function classifiedResultRows(source,{limit=16,strict=false}={}){
       name_es:raw.name||raw.name_es||raw.exerciseName||block.name||'',
       measurementProfile:raw.measurementProfile||queue?.prescription?.measurementProfile,
     });
-    rows.push({row,exerciseId,profile,
+    rows.push({row,exerciseId,profile,block,prescription:raw,
       name:clean(raw.name||raw.exerciseName||block.name||'Ejercicio',65)});
     if(rows.length>=limit)break;
   }
@@ -180,9 +181,44 @@ function pairedDistance(km,m){
  if(km!==null&&m!==null&&Math.abs(km*1000-m)>.01)return null;
  return m??(km===null?null:km*1000);
 }
-export function summarizePeriodSportEvidence(executions,{clientId}={}){
- const owner=String(clientId||'').trim();if(!owner)return [];
- const groups=new Map(),seen=new Set();
+// Compare recorded duration only at identical measured distance, exercise,
+// set position and explicit original prescription. This is contextual work
+// evidence, not proof of equal actual terrain, stroke, pauses or physiology.
+function enduranceProtocol({row,profile,block,prescription:p},distance){
+ if(!['running','swimming'].includes(profile.sport)||!['endurance','intervals'].includes(profile.kind)||!p||!block)return null;
+ const number=(v,min,max,integer=false)=>evidenceNumber(v,{min,max,integer});
+ const sets=number(block.type==='exercise'?block.sets:block.rounds,1,100,true),rest=number(p.restSeconds,0,3600);
+ if(sets===null||rest===null||row.setNumber>sets)return null;
+ const targets=[];
+ for(const [key,descriptor] of Object.entries(EXERCISE_METRIC_FIELDS)){
+  const raw=p[key];
+  if(raw===undefined||raw===null||raw===''){targets.push(null);continue;}
+  if(descriptor.maxLength){if(typeof raw!=='string'||!raw.trim()||raw.trim().length>descriptor.maxLength)return null;targets.push(raw.trim());continue;}
+  const v=number(raw,0,descriptor.max,key==='intervalRepetitions');if(v===null)return null;targets.push(v);
+ }
+ const target=key=>targets[Object.keys(EXERCISE_METRIC_FIELDS).indexOf(key)];
+ if(profile.sport==='swimming'&&!(target('poolLengthM')>=15&&target('poolLengthM')<=100))return null;
+ if(profile.kind==='intervals'){
+  const count=target('intervalRepetitions');
+  if(!Number.isSafeInteger(count)||count<1||!(target('intervalWorkSeconds')>0)||target('intervalRecoverySeconds')===null||row.intervalsCompleted!==count)return null;
+ }else if(!(target('plannedDistanceKm')>0||target('plannedDistanceM')>0||target('plannedDurationMinutes')>0))return null;
+ const effort=p.targetRpe==null||p.targetRpe===''?null:number(p.targetRpe,1,10);
+ if(p.targetRpe!=null&&p.targetRpe!==''&&effort===null)return null;
+ return {key:JSON.stringify([profile.sport,profile.kind,block.type,sets,rest,effort,row.setNumber,distance,targets]),kind:profile.kind,sets,rest,intervals:profile.kind==='intervals'?target('intervalRepetitions'):null,pool:profile.sport==='swimming'?target('poolLengthM'):null};
+}
+function sportComparisons(groups){
+ const comparisons=[];
+ for(const g of groups.values()){
+  const days=[...g.days].sort(([a],[b])=>a.localeCompare(b)).map(([date,v])=>({date,seconds:Math.round(v.seconds/v.count*100)/100,count:v.count}));
+  if(days.length<3)continue;
+  const points=days.length<=10?days:Array.from({length:10},(_,i)=>days[Math.round(i*(days.length-1)/9)]);
+  comparisons.push({...g.context,days:days.length,observations:days.reduce((n,d)=>n+d.count,0),first:days[0],last:days.at(-1),points});
+ }
+ return comparisons.sort((a,b)=>b.days-a.days||a.sport.localeCompare(b.sport)||a.exercise.localeCompare(b.exercise)||a.metres-b.metres||a.setNumber-b.setNumber||a.protocolKey.localeCompare(b.protocolKey));
+}
+export function buildPeriodSportProjection(executions,{clientId}={}){
+ const owner=String(clientId||'').trim();if(!owner)return {summary:[],comparisons:[]};
+ const groups=new Map(),comparisonGroups=new Map(),seen=new Set();
  const add=(sport,id,distance,seconds)=>{
   if(!['running','swimming'].includes(sport)||distance===null||distance<=0)return;
   let g=groups.get(sport);if(!g){g={sport,sessions:new Set(),rows:0,metres:0,pairedRows:0,pairedMetres:0,pairedSeconds:0};groups.set(sport,g);}
@@ -204,13 +240,24 @@ export function summarizePeriodSportEvidence(executions,{clientId}={}){
     const key=JSON.stringify([String(row.exerciseId??row.exercise_id??''),row.setNumber??row.set_number]);
     coordinates.set(key,(coordinates.get(key)||0)+1);
    }
-   for(const {row,profile} of classifiedResultRows({...source,results:raw},{limit:Infinity,strict:true})){
+   for(const entry of classifiedResultRows({...source,results:raw},{limit:Infinity,strict:true})){
+    const {row,profile,exerciseId,name}=entry;
     const number=row.setNumber??row.set_number;
     const key=JSON.stringify([String(row.exerciseId??row.exercise_id??''),number]);
     if(!Number.isSafeInteger(number)||number<1||coordinates.get(key)!==1)continue;
     const km=finite(row.distanceKm,0,1000),m=finite(row.distanceM,0,100000);
     if((row.distanceKm!=null&&km===null)||(row.distanceM!=null&&m===null))continue;
-    add(profile.sport,id,pairedDistance(km,m),finite(row.seconds,0,86400));
+    const distance=pairedDistance(km,m),seconds=finite(row.seconds,0,86400);
+    add(profile.sport,id,distance,seconds);
+    const completion=sessionExecutionCompletionDate(record);
+    const date=completion?reportCivilDate(completion):null;
+    if(!date||!source.sessionId||distance===null||distance<=0||seconds===null||seconds<=0||row.setNumber!==number)continue;
+    const protocol=enduranceProtocol(entry,distance);
+    if(!protocol)continue;
+    const key=JSON.stringify([exerciseId,protocol.key]);
+    let g=comparisonGroups.get(key);
+    if(!g){g={context:{sport:profile.sport,exercise:name,metres:distance,setNumber:number,kind:protocol.kind,sets:protocol.sets,rest:protocol.rest,intervals:protocol.intervals,pool:protocol.pool,protocolKey:protocol.key},days:new Map()};comparisonGroups.set(key,g);}
+    const d=g.days.get(date)||{seconds:0,count:0};d.seconds+=seconds;d.count++;g.days.set(date,d);
    }
    continue; // never add a whole-session summary on top of set measurements
   }
@@ -221,12 +268,18 @@ export function summarizePeriodSportEvidence(executions,{clientId}={}){
   if((rawKm!==null&&km===null)||(rawM!==null&&m===null))continue;
   add(sportOf(source),id,pairedDistance(km,m),finite(val(source,'durationSeconds','elapsedSeconds','actualDurationSeconds')??val(metrics,'durationSeconds','elapsedSeconds'),0,86400));
  }
- return [...groups.values()].sort((a,b)=>a.sport.localeCompare(b.sport)).map(g=>Object.freeze({sport:g.sport,sessions:g.sessions.size,rows:g.rows,metres:g.metres,pairedRows:g.pairedRows,pairedMetres:g.pairedMetres,pairedSeconds:g.pairedSeconds}));
+ const summary=[...groups.values()].sort((a,b)=>a.sport.localeCompare(b.sport)).map(g=>Object.freeze({sport:g.sport,sessions:g.sessions.size,rows:g.rows,metres:g.metres,pairedRows:g.pairedRows,pairedMetres:g.pairedMetres,pairedSeconds:g.pairedSeconds}));
+ return {summary,comparisons:sportComparisons(comparisonGroups)};
 }
+export function summarizePeriodSportEvidence(executions,options){return buildPeriodSportProjection(executions,options).summary;}
 export function periodSportEvidence(executions,options){
- return summarizePeriodSportEvidence(executions,options).map(g=>{
+ const {summary,comparisons}=buildPeriodSportProjection(executions,options);
+ return summary.map(g=>{
   const running=g.sport==='running',dist=m=>Number((running?m/1000:m).toFixed(running?3:1))+(running?' km':' m');
   const pace=paceText(g.pairedSeconds,g.pairedMetres/(running?1000:100));
-  return Object.freeze({label:running?'Running · distancia registrada':'Natación · distancia registrada',text:dist(g.metres)+' en '+g.sessions+' sesiones con distancia medida; '+g.rows+' registros de distancia.'+(g.pairedRows?' Tiempo registrado: '+durationText(g.pairedSeconds)+' sobre '+dist(g.pairedMetres)+' ('+g.pairedRows+'/'+g.rows+' registros con distancia y tiempo).':'')+(pace?' Ritmo global de esos registros: '+pace+(running?' min/km':' min/100 m')+'. Puede incluir pausas; no compara rendimiento.':''),source:'sessionExecutions',quality:'registrada'});
+  let text=dist(g.metres)+' en '+g.sessions+' sesiones con distancia medida; '+g.rows+' registros de distancia.'+(g.pairedRows?' Tiempo registrado: '+durationText(g.pairedSeconds)+' sobre '+dist(g.pairedMetres)+' ('+g.pairedRows+'/'+g.rows+' registros con distancia y tiempo).':'')+(pace?' Ritmo global de esos registros: '+pace+(running?' min/km':' min/100 m')+'. Puede incluir pausas; no compara rendimiento.':'');
+  const c=comparisons.find(x=>x.sport===g.sport);
+  if(c){const extra=' Misma distancia ('+dist(c.metres)+') y prescripción de '+c.exercise+': '+durationText(c.first.seconds)+' ('+c.first.date+') a '+durationText(c.last.seconds)+' ('+c.last.date+'); '+c.days+' días medidos. No verifica condiciones reales.';if(text.length+extra.length<=500)text+=extra;}
+  return Object.freeze({label:running?'Running · distancia registrada':'Natación · distancia registrada',text,source:'sessionExecutions',quality:'registrada'});
  });
 }

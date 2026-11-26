@@ -79,4 +79,10 @@ test('preauth-disabled-runtime actual launch candidate has no console network or
 
   expect(observed.externalRequests).toEqual([]);
   expect(observed.errors).toEqual([]);
+  // Validate the local QA server matches the deployed root worker contract.
+  const worker=await page.request.head('/m26/iberfit-sw.js');
+  expect(worker.ok()).toBeTruthy();
+  expect(worker.headers()['service-worker-allowed']).toBe('/');
+  const ordinary=await page.request.head('/m26/app.js');
+  expect(ordinary.headers()['service-worker-allowed']).toBeUndefined();
 });

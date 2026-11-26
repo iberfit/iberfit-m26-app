@@ -128,6 +128,18 @@ function privateTechnicalPages(detail){
   if(goal)result.push({title:'Objetivo vigente y contexto de planificación',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><div class="m44-cycle-objective"><span>OBJETIVO PUBLICADO</span><h3>'+fmt(goal.goal)+'</h3><p>'+fmt(goal.cycleName)+' · '+fmt(goal.start)+' — '+fmt(goal.end)+(goal.weeklyFrequency!==null?' · '+fmt(goal.weeklyFrequency)+' sesiones por semana acordadas':'')+'</p></div><p class="m44-evidence-context">Los registros de ejecución del informe se deben contrastar con el objetivo y su criterio de evaluación. No se deduce cumplimiento de la intención por el transcurso del tiempo, frecuencia o carga.</p>'});
   const sports=detail.sportSummary??[];
   if(sports.length){const rows=sports.map(s=>{const running=s.sport==='running',unit=running?' km':' m',dist=m=>fmt(running?m/1000:m)+unit;return '<tr><th scope="row">'+(running?'Running':'Natación')+'</th><td>'+fmt(s.sessions)+'</td><td>'+dist(s.metres)+'</td><td>'+fmt(s.pairedRows)+' / '+fmt(s.rows)+'</td><td>'+dist(s.pairedMetres)+'</td><td>'+fmt(s.pairedSeconds)+' s</td></tr>';}).join('');result.push({title:'Resistencia · carga externa registrada',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table"><caption>Distancia por disciplina y cobertura del tiempo</caption><thead><tr><th>Disciplina</th><th>Sesiones</th><th>Distancia</th><th>Con tiempo</th><th>Distancia pareada</th><th>Tiempo pareado</th></tr></thead><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">Tiempo y distancia pareados proceden de los mismos registros. No se suman resúmenes de sesión con sus series ni se equiparan intervalos, terrenos, estilos o protocolos.</p>'});}
+  const endurance=detail.sportComparisons??[];
+  for(let i=0;i<endurance.length;i+=2){
+    const charts=endurance.slice(i,i+2).map(c=>{
+      const distance=c.sport==='running'?fmt(c.metres/1000)+' km':fmt(c.metres)+' m';
+      const duration=s=>Math.floor(Math.round(s)/60)+':'+String(Math.round(s)%60).padStart(2,'0');
+      const points=c.points.map(p=>({date:p.date,time:Date.parse(p.date+'T00:00:00Z'),value:p.seconds}));
+      const series={label:c.exercise+' · '+distance+' · tiempo registrado',unit:'s',points,total:c.days,from:Date.parse(detail.periodStart+'T00:00:00Z'),to:Date.parse(detail.periodEnd+'T00:00:00Z')};
+      const context=(c.kind==='intervals'?'Intervalos completados: '+fmt(c.intervals):'Trabajo continuo prescrito')+(c.pool?' · Piscina prescrita: '+fmt(c.pool)+' m':'')+' · Serie '+fmt(c.setNumber)+' de '+fmt(c.sets)+' · descanso prescrito '+fmt(c.rest)+' s';
+      return eliteTrendGraphic(series)+'<p class="m44-subtle-note">'+fmt(duration(c.first.seconds))+' → '+fmt(duration(c.last.seconds))+' (min:s), '+fmt(c.observations)+' registros en '+fmt(c.days)+' días. '+context+'.</p>';
+    }).join('');
+    result.push({title:'Resistencia · distancia y prescripción comparables',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">'+fmt(endurance.length)+' de '+fmt(detail.sportComparisonTotal)+' grupos elegibles. Medias diarias de tiempo registrado; no certifica terreno, pausas, estilo ni rendimiento fisiológico equivalente.</p>'+charts});
+  }
   const overview=detail.exerciseSummary??[],comparisons=detail.loadComparisons??[];
   for(let i=0;i<overview.length;i+=12){
     const rows=overview.slice(i,i+12).map(r=>'<tr><td>'+fmt(r.exercise)+'<small>'+fmt(r.first)+' — '+fmt(r.last)+'</small></td><td>'+fmt(r.exposures)+'</td><td>'+fmt(r.rows)+'</td><td>'+fmt(r.loadRows)+'</td><td>'+fmt(r.rpeRows)+'</td><td>'+fmt(r.rirRows)+'</td></tr>').join('');

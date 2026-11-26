@@ -62,3 +62,11 @@ test('private RPE/RIR trends require identical workload and at least three dated
  assert.match(buildEvolutionReportHtml({report,technicalDetail:d}),/Esfuerzo a carga equivalente/);
  assert.doesNotMatch(buildEvolutionReportHtml({report,technicalDetail:d,audience:'client'}),/Esfuerzo a carga equivalente/);
 });
+
+test('Technical endurance comparison remains private and requires repeated exact prescribed protocol',()=>{
+ const records=['2026-11-19','2026-11-21','2026-11-24'].map((date,i)=>execution('run'+i,'c1',date+'T15:00:00Z',[{exerciseId:'run',setNumber:1,distanceKm:5,seconds:1800-i*50}],{sessionId:'running',planSnapshot:{sessionId:'running',blocks:[{type:'exercise',exerciseId:'run',name:'Carrera suave',sets:1,restSeconds:0,plannedDistanceKm:'5'}]}}));
+ const d=buildPrivateReportDetail({...state,collections:{sessionExecutions:records}},'c1',report,{now});
+ assert.equal(d.sportComparisonTotal,1);
+ assert.match(buildEvolutionReportHtml({report,technicalDetail:d}),/Resistencia · distancia y prescripción comparables/);
+ assert.doesNotMatch(buildEvolutionReportHtml({report,technicalDetail:d,audience:'client'}),/Resistencia · distancia y prescripción comparables/);
+});
