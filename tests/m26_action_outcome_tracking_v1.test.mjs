@@ -238,3 +238,30 @@ test('preflight bootstrap fix creates a non-mutating action_outcome base entity'
   assert.match(sql,/revoke all on function public\.iberfit_base_entity_v26_pre_action_outcome\(text,uuid,uuid\)[\s\S]*?from public,anon,authenticated/iu);
   assert.match(sql,/grant execute on function public\.iberfit_base_entity_v26\(text,uuid,uuid\)[\s\S]*?to service_role/iu);
 });
+
+
+test('Action Outcome reconciles revisions and preserves independent owner identities',()=>{
+  const old=openRecord();
+  const latest={...old,revision:2,status:'cerrado',body:{...old.body,outcomeStatus:'improved',outcomeSummary:'Resultado registrado',outcomeEvidence:'Ejecuciones verificadas',reviewedAt:'2026-09-15'}};
+  const conflict={...latest,body:{...latest.body,outcomeStatus:'worse'}};
+  const foreign={...old,clientId:'different-owner',body:{...old.body,clientId:'different-owner'}};
+  const now=new Date('2026-09-16T12:00:00Z');
+  for(const rows of [[old,latest,latest,foreign],[foreign,latest,old]]){
+    const summary=summarizeActionOutcomes(rows,clientId,{now});
+    assert.equal(summary.total,1);assert.equal(summary.closedCount,1);assert.equal(summary.improvementRate,1);
+  }
+  const quarantined=summarizeActionOutcomes([old,latest,conflict],clientId,{now});
+  assert.equal(quarantined.total,0);assert.equal(quarantined.conflictCount,1);assert.equal(quarantined.improvementRate,null);
+  const pending=summarizeActionOutcomes([old,{...latest,syncStatus:'pending'}],clientId,{now});
+  assert.equal(pending.total,0);assert.equal(pending.unconfirmedCount,1);
+});
+
+test('Action Outcome uses Santiago day, priority queue and documented denominator',()=>{
+  const now=new Date('2026-09-16T01:00:00Z');
+  const row=(id,reviewAt,status='abierto',extra={})=>({...openRecord(),entityId:id,status,body:{...openRecord().body,id,reviewAt,...extra}});
+  const rows=[row('new','2026-10-01'),row('overdue','2026-09-01'),row('today','2026-09-15'),row('closed','2026-09-01','cerrado',{reviewedAt:'2026-09-14',outcomeStatus:'improved',outcomeSummary:'Mejoró'}),row('bad-date','2026-09-15-not-a-date')];
+  const summary=summarizeActionOutcomes(rows,clientId,{now});
+  assert.equal(summary.asOf,'2026-09-15');assert.equal(summary.overdueCount,1);assert.equal(summary.dueTodayCount,1);
+  assert.equal(summary.needsReview.id,'overdue');assert.deepEqual(summary.reviewQueue.map(item=>item.id),['overdue','today','new','bad-date','closed']);
+  assert.equal(summary.improvementRate,null);assert.equal(summary.undocumentedClosedCount,1);assert.equal(summary.missingReviewDateCount,1);
+});

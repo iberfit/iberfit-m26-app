@@ -1,3 +1,6 @@
+import {reportCivilDate,parseCivilDate} from '../domain/civil-date.js';
+import {evidenceNumber,stableEvidenceJson} from '../domain/evidence-signal.js';
+
 export const ACTION_OUTCOME_ENTITY_TYPE='action_outcome';
 export const ACTION_OUTCOME_OPEN_STATUS='abierto';
 export const ACTION_OUTCOME_CLOSED_STATUS='cerrado';
@@ -47,19 +50,13 @@ function field(record,...keys){
   return null;
 }
 function integer(value,fallback=0){
-  const parsed=Number(value);
-  return Number.isInteger(parsed)&&parsed>=0?parsed:fallback;
+  return evidenceNumber(value,{min:0,integer:true})??fallback;
 }
 function isoDate(value){
-  const raw=text(value,32);
-  if(!raw)return null;
-  const match=raw.match(/^(\d{4})-(\d{2})-(\d{2})/u);
-  if(!match)return null;
-  const y=Number(match[1]),m=Number(match[2]),d=Number(match[3]);
-  const date=new Date(Date.UTC(y,m-1,d));
-  if(date.getUTCFullYear()!==y||date.getUTCMonth()!==m-1||date.getUTCDate()!==d)return null;
-  return `${match[1]}-${match[2]}-${match[3]}`;
+  if(typeof value!=='string')return null;
+  return parseCivilDate(value)?.iso??reportCivilDate(value);
 }
+
 function isoDateTime(value){
   if(!value)return null;
   const time=new Date(value).getTime();
@@ -78,7 +75,8 @@ function clientIdOf(record){
 function statusOf(record){
   const status=text(field(record,'status','estado'),80).toLowerCase();
   if(['cerrado','closed','completado','completed'].includes(status))return ACTION_OUTCOME_CLOSED_STATUS;
-  return ACTION_OUTCOME_OPEN_STATUS;
+  if(['abierto','open','pending','pendiente'].includes(status))return ACTION_OUTCOME_OPEN_STATUS;
+  return null;
 }
 function createdTime(record){
   const value=isoDateTime(field(record,'createdAt','created_at','updatedAt','updated_at'));
@@ -88,7 +86,9 @@ function createdTime(record){
 export function normalizeActionOutcomeEntity(record={}){
   if(entityTypeOf(record)!==ACTION_OUTCOME_ENTITY_TYPE)return null;
   const clientId=clientIdOf(record);
-  if(!clientId)return null;
+  const outer=record?.clientId??record?.client_id;
+  const inner=record?.body?.clientId??record?.body?.client_id;
+  if(!clientId||(outer!=null&&inner!=null&&String(outer)!==String(inner)))return null;
   const id=text(field(record,'entityId','entity_id','id'),200);
   if(!id)return null;
 
@@ -169,55 +169,71 @@ export function validateActionOutcomeDraft(input={}){
   });
 }
 
+function recentFirst(a,b){
+  const at=Date.parse(a.updatedAt||a.createdAt||'')||0,bt=Date.parse(b.updatedAt||b.createdAt||'')||0;
+  return bt-at||b.revision-a.revision||a.id.localeCompare(b.id);
+}
+function reconcileActionOutcomes(records,clientId){
+  const owner=text(clientId,200),groups=new Map();
+  for(const record of Array.isArray(records)?records:[]){
+    const item=normalizeActionOutcomeEntity(record);
+    if(!item||(owner&&item.clientId!==owner))continue;
+    const key=JSON.stringify([item.clientId,item.id]);
+    const sync=text(field(record,'syncStatus','sync_status'),80).toLowerCase();
+    const invalid=Boolean(!item.status||(sync&&sync!=='clean')||field(record,'serverConfirmed','server_confirmed')===false);
+    const signature=stableEvidenceJson([item,invalid]);
+    const previous=groups.get(key);
+    if(!previous||item.revision>previous.item.revision)groups.set(key,{item,invalid,signature,conflict:false});
+    else if(item.revision===previous.item.revision&&signature!==previous.signature)previous.conflict=true;
+  }
+  const selected=[...groups.values()];
+  return {
+    items:selected.filter(row=>!row.invalid&&!row.conflict).map(row=>row.item).sort(recentFirst),
+    conflictCount:selected.filter(row=>row.conflict).length,
+    unconfirmedCount:selected.filter(row=>row.invalid&&!row.conflict).length,
+  };
+}
 export function actionOutcomeEntities(records=[],clientId=null){
-  const id=text(clientId,200);
-  return Object.freeze(
-    (Array.isArray(records)?records:[])
-      .map(normalizeActionOutcomeEntity)
-      .filter(Boolean)
-      .filter((item)=>!id||item.clientId===id)
-      .sort((a,b)=>{
-        const aTime=new Date(a.updatedAt||a.createdAt||0).getTime()||0;
-        const bTime=new Date(b.updatedAt||b.createdAt||0).getTime()||0;
-        return bTime-aTime||b.revision-a.revision||a.id.localeCompare(b.id);
-      })
-  );
+  return Object.freeze(reconcileActionOutcomes(records,clientId).items);
+}
+function openReviewOrder(a,b){
+  if(a.reviewAt!==b.reviewAt){
+    if(!a.reviewAt)return 1;
+    if(!b.reviewAt)return -1;
+    return a.reviewAt.localeCompare(b.reviewAt);
+  }
+  return recentFirst(a,b);
 }
 
 export function summarizeActionOutcomes(records=[],clientId=null,{now=new Date()}={}){
-  const items=actionOutcomeEntities(records,clientId);
-  const current=now instanceof Date?now:new Date(now);
-  const today=Number.isFinite(current.getTime())
-    ?current.toISOString().slice(0,10)
-    :new Date().toISOString().slice(0,10);
-  const open=items.filter((item)=>item.status===ACTION_OUTCOME_OPEN_STATUS);
-  const closed=items.filter((item)=>item.status===ACTION_OUTCOME_CLOSED_STATUS);
-  const overdue=open.filter((item)=>item.reviewAt&&item.reviewAt<today);
-  const dueToday=open.filter((item)=>item.reviewAt===today);
-  const outcomes=Object.fromEntries(ACTION_OUTCOME_RESULTS.map((key)=>[
-    key,
-    closed.filter((item)=>item.outcomeStatus===key).length,
+  const {items,conflictCount,unconfirmedCount}=reconcileActionOutcomes(records,clientId);
+  const today=reportCivilDate(now);
+  const open=items.filter(item=>item.status===ACTION_OUTCOME_OPEN_STATUS).sort(openReviewOrder);
+  const closed=items.filter(item=>item.status===ACTION_OUTCOME_CLOSED_STATUS);
+  const overdue=today?open.filter(item=>item.reviewAt&&item.reviewAt<today):[];
+  const dueToday=today?open.filter(item=>item.reviewAt===today):[];
+  // A closed decision is not by itself a measured outcome.
+  const documented=closed.filter(item=>Boolean(today&&item.reviewedAt&&item.reviewedAt<=today
+    &&(!item.createdAt||item.reviewedAt>=reportCivilDate(item.createdAt))
+    &&item.outcomeStatus&&item.outcomeSummary&&item.outcomeEvidence));
+  const outcomes=Object.fromEntries(ACTION_OUTCOME_RESULTS.map(key=>[
+    key,documented.filter(item=>item.outcomeStatus===key).length,
   ]));
-  const assessable=closed.filter((item)=>item.outcomeStatus&&item.outcomeStatus!=='not_assessable').length;
-  const improved=outcomes.improved||0;
+  const assessable=documented.filter(item=>item.outcomeStatus!=='not_assessable').length;
   const completionRate=items.length?closed.length/items.length:null;
-  const improvementRate=assessable?improved/assessable:null;
-
+  const improvementRate=assessable?(outcomes.improved||0)/assessable:null;
   return Object.freeze({
     total:items.length,
-    openCount:open.length,
-    closedCount:closed.length,
-    overdueCount:overdue.length,
-    dueTodayCount:dueToday.length,
-    completionRate,
-    improvementRate,
-    assessableCount:assessable,
+    openCount:open.length,closedCount:closed.length,overdueCount:overdue.length,dueTodayCount:dueToday.length,
+    missingReviewDateCount:open.filter(item=>!item.reviewAt).length,
+    conflictCount,unconfirmedCount,asOf:today,
+    undocumentedClosedCount:closed.length-documented.length,
+    completionRate,improvementRate,assessableCount:assessable,
     outcomes:Object.freeze(outcomes),
-    open:Object.freeze(open),
-    closed:Object.freeze(closed),
-    overdue:Object.freeze(overdue),
-    latest:items[0]||null,
-    needsReview:overdue[0]||dueToday[0]||open[0]||null,
+    open:Object.freeze(open),closed:Object.freeze(closed),overdue:Object.freeze(overdue),
+    dueToday:Object.freeze(dueToday),
+    reviewQueue:Object.freeze([...open,...closed]),
+    latest:items[0]||null,needsReview:overdue[0]||dueToday[0]||open[0]||null,
   });
 }
 

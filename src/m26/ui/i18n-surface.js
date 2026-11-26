@@ -5,6 +5,14 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  ['Resultados favorables','Favourable outcomes','Résultats favorables','Resultados favoráveis'],
+  ['Resultados favorables entre revisiones con evidencia documentada. No implican causalidad.','Favourable outcomes among reviews with documented evidence. They do not imply causation.','Résultats favorables parmi les révisions avec preuves documentées. Ils ne démontrent pas de causalité.','Resultados favoráveis entre revisões com evidência documentada. Não implicam causalidade.'],
+  ['Sin resultados evaluables con evidencia documentada.','No assessable outcomes with documented evidence.','Aucun résultat évaluable avec preuves documentées.','Sem resultados avaliáveis com evidência documentada.'],
+  ['Hay seguimientos pendientes de verificación. No se incluyen en los indicadores.','Some follow-ups await verification. They are excluded from indicators.','Des suivis sont en attente de vérification. Ils sont exclus des indicateurs.','Há acompanhamentos por verificar. Não são incluídos nos indicadores.'],
+  ['Seguimientos pendientes e historial','Pending follow-ups and history','Suivis en attente et historique','Acompanhamentos pendentes e histórico'],
+  ['Mostrar más seguimientos','Show more follow-ups','Afficher plus de suivis','Mostrar mais acompanhamentos'],
+  ['Un seguimiento cambió en el servidor. Revisa su nueva versión antes de registrar el resultado.','A follow-up changed on the server. Review its new version before recording the outcome.','Un suivi a changé sur le serveur. Vérifiez sa nouvelle version avant de saisir le résultat.','Um acompanhamento mudou no servidor. Reveja a nova versão antes de registar o resultado.'],
+  ['Hay seguimientos programados para revisión hoy.','Some follow-ups are scheduled for review today.','Des suivis doivent être révisés aujourd’hui.','Há acompanhamentos programados para revisão hoje.'],
   ['Citas cumplidas','Appointments fulfilled','Rendez-vous honorés','Marcações cumpridas'],
   ['El estado de atención de la cartera aún no está disponible.','The portfolio review status is not available yet.','Le statut de suivi du portefeuille n’est pas encore disponible.','O estado de acompanhamento da carteira ainda não está disponível.'],
   ['Horas asignadas sin confirmar','Assigned hours not confirmed','Heures attribuées non confirmées','Horas atribuídas por confirmar'],

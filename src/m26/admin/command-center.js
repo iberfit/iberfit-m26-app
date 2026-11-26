@@ -1,10 +1,11 @@
 import {trainingServiceStatusFrom} from '../domain/training-service.js';
 import {isOperationalTaskOpen} from './operation-triage.js';
+import {evidenceNumber} from '../domain/evidence-signal.js';
 const KIND_RANK=Object.freeze({critical:0,warning:1,process:2,info:3,clear:4});
 
 function arr(value){return Array.isArray(value)?value:[];}
 function text(value,fallback=''){const clean=String(value??'').trim();return clean||fallback;}
-function number(value){if(typeof value!=='number'&&typeof value!=='string')return null;if(typeof value==='string'&&!value.trim())return null;const n=Number(value);return Number.isFinite(n)&&n>=0?n:null;}
+function number(value){return evidenceNumber(value,{min:0});}
 export function coachCapacityEvidence(coach={}){
   const capacityHours=number(coach?.capacityHours);
   const assignedHours=number(coach?.assignedHours);

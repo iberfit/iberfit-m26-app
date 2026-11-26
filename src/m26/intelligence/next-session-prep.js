@@ -321,6 +321,8 @@ function reviewReasons({progress,outcomes,feedback,session,wellbeingTrend}={}){
   else if(!STARTABLE_SESSION_STATES.has(statusOf(session)))reasons.push(Object.freeze({kind:'session-unpublished',label:'La sesión disponible todavía no está publicada. Revisa y publica antes de iniciar.'}));
   if(outcomes?.openCount)reasons.push(Object.freeze({kind:'decision',label:`${outcomes.openCount} decisión${outcomes.openCount===1?'':'es'} pendiente${outcomes.openCount===1?'':'s'} de resultado.`}));
   if(outcomes?.overdueCount)reasons.push(Object.freeze({kind:'decision-overdue',label:`${outcomes.overdueCount} seguimiento${outcomes.overdueCount===1?'':'s'} con revisión vencida.`}));
+  if(outcomes?.dueTodayCount)reasons.push(Object.freeze({kind:'decision-overdue',label:'Hay seguimientos programados para revisión hoy.'}));
+  if(outcomes?.conflictCount||outcomes?.unconfirmedCount)reasons.push(Object.freeze({kind:'data',label:'Hay seguimientos pendientes de verificación. No se incluyen en los indicadores.'}));
   if(feedback?.pain)reasons.push(Object.freeze({kind:'pain',label:'La última sesión registró dolor; revisa el contexto antes de decidir.'}));
   const checkinPain=finite(progress?.latestCheckin?.pain);
   if(Number.isFinite(checkinPain)&&checkinPain>0)reasons.push(Object.freeze({kind:'wellbeing',label:'El último check-in incluye dolor informado por el cliente.'}));
@@ -472,6 +474,8 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
       closedCount:outcomes.closedCount,
       overdueCount:outcomes.overdueCount,
       dueTodayCount:outcomes.dueTodayCount,
+      conflictCount:outcomes.conflictCount,
+      unconfirmedCount:outcomes.unconfirmedCount,
       open:Object.freeze(outcomes.open.slice(0,4)),
       recentClosed:Object.freeze(outcomes.closed.slice(0,2)),
       needsReview:outcomes.needsReview||null,

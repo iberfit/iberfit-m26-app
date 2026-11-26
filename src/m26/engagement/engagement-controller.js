@@ -1,5 +1,9 @@
 import { normalizeCheckinDraft,validateCheckinDraft,normalizeHabitDefinitionDraft,validateHabitDefinitionDraft,validatePrivateNoteDraft } from './activity-drafts.js';
 import {actionOutcomeEntities,summarizeActionOutcomes} from '../intelligence/action-outcome.js';
+import {reportCivilDate} from '../domain/civil-date.js';
+import {stableEvidenceJson} from '../domain/evidence-signal.js';
+
+const actionOutcomeRenderEvidence=new WeakMap();
 
 function setStatus(root,scope,message,kind='info'){
   const node=root?.querySelector?.(`[data-engagement-status="${scope}"]`);
@@ -38,8 +42,8 @@ function escapeText(value){return String(value??'').replaceAll('&','&amp;').repl
 function createField(documentLike,labelText,name,type='text'){const label=documentLike.createElement('label');const span=documentLike.createElement('span');span.textContent=labelText;const input=documentLike.createElement('input');input.name=name;input.type=type;label.append(span,input);return {label,input};}
 function createTextarea(documentLike,labelText,name,maxLength=1600){const label=documentLike.createElement('label');const span=documentLike.createElement('span');span.textContent=labelText;const input=documentLike.createElement('textarea');input.name=name;input.maxLength=maxLength;label.append(span,input);return {label,input};}
 function createSelect(documentLike,labelText,name,options=[]){const label=documentLike.createElement('label');const span=documentLike.createElement('span');span.textContent=labelText;const select=documentLike.createElement('select');select.name=name;for(const [value,text] of options){const option=documentLike.createElement('option');option.value=value;option.textContent=text;select.append(option);}label.append(span,select);return {label,select};}
-function civilDateOffset(days=0){const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()+Number(days||0));return date.toISOString().slice(0,10);}
-function percent(value){return Number.isFinite(Number(value))?`${Math.round(Number(value)*100)}%`:'—';}
+function civilDateOffset(days=0){const date=new Date(reportCivilDate(new Date())+'T12:00:00Z');date.setUTCDate(date.getUTCDate()+Number(days||0));return date.toISOString().slice(0,10);}
+function percent(value){return typeof value==='number'&&Number.isFinite(value)?`${Math.round(value*100)}%`:'—';}
 function actionOutcomeManagerForClient(root,clientId,{workspace=false}={}){
   const expected=String(clientId||'').trim();
   return Array.from(root?.querySelectorAll?.('[data-action-outcome-manager][data-client-id]')||[])
@@ -194,26 +198,47 @@ export function createEngagementController({root,store,draftRepository,service,s
       const workspaceMode=mode==='workspace';
       const workspacePriority=workspaceMode&&mount.getAttribute?.('data-action-outcome-priority')==='review'?'review':'normal';
       const workspaceNextSessionId=workspaceMode?String(mount.getAttribute?.('data-action-outcome-next-session-id')||'').trim():'';
-      const records=actionOutcomeEntities(state?.collections?.m26Entities||[],clientId);
-      const summaryData=summarizeActionOutcomes(records,clientId);
-      const signature=`${mode}:${workspacePriority}:${workspaceNextSessionId||'no-session'}:${records.slice(0,12).map((item)=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty'}`;
+      const summaryData=summarizeActionOutcomes(state?.collections?.m26Entities||[],clientId);
+      const records=summaryData.reviewQueue;
+      const signature=`${mode}:${workspacePriority}:${workspaceNextSessionId||'no-session'}:${summaryData.asOf}:${summaryData.conflictCount}:${summaryData.unconfirmedCount}:${records.map(item=>`${item.id}:${item.revision}:${item.status}`).join('|')||'empty'}`;
+      const renderEvidence=stableEvidenceJson([records,mount.getAttribute?.('data-action-outcome-prefill-signal'),mount.getAttribute?.('data-action-outcome-prefill-source')]);
       let manager=mount.querySelector?.('[data-action-outcome-manager]');
-      if(manager?.dataset?.canonicalSignature===signature)continue;
+      if(manager?.dataset?.canonicalSignature===signature&&actionOutcomeRenderEvidence.get(manager)===renderEvidence)continue;
+      const previousOpen=manager?.open===true;
+      const previousNewOpen=manager?.querySelector?.('[data-action-outcome-new]')?.open===true;
+      const drafts=new Map();
+      for(const draft of Array.from(manager?.querySelectorAll?.('form[data-action-dirty="true"]')||[])){
+        const key=draft.dataset.trackingId?`${draft.dataset.trackingId}:${draft.dataset.baseRevision}`:'new';
+        drafts.set(key,formValues(draft));
+      }
       manager?.remove?.();
       manager=documentLike.createElement('details');
       manager.className=`m26-action-outcome-manager${workspaceMode?' is-workspace':''}`;
       manager.setAttribute('data-action-outcome-manager','true');
       if(workspaceMode&&(summaryData.overdueCount>0||workspacePriority==='review'))manager.open=true;
+      if(previousOpen||summaryData.dueTodayCount>0)manager.open=true;
       manager.dataset.clientId=clientId;
       manager.dataset.nextSessionId=workspaceNextSessionId;
       manager.dataset.canonicalSignature=signature;
+      actionOutcomeRenderEvidence.set(manager,renderEvidence);
+      const restoreDraft=(form,key)=>{
+        const draft=drafts.get(key);if(!draft)return;
+        for(const [name,value] of Object.entries(draft)){
+          const control=form.elements?.namedItem?.(name);if(control)control.value=value;
+        }
+        form.dataset.actionDirty='true';drafts.delete(key);
+      };
+      manager.addEventListener('input',event=>{
+        const form=event.target?.closest?.('form[data-engagement-form]');
+        if(form)form.dataset.actionDirty='true';
+      });
 
       const summary=documentLike.createElement('summary');
       const summaryMain=documentLike.createElement('span');
       summaryMain.textContent='Decisiones y resultados';
       const summaryMeta=documentLike.createElement('small');
       summaryMeta.textContent=summaryData.openCount
-        ?`${summaryData.openCount} abierto${summaryData.openCount===1?'':'s'} · ${summaryData.overdueCount} por revisar`
+        ?`${summaryData.openCount} abierto${summaryData.openCount===1?'':'s'} · ${summaryData.overdueCount+summaryData.dueTodayCount} por revisar`
         :summaryData.closedCount
           ?`${summaryData.closedCount} cerrado${summaryData.closedCount===1?'':'s'}`
           :'Sin seguimiento todavía';
@@ -223,9 +248,9 @@ export function createEngagementController({root,store,draftRepository,service,s
       metrics.className='m26-action-outcome-metrics';
       for(const [label,value] of [
         ['Abiertos',summaryData.openCount],
-        ['Por revisar',summaryData.overdueCount],
+        ['Por revisar',summaryData.overdueCount+summaryData.dueTodayCount],
         ['Cerrados',summaryData.closedCount],
-        ['Mejora confirmada',percent(summaryData.improvementRate)],
+        ['Resultados favorables',percent(summaryData.improvementRate)],
       ]){
         const item=documentLike.createElement('span');
         const strong=documentLike.createElement('strong');strong.textContent=String(value);
@@ -237,6 +262,11 @@ export function createEngagementController({root,store,draftRepository,service,s
       managerFeedback.setAttribute('data-engagement-status','action-manager');
       managerFeedback.setAttribute('role','status');
       managerFeedback.setAttribute('aria-live','polite');
+      if(summaryData.conflictCount||summaryData.unconfirmedCount)managerFeedback.textContent='Hay seguimientos pendientes de verificación. No se incluyen en los indicadores.';
+      const metricNote=documentLike.createElement('p');
+      metricNote.className='m26-field-help';
+      metricNote.textContent=summaryData.assessableCount?'Resultados favorables entre revisiones con evidencia documentada. No implican causalidad.':'Sin resultados evaluables con evidencia documentada.';
+      metrics.append(metricNote);
 
       const formDisclosure=documentLike.createElement('details');
       formDisclosure.className='m26-action-outcome-new';
@@ -293,13 +323,19 @@ export function createEngagementController({root,store,draftRepository,service,s
       reviewGroup.append(reviewLegend,review.label,reviewHint);
 
       form.append(criterionGroup,interventionGroup,reviewGroup,guard,progress,button,feedback);
+      restoreDraft(form,'new');
       formDisclosure.append(formSummary,form);
+      if(previousNewOpen)formDisclosure.open=true;
 
       const history=documentLike.createElement('div');
       history.className='m26-action-outcome-history';
       if(records.length){
-        const title=documentLike.createElement('h4');title.textContent='Seguimientos recientes';history.append(title);
-        for(const item of records.slice(0,4)){
+        const title=documentLike.createElement('h4');title.textContent='Seguimientos pendientes e historial';history.append(title);
+        const showMore=documentLike.createElement('button');showMore.type='button';showMore.textContent='Mostrar más seguimientos';
+        let shown=0;
+        const appendHistoryPage=(limit=4)=>{
+        const next=Math.min(shown+limit,records.length);
+        for(const item of records.slice(shown,next)){
           const article=documentLike.createElement('article');
           article.className='m26-action-outcome-item';
           article.dataset.status=item.status;
@@ -335,14 +371,22 @@ export function createEngagementController({root,store,draftRepository,service,s
             const outcomeFeedback=documentLike.createElement('p');outcomeFeedback.setAttribute('data-engagement-status','action-outcome');outcomeFeedback.setAttribute('role','status');outcomeFeedback.setAttribute('aria-live','polite');
             const outcomeProgress=documentLike.createElement('p');outcomeProgress.className='m26-field-help';outcomeProgress.setAttribute('data-guided-required-progress','');outcomeProgress.setAttribute('aria-live','polite');
             outcomeForm.append(outcomeStatus.label,outcomeSummary.label,evidence.label,reviewed.label,outcomeProgress,close,outcomeFeedback);
+            restoreDraft(outcomeForm,`${item.id}:${item.revision}`);
             article.append(outcomeForm);
           }
-          history.append(article);
+          history.insertBefore(article,showMore);
         }
+        shown=next;showMore.hidden=shown>=records.length;
+        };
+        history.append(showMore);
+        const draftPositions=records.map((item,index)=>drafts.has(`${item.id}:${item.revision}`)?index+1:0);
+        appendHistoryPage(Math.max(4,...draftPositions));
+        showMore.addEventListener('click',()=>appendHistoryPage());
       }else{
         const empty=documentLike.createElement('p');empty.className='m26-action-outcome-empty';empty.textContent='Registra la primera decisión cuando una señal justifique una intervención y quieras comprobar después qué ocurrió.';history.append(empty);
       }
 
+      if(drafts.size)managerFeedback.textContent='Un seguimiento cambió en el servidor. Revisa su nueva versión antes de registrar el resultado.';
       if(workspaceMode){
         const intro=documentLike.createElement('p');
         intro.className='m26-action-outcome-workspace-intro';
@@ -406,6 +450,8 @@ export function createEngagementController({root,store,draftRepository,service,s
     const entityId=String(result?.command?.entityId||'');
     const persisted=actionOutcomeEntities(store.getState()?.collections?.m26Entities||[],clientId).find((item)=>item.id===entityId);
     if(!persisted)throw new Error('M26_ACTION_TRACKING_NOT_PERSISTED');
+    delete form.dataset.actionDirty;
+    form.reset?.();
     ensureActionOutcomeManagers();
     const confirmed=actionOutcomeManagerForClient(root,clientId,{workspace:workspaceOrigin});
     if(confirmed)confirmed.open=true;
@@ -426,12 +472,15 @@ export function createEngagementController({root,store,draftRepository,service,s
     if(!clientId)throw new Error('M26_CLIENT_CONTEXT_REQUIRED');
     if(!trackingId)throw new Error('M26_ACTION_OUTCOME_ID_REQUIRED');
     const workspaceOrigin=Boolean(form.closest?.('[data-action-outcome-manager]')?.classList?.contains?.('is-workspace'));
+    const current=actionOutcomeEntities(store.getState()?.collections?.m26Entities||[],clientId).find(item=>item.id===trackingId);
+    if(!current||current.status!=='abierto'||current.revision!==baseRevision)throw new Error('M26_ACTION_OUTCOME_STALE_REVISION');
     const result=await service.recordActionOutcome({clientId,trackingId,baseRevision,outcome:formValues(form)});
     if(!result?.ok)throw new Error('M26_ACTION_OUTCOME_NOT_CONFIRMED');
     if(typeof refreshState!=='function')throw new Error('M26_ACTION_OUTCOME_REFRESH_REQUIRED');
     await refreshState({reason:'action-outcome-recorded'});
     const persisted=actionOutcomeEntities(store.getState()?.collections?.m26Entities||[],clientId).find((item)=>item.id===trackingId);
-    if(!persisted||persisted.status!=='cerrado')throw new Error('M26_ACTION_OUTCOME_NOT_PERSISTED');
+    if(!persisted||persisted.status!=='cerrado'||persisted.revision<=baseRevision)throw new Error('M26_ACTION_OUTCOME_NOT_PERSISTED');
+    delete form.dataset.actionDirty;
     ensureActionOutcomeManagers();
     const confirmed=actionOutcomeManagerForClient(root,clientId,{workspace:workspaceOrigin});
     if(confirmed)confirmed.open=true;
