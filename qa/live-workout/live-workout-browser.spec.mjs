@@ -116,7 +116,12 @@ test('Coach recorre pausa, descanso, corrección, serie extra, omisión y cierre
   await page.locator('[data-session-action="rest-minus"]').click();
 
   const correction=page.locator('[data-session-rest-correction]');
-  await correction.locator('summary').click();
+  await expect(correction).toHaveCount(1);
+  const correctionSummary=correction.locator(':scope > summary');
+  await expect(correctionSummary).toHaveText('Corregir esta serie');
+  await correctionSummary.click();
+  await expect(correction).toHaveAttribute('open','');
+  await expect(correction.locator('[data-session-observed-context] > summary')).toHaveText('Contexto real del ejercicio (opcional)');
   await correction.locator('[data-set-field="reps"]').fill('9');
   await correction.locator('[data-session-action="correct-set"]').click();
   await expect.poll(async()=>Object.values((await state(page)).results)[0]?.reps).toBe(9);
@@ -174,7 +179,12 @@ test('Coach keeps one explicit Next tap while a corrected set is still being per
   await expect(page.locator('#qa-root')).not.toHaveAttribute('data-m26-session-action-pending','true');
 
   const correction=page.locator('[data-session-rest-correction]');
-  await correction.locator('summary').click();
+  await expect(correction).toHaveCount(1);
+  const correctionSummary=correction.locator(':scope > summary');
+  await expect(correctionSummary).toHaveText('Corregir esta serie');
+  await correctionSummary.click();
+  await expect(correction).toHaveAttribute('open','');
+  await expect(correction.locator('[data-session-observed-context] > summary')).toHaveText('Contexto real del ejercicio (opcional)');
   await correction.locator('[data-set-field="reps"]').fill('9');
   await correction.locator('[data-session-action="correct-set"]').click();
   await expect.poll(async()=>Object.values((await state(page)).results)[0]?.reps).toBe(9);
