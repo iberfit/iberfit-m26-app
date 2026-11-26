@@ -133,6 +133,67 @@ export function isSessionQARelevant(file){
     ||SESSION_QA_PATH_PATTERNS.some(pattern=>pattern.test(path));
 }
 
+// The guarded QA workflow owns these path filters. Keep parity covered by
+// regression tests; the aggregate handles the existing exact-head dedupe.
+const QA_REAL_WRITE_EXACT_FILES=new Set([
+  'scripts/remote-gates/run_qa_m42_avatar_private_gate.mjs',
+  'scripts/ops/qa_same_head_run_dedupe.mjs',
+  'tests/m26_p0_qa_same_head_dedupe.test.mjs',
+  'scripts/remote-gates/run_qa_real_write_gate.mjs',
+  'scripts/remote-gates/release_qa_auth_sessions.mjs',
+  'scripts/remote-gates/qa_client_identity_rpc.mjs',
+  'scripts/remote-gates/qa_m42_readonly_future_iat_retry.mjs',
+  'tests/m26_qa_m42_readonly_future_iat_retry.test.mjs',
+  'tests/m26_p0_free_qa_identity_projection_contract.test.mjs',
+  'tests/m26_p0_free_qa_trigger_routing_contract.test.mjs',
+  'scripts/remote-gates/qa_client_delete_acl_denial.mjs',
+  'scripts/remote-gates/run_qa_connected360_v45_write_gate.mjs',
+  'scripts/remote-gates/run_qa_m43_coach_client_write_gate.mjs',
+  'scripts/remote-gates/qa_m43_minimal_bootstrap_visibility.mjs',
+  'scripts/remote-gates/qa_m43_owner_projection.mjs',
+  'qa/rc64/qa-supabase-wire-meter.mjs',
+  'tests/m26_p0_free_wire_meter.test.mjs',
+  'qa/rc64/m43-client-interactive.spec.mjs',
+  'tests/m26_p0_free_qa_m43_owner_projection.test.mjs',
+  'tests/m26_p0_free_qa_m43_minimal_visibility.test.mjs',
+  'scripts/remote-gates/m43-qa-fixture-safety.mjs',
+  'scripts/remote-gates/m43-qa-retained-history-v3.json',
+  'scripts/remote-gates/m43-qa-retained-history-v4.json',
+  'scripts/remote-gates/m43-qa-retained-history-v5.json',
+  'tests/m26_universal_m43_qa_retention_v4.test.mjs',
+  'tests/m26_universal_m43_qa_retention_v5.test.mjs',
+  'scripts/remote-gates/m43-writer-handoff.mjs',
+  'src/m26/profile/client-avatar.js',
+  'src/m26/exercises/catalog.js',
+  'src/m26/production-state.js',
+  'qa/rc64/m43-client-real-history.spec.mjs',
+  'qa/rc64/m43-coach-real-workspace.spec.mjs',
+  'tests/m26_p0_free_m43_browser_session_cleanup_contract.test.mjs',
+  'qa/rc64/secure-current-source-auth.mjs',
+  'playwright.m43-interactive-client.config.mjs',
+  'playwright.m43-authenticated-browser.config.mjs',
+  'scripts/remote-gates/run_qa_iri_report_emission_gate.mjs',
+  'scripts/remote-gates/prepare_qa_iri_document_fixture.mjs',
+  '.github/workflows/qa-real-write-cert.yml',
+  'src/m26/command-bus.js',
+  'src/m26/supabase-transport.js',
+]);
+const QA_REAL_WRITE_PREFIXES=Object.freeze([
+  'supabase/qa-migrations',
+  'supabase/qa-rollbacks',
+  'src/m26/workflows',
+  'src/m26/communication',
+  'supabase/migrations',
+  'supabase/functions/iberfit-admin-client-invite-v1',
+  'supabase/functions/iberfit-iri-report-emission-v1',
+  'supabase/functions/iberfit-qa-iri-document-fixture',
+]);
+export function isRealWriteQARelevant(file){
+  const path=normalizePath(file);
+  return QA_REAL_WRITE_EXACT_FILES.has(path)||
+    QA_REAL_WRITE_PREFIXES.some(prefix=>path.startsWith(prefix+'/'));
+}
+
 export function requiredChecksForFiles(files=[]){
   const normalized=[...new Set(files.map(normalizePath).filter(Boolean))];
   const required=[...ALWAYS_REQUIRED];
@@ -152,6 +213,10 @@ export function requiredChecksForFiles(files=[]){
   if(normalized.some(isSessionQARelevant)){
     // Exact check-run names verified against the isolated workflow in GitHub.
     required.push('offline','browser-live-workout','qa-readonly');
+  }
+
+  if(normalized.some(isRealWriteQARelevant)){
+    required.push('qa-real-write-certification-gate');
   }
 
   return Object.freeze(required);
