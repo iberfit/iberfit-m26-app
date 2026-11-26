@@ -73,7 +73,7 @@ function elitePeriodEvidence(rows,signals,sessions,start){
   const weeks=[...new Set(days.map(d=>Math.floor((timestamp(d)-timestamp(start))/(7*DAY_MS))))].sort((a,b)=>a-b);
   let longest=0,run=0,previous=-2;for(const w of weeks){run=w===previous+1?run+1:1;longest=Math.max(run,longest);previous=w;}
   const result=[...rows];
-  if(days.length&&result.length<12)result.push(evidence('Hitos de continuidad',weeks.length+' bloques de 7 días con entrenamiento confirmado; '+longest+' consecutivos. Primer día: '+days[0]+'; último: '+days.at(-1)+'. Bloques desde el inicio del periodo.','sessionExecutions'));
+  if(days.length&&result.length<12)result.push(evidence('Hitos de continuidad',weeks.length+' bloques semanales con entrenamiento confirmado; '+longest+' consecutivos. Primer día: '+days[0]+'; último: '+days.at(-1)+'. Bloques de hasta 7 días desde el inicio del periodo; el último puede ser parcial.','sessionExecutions'));
   const trends=signals[0]?.trends??[];
   for(const row of trends){if(result.length>=12)break;result.push(row);}
   return result;

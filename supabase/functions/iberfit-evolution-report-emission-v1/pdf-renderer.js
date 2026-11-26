@@ -196,10 +196,15 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
   }
   y-=80;block('Media de carga × repeticiones en cada grupo. La diferencia de trabajo no equivale a una mejora del rendimiento.',{size:8.5,leading:12,c:'muted',gap:8});
  }
+ // Reserve enough room for heading, explanation and the actual first evidence.
+ if(y<220)add('Resultados verificables');
+ section='Resultados verificables';
  heading('Resultados verificables');
  block('No se rellenan mediciones ausentes con estimaciones.',{size:8.8,leading:12,c:'muted',gap:8});
  for(const [i,item] of source.evidence.entries()){
-  const title=safe(item?.label,120),value=rowText(item);
+  const title=safe(item?.label,120);
+ const parsedTrend=trends.find(t=>'Tendencia: '+t.label===item?.label);
+ const value=parsedTrend?parsedTrend.points.length+' de '+parsedTrend.total+' días registrados ('+parsedTrend.unit+'). '+parsedTrend.points.map(p=>humanDate(p.date)+': '+fmt(p.value)).join(' · '):rowText(item);
   const provenance='Fuente: '+publicLabel(SOURCE_LABELS,item?.source,safe(item?.source,100))+' / '+(safe(item?.quality,70)||'registrada');
   const titleLines=wrap(bold,10,title,WIDTH-26),valueLines=wrap(sans,10.2,value,WIDTH-26),sourceLines=wrap(sans,8,provenance,WIDTH-26);
   const h=titleLines.length*13+valueLines.length*14+sourceLines.length*10+15;
@@ -212,6 +217,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
   y=yy-9;
  }
  if(y<260)add('Tu siguiente paso');
+ section='Tu siguiente paso';
  heading('Interpretación profesional');block(source.conclusions||'Interpretación pendiente.');
  heading('Próximo paso propuesto');block(source.recommendations||'Propuesta pendiente.');
  heading('Transparencia');block('Fuente principal: '+publicLabel(SOURCE_LABELS,source.sourceType,'Evidencia canónica IBERFIT')+'. Periodo: '+interval+'. El diagnóstico inicial IRI se mantiene separado. Los datos de dispositivos no sustituyen una sesión confirmada.',{size:8.5,leading:12,c:'muted',gap:4});

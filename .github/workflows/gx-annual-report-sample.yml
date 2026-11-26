@@ -27,11 +27,16 @@ jobs:
           for font in public/m26/fonts/report-{inter,serif}-{regular,bold}.ttf; do
             test -s "$font"
           done
+      - name: Verify Elite trend and existing renderer contracts
+        run: node --test tests/m26_elite_report_trends.test.mjs tests/m44_server_pdf_renderer.test.mjs
       - name: Generate official-template synthetic PDF
         run: deno run --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json --allow-read --allow-write=qa-output/annual-report-sample --allow-env=GITHUB_SHA qa/m44/generate-synthetic-annual-report.mjs
       - name: Raster preview of actual PDF pages
         run: |
-          if command -v pdftoppm >/dev/null; then
+          if ! command -v pdftoppm >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y poppler-utils
+          fi
             for file in qa-output/annual-report-sample/*.pdf; do
               pdftoppm -r 100 -png "$file" "${file%.pdf}-page"
               pdftotext -layout "$file" "${file%.pdf}.txt"
@@ -39,7 +44,6 @@ jobs:
             grep -F 'Tu año en IBERFIT' qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.txt
             grep -F '104' qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.txt
             grep -iF 'Tendencia:' qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.txt
-          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Tu-ano-en-IBERFIT-muestra
