@@ -1,6 +1,6 @@
 /* M44 private print preview. PDF bytes are produced by the browser's print-to-PDF flow,
  * never represented as a server-issued or published report by this module. */
-import {readDatedTrends,trendGeometry} from './report-trend-contract.js';
+import {readDatedTrends,trendGeometry,readTrainingCalendar,calendarDescription} from './report-trend-contract.js';
 const TYPES=Object.freeze({
   'post-session':'Informe post-sesión',
   weekly:'Resumen semanal',
@@ -108,6 +108,13 @@ function eliteTrendGraphic(series){
   const a=series.points[0],b=series.points.at(-1);
   return '<figure class="m44-elite-trend"><figcaption>'+esc(series.label)+' <small>'+esc(series.unit)+'</small></figcaption><div class="m44-elite-endpoints"><b>'+esc(fmt(a.value))+'</b><span>Primera medición · '+esc(a.date)+'</span><b>'+esc(fmt(b.value))+'</b><span>Última medición · '+esc(b.date)+'</span></div><svg viewBox="0 0 640 146" role="img" aria-label="'+esc(series.label+': '+series.points.map(p=>p.date+' '+p.value).join('; '))+'">'+grid+paths+points+'<text x="48" y="140">'+esc(new Date(series.from).toISOString().slice(0,10))+'</text><text x="618" y="140" text-anchor="end">'+esc(new Date(series.to).toISOString().slice(0,10))+'</text></svg><p>'+series.points.length+' de '+series.total+' días registrados · medias diarias. Las líneas discontinuas orientan la lectura; no representan mediciones entre puntos. Huecos superiores a '+g.gapDays+' días no se unen.</p></figure>';
 }
+function calendarGraphic(c){
+ const step=11.1,x=28,y=22;
+ const cells=c.cells.map(p=>'<rect x="'+(x+p.week*step).toFixed(1)+'" y="'+(y+p.weekday*step).toFixed(1)+'" width="9.1" height="9.1" rx="1.1" fill="'+(p.active?'#234638':'#e1e6da')+'"><title>'+esc(p.date)+(p.active?' · entrenamiento confirmado':' · sin sesión confirmada')+'</title></rect>').join('');
+ const monthLabels=c.months.map(m=>'<text x="'+(x+m.week*step).toFixed(1)+'" y="13">'+esc(m.month.slice(5))+'</text>').join('');
+ const labels=['L','M','X','J','V','S','D'].map((v,i)=>'<text x="15" y="'+(y+i*step+7).toFixed(1)+'" text-anchor="end">'+v+'</text>').join('');
+ return '<figure class="m44-training-calendar"><figcaption>Tu calendario de entrenamiento</figcaption><div class="m44-calendar-totals"><strong>'+c.count+' días</strong><span>'+c.weeks+' semanas con registros · '+c.longest+' consecutivas</span></div><svg viewBox="0 0 640 107" role="img" aria-label="'+esc(calendarDescription(c))+'">'+monthLabels+labels+cells+'</svg><p>Verde: día con al menos una sesión confirmada. Claro: sin sesión confirmada; no demuestra inactividad.</p><table class="m44-calendar-months"><caption>Días confirmados por mes (meses parciales incluidos)</caption><tbody>'+Array.from({length:Math.ceil(c.months.length/4)},(_,i)=>'<tr>'+c.months.slice(i*4,i*4+4).map(m=>'<td><small>'+esc(m.month)+'</small><b>'+m.active+' / '+m.days+'</b></td>').join('')+'</tr>').join('')+'</tbody></table></figure>';
+}
 function privateTechnicalPages(detail){
   if(!detail)return [];
   const fmt=v=>v==null?'—':esc(typeof v==='number'?v.toLocaleString('es-CL',{maximumFractionDigits:2}):v);
@@ -148,7 +155,7 @@ function footer(page,total){
 function page(index,total,eyebrow,title,inner){
   return '<section class="m44-sheet m44-interior" aria-label="Página '+index+' de '+total+'"><header class="m44-page-head"><span class="m44-page-index">'+String(index-1).padStart(2,'0')+'</span><div><p class="m44-kicker">'+esc(eyebrow)+'</p><h2>'+esc(title)+'</h2></div></header><main class="m44-page-content">'+inner+'</main>'+footer(index,total)+'</section>';
 }
-export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-3',publicationStatus='draft',audience='internal',technicalDetail=null}={}){
+export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-4',publicationStatus='draft',audience='internal',technicalDetail=null}={}){
   if(!report||report.ready!==true||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
     throw new Error('M44_REPORT_PREVIEW_EVIDENCE_REQUIRED');
   if(!report.periodStart||!report.periodEnd||dateLabel(report.periodStart)==='Fecha pendiente'||dateLabel(report.periodEnd)==='Fecha pendiente'||report.periodStart>report.periodEnd)
@@ -173,9 +180,11 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     Math.ceil(clean(item.text,500).length/75)+
     Math.ceil(clean(item.label,120).length/65)+
     Math.ceil(clean(item.source,120).length/80);
+  const calendar=report.id==='year-in-iberfit'?readTrainingCalendar(lines,report.periodStart,report.periodEnd,report.activitySeries??[]):null;
+  const displayLines=lines.map(row=>row.label==='Calendario de entrenamiento'?{...row,text:calendar?calendarDescription(calendar):'Registro diario no interpretable; requiere revisión.'}:row);
   const evidenceChunks=[];
   let currentChunk=[],budgetUsed=0;
-  for(const item of lines){
+  for(const item of displayLines){
     const cost=evidenceCost(item);
     if(currentChunk.length&&(currentChunk.length>=maxRows||budgetUsed+cost>evidenceBudget)){
       evidenceChunks.push(currentChunk);
@@ -203,7 +212,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   }
   const trends=readDatedTrends(lines,report.periodStart,report.periodEnd);
   const trendPages=Math.ceil(trends.length/2);
-  const total=1+summaryChunks.length+evidenceChunks.length+(showActivity?1:0)+trendPages+
+  const total=1+summaryChunks.length+evidenceChunks.length+(showActivity?1:0)+(calendar?1:0)+trendPages+
     (longDecision?decisionSections.length:1)+technicalPages.length;
   const pages=[];
   const decisionEnd=total-technicalPages.length;
@@ -251,7 +260,9 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
       activityGraphic(activitySeries)+activityTable(activitySeries)+
       '<p class="m44-subtle-note">Total representado: '+sum+' sesiones confirmadas. Los periodos sin registros se muestran como cero sesiones <em>confirmadas</em>, no como inactividad demostrada.</p>'));
   }
-  const trendStart=2+summaryChunks.length+(showActivity?1:0);
+  const calendarStart=2+summaryChunks.length+(showActivity?1:0);
+  if(calendar)pages.push(page(calendarStart,total,'CONTINUIDAD','Un año, día a día',calendarGraphic(calendar)));
+  const trendStart=calendarStart+(calendar?1:0);
   for(let i=0;i<trendPages;i++)pages.push(page(trendStart+i,total,'TENDENCIAS','Evolución registrada',trends.slice(i*2,i*2+2).map(eliteTrendGraphic).join('')));
   const firstEvidencePage=trendStart+trendPages;
   let evidenceOffset=0;
@@ -344,7 +355,7 @@ async function verifyA4Layout(doc,popup,scope){
 export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',audience='internal',technicalDetail=null,scope=globalThis}={}){
   const origin=String(scope.location?.origin||'');
   if(!/^https?:\/\/[^/]+$/i.test(origin))throw new Error('M44_REPORT_PREVIEW_ORIGIN_REQUIRED');
-  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,audience,technicalDetail,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-3'});
+  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,audience,technicalDetail,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-4'});
   const popup=scope.open?.('about:blank','_blank');
   if(!popup?.document)throw new Error('M44_REPORT_PREVIEW_POPUP_BLOCKED');
   try{

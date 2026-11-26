@@ -21,3 +21,17 @@ test('Elite samples bounded daily measurements preserving endpoints and count',(
  const [s]=readDatedTrends([r],start,end);
  assert.equal(s.points.length,10);assert.equal(s.total,28);assert.equal(s.points[0].value,0);assert.equal(s.points.at(-1).value,270);assert.ok(r.text.length<=500);
 });
+
+import {buildTrainingCalendarEvidence,readTrainingCalendar} from '../src/m26/workflows/report-trend-contract.js';
+import {buildEvolutionReportHtml} from '../src/m26/workflows/evolution-report-document.js';
+test('annual calendar preserves exact distinct civil dates, leap day and rejects inconsistent evidence',()=>{
+ const start='2024-01-01',end='2024-12-31',dates=['2024-01-01','2024-01-01','2024-02-29','2024-12-31','2025-01-01','2024-02-30'];
+ const row=buildTrainingCalendarEvidence(dates,start,end);const c=readTrainingCalendar([row],start,end);
+ assert.equal(c.count,3);assert.equal(c.length,366);assert.deepEqual(c.cells.filter(p=>p.active).map(p=>p.date),['2024-01-01','2024-02-29','2024-12-31']);
+ assert.equal(c.months[1].days,29);assert.ok(row.text.length<500);
+ assert.equal(readTrainingCalendar([row,{label:'Días con entrenamiento confirmado',source:'sessionExecutions',text:'4'}],start,end),null);
+ assert.equal(readTrainingCalendar([row],start,end,[{from:start,to:end,count:2}]),null);
+ assert.equal(readTrainingCalendar([{...row,text:row.text.replace('3 de','4 de')}],start,end),null);
+ const report={id:'year-in-iberfit',ready:true,periodStart:start,periodEnd:end,evidence:[row],summary:'Resumen',conclusions:'Conclusiones',recommendations:'Recomendaciones'};
+ const html=buildEvolutionReportHtml({report,audience:'client'});assert.match(html,/Tu calendario de entrenamiento/);assert.doesNotMatch(html,/Registro diario v1:/);
+});

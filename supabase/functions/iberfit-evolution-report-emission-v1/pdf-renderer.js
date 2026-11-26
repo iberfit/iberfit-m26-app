@@ -1,6 +1,6 @@
 // Branded, server-owned M44 evolution PDF renderer. pdf-lib injected by Edge.
 // Rendering is based on the canonical, redacted, published server snapshot.
-import {readDatedTrends,trendGeometry} from './report-trend-contract.js';
+import {readDatedTrends,trendGeometry,readTrainingCalendar,calendarDescription} from './report-trend-contract.js';
 export const M44_PDF_TEMPLATE='iberfit-evolution-a4-brand-v3';
 export const M44_ACCEPTED_REPLAY_TEMPLATES=Object.freeze(['iberfit-evolution-a4-brand-v2',M44_PDF_TEMPLATE]);
 const W=595.28,H=841.89;
@@ -79,6 +79,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  const interval=humanDate(source.periodStart)+' - '+humanDate(source.periodEnd);
  const series=source.activitySeries??[];
  const trends=readDatedTrends(source.evidence,source.periodStart,source.periodEnd);
+ const calendar=source.reportType==='year-in-iberfit'?readTrainingCalendar(source.evidence,source.periodStart,source.periodEnd,series):null;
  let logo=null;
  if(brandImageBytes){try{logo=await doc.embedPng(brandImageBytes);}catch{/* wordmark remains */}}
  let current,y,section='Tu seguimiento';
@@ -164,6 +165,20 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
   });
   y-=9;block('Actividad registrada, no esfuerzo ni adherencia. Cero sesiones confirmadas no demuestra inactividad.',{size:8.5,leading:11,c:'muted',gap:8});
  }
+ if(calendar){
+  if(y<270)add('Un año, día a día');
+  ensure(195);heading('Tu calendario de entrenamiento');
+  text(calendar.count+' días',M,y-6,22,serifBold,'forest');text(calendar.weeks+' semanas con registros / '+calendar.longest+' consecutivas',M+145,y-3,10,sans,'muted');
+  const step=(WIDTH-25)/Math.max(54,calendar.columns),left=M+20,top=y-40;
+  calendar.months.forEach(m=>text(m.month.slice(5),left+m.week*step,top+8,7,sans,'muted'));
+  ['L','M','X','J','V','S','D'].forEach((v,i)=>text(v,M+4,top-i*step-6,7,sans,'muted'));
+  calendar.cells.forEach(p=>rect(left+p.week*step,top-(p.weekday+1)*step,step-1.6,step-1.6,p.active?'forest2':'soft'));
+  y=top-7*step-18;
+  block('Verde: día con sesión confirmada. Claro: sin sesión confirmada, no inactividad demostrada.',{size:8.5,leading:11,c:'muted',gap:5});
+  const cell=WIDTH/4;
+  calendar.months.forEach((m,i)=>{if(i%4===0)ensure(20);const x=M+(i%4)*cell;text(m.month+'  '+m.active+'/'+m.days,x,y,8.5,sans,'ink');if(i%4===3||i===calendar.months.length-1)y-=16;});
+  y-=8;
+ }
  for(const trend of trends){
   if(y<295)add('Evolución registrada');
   ensure(232);heading('Tendencia: '+trend.label);
@@ -204,7 +219,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  for(const [i,item] of source.evidence.entries()){
   const title=safe(item?.label,120);
  const parsedTrend=trends.find(t=>'Tendencia: '+t.label===item?.label);
- const value=parsedTrend?parsedTrend.points.length+' de '+parsedTrend.total+' días registrados ('+parsedTrend.unit+'). '+parsedTrend.points.map(p=>humanDate(p.date)+': '+fmt(p.value)).join(' · '):rowText(item);
+ const value=parsedTrend?parsedTrend.points.length+' de '+parsedTrend.total+' días registrados ('+parsedTrend.unit+'). '+parsedTrend.points.map(p=>humanDate(p.date)+': '+fmt(p.value)).join(' · '):item?.label==='Calendario de entrenamiento'?(calendar?calendarDescription(calendar):'Registro diario no interpretable; requiere revisión.'):rowText(item);
   const provenance='Fuente: '+publicLabel(SOURCE_LABELS,item?.source,safe(item?.source,100))+' / '+(safe(item?.quality,70)||'registrada');
   const titleLines=wrap(bold,10,title,WIDTH-26),valueLines=wrap(sans,10.2,value,WIDTH-26),sourceLines=wrap(sans,8,provenance,WIDTH-26);
   const h=titleLines.length*13+valueLines.length*14+sourceLines.length*10+15;

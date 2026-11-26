@@ -61,3 +61,47 @@ export function trendGeometry(series,{width=400,height=100}={}){
   const segments=[];for(let i=1;i<coords.length;i++)if((coords[i].time-coords[i-1].time)/DAY<=gapDays)segments.push([coords[i-1],coords[i]]);
   return {coords,segments,min,max,gapDays};
 }
+
+// Compact, reversible encoding of exact observed civil days inside existing
+// approved evidence. No identifiers, inferred sessions or live data lookups.
+export function buildTrainingCalendarEvidence(dates,start,end){
+ const from=day(start),to=day(end),length=(to-from)/DAY+1;
+ if(from===null||to===null||!Number.isSafeInteger(length)||length<1||length>366)return null;
+ const observed=new Set((dates??[]).filter(d=>day(d)!==null&&d>=start&&d<=end));
+ if(!observed.size)return null;
+ const bits=Array.from({length},(_,i)=>observed.has(new Date(from+i*DAY).toISOString().slice(0,10))?'1':'0').join('');
+ const hex=Array.from({length:Math.ceil(length/4)},(_,i)=>parseInt(bits.slice(i*4,i*4+4).padEnd(4,'0'),2).toString(16)).join('');
+ return Object.freeze({label:'Calendario de entrenamiento',text:'Días con entrenamiento confirmado: '+observed.size+' de '+length+'. Registro diario v1: '+hex,source:'sessionExecutions',quality:'confirmada'});
+}
+export function readTrainingCalendar(evidence,start,end,activitySeries=[]){
+ const from=day(start),to=day(end),length=(to-from)/DAY+1;
+ if(from===null||to===null||!Number.isSafeInteger(length)||length<1||length>366)return null;
+ const candidates=(evidence??[]).filter(r=>r?.label==='Calendario de entrenamiento'&&r.source==='sessionExecutions');
+ if(candidates.length!==1)return null;
+ const a=String(candidates[0].text??'').match(/^Días con entrenamiento confirmado: (\d+) de (\d+)\. Registro diario v1: ([0-9a-f]+)$/u);
+ if(!a||Number(a[2])!==length||a[3].length!==Math.ceil(length/4))return null;
+ const full=[...a[3]].map(c=>parseInt(c,16).toString(2).padStart(4,'0')).join('');
+ if(/1/u.test(full.slice(length)))return null;
+ const bits=full.slice(0,length),count=[...bits].filter(c=>c==='1').length;
+ if(count!==Number(a[1])||!count)return null;
+ const declared=(evidence??[]).find(r=>r?.label==='Días con entrenamiento confirmado'&&r.source==='sessionExecutions');
+ if(declared&&String(declared.text)!==String(count))return null;
+ const offset=(new Date(from).getUTCDay()+6)%7,months=new Map(),weeks=new Set();
+ const cells=[...bits].map((b,i)=>{
+  const date=new Date(from+i*DAY).toISOString().slice(0,10),week=Math.floor((offset+i)/7),weekday=(offset+i)%7,active=b==='1',month=date.slice(0,7);
+  let m=months.get(month);if(!m){m={month,week,days:0,active:0};months.set(month,m);}m.days++;if(active){m.active++;weeks.add(week);}
+  return {date,week,weekday,active};
+ });
+ if(activitySeries.length){
+  // Each active day needs at least one confirmed session in its own bucket.
+  if(cells.some(c=>c.active&&!activitySeries.some(r=>r.from<=c.date&&r.to>=c.date)))return null;
+  if(activitySeries.some(r=>cells.filter(c=>c.active&&c.date>=r.from&&c.date<=r.to).length>r.count))return null;
+  if(activitySeries.some(r=>r.count>0&&!cells.some(c=>c.active&&c.date>=r.from&&c.date<=r.to)))return null;
+ }
+ let longest=0,run=0,prev=-2;
+ for(const w of [...weeks].sort((a,b)=>a-b)){run=w===prev+1?run+1:1;longest=Math.max(longest,run);prev=w;}
+ return {cells,count,length,columns:Math.ceil((offset+length)/7),months:[...months.values()],weeks:weeks.size,longest};
+}
+export function calendarDescription(calendar){
+ return calendar.count+' días con entrenamiento confirmado de '+calendar.length+' días del periodo; '+calendar.weeks+' semanas naturales con registros, '+calendar.longest+' consecutivas (semanas de lunes a domingo, extremos posiblemente parciales).';
+}

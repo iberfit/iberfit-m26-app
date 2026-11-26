@@ -27,6 +27,7 @@ await Deno.mkdir(dir,{recursive:true});
 const manifest=[];
 for(const report of reports){
  const total=report.activitySeries.reduce((n,x)=>n+x.count,0);
+ if(report.id==='year-in-iberfit'&&!report.evidence.some(x=>x.label==='Calendario de entrenamiento'))throw Error('ELITE_ANNUAL_CALENDAR_MISSING');
  if(report.id==='year-in-iberfit'&&!report.evidence.some(x=>x.label.startsWith('Tendencia: ')))throw Error('ELITE_ANNUAL_TRENDS_MISSING');
  if(report.id==='year-in-iberfit'&&(report.title!=='Tu año en IBERFIT'||total!==104))throw Error('ANNUAL_DEMO_SESSION_COUNT');
  const source={reportId,clientId,revision:1,clientName:'Cliente de demostración',reportType:report.id,sourceType:report.sourceType,periodStart:report.periodStart,periodEnd:report.periodEnd,summary:report.summary,conclusions:report.conclusions,recommendations:report.recommendations,evidence:report.evidence,activitySeries:report.activitySeries};

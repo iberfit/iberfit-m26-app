@@ -2,6 +2,7 @@ import {buildPeriodProgressEvidence} from '../engagement/progress-hub.js';
 import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
 import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {buildPrivateReportDetail} from './report-private-detail.js';
+import {buildTrainingCalendarEvidence} from './report-trend-contract.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND,selectInitialIriBaseline,initialIriMeasurementDate} from './iri-2-longitudinal.js';
@@ -74,7 +75,10 @@ function elitePeriodEvidence(rows,signals,sessions,start,clientId){
   const weeks=[...new Set(days.map(d=>Math.floor((timestamp(d)-timestamp(start))/(7*DAY_MS))))].sort((a,b)=>a-b);
   let longest=0,run=0,previous=-2;for(const w of weeks){run=w===previous+1?run+1:1;longest=Math.max(run,longest);previous=w;}
   const result=[...rows];
-  if(days.length&&result.length<12)result.push(evidence('Hitos de continuidad',weeks.length+' bloques semanales con entrenamiento confirmado; '+longest+' consecutivos. Primer día: '+days[0]+'; último: '+days.at(-1)+'. Bloques de hasta 7 días desde el inicio del periodo; el último puede ser parcial.','sessionExecutions'));
+  const annual=rows.some(row=>row.label==='Sesiones del último año');
+  const calendar=annual&&days.length?buildTrainingCalendarEvidence(days,start,new Date(timestamp(start)+364*DAY_MS).toISOString().slice(0,10)):null;
+  if(calendar&&result.length<12)result.push(calendar);
+  else if(days.length&&result.length<12)result.push(evidence('Hitos de continuidad',weeks.length+' bloques semanales con entrenamiento confirmado; '+longest+' consecutivos. Primer día: '+days[0]+'; último: '+days.at(-1)+'. Bloques de hasta 7 días desde el inicio del periodo; el último puede ser parcial.','sessionExecutions'));
   const trends=signals[0]?.trends??[];
   const sports=periodSportEvidence(sessions,{clientId});
   // Preserve base evidence and at least one available temporal graphic.
