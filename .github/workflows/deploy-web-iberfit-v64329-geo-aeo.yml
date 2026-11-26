@@ -23,7 +23,7 @@ env:
   QA_RUN_NAME: 'Web GEO AEO certification and package'
   EXPECTED_CURRENT_SHA: '424700ae15c6138c8a07f15f82f5b34d62c51a9f'
   EXPECTED_CURRENT_VERSION: '6.43.27'
-  EXPECTED_CURRENT_DEPLOYMENT_ID: 'd18cb0e7-b8aa-4255-968d-7ad2a4576ce8'
+  EXPECTED_ROLLBACK_DEPLOYMENT_PREFIX: 'fae50ed8'
   ROLLBACK_SHA: '424700ae15c6138c8a07f15f82f5b34d62c51a9f'
   ROLLBACK_VERSION: '6.43.27'
   PRODUCTION_TOUCHED: '0'
@@ -54,8 +54,10 @@ jobs:
           const p=require('/tmp/project-before.json'),x=require('/tmp/deployments-before.json');
           if(!p.success||!x.success||p.result?.name!=='web-iberfit'||p.result?.production_branch!=='production'||!(p.result.domains||[]).includes('iberfit.cl')||(p.result.domains||[]).includes('app.iberfit.cl'))throw Error('PROJECT_OR_DOMAIN_MISMATCH');
           const d=(x.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
-          if(d?.id!==process.env.EXPECTED_CURRENT_DEPLOYMENT_ID)throw Error('PRODUCTION_DRIFT_ID:'+d?.id);
+          if(!d?.id||!d.id.startsWith(process.env.EXPECTED_ROLLBACK_DEPLOYMENT_PREFIX+'-')||d.latest_stage?.status!=='success')throw Error('ROLLBACK_BASELINE_DRIFT:'+d?.id);
           if((d?.deployment_trigger?.metadata?.commit_hash||'')!==process.env.EXPECTED_CURRENT_SHA)throw Error('PRODUCTION_DRIFT_SHA');
+          require('fs').appendFileSync(process.env.GITHUB_ENV,'EXPECTED_CURRENT_DEPLOYMENT_ID='+d.id+'\n');
+          console.log('ROLLBACK_BASELINE_VERIFIED:'+d.id);
           NODE
           curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa.json
           node <<'NODE'
@@ -209,29 +211,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Verify the *served* sitemap is identical to the certified immutable product.
-          ok=0
-          for a in $(seq 1 15); do
-            if curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/sitemap.xml?live=${GITHUB_RUN_ID}-${a}" -o /tmp/sitemap-live.xml; then
-              cmp -s /tmp/sitemap-live.xml /tmp/iberfitweb/candidate/v628/sitemap.xml && { ok=1; break; }
-            fi
-            sleep 3
-          done
-          test "$ok" = 1
-          echo 'LIVE_SITEMAP_BYTE_PARITY_OK'
-          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/llms.txt?live=$GITHUB_RUN_ID" -o /tmp/llms-live.txt
-          cmp -s /tmp/llms-live.txt /tmp/iberfitweb/candidate/v628/llms.txt
-          for route in online en/online; do
-            curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/${route}/?live=$GITHUB_RUN_ID" -o /tmp/online-live.html
-            cmp -s /tmp/online-live.html "/tmp/iberfitweb/candidate/v628/${route}/index.html"
-          done
-          ok=0
-          for a in $(seq 1 30); do
-            v="$(curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/VERSION?live=${GITHUB_RUN_ID}-${a}" | tr -d '\r\n ' || true)"
-            [ "$v" = "$WEB_VERSION" ] && { ok=1; break; }
-            sleep 3
-          done
-          test "$ok" = 1
+          # All changed documents must converge on the exact certified bytes.
+          # A successful HTTP response alone does not guarantee an edge has propagated.
+          verify_bytes() {
+            local route="$1" expected="$2" out="$3" a
+            for a in $(seq 1 25); do
+              if curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' -H 'Accept-Encoding: identity' \
+                "https://iberfit.cl${route}?live=${GITHUB_RUN_ID}-${a}" -o "$out"; then
+                if cmp -s "$out" "$expected"; then
+                  echo "LIVE_BYTE_PARITY_OK $route $(sha256sum "$out" | cut -d' ' -f1)"
+                  return 0
+                fi
+                echo "LIVE_BYTE_PENDING $route attempt=$a actual=$(sha256sum "$out" | cut -d' ' -f1) expected=$(sha256sum "$expected" | cut -d' ' -f1)"
+              else
+                echo "LIVE_HTTP_PENDING $route attempt=$a"
+              fi
+              sleep 4
+            done
+            echo "::error::LIVE_BYTE_PARITY_FAILED $route"
+            return 1
+          }
+          root=/tmp/iberfitweb/candidate/v628
+          verify_bytes /VERSION "$root/VERSION" /tmp/live-version
+          verify_bytes /sitemap.xml "$root/sitemap.xml" /tmp/sitemap-live.xml
+          verify_bytes /llms.txt "$root/llms.txt" /tmp/llms-live.txt
+          verify_bytes /online/ "$root/online/index.html" /tmp/online-live-es.html
+          verify_bytes /en/online/ "$root/en/online/index.html" /tmp/online-live-en.html
           python3 - <<'PY'
           from pathlib import Path
           import subprocess
@@ -328,6 +333,11 @@ jobs:
             /tmp/wrangler-rollback.log
             /tmp/preview-headers
             /tmp/live-headers
+            /tmp/live-version
+            /tmp/sitemap-live.xml
+            /tmp/llms-live.txt
+            /tmp/online-live-es.html
+            /tmp/online-live-en.html
             /tmp/geo-aeo-certified/SHA256.json
             /tmp/v64321-preview/metrics.json
             /tmp/v64322-preview/metrics.json
