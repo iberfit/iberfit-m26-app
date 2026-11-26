@@ -1239,7 +1239,7 @@ function rc71ChallengeSnapshot(
   {summary:providedSummary=null}={}
 ){
   const summary=clientId
-    ? reusableConfirmedSummary(providedSummary,clientId,28)
+    ? reusableConfirmedSummary(providedSummary,clientId,28,{now})
       ??computeProgressSummary(state,clientId,{now,days:28})
     : null;
 

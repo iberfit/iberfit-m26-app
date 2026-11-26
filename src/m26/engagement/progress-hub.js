@@ -89,7 +89,7 @@ export function buildProgressHub(
   {now=new Date(),loadDirectionForExercise=null,summaries={}}={}
 ){
   if(!clientId)return null;
-  const summary28=reusableConfirmedSummary(summaries?.[28],clientId,28)
+  const summary28=reusableConfirmedSummary(summaries?.[28],clientId,28,{now})
     ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary28)return null;
   const windows=buildAdherenceWindows(state,clientId,{

@@ -237,3 +237,12 @@ test('shared evidence rejects coercion, null booked counts and inconsistent rati
  const autonomous={...base,plannedSessions:0,scheduledCompletedSessions:0,adherence:null};
  assert.equal(reusableConfirmedSummary(autonomous,'c1',28),autonomous);
 });
+
+
+test('GX dated progress reuse is fenced to the exact rolling window',()=>{
+ const now=new Date('2026-11-25T12:00:00Z');
+ const summary={clientId:'c1',days:28,plannedSessions:0,scheduledCompletedSessions:0,adherence:null,startAt:'2026-10-28T12:00:00.000Z',endAt:now.toISOString()};
+ assert.equal(reusableConfirmedSummary(summary,'c1',28,{now}),summary);
+ assert.equal(reusableConfirmedSummary(summary,'c1',28,{now:new Date('2026-11-26T12:00:00Z')}),null);
+ assert.equal(reusableConfirmedSummary({...summary,days:[28]},'c1',28,{now}),null);
+});

@@ -392,7 +392,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   if(!safeClientId)return null;
   // Reuse only the same-owner, same-window projection from this render.
   // No persistent cache or cross-route reuse.
-  const progress=reusableConfirmedSummary(summary,safeClientId,28)
+  const progress=reusableConfirmedSummary(summary,safeClientId,28,{now})
     ??computeProgressSummary(state,safeClientId,{now,days:28});
   const appointment=nextAppointment(state,safeClientId,now);
   const session=sessionForPreparation(state,safeClientId,appointment);

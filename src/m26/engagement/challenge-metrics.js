@@ -291,7 +291,8 @@ function metricSnapshot(context,state,definition,now){
 
   if(definition.metricKey==='completedSessions'){
     return deepFreeze({
-      value:evidenceNumber(progress?.confirmedWorkoutExecutions??progress?.completedSessions,{min:0,integer:true}),
+      // Generic activity challenge includes verified in-person attendance as well as workouts.
+      value:evidenceNumber(progress?.completedSessions,{min:0,integer:true}),
       source:'progress',
       quality:progress?.dataQuality||'limitada',
       coverage:null,
@@ -328,14 +329,14 @@ export function evaluateChallenge(
   {now=new Date(),deviceOptIn=false}={}
 ){
   const definition=createChallengeDefinition(challenge);
-  const context=buildCanonicalChallengeContext(state,clientId,{now});
-
+  if(!clientId)throw new Error('M26_CHALLENGE_CLIENT_REQUIRED');
   if(definition.requiresDeviceOptIn&&deviceOptIn!==true){
+    const asOf=safeDate(now)?.toISOString()||null;
     return deepFreeze({
       schemaVersion:CHALLENGE_METRICS_SCHEMA_VERSION,
       challenge:definition,
       clientId,
-      asOf:context.asOf,
+      asOf:asOf,
       status:'consent_required',
       value:null,
       progressPct:null,
@@ -343,7 +344,7 @@ export function evaluateChallenge(
       verification:deepFreeze({
         canonicalSource:true,
         source:'device_consent',
-        observedAt:context.asOf,
+        observedAt:asOf,
         quality:'sin_datos',
         coverage:null,
         providers:Object.freeze([]),
@@ -356,6 +357,7 @@ export function evaluateChallenge(
     });
   }
 
+  const context=buildCanonicalChallengeContext(state,clientId,{now});
   const snapshot=metricSnapshot(context,state,definition,now);
   const value=finite(snapshot.value);
   const progressPct=value===null

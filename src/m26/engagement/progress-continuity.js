@@ -1,4 +1,4 @@
-import {computeProgressSummary} from './progress-engine.js';
+import {computeProgressSummary,progressWindow} from './progress-engine.js';
 import {evidenceNumber} from '../domain/evidence-signal.js';
 
 export const M26_ADHERENCE_WINDOWS=Object.freeze([7,28,90]);
@@ -41,10 +41,16 @@ function windowLabel(days){
  * summary cache for a different Client, date window or booked denominator.
  * Completed autonomous workouts remain activity, not booked attendance.
  */
-export function reusableConfirmedSummary(candidate,clientId,days){
+export function reusableConfirmedSummary(candidate,clientId,days,{now=null}={}){
   if(!candidate||typeof candidate!=='object'||Array.isArray(candidate)
     ||String(candidate.clientId||'')!==String(clientId||'')
-    ||Number(candidate.days)!==days)return null;
+    ||evidenceNumber(candidate.days,{min:1,integer:true})!==days)return null;
+  // Existing legacy projections can lack timestamps. A dated projection must
+  // match the exact rolling window when its caller supplies a clock.
+  if(now!=null&&(candidate.startAt!=null||candidate.endAt!=null)){
+    const expected=progressWindow({now,days});
+    if(candidate.startAt!==expected.start.toISOString()||candidate.endAt!==expected.end.toISOString())return null;
+  }
   // Empty canonical windows can still contain autonomous training.
   // A known zero denominator is not an adherence percentage.
   if(candidate.plannedSessions===0){
@@ -54,10 +60,10 @@ export function reusableConfirmedSummary(candidate,clientId,days){
   }
   return confirmedScheduledCompletion(candidate,{allowLegacy:true})?candidate:null;
 }
-function reusableSummary(summaries,clientId,days){
+function reusableSummary(summaries,clientId,days,now){
   if(!summaries||typeof summaries!=='object')return null;
   const candidate=summaries?.[days]??summaries?.[`d${days}`]??null;
-  return reusableConfirmedSummary(candidate,clientId,days);
+  return reusableConfirmedSummary(candidate,clientId,days,{now});
 }
 
 export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26_ADHERENCE_WINDOWS,summaries=null}={}){
@@ -65,7 +71,7 @@ export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26
 
   return Object.freeze(
     normalizedWindows(windows).map((days)=>{
-      const summary=reusableSummary(summaries,clientId,days)
+      const summary=reusableSummary(summaries,clientId,days,now)
         ??computeProgressSummary(state,clientId,{now,days});
       const plannedSessions=evidenceNumber(summary?.plannedSessions,{min:0,integer:true});
       const activityCompletedSessions=evidenceNumber(summary?.completedSessions,{min:0,integer:true});

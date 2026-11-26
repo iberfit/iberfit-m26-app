@@ -15,8 +15,6 @@ function count(value){
   return n!==null&&Number.isSafeInteger(n)&&n>=0?n:null;
 }
 function percent(value){return Number.isFinite(value)?Math.round(value*100):null;}
-function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
-function rawClientId(record){const body=bodyOf(record);return String(record?.clientId??record?.client_id??record?.clienteId??record?.cliente_id??body?.clientId??body?.client_id??body?.clienteId??body?.cliente_id??'').trim();}
 function within(value,start,end){const date=parseDateValue(value);return Boolean(date&&date.getTime()>=start.getTime()&&date.getTime()<=end.getTime());}
 function factor(id,label,status,evidence,source,quality='media',detail=null){return Object.freeze({id,label,status,evidence,detail,source,quality});}
 
@@ -204,7 +202,7 @@ function actionFor(band,factors){
 
 export function buildRetentionHealth(state,clientId,{now=new Date(),summary:providedSummary=null}={}){
   if(!clientId)return null;
-  const summary=reusableConfirmedSummary(providedSummary,clientId,28)
+  const summary=reusableConfirmedSummary(providedSummary,clientId,28,{now})
     ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary)return null;
   // Same synchronous render and owner: each window is computed once and
