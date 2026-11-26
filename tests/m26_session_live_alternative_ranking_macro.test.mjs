@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise} from '../src/m26/workflows/session-builder.js';
-import {createExecution,startExecution} from '../src/m26/workflows/session-execution.js';
+import {createExecution,startExecution,substituteExercise} from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 
 const catalog=createExerciseCatalog([
@@ -44,4 +44,23 @@ test('Plan B extremo permite al Coach revisar otros patrones, nunca al Cliente y
   assert.match(coach,/data-session-action="substitute"/u);
   assert.doesNotMatch(coach,/option value="d" selected/u);
   assert.doesNotMatch(client,/optgroup label="Otros patrones · revisar con Coach"/u);
+});
+
+
+test('GX30 sport profiles do not inherit another sport prescription during live replacement',()=>{
+ const sports=createExerciseCatalog([
+  {id:'run',name_es:'Carrera',pattern:'cíclico',equipment:'exterior',measurement_profile:'endurance'},
+  {id:'bike',name_es:'Ciclismo',pattern:'cíclico',equipment:'exterior',measurement_profile:'endurance'},
+  {id:'run2',name_es:'Trote',pattern:'cíclico',equipment:'exterior',measurement_profile:'endurance'},
+ ]);
+ const session=createSessionDraft({clientId:'sport-client'});addCatalogExercise(session,'run',sports,{plannedDistanceKm:'5',alternativeId:'bike'});
+ const execution=createExecution({session,clientId:session.clientId,executionId:'sport-live'});startExecution(execution);
+ const before=structuredClone(execution);
+ assert.throws(()=>substituteExercise(execution,session,{fromExerciseId:'run',toExerciseId:'bike',catalog:sports,reason:'Cambio de deporte'}),/PRESCRIPTION_INCOMPATIBLE/);
+ assert.deepEqual(execution,before);
+ const html=renderGuidedExecution({execution,session,catalog:sports,role:'client'});
+ const select=html.match(/<select[^>]+data-session-substitute[^>]*>[\s\S]*?<\/select>/)?.[0]||'';
+ assert.match(select,/value="run2"/);assert.doesNotMatch(select,/value="bike"/);
+ substituteExercise(execution,session,{fromExerciseId:'run',toExerciseId:'run2',catalog:sports,reason:'Variante de carrera'});
+ assert.equal(execution.queue[0].exerciseId,'run2');
 });

@@ -1,6 +1,6 @@
 import { freezeExecutionClock,resumeExecutionClock } from './session-timer.js';
 import { createM26Id } from '../platform/id.js';
-import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
+import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile,exerciseAlternativeCompatibility} from '../exercises/measurement-profiles.js';
 function clone(v){return structuredClone(v);}
 function now(){return new Date().toISOString();}
 function uid(){return createM26Id();}
@@ -663,6 +663,9 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
   const itemIndex=execution.queue.findIndex((x,i)=>i>=execution.index&&x.exerciseId===fromExerciseId);
   if(itemIndex<0)throw new Error('M26_EXECUTION_SUBSTITUTE_TARGET_MISSING');
   const item=execution.queue[itemIndex];
+  const from=catalog.get?.(fromExerciseId),to=catalog.get?.(toExerciseId);
+  if(from&&to&&!exerciseAlternativeCompatibility({...from,measurementProfile:item.prescription?.measurementProfile||from.measurementProfile},to))
+    throw new Error('M26_EXECUTION_SUBSTITUTE_PRESCRIPTION_INCOMPATIBLE');
   if(itemIndex===execution.index){
     const scope=currentExerciseSubstitutionScope(execution);
     if(scope==='locked')throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
