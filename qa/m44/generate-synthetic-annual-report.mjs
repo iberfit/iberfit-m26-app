@@ -16,7 +16,7 @@ for(let i=0;i<104;i++){
  const results=Object.fromEntries(rows.flatMap(([exerciseId,kg])=>Array.from({length:3},(_,set)=>[exerciseId+'-'+set,{exerciseId,setNumber:set+1,reps:8,loadKg:kg,rpe:7,completed:true}])));
  appointments.push({id:appointmentId,clientId,status:'completed',scheduledAt:completedAt});
  sessionExecutions.push({id:'demo-execution-'+i,clientId,sessionId:'demo-plan',appointmentId,status:'completed',syncStatus:'clean',completedAt,title:'Entrenamiento de fuerza',results});
- if(i%2===0)checkins.push({id:'demo-checkin-'+i,clientId,createdAt:completedAt,energy:7,sleep:7,stress:3,pain:1});
+ if(i%2===0)checkins.push({id:'demo-checkin-'+i,clientId,createdAt:completedAt,energy:Math.min(9,5+Math.floor(i/18)),sleep:6+(i%5)*.5,stress:3+(i%3)*.5,pain:1});
 }
 const state={collections:{clients:[{id:clientId,name:'Cliente de demostración'}],appointments,sessions:[{id:'demo-plan',clientId,blocks:[{exerciseId:'squat',exerciseName:'Sentadilla'},{exerciseId:'press',exerciseName:'Press de banca'},{exerciseId:'row',exerciseName:'Remo'}]}],sessionExecutions,checkins,iriAssessments:[],wearableDailySummaries:[],reports:[]},pendingOperations:[],conflicts:[],rejectedOperations:[]};
 const portfolio=buildPremiumReportPortfolio(state,clientId,{now});
@@ -27,6 +27,7 @@ await Deno.mkdir(dir,{recursive:true});
 const manifest=[];
 for(const report of reports){
  const total=report.activitySeries.reduce((n,x)=>n+x.count,0);
+ if(report.id==='year-in-iberfit'&&!report.evidence.some(x=>x.label.startsWith('Tendencia: ')))throw Error('ELITE_ANNUAL_TRENDS_MISSING');
  if(report.id==='year-in-iberfit'&&(report.title!=='Tu año en IBERFIT'||total!==104))throw Error('ANNUAL_DEMO_SESSION_COUNT');
  const source={reportId,clientId,revision:1,clientName:'Cliente de demostración',reportType:report.id,sourceType:report.sourceType,periodStart:report.periodStart,periodEnd:report.periodEnd,summary:report.summary,conclusions:report.conclusions,recommendations:report.recommendations,evidence:report.evidence,activitySeries:report.activitySeries};
 const hash=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('');

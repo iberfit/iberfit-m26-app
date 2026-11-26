@@ -38,6 +38,7 @@ jobs:
             done
             grep -F 'Tu año en IBERFIT' qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.txt
             grep -F '104' qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.txt
+            grep -iF 'Tendencia:' qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.txt
           fi
       - uses: actions/upload-artifact@v4
         with:

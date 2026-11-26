@@ -1,5 +1,7 @@
 import {buildAdherenceWindows,reusableConfirmedSummary,confirmedScheduledCompletion} from './progress-continuity.js';
 import {computeProgressSummary} from './progress-engine.js';
+import {buildDatedTrendEvidence} from '../workflows/report-trend-contract.js';
+import {reportCivilDate} from '../domain/civil-date.js';
 import {evidenceNumber,currentWearableEvidence} from '../domain/evidence-signal.js';
 import {
   assessExercisePerformance,
@@ -95,7 +97,12 @@ export function buildPeriodProgressEvidence(state,clientId,{now=new Date(),days}
       rows[index]={...rows[index],evidence:rows[index].evidence+'. Medias de los valores registrados (pueden tener distinta cobertura): '+means.join(' · ')+'.'};
     }
   }
-  return Object.freeze(rows.map(row=>Object.freeze({...row,status:'available'})));
+  const start=summary.startAt.slice(0,10),end=reportCivilDate(now);
+  const trends=[buildDatedTrendEvidence('Volumen comparable',summary.reportVolumeReadings,start,end)];
+  for(const [key,label] of Object.entries({energy:'Energía',sleep:'Sueño',stress:'Estrés',pain:'Dolor',fatigue:'Fatiga',motivation:'Motivación'})){
+    trends.push(buildDatedTrendEvidence(label,(summary.reportCheckinReadings??[]).map(row=>({date:row.date,value:row[key]})),start,end));
+  }
+  return Object.freeze(rows.map(row=>Object.freeze({...row,status:'available',trends:Object.freeze(trends.filter(Boolean))})));
 }
 
 export function buildProgressHub(

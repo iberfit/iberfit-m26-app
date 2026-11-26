@@ -1,5 +1,6 @@
 // Branded, server-owned M44 evolution PDF renderer. pdf-lib injected by Edge.
 // Rendering is based on the canonical, redacted, published server snapshot.
+import {readDatedTrends,trendGeometry} from './report-trend-contract.js';
 export const M44_PDF_TEMPLATE='iberfit-evolution-a4-brand-v3';
 export const M44_ACCEPTED_REPLAY_TEMPLATES=Object.freeze(['iberfit-evolution-a4-brand-v2',M44_PDF_TEMPLATE]);
 const W=595.28,H=841.89;
@@ -77,6 +78,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  const reportName=publicLabel(REPORT_LABELS,source.reportType,'Informe de evolución');
  const interval=humanDate(source.periodStart)+' - '+humanDate(source.periodEnd);
  const series=source.activitySeries??[];
+ const trends=readDatedTrends(source.evidence,source.periodStart,source.periodEnd);
  let logo=null;
  if(brandImageBytes){try{logo=await doc.embedPng(brandImageBytes);}catch{/* wordmark remains */}}
  let current,y,section='Tu seguimiento';
@@ -161,6 +163,23 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
    if(col===1||i===series.length-1)y-=16;
   });
   y-=9;block('Actividad registrada, no esfuerzo ni adherencia. Cero sesiones confirmadas no demuestra inactividad.',{size:8.5,leading:11,c:'muted',gap:8});
+ }
+ for(const trend of trends){
+  if(y<295)add('Evolución registrada');
+  ensure(232);heading('Tendencia: '+trend.label);
+  const g=trendGeometry(trend,{width:WIDTH-46,height:100}),left=M+37,top=y-44,bottom=top-100;
+  const a=trend.points[0],b=trend.points.at(-1);
+  text(fmt(a.value)+' '+trend.unit,M,y-4,17,serifBold,'forest');
+  text('Primera · '+humanDate(a.date),M,y-20,8,sans,'muted');
+  text(fmt(b.value)+' '+trend.unit,M+WIDTH*.55,y-4,17,serifBold,'forest');
+  text('Última · '+humanDate(b.date),M+WIDTH*.55,y-20,8,sans,'muted');
+  [0,.5,1].forEach(r=>{const at=top-r*100;line(left,at,R-9);text(fmt(g.max*(1-r)),M,at-3,7.5,sans,'muted');});
+  for(const [a,b] of g.segments)current.drawLine({start:{x:left+a.x,y:top-a.y},end:{x:left+b.x,y:top-b.y},thickness:1.6,color:color('forest2'),dashArray:[3,2]});
+  g.coords.forEach((p,i)=>current.drawCircle({x:left+p.x,y:top-p.y,size:2.7,color:color(i===g.coords.length-1?'gold':'forest2')}));
+  text(humanDate(source.periodStart),left,bottom-13,7.8,sans,'muted');
+  const end=humanDate(source.periodEnd);text(end,R-9-sans.widthOfTextAtSize(end,7.8),bottom-13,7.8,sans,'muted');
+  y=bottom-29;
+  block(trend.points.length+' de '+trend.total+' días registrados; medias diarias. Líneas discontinuas: guía visual, no medición continua. Huecos superiores a '+g.gapDays+' días no se unen.',{size:8.5,leading:11,c:'muted',gap:7});
  }
  // Preserve every approved evidence row; compact typography and measured
  // keep-together layout replace arbitrary page breaks and orphan rows.

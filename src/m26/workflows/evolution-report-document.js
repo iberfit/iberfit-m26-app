@@ -1,5 +1,6 @@
 /* M44 private print preview. PDF bytes are produced by the browser's print-to-PDF flow,
  * never represented as a server-issued or published report by this module. */
+import {readDatedTrends,trendGeometry} from './report-trend-contract.js';
 const TYPES=Object.freeze({
   'post-session':'Informe post-sesión',
   weekly:'Resumen semanal',
@@ -98,13 +99,22 @@ function evidenceList(rows,offset=0){
       (item.quality?' · Calidad declarada: '+esc(clean(item.quality,60)):'')+'</small></div></li>';
   }).join('');
 }
+function eliteTrendGraphic(series){
+  const g=trendGeometry(series,{width:570,height:106}),x=48,y=16;
+  const fmt=n=>new Intl.NumberFormat('es-CL',{maximumFractionDigits:2}).format(n);
+  const grid=[0,.5,1].map(r=>'<line x1="'+x+'" y1="'+(y+106*r)+'" x2="'+(x+570)+'" y2="'+(y+106*r)+'" stroke="#d0d6ca"/><text x="42" y="'+(y+106*r+3)+'" text-anchor="end">'+esc(fmt(g.max*(1-r)))+'</text>').join('');
+  const paths=g.segments.map(([a,b])=>'<line x1="'+(x+a.x)+'" y1="'+(y+a.y)+'" x2="'+(x+b.x)+'" y2="'+(y+b.y)+'" stroke="#234638" stroke-width="2.5" stroke-dasharray="4 2"/>').join('');
+  const points=g.coords.map((p,i)=>'<circle cx="'+(x+p.x)+'" cy="'+(y+p.y)+'" r="3.3" fill="'+(i===g.coords.length-1?'#ad813c':'#234638')+'"><title>'+esc(p.date+': '+fmt(p.value)+' '+series.unit)+'</title></circle>').join('');
+  const a=series.points[0],b=series.points.at(-1);
+  return '<figure class="m44-elite-trend"><figcaption>'+esc(series.label)+' <small>'+esc(series.unit)+'</small></figcaption><div class="m44-elite-endpoints"><b>'+esc(fmt(a.value))+'</b><span>Primera medición · '+esc(a.date)+'</span><b>'+esc(fmt(b.value))+'</b><span>Última medición · '+esc(b.date)+'</span></div><svg viewBox="0 0 640 146" role="img" aria-label="'+esc(series.label+': '+series.points.map(p=>p.date+' '+p.value).join('; '))+'">'+grid+paths+points+'<text x="48" y="140">'+esc(new Date(series.from).toISOString().slice(0,10))+'</text><text x="618" y="140" text-anchor="end">'+esc(new Date(series.to).toISOString().slice(0,10))+'</text></svg><p>'+series.points.length+' de '+series.total+' días registrados · medias diarias. Las líneas discontinuas orientan la lectura; no representan mediciones entre puntos. Huecos superiores a '+g.gapDays+' días no se unen.</p></figure>';
+}
 function footer(page,total){
   return '<footer class="m44-foot"><span><b>IBERFIT</b> · Diagnóstico, planificación, control y seguimiento</span><span>'+page+' / '+total+'</span></footer>';
 }
 function page(index,total,eyebrow,title,inner){
   return '<section class="m44-sheet m44-interior" aria-label="Página '+index+' de '+total+'"><header class="m44-page-head"><span class="m44-page-index">'+String(index-1).padStart(2,'0')+'</span><div><p class="m44-kicker">'+esc(eyebrow)+'</p><h2>'+esc(title)+'</h2></div></header><main class="m44-page-content">'+inner+'</main>'+footer(index,total)+'</section>';
 }
-export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-signature-3',publicationStatus='draft'}={}){
+export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-1',publicationStatus='draft'}={}){
   if(!report||report.ready!==true||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
     throw new Error('M44_REPORT_PREVIEW_EVIDENCE_REQUIRED');
   if(!report.periodStart||!report.periodEnd||dateLabel(report.periodStart)==='Fecha pendiente'||dateLabel(report.periodEnd)==='Fecha pendiente'||report.periodStart>report.periodEnd)
@@ -154,7 +164,9 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
       for(const text of chunkEditorial(coachText,900))decisionSections.push({kind:'coach',text});
     for(const text of chunkEditorial(report.recommendations,960))decisionSections.push({kind:'next',text});
   }
-  const total=1+summaryChunks.length+evidenceChunks.length+(showActivity?1:0)+
+  const trends=readDatedTrends(lines,report.periodStart,report.periodEnd);
+  const trendPages=Math.ceil(trends.length/2);
+  const total=1+summaryChunks.length+evidenceChunks.length+(showActivity?1:0)+trendPages+
     (longDecision?decisionSections.length:1);
   const pages=[];
   const summaryMetrics=[];
@@ -201,7 +213,9 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
       activityGraphic(activitySeries)+activityTable(activitySeries)+
       '<p class="m44-subtle-note">Total representado: '+sum+' sesiones confirmadas. Los periodos sin registros se muestran como cero sesiones <em>confirmadas</em>, no como inactividad demostrada.</p>'));
   }
-  const firstEvidencePage=2+summaryChunks.length+(showActivity?1:0);
+  const trendStart=2+summaryChunks.length+(showActivity?1:0);
+  for(let i=0;i<trendPages;i++)pages.push(page(trendStart+i,total,'TENDENCIAS','Evolución registrada',trends.slice(i*2,i*2+2).map(eliteTrendGraphic).join('')));
+  const firstEvidencePage=trendStart+trendPages;
   let evidenceOffset=0;
   for(let i=0;i<evidenceChunks.length;i++){
     const chunk=evidenceChunks[i];
@@ -291,7 +305,7 @@ async function verifyA4Layout(doc,popup,scope){
 export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',scope=globalThis}={}){
   const origin=String(scope.location?.origin||'');
   if(!/^https?:\/\/[^/]+$/i.test(origin))throw new Error('M44_REPORT_PREVIEW_ORIGIN_REQUIRED');
-  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-signature-3'});
+  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-1'});
   const popup=scope.open?.('about:blank','_blank');
   if(!popup?.document)throw new Error('M44_REPORT_PREVIEW_POPUP_BLOCKED');
   try{
