@@ -5,6 +5,7 @@ import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civi
 import {observedSet,evidenceNumber,observedLoadKg} from '../domain/evidence-signal.js';
 import {normalizeExerciseLoad} from '../engagement/exercise-performance-engine.js';
 import {summarizePeriodSportEvidence} from './report-sport-evidence.js';
+import {buildReportCycleObjective} from './report-cycle-objective.js';
 const LIMIT=360,ANALYSIS_LIMIT=48;
 const clean=(v,max=100)=>String(v??'').replace(/[\u0000-\u001f\u007f]/gu,' ').replace(/\s+/gu,' ').trim().slice(0,max);
 const first=(o,...keys)=>{for(const key of keys){const v=o?.[key];if(v!==undefined&&v!==null&&v!=='')return v;}return null;};
@@ -99,5 +100,5 @@ export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}=
     }
     if(!count)emptySessions++;
   }
-  return Object.freeze({...summarizeExerciseGroups(exerciseGroups,comparisonGroups),sportSummary:summarizePeriodSportEvidence(executions,{clientId:owner}),role,periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
+  return Object.freeze({...summarizeExerciseGroups(exerciseGroups,comparisonGroups),sportSummary:summarizePeriodSportEvidence(executions,{clientId:owner}),role,objective:buildReportCycleObjective(state,owner,{start:report.periodStart,end:report.periodEnd,now}),periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
 }

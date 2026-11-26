@@ -6,7 +6,7 @@ export const M44_ACCEPTED_REPLAY_TEMPLATES=Object.freeze(['iberfit-evolution-a4-
 const W=595.28,H=841.89;
 // Keep the public report vocabulary aligned with the existing A4 preview.
 const REPORT_LABELS=Object.freeze({'post-session':'Informe post-sesión',weekly:'Resumen semanal',monthly:'Informe mensual',quarterly:'Informe trimestral','year-in-iberfit':'Tu año en IBERFIT'});
-const SOURCE_LABELS=Object.freeze({sessionExecutions:'Sesiones IBERFIT confirmadas','session_execution':'Sesión IBERFIT confirmada','session_execution_period':'Historial de sesiones confirmadas',appointments:'Citas verificadas','appointments+sessionExecutions':'Citas verificadas y sesiones IBERFIT confirmadas',checkins:'Registros de bienestar','canonical-store':'Historial canónico IBERFIT',wearableDailySummaries:'Datos de dispositivo, solo contexto'});
+const SOURCE_LABELS=Object.freeze({sessionExecutions:'Sesiones IBERFIT confirmadas','session_execution':'Sesión IBERFIT confirmada','session_execution_period':'Historial de sesiones confirmadas',appointments:'Citas verificadas','appointments+sessionExecutions':'Citas verificadas y sesiones IBERFIT confirmadas',checkins:'Registros de bienestar',trainingCycles:'Planificación publicada IBERFIT','canonical-store':'Historial canónico IBERFIT',wearableDailySummaries:'Datos de dispositivo, solo contexto'});
 const publicLabel=(dictionary,key,fallback)=>Object.hasOwn(dictionary,key)?dictionary[key]:fallback;
 const shortDate=value=>value.slice(8,10)+'/'+value.slice(5,7);
 const C={forest:[.064,.145,.117],forest2:[.15,.27,.21],gold:[.73,.58,.30],
@@ -142,6 +142,8 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  }
  add('Tu seguimiento',true);metricBand();
  heading('El periodo en perspectiva');block(source.summary||'Sin resumen confirmado.');
+ const goal=source.evidence.find(r=>r.label==='Objetivo del ciclo vigente'&&r.source==='trainingCycles');
+ if(goal){ensure(150);heading('Tu objetivo acordado');block(rowText(goal),{font:serif,size:12,leading:16,gap:10});}
  if(series.length){
   const chartH=133,rows=Math.ceil(series.length/2),required=chartH+rows*16+96;
   if(y-required<BASE)add('Continuidad del entrenamiento');

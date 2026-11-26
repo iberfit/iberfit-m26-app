@@ -22,6 +22,7 @@ const TRUSTED_SOURCES=Object.freeze({
   appointments:'Citas verificadas',
   'appointments+sessionExecutions':'Citas verificadas y sesiones IBERFIT confirmadas',
   checkins:'Registros de bienestar',
+  trainingCycles:'Planificación publicada IBERFIT',
   'canonical-store':'Historial canónico IBERFIT',
   wearableDailySummaries:'Datos de dispositivo, solo contexto',
 });
@@ -123,6 +124,8 @@ function privateTechnicalPages(detail){
   const metrics=counts.map(([k,v])=>'<tr><th scope="row">'+esc(k)+'</th><td>'+fmt(v)+'</td></tr>').join('');
   const coverage=Object.entries(names).map(([key,label])=>'<tr><th scope="row">'+esc(label)+'</th><td>'+fmt(detail.coverage[key])+'</td><td>'+fmt(detail.observedRows)+'</td></tr>').join('');
   const result=[{title:detail.role==='admin'?'Control interno del expediente':'Cobertura técnica del entrenamiento',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">Consulta de registros disponibles en este expediente y ventana. No es una certificación de integridad del historial remoto ni una nueva publicación.</p><table class="m44-tech-table"><caption>Inventario de evidencia</caption><tbody>'+metrics+'</tbody></table><table class="m44-tech-table"><caption>Cobertura de mediciones por serie</caption><thead><tr><th>Variable</th><th>Registradas</th><th>Series medibles</th></tr></thead><tbody>'+coverage+'</tbody></table><p class="m44-subtle-note">Se muestran '+fmt(detail.details.length)+' de '+fmt(detail.observedRows)+' series medibles. '+(detail.limited?'Detalle limitado a las 360 series más recientes; el recuento cubre todas las series disponibles de la ventana. Consulta el historial para el resto.':'Detalle completo de las series medibles disponibles en esta consulta.')+' Ausente no equivale a cero.</p>'}];
+  const goal=detail.objective;
+  if(goal)result.push({title:'Objetivo vigente y contexto de planificación',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><div class="m44-cycle-objective"><span>OBJETIVO PUBLICADO</span><h3>'+fmt(goal.goal)+'</h3><p>'+fmt(goal.cycleName)+' · '+fmt(goal.start)+' — '+fmt(goal.end)+(goal.weeklyFrequency!==null?' · '+fmt(goal.weeklyFrequency)+' sesiones por semana acordadas':'')+'</p></div><p class="m44-evidence-context">Los registros de ejecución del informe se deben contrastar con el objetivo y su criterio de evaluación. No se deduce cumplimiento de la intención por el transcurso del tiempo, frecuencia o carga.</p>'});
   const sports=detail.sportSummary??[];
   if(sports.length){const rows=sports.map(s=>{const running=s.sport==='running',unit=running?' km':' m',dist=m=>fmt(running?m/1000:m)+unit;return '<tr><th scope="row">'+(running?'Running':'Natación')+'</th><td>'+fmt(s.sessions)+'</td><td>'+dist(s.metres)+'</td><td>'+fmt(s.pairedRows)+' / '+fmt(s.rows)+'</td><td>'+dist(s.pairedMetres)+'</td><td>'+fmt(s.pairedSeconds)+' s</td></tr>';}).join('');result.push({title:'Resistencia · carga externa registrada',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table"><caption>Distancia por disciplina y cobertura del tiempo</caption><thead><tr><th>Disciplina</th><th>Sesiones</th><th>Distancia</th><th>Con tiempo</th><th>Distancia pareada</th><th>Tiempo pareado</th></tr></thead><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">Tiempo y distancia pareados proceden de los mismos registros. No se suman resúmenes de sesión con sus series ni se equiparan intervalos, terrenos, estilos o protocolos.</p>'});}
   const overview=detail.exerciseSummary??[],comparisons=detail.loadComparisons??[];
@@ -155,7 +158,7 @@ function footer(page,total){
 function page(index,total,eyebrow,title,inner){
   return '<section class="m44-sheet m44-interior" aria-label="Página '+index+' de '+total+'"><header class="m44-page-head"><span class="m44-page-index">'+String(index-1).padStart(2,'0')+'</span><div><p class="m44-kicker">'+esc(eyebrow)+'</p><h2>'+esc(title)+'</h2></div></header><main class="m44-page-content">'+inner+'</main>'+footer(index,total)+'</section>';
 }
-export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-4',publicationStatus='draft',audience='internal',technicalDetail=null}={}){
+export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-5',publicationStatus='draft',audience='internal',technicalDetail=null}={}){
   if(!report||report.ready!==true||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
     throw new Error('M44_REPORT_PREVIEW_EVIDENCE_REQUIRED');
   if(!report.periodStart||!report.periodEnd||dateLabel(report.periodStart)==='Fecha pendiente'||dateLabel(report.periodEnd)==='Fecha pendiente'||report.periodStart>report.periodEnd)
@@ -232,6 +235,8 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   const comparable=volume?volume.slice(1).map(Number):null;
   const volumeGraphic=comparable&&comparable.every(Number.isFinite)&&comparable[0]>0&&comparable[1]>0&&Math.max(comparable[2],comparable[3])>0?
     '<figure class="m44-volume-compare"><figcaption>Trabajo de fuerza comparable</figcaption>'+[0,1].map(i=>'<div class="m44-volume-row"><span>'+ (i?'Grupo reciente':'Grupo anterior')+'<small>'+comparable[i]+' sesiones</small></span><div class="m44-volume-track"><i style="width:'+ (100*comparable[i+2]/Math.max(comparable[2],comparable[3])).toFixed(2)+'%"></i></div><b>'+esc(fmt(comparable[i+2]))+' kg·rep</b></div>').join('')+'<p>Media de carga × repeticiones; más trabajo no equivale a mejor rendimiento.</p></figure>':'';
+  const goalRow=lines.find(r=>r.label==='Objetivo del ciclo vigente'&&r.source==='trainingCycles');
+  const goalGraphic=goalRow?'<section class="m44-cycle-objective"><span>TU OBJETIVO ACORDADO</span><p>'+esc(goalRow.text)+'</p></section>':'';
   const summaryBand=summaryMetrics.length?'<div class="m44-summary-metrics">'+summaryMetrics.map(([v,label])=>'<div><strong>'+esc(v)+'</strong><span>'+esc(label)+'</span></div>').join('')+'</div>':'';
   pages.push('<section class="m44-sheet m44-cover" aria-label="Portada del informe">'+
     '<div class="m44-cover-accent" aria-hidden="true"></div>'+
@@ -246,7 +251,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     '<p class="m44-section-lead">'+esc(title===TYPES[report.id]?'El periodo en contexto':title)+'</p>'+summaryBand+
     '<div class="m44-prose m44-report-summary">'+paragraphs(summaryChunks[0],2500)+'</div>'+
     '<div class="m44-period-line"><div><span>Desde</span><strong>'+esc(dateLabel(report.periodStart))+'</strong></div><div><span>Hasta</span><strong>'+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Tipo de seguimiento</span><strong>'+esc(TYPES[report.id])+'</strong></div></div>'+
-    volumeGraphic+'<div class="m44-reading-rule"><span>Cómo interpretar estos resultados</span><p>Los hechos describen lo que está confirmado; las conclusiones y próximos pasos corresponden a la revisión del coach. Un cambio de carga, volumen o frecuencia no implica por sí mismo una mejora funcional.</p></div>'));
+    volumeGraphic+goalGraphic+'<div class="m44-reading-rule"><span>Cómo interpretar estos resultados</span><p>Los hechos describen lo que está confirmado; las conclusiones y próximos pasos corresponden a la revisión del coach. Un cambio de carga, volumen o frecuencia no implica por sí mismo una mejora funcional.</p></div>'));
   for(let i=1;i<summaryChunks.length;i++){
     pages.push(page(2+i,total,'01 · LA LECTURA','El periodo en detalle',
       '<p class="m44-section-lead">La lectura, continuación '+i+'</p>'+
@@ -355,7 +360,7 @@ async function verifyA4Layout(doc,popup,scope){
 export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',audience='internal',technicalDetail=null,scope=globalThis}={}){
   const origin=String(scope.location?.origin||'');
   if(!/^https?:\/\/[^/]+$/i.test(origin))throw new Error('M44_REPORT_PREVIEW_ORIGIN_REQUIRED');
-  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,audience,technicalDetail,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-4'});
+  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,audience,technicalDetail,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-5'});
   const popup=scope.open?.('about:blank','_blank');
   if(!popup?.document)throw new Error('M44_REPORT_PREVIEW_POPUP_BLOCKED');
   try{
