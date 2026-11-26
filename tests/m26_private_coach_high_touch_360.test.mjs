@@ -28,7 +28,8 @@ function threadHtml(role){
 }
 
 test('Client has bounded private concierge drafts; Coach never receives Client presets',()=>{
-  assert.equal(CLIENT_SERVICE_PROMPTS.length,7);
+  assert.deepEqual(CLIENT_SERVICE_PROMPTS.map(x=>x.key),['agenda','viaje','tecnica','habitos','informe','hotel','jetlag','recuperacion']);
+  assert.match(clientServicePrompt('informe').draft,/acordar el siguiente paso/u);
   assert.equal(clientServicePrompt('agenda')?.key,'agenda');
   assert.equal(CLIENT_SERVICE_PROMPTS.filter(x=>x.group==='executive').length,3);
   assert.equal(clientServicePrompt('hotel')?.key,'hotel');

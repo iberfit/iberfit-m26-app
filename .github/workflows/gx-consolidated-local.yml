@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/gx-consolidated-local.yml'
       - 'scripts/ops/m44_prod_edge_recovery_sources.json'
+      - 'docs/global-excellence-intelligence-360-checkpoint.md'
   workflow_dispatch:
 permissions:
   contents: read

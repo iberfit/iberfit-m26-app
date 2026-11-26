@@ -2295,6 +2295,8 @@ body {
   }
 }
 
+/* SIGNATURE_U57_GUIDED_EXECUTION_END */
+
 /* GX07: keep the denominator explanation on its own row and the history
    continuation reachable on touch without adding another overlay. */
 .m26-action-outcome-metrics>.m26-action-outcome-metric-note{grid-column:1/-1;margin:0;line-height:1.5}

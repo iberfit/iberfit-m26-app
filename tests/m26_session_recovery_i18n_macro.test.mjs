@@ -17,7 +17,8 @@ function actionableMessages(source){
 
 test('todos los mensajes operativos recuperables están clasificados por i18n',()=>{
   const messages=actionableMessages(recovery());
-  assert.equal(messages.length,43,'M42 amplía el contrato sin perder los 31 mensajes previos ni los cuatro errores M35');
+  assert.equal(messages.length,44,'Conserva los 43 mensajes históricos y añade la alternativa incompatible');
+  assert.ok(messages.includes('La alternativa requiere una prescripción diferente. Conserva lo registrado y selecciona un ejercicio compatible o consulta con tu Coach.'));
   const catalogue=i18n();
   const missing=messages.filter((message)=>!catalogue.includes(`['${message}'`)&&!catalogue.includes(`[${JSON.stringify(message)},`));
   assert.deepEqual(missing,[],'ningún mensaje visible de recuperación puede quedar fuera de ES/EN/FR/PT');
