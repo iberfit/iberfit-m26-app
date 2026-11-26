@@ -157,12 +157,13 @@ function renderOperations(vm){
   const laterTasks=triage.open.length>8?triage.open.slice(5):[];
   const pending=triage.open.length
     ?`<div class="m26-admin-operation-list">${priorityTasks.map((item)=>operationItem(item,{canManage:vm.canManage})).join('')}${laterTasks.length?`<details class="m26-signature-session-archive m26-admin-operation-more" data-admin-operation-more><summary>Ver otras ${laterTasks.length} incidencias abiertas</summary><div class="m26-admin-operation-list">${laterTasks.map((item)=>operationItem(item,{canManage:vm.canManage})).join('')}</div></details>`:''}</div>`
-    :empty('Sin incidencias pendientes','No existen tareas operativas abiertas con los datos actuales.');
+    :triage.unverifiedCount?empty('Sin incidencias abiertas verificadas','Hay registros que requieren comprobar su revisión antes de actuar.'):empty('Sin incidencias pendientes','No existen tareas operativas abiertas con los datos actuales.');
   const history=triage.history.length
     ?`<details class="m26-admin-operation-history"><summary>Historial de incidencias · ${summary.history}</summary><div class="m26-admin-operation-list">${triage.history.map((item)=>operationItem(item)).join('')}</div></details>`
     :'';
   return `<div class="m26-admin-route m26-admin-operations" data-admin-surface="operations">
     ${intro('Operación verificada','Centro operativo','Incidencias reales ordenadas por gravedad y plazo. Los estados resueltos permanecen consultables, pero no se presentan como pendientes.')}
+    ${triage.unverifiedCount?`<section class="m26-notice is-warning" role="status"><strong>Incidencias pendientes de verificación</strong><p>${e(triage.unverifiedCount)} · Hay registros que requieren comprobar su revisión antes de actuar.</p></section>`:''}
     <section class="m26-admin-operation-overview" aria-label="Resumen operativo">
       ${stat('Abiertas',summary.open)}
       ${stat('Críticas',summary.critical)}
@@ -227,6 +228,7 @@ function renderHome(vm){
     const context=[item.priorityLabel,item.overdue?'Vencida':item.dueToday?'Vence hoy':null,item.ownerLabel].filter(Boolean).join(' · ');
     return `<li class="m26-admin-command-urgent-row"><div><strong>${e(task.title||task.type||'Incidencia')}</strong><small>${e(context)}</small></div><button type="button" data-m26-area="admin-operaciones">Revisar incidencia</button></li>`;
   }).join('');
+  const verificationNotice=triage.unverifiedCount?`<section class="m26-notice is-warning" role="status"><strong>Incidencias pendientes de verificación</strong><p>${e(triage.unverifiedCount)} · Hay registros que requieren comprobar su revisión antes de actuar.</p><button type="button" data-m26-area="admin-operaciones">Ver incidencias</button></section>`:'';
   const urgency=urgent.length
     ?`<section class="m26-admin-command-urgent" aria-labelledby="m26-admin-urgent-title"><header><div><p class="m26-eyebrow">Incidencias verificadas</p><h4 id="m26-admin-urgent-title">Operación que requiere atención</h4></div>${badge(urgent.length===1?'1 incidencia prioritaria':String(urgent.length)+' incidencias prioritarias')}</header><ol>${urgentRows}</ol>${urgent.length>3?'<p class="m26-admin-command-more">Se muestran 3 de '+urgent.length+'. Consulta el centro operativo para revisar todas.</p>':''}</section>`
     :'';
@@ -257,7 +259,7 @@ function renderHome(vm){
     </nav>
     <section class="m26-admin-panel m26-admin-command m30-admin-decision-center" data-admin-priority-center aria-labelledby="m30-admin-priority-title">
       <div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Decisiones</p><h3 id="m30-admin-priority-title">Qué requiere atención ahora</h3><p>Incidencias abiertas por gravedad y plazo; después, recorridos de cliente por etapa y asignación.</p></div>${badge(clientCount===1?'1 cliente por revisar':clientCount>1?String(clientCount)+' clientes por revisar':hasClientPriorities?'Clientes al día':'Estado no disponible')}</div>
-      ${urgency}
+      ${verificationNotice}${urgency}
       <div class="m26-admin-command-client-heading"><h4>Seguimiento de clientes</h4>${clientCount>8?'<span>Primeros 8 de '+clientCount+'</span>':''}</div>
       <div class="m26-admin-priority-list">${priorities}</div>
       ${clientCount>8?'<p class="m26-admin-command-more">El resto de clientes está disponible en CRM y clientes.</p>':''}

@@ -74,3 +74,6 @@ GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19
 ## Twelfth commit — local workout recovery identity
 - GX30: singleton recovery snapshots are validated before activation; null/boolean/empty dates cannot become epoch timestamps; mismatched storage key/owner snapshots are neither activated nor removed during recovery/list/purge. Existing same-owner TTL and sync lifecycle remain in place; no change to retention duration or schema. Added regression scenarios. Kept legacy numeric snapshot acceptance pending full recovery-suite compatibility rather than risk rejecting previously valid local drafts.
 - Eleventh-commit targeted checks 7/7 passed (actual execution substitution and cycle board using exact module source; plain JSON clone fallback and unused selector imports omitted in isolated harness). Full browser, Node and device certification remains pending. No DB changes.
+
+## Thirteenth commit — Admin operational truth
+- GX37: Admin operational triage reconciles task revisions before classification, excludes conflicting/unverified records with visible warning in home and operations, shares the exact queue with command center without duplicate recomputation; invalid calendar timestamps cannot fabricate overdue status. No new remote queries or privileges. Regression cases added; no DB changes.

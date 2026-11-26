@@ -1,4 +1,7 @@
 export const ADMIN_SURFACE_ROWS=Object.freeze([
+ ['Incidencias pendientes de verificación','Incidents awaiting verification','Incidents en attente de vérification','Incidentes por verificar'],
+ ['Sin incidencias abiertas verificadas','No verified open incidents','Aucun incident ouvert vérifié','Sem incidentes abertos verificados'],
+ ['Hay registros que requieren comprobar su revisión antes de actuar.','Some records require revision verification before action.','Certaines données nécessitent de vérifier leur version avant d’agir.','Há registos cuja revisão deve ser verificada antes de agir.'],
 ['Seguimiento pendiente de cargar','Follow-up data not yet loaded','Données de suivi non encore chargées','Dados de acompanhamento ainda não carregados'],
 ['No hay datos suficientes para confirmar el estado de los recorridos.','There is not enough data to confirm the status of client journeys.','Les données sont insuffisantes pour confirmer l’état des parcours clients.','Não há dados suficientes para confirmar o estado dos percursos.'],
 ['Estado no disponible','Status unavailable','État indisponible','Estado indisponível'],

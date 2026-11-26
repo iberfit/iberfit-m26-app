@@ -342,7 +342,7 @@ export function createAdminRouteViewModel(base,shellVm,state){const role=String(
       tasks:Object.freeze(operations.open.slice(0,12).map((item)=>item.task)),
       operationTriage:operations,
       audit:Object.freeze(clone(adminCollection(state,'auditEvents').slice(0,12))),
-      commandCenter:deriveAdminCommandCenter({clients,coaches,tasks})});
+      commandCenter:deriveAdminCommandCenter({clients,coaches,tasks,operationTriage:operations})});
   }
   if(area==='admin-usuarios'){
     const users=Object.freeze(clone(adminCollection(state,'organizationUsers')));
