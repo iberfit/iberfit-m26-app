@@ -1398,6 +1398,24 @@ body {
     width:max-content;
     max-width:100%;
   }
+  /* Keep rest adjustment and correction targets clear of the sticky Coach
+     controls on narrow screens, including when focused by keyboard. */
+  html:has(.m26-session-live-v3[data-session-role="coach"][data-session-live-state="rest"]){
+    scroll-behavior:auto;
+  }
+  .m26-session-live-v3[data-session-role="coach"] .m26-session-rest-focus-v3
+    :is([data-session-action="rest-minus"],[data-session-action="rest-plus"],
+    [data-session-rest-correction]>summary,[data-session-observed-context]>summary){
+    scroll-margin-block-start:calc(var(--m26-session-sticky-top,.4rem) + 9rem);
+    scroll-margin-block-end:1rem;
+  }
+  .m26-session-live-v3[data-session-role="coach"] [data-session-rest-correction]>summary{
+    display:list-item;
+    min-height:44px;
+    box-sizing:border-box;
+    padding-block:.65rem;
+    cursor:pointer;
+  }
   /* The sticky Coach controls must not cover a just-revealed primary action
      during touch/keyboard/Playwright scroll-into-view on narrow screens. */
   .m26-session-live-v3 :is([data-session-action="next"],
