@@ -554,7 +554,7 @@ function renderClientTrainingJourney({planReady=false,projections=[],serviceActi
   const steps=[
     {title:'Planificación',detail:planDetail,state:planState},
     {title:'Sesiones',detail:sessionDetail,state:sessionState},
-    {title:'Seguimiento',detail:hasConfirmedSession?'Entrenamiento confirmado en el historial reciente'
+    {title:'Seguimiento',detail:hasConfirmedSession?(followUp.sessionSource==='legacy-activity'?'Actividad registrada en el historial reciente':'Entrenamiento confirmado en el historial reciente')
       :hasConfirmedCheckin?'Bienestar registrado como contexto'
       :'Evolución basada en registros reales',state:hasConfirmedSession||hasConfirmedCheckin?'available':'reference'},
   ];

@@ -1,3 +1,4 @@
+import {evidenceNumber,stableEvidenceJson} from '../domain/evidence-signal.js';
 import {normalizeAppointmentStatus} from '../domain/appointment.js';
 import {sessionExecutionIsConfirmed,sessionExecutionIsCompleted,sessionExecutionEvidenceSignature} from '../domain/session-execution-truth.js';
 
@@ -13,7 +14,7 @@ import {sessionExecutionIsConfirmed,sessionExecutionIsCompleted,sessionExecution
 function body(row){return row?.body&&typeof row.body==='object'&&!Array.isArray(row.body)?{...row,...row.body}:row||{};}
 function field(row,...keys){for(const key of keys){const value=row?.[key];if(value!==null&&value!==undefined&&value!=='')return value;}return null;}
 function stableId(value){return typeof value==='string'&&value.trim()?value.trim():null;}
-function revision(row){const n=Number(field(row,'revision','remoteRevision','remote_revision'));return Number.isInteger(n)&&n>=0?n:0;}
+function revision(row){return evidenceNumber(field(row,'revision','remoteRevision','remote_revision'),{min:0,integer:true})??0;}
 function appointmentKind(row){
   const raw=String(field(row,'status','estado')||'').toLowerCase().trim();
   return raw==='planned'?'planned':normalizeAppointmentStatus(raw);
@@ -23,27 +24,45 @@ function verifiedExecution(row){
 }
 // A merely planned proposal is not a confirmed commitment or a valid denominator.
 const DUE_STATUSES=new Set(['confirmada','realizada','ausencia_cliente','ausencia_coach']);
-function appointmentRows(rows){
-  const appointments=new Map();
-  let withoutIdentity=0;
+function appointmentRows(rows,{clientId=null,include=()=>true}={}){
+  const groups=new Map();let withoutIdentity=0;
   for(const raw of Array.isArray(rows)?rows:[]){
-    const row=body(raw),id=stableId(field(row,'id','entityId','entity_id'));
-    if(!id){withoutIdentity++;continue;}
-    const status=appointmentKind(row);
-    const current=appointments.get(id);
-    // Highest confirmed revision wins; an equal-revision contradictory state
-    // is quarantined rather than deciding based on array order.
-    const value={id,status,revision:revision(row),sessionId:stableId(field(row,'sessionId','session_id'))};
-    if(!current||value.revision>current.revision)appointments.set(id,value);
-    else if(current.revision===value.revision&&(current.conflict||current.status!==value.status||current.sessionId!==value.sessionId))
-      appointments.set(id,{...value,status:null,conflict:true});
+    const row=body(raw);
+    const outer=field(raw||{},'clientId','client_id','clienteId','cliente_id');
+    const inner=field(raw?.body||{},'clientId','client_id','clienteId','cliente_id');
+    if((outer&&inner&&outer!==inner)||(clientId&&String(outer??inner??'')!==String(clientId)))continue;
+    const id=stableId(field(row,'id','entityId','entity_id'));
+    if(!id){if(include(row))withoutIdentity++;continue;}
+    const value={id,row,status:appointmentKind(row),revision:revision(row),
+      sessionId:stableId(field(row,'sessionId','session_id')),
+      date:field(row,'scheduledAt','scheduled_at','startAt','start_at','date','fecha')};
+    const rev=field(row,'revision','remoteRevision','remote_revision');
+    value.invalid=rev!==null&&evidenceNumber(rev,{min:0,integer:true})===null;
+    const signature=stableEvidenceJson([value.status,value.sessionId,value.date,value.invalid]);
+    const current=groups.get(id);
+    if(!current||value.revision>current.revision)groups.set(id,{...value,signature,inWindow:include(row)});
+    else if(value.revision===current.revision){
+      current.inWindow=current.inWindow||include(row);
+      if(current.signature!==signature)current.conflict=true;
+    }
   }
+  const appointments=new Map([...groups].filter(([,value])=>value.inWindow));
   return {appointments,withoutIdentity};
 }
+// The same latest-revision appointment evidence feeds booked adherence and resolved cancellations.
+export function reconcileAdherenceAppointments(rows,options={}){
+  const {appointments,withoutIdentity}=appointmentRows(rows,options);
+  const values=[...appointments.values()];
+  return Object.freeze({
+    rows:Object.freeze(values.filter(value=>!value.conflict&&!value.invalid).map(value=>value.row)),
+    conflictingAppointments:values.filter(value=>value.conflict||value.invalid).length,
+    unverifiedAppointments:withoutIdentity,
+  });
+}
 
-export function confirmedAdherenceEvidence({appointments=[],executions=[]}={}){
-  const source=appointmentRows(appointments);
-  const due=new Map([...source.appointments].filter(([,value])=>DUE_STATUSES.has(value.status)&&!value.conflict));
+export function confirmedAdherenceEvidence({appointments=[],executions=[],clientId=null,appointmentInWindow=()=>true}={}){
+  const source=appointmentRows(appointments,{clientId,include:appointmentInWindow});
+  const due=new Map([...source.appointments].filter(([,value])=>DUE_STATUSES.has(value.status)&&!value.conflict&&!value.invalid));
   const fulfilled=new Set([...due].filter(([,value])=>value.status==='realizada').map(([id])=>id));
   const executionsById=new Map();
   let executionsWithoutIdentity=0;
@@ -104,11 +123,13 @@ export function confirmedAdherenceEvidence({appointments=[],executions=[]}={}){
   return Object.freeze({
     plannedSessions,scheduledCompleted,completedSessions,adherence,
     confirmedWorkouts:uniqueExecutions.length,missedAppointments,
+    unresolvedAppointments:[...due].filter(([id,value])=>value.status==='confirmada'&&!fulfilled.has(id)).length,
+    coachAbsenceAppointments:[...due.values()].filter(value=>value.status==='ausencia_coach').length,
     linkedExecutions,standaloneExecutions,
     completedAppointmentsWithoutExecution:unlinkedCompletedAppointments,
     unverifiedAppointments:source.withoutIdentity,
     unverifiedExecutions:executionsWithoutIdentity,
-    conflictingAppointments:[...source.appointments.values()].filter(row=>row.conflict).length,
+    conflictingAppointments:[...source.appointments.values()].filter(row=>row.conflict||row.invalid).length,
     conflictingExecutions,unconfirmedExecutions,contradictoryAppointmentLinks,
     denominatorSource:'scheduled-appointments-only',
     completionSource:'confirmed-executions-plus-unmatched-completed-appointments',

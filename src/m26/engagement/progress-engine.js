@@ -352,7 +352,8 @@ function executionTime(record,window){
 export function computeProgressSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false,reportEvidenceOnly=false}={}){
   if(!clientId)return null;
   const window=progressWindow({now,days,civilPeriod}),{start,end}=window;
-  const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>withinWindow(civilPeriod?first(item,'scheduledAt','scheduled_at','startAt','start_at','date','fecha'):dateOf(item),window));
+  const appointments=collection(state,'appointments');
+  const appointmentInWindow=item=>withinWindow(first(item,'scheduledAt','scheduled_at','startAt','start_at','date','fecha'),window);
   const reconciliation=reconcileSessionExecutionsForClient(state,clientId);
   const executionRows=reconciliation.records.map(unwrap)
     .filter((item)=>executionWithinWindow(item,window));
@@ -376,7 +377,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
       Boolean(sessionExecutionCompletionDate(record)))
     .map(unwrap)
     .filter(item=>executionWithinWindow(item,window));
-  const verifiedAdherence=confirmedAdherenceEvidence({appointments,executions:completedExecutions});
+  const verifiedAdherence=confirmedAdherenceEvidence({appointments,executions:completedExecutions,clientId,appointmentInWindow});
   const adherenceEvidence=Object.freeze({
     ...verifiedAdherence,
     conflictingExecutions:verifiedAdherence.conflictingExecutions+conflictedRows.length,

@@ -139,3 +139,14 @@ test('retention preserves the result when reusing the current owner summary and 
  for(const bad of [{...summary,days:7},{...summary,scheduledCompletedSessions:null},{...summary,adherence:NaN}])
    assert.deepEqual(buildRetentionHealth(state,'c1',{now:NOW,summary:bad}),normal);
 });
+
+
+test('GX retention does not count superseded cancellations or attribute unresolved coach bookings to client risk',()=>{
+ const state=healthyState();const old=state.collections.appointments[0];
+ state.collections.appointments.push({...old,revision:1,status:'cancelada'},{...old,revision:2,status:'realizada'});
+ const health=buildRetentionHealth(state,'c1',{now:NOW});
+ assert.equal(health.factors.find(x=>x.id==='cancellations').status,'green');
+ state.collections.appointments=state.collections.appointments.slice(0,4).map(x=>({...x,status:'confirmada'}));state.collections.sessionExecutions=[];
+ const unresolved=buildRetentionHealth(state,'c1',{now:NOW});
+ assert.equal(unresolved.factors.find(x=>x.id==='adherence').status,'yellow');
+});

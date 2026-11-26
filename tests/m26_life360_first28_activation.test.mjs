@@ -59,3 +59,12 @@ test('First28 labels remain localized in every supported language',()=>{
     }
   }
 });
+
+
+test('GX First28 distinguishes actual workout from completed appointment and rejects same-day future enrollment',()=>{
+ const result=run({progress:{...PROGRESS,confirmedWorkoutExecutions:0}});
+ assert.equal(result.confirmedSessions,0);assert.equal(result.next.area,'sesion');
+ assert.equal(result.sessionSource,'confirmed-execution');
+ assert.equal(run({client:{...CLIENT,createdAt:'2026-11-05T23:00:00Z'}}),null);
+ assert.equal(run({client:{...CLIENT,id:'other',body:CLIENT}}),null);
+});

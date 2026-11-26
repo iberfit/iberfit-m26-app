@@ -77,3 +77,8 @@ GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19
 
 ## Thirteenth commit — Admin operational truth
 - GX37: Admin operational triage reconciles task revisions before classification, excludes conflicting/unverified records with visible warning in home and operations, shares the exact queue with command center without duplicate recomputation; invalid calendar timestamps cannot fabricate overdue status. No new remote queries or privileges. Regression cases added; no DB changes.
+
+## Fourteenth commit — adherence, retention and First28 evidence
+- Appointment revisions are reconciled before applying time windows: rescheduled appointments cannot leave a stale commitment in the former period, and same-revision date conflicts are excluded. Retention cancellation factor uses the same reconciliation, not raw duplicates. Explicit client absence, coach absence and unresolved bookings remain distinct. Existing adherence lower-bound rate is retained; retention red is downgraded to human-review yellow when uncertain appointment evidence could explain it. Shared current wearable evidence reused.
+- First28 uses actual canonical workout count where present, distinguishes legacy recorded activity, rejects future same-day enrollment and contradictory owner. Existing navigation-only flow retained.
+- Prior recovery/Admin directed checks passed 8/8, total prior phase 25/25. New tests added; no DB writes, no migrations or additional remote requests.
