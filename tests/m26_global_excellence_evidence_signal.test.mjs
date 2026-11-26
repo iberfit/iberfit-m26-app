@@ -41,3 +41,26 @@ test('GX10 legacy booked count absence stays unknown while real zero stays zero'
   assert.equal(known.unconfirmedExecutions,0);
   assert.equal(known.adherence,null);
 });
+
+import {buildExercisePerformanceMemory,listExercisePerformanceMemories} from '../src/m26/engagement/exercise-performance-engine.js';
+test('GX09 uses one confirmed dated revision per execution and excludes conflicts and future sessions',()=>{
+  const now=new Date('2026-11-25T12:00:00Z');
+  const entry=(id,revision,loadKg,extra={})=>({id,revision,clientId:'c1',status:'completed',
+    syncStatus:'clean',completedAt:'2026-11-24T12:00:00Z',
+    results:{x:{exerciseId:'squat',reps:8,loadKg}},...extra});
+  const latest=entry('e1',2,50);
+  const state={collections:{sessionExecutions:[
+    entry('e1',1,40),latest,{...latest},
+    entry('e2',1,60),entry('e2',1,65),
+    entry('future',1,80,{completedAt:'2026-11-26T12:00:00Z'}),
+    entry('created',1,90,{completedAt:null,createdAt:'2026-11-24T12:00:00Z'}),
+    entry('skipped',1,100,{results:{x:{exerciseId:'squat',reps:8,loadKg:100,skipped:true}}}),
+    entry('other',1,110,{clientId:'c2'}),
+  ]}};
+  const memory=buildExercisePerformanceMemory(state,'c1','squat',{now});
+  assert.equal(memory.exposureCount,1);
+  assert.equal(memory.excludedConflictingExposures,1);
+  assert.equal(memory.latest.executionId,'e1');
+  const [fromList]=listExercisePerformanceMemories(state,'c1',{now});
+  assert.deepEqual(fromList,memory);
+});

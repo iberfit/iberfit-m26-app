@@ -74,7 +74,7 @@ export function buildPeriodProgressEvidence(state,clientId,{now,days,executions=
     const completion=sessionExecutionCompletionDate(record);
     return {...record,completedAt:completion,...(record.body&&typeof record.body==='object'?{body:{...record.body,completedAt:completion}}:{})};
   })}};
-  const strength=trendEvidence(listExercisePerformanceMemories(scoped,clientId,{limit:50,historyLimit:12}));
+  const strength=trendEvidence(listExercisePerformanceMemories(scoped,clientId,{limit:50,historyLimit:12,now}));
   const scheduled=confirmedScheduledCompletion(summary);
   const rows=[];
   if(scheduled)rows.push({id:'consistency',label:'Constancia',evidence:`${scheduled.completed} de ${scheduled.planned} citas programadas cumplidas en ${days} días`,source:'appointments+sessionExecutions',quality:summary.dataQuality});
@@ -99,7 +99,7 @@ export function buildProgressHub(
     summaries:{...summaries,28:summary28},
   });
   const byDays=new Map(windows.map((window)=>[window.days,window]));
-  const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12});
+  const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12,now});
   const strength=trendEvidence(memories,{loadDirectionForExercise});
   const scheduled28=confirmedScheduledCompletion(summary28);
   const adherence28=scheduled28?.adherence??null;

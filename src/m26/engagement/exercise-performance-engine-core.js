@@ -3,6 +3,8 @@ import {
   unconfirmedSessionExecutionIds as blockedCompletionIds,
   sessionExecutionIsConfirmed as executionConfirmed,
   sessionExecutionIsCompleted as executionCompleted,
+  sessionExecutionCompletionDate,
+  reconcileSessionExecutionsForClient,
 } from '../domain/session-execution-truth.js';
 
 const COMPLETE_STATUSES=new Set(['completed','completado','complete']);
@@ -38,19 +40,7 @@ function clientIdOf(record){
 }
 
 function executionDate(record){
-  return first(
-    record,
-    'completedAt',
-    'completed_at',
-    'endedAt',
-    'ended_at',
-    'recordedAt',
-    'recorded_at',
-    'savedAt',
-    'saved_at',
-    'createdAt',
-    'created_at',
-  );
+  return sessionExecutionCompletionDate(record);
 }
 
 function safeDate(value){
@@ -58,6 +48,7 @@ function safeDate(value){
 }
 
 function numeric(value){
+  if(typeof value!=='number'&&typeof value!=='string')return null;
   if(typeof value==='number'){
     return Number.isFinite(value)?value:null;
   }
@@ -240,6 +231,7 @@ function observedPace(value){
   return /^\d{1,2}:[0-5]\d$/u.test(text)&&Number(text.split(':')[0])*60+Number(text.split(':')[1])>0?text:null;
 }
 function normalizeSet(row,index){
+  if(row?.skipped===true||row?.completed===false)return null;
   const exerciseId=String(
     first(
       row,
@@ -363,14 +355,8 @@ function exposureFrom(execution,exerciseId){
 
   if(!sets.length)return null;
 
-  const dated=
-    executionDate(source)||
-    sets
-      .map((row)=>row.completedAt)
-      .filter(Boolean)
-      .sort()
-      .at(-1)||
-    null;
+  const dated=executionDate(source);
+  if(!safeDate(dated))return null;
 
   const reps=sets
     .map((row)=>row.reps)
@@ -1775,10 +1761,30 @@ export function projectExercisePerformanceForRole(
   });
 }
 
+// Reconcile once for the complete exercise list: the same revision cannot
+// manufacture additional exposures, and conflicting results stay excluded.
+function exerciseEvidenceScope(state,clientId,now){
+  const end=safeDate(now);
+  const blocked=blockedCompletionIds(state);
+  const reconciliation=reconcileSessionExecutionsForClient(state,clientId);
+  const eligible=record=>{
+    const date=safeDate(executionDate(record));
+    return Boolean(end&&date&&date.getTime()<=end.getTime()&&
+      executionCompleted(record,{allowDatedFallback:false}));
+  };
+  const confirmed=[],unconfirmed=[];
+  for(const record of reconciliation.records){
+    if(!eligible(record))continue;
+    (executionConfirmed(record,blocked)?confirmed:unconfirmed).push(unwrap(record));
+  }
+  confirmed.sort((a,b)=>safeDate(executionDate(b)).getTime()-safeDate(executionDate(a)).getTime());
+  return {confirmed,unconfirmed,conflicts:reconciliation.conflicts};
+}
+
 export function listExercisePerformanceMemories(
   state,
   clientId,
-  {limit=6,historyLimit=20}={},
+  {limit=6,historyLimit=20,now=new Date()}={},
 ){
   const safeClientId=String(
     clientId||'',
@@ -1796,24 +1802,8 @@ export function listExercisePerformanceMemories(
         )
       :6;
 
-  const blocked=
-    blockedCompletionIds(state);
-
-  const executions=arr(
-    state?.collections?.sessionExecutions,
-  )
-    .map(unwrap)
-    .filter(
-      (item)=>
-        clientIdOf(item)===safeClientId&&
-        executionCompleted(item)&&
-        executionConfirmed(item,blocked),
-    )
-    .sort(
-      (a,b)=>
-        (safeDate(executionDate(b))?.getTime()||0)-
-        (safeDate(executionDate(a))?.getTime()||0),
-    );
+  const scope=exerciseEvidenceScope(state,safeClientId,now);
+  const executions=scope.confirmed;
 
   const exerciseIds=[];
   const seen=new Set();
@@ -1847,11 +1837,11 @@ export function listExercisePerformanceMemories(
   const memories=exerciseIds
     .map(
       (exerciseId)=>
-        buildExercisePerformanceMemory(
-          state,
+        buildScopedExercisePerformanceMemory(
+          scope,
           safeClientId,
           exerciseId,
-          {limit:historyLimit},
+          historyLimit,
         ),
     )
     .filter(
@@ -1865,7 +1855,7 @@ export function buildExercisePerformanceMemory(
   state,
   clientId,
   exerciseId,
-  {limit=50}={},
+  {limit=50,now=new Date()}={},
 ){
   const safeClientId=String(
     clientId||'',
@@ -1879,48 +1869,15 @@ export function buildExercisePerformanceMemory(
     return null;
   }
 
-  const blocked=
-    blockedCompletionIds(state);
+  return buildScopedExercisePerformanceMemory(
+    exerciseEvidenceScope(state,safeClientId,now),safeClientId,safeExerciseId,limit);
+}
 
-  const executions=arr(
-    state?.collections?.sessionExecutions,
-  )
-    .map(unwrap)
-    .filter(
-      (item)=>
-        clientIdOf(item)===safeClientId&&
-        executionCompleted(item),
-    );
-
-  const confirmed=[];
-  let excludedUnconfirmedExposures=0;
-
-  for(const execution of executions){
-    const exposure=exposureFrom(
-      execution,
-      safeExerciseId,
-    );
-
-    if(!exposure)continue;
-
-    if(
-      !executionConfirmed(
-        execution,
-        blocked,
-      )
-    ){
-      excludedUnconfirmedExposures+=1;
-      continue;
-    }
-
-    confirmed.push(exposure);
-  }
-
-  confirmed.sort(
-    (a,b)=>
-      (safeDate(b.completedAt)?.getTime()||0)-
-      (safeDate(a.completedAt)?.getTime()||0),
-  );
+function buildScopedExercisePerformanceMemory(scope,safeClientId,safeExerciseId,limit){
+  const confirmed=scope.confirmed.map(execution=>exposureFrom(execution,safeExerciseId)).filter(Boolean);
+  const excludedUnconfirmedExposures=scope.unconfirmed.filter(execution=>exposureFrom(execution,safeExerciseId)).length;
+  const excludedConflictingExposures=scope.conflicts.filter(group=>group.some(execution=>
+    exposureFrom(execution,safeExerciseId))).length;
 
   const safeLimit=
     Number.isInteger(Number(limit))
@@ -1945,6 +1902,7 @@ export function buildExercisePerformanceMemory(
     source:'sessionExecutions.results',
     exposureCount:confirmed.length,
     excludedUnconfirmedExposures,
+    excludedConflictingExposures,
     latest,
     previous,
     history:Object.freeze(history),

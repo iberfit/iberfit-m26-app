@@ -18,3 +18,8 @@ Base Canary: `50ba022115091478a86900be6f0b0e4c816044ef`. Historical production p
 
 ## Remaining inventory
 GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19, GX26: partial as above. GX08–09, GX11–14, GX16–18, GX20–25, GX27–48: not implemented or verified in this block yet; inspect existing capabilities first. Next: validate changes and consumers, expand EvidenceSignal with explicit period/source/sample/comparability, inspect PDF official model and IRI independent lifecycle, consolidate before final exact-SHA gates.
+
+## Second commit
+- GX09/GX30 (partial): exercise history now uses the canonical revision reconciler once per list; same-revision conflicts, non-completed/undated/future and explicitly skipped rows cannot generate exposures. Includes count of excluded conflicting exposures; no new persistence.
+- GX10/GX08 (partial): constancy UI distinguishes unknown from confirmed absence of plan.
+- Tests extended, not executed yet; review existing memory callers and full regression suite before PR/merge. GX09 is not fully certified and GX30 live UX not yet tested. 
