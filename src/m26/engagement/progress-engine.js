@@ -1,4 +1,5 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
+import {evidenceNumber,observedSet,observedLoadKg} from '../domain/evidence-signal.js';
 import {confirmedAdherenceEvidence} from './confirmed-adherence.js';
 import {parseDateValue,reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
@@ -23,17 +24,7 @@ function dateOf(record){return first(record,
   'assessmentDate','assessment_date','evaluatedAt','evaluated_at','startAt','start_at',
   'scheduledAt','scheduled_at','savedAt','saved_at','createdAt','created_at','date','fecha');}
 function safeDate(value){return parseDateValue(value);}
-function normalizeNumericString(value){
-  let raw=String(value??'').trim().replace(/\s+/g,'');
-  if(!raw)return '';
-  const match=raw.match(/[-+]?\d[\d.,]*/);if(!match)return '';
-  raw=match[0];
-  const comma=raw.lastIndexOf(','),dot=raw.lastIndexOf('.');
-  if(comma>=0&&dot>=0){const decimal=Math.max(comma,dot),separator=raw[decimal];raw=raw.slice(0,decimal).replace(/[.,]/g,'')+'.'+raw.slice(decimal+1).replace(/[.,]/g,'');if(separator!==','&&separator!=='.')return '';}
-  else if(comma>=0)raw=raw.replace(',','.');
-  return raw;
-}
-function number(value){if(typeof value==='number')return Number.isFinite(value)?value:null;const normalized=normalizeNumericString(value);if(!normalized)return null;const n=Number(normalized);return Number.isFinite(n)?n:null;}
+function number(value,range={}){return evidenceNumber(typeof value==='string'?value.trim().replace(',','.'):value,range);}
 function round(value,digits=1){if(!Number.isFinite(value))return null;const p=10**digits;return Math.round(value*p)/p;}
 function within(date,from,to){const time=safeDate(date)?.getTime();return Number.isFinite(time)&&time>=from.getTime()&&time<=to.getTime();}
 function byDateDesc(a,b){return (safeDate(dateOf(b))?.getTime()||0)-(safeDate(dateOf(a))?.getTime()||0);}
@@ -52,15 +43,15 @@ function setRows(execution){
   for(const candidate of candidates){const rows=rowsFrom(candidate);if(rows.length)return rows;}
   return [];
 }
-function rpeValues(execution){return setRows(execution).map((row)=>number(first(row,'rpe','actualRpe','actual_rpe'))).filter(Number.isFinite);}
+function rpeValues(execution){return setRows(execution).filter(observedSet).map((row)=>number(first(row,'rpe','actualRpe','actual_rpe'),{min:1,max:10})).filter(Number.isFinite);}
 // Never infer progression by mixing different movements, variants or set counts.
 function volumeComparisonKey(execution){
-  const rows=setRows(execution);
+  const rows=setRows(execution).filter(observedSet);
   if(!rows.length)return null;
   const items=[];
   for(const row of rows){
     const id=String(first(row,'exerciseId','exercise_id','exerciseKey','exercise_key')||'').trim();
-    const reps=number(first(row,'reps','actualReps','actual_reps'));
+    const reps=number(first(row,'reps','actualReps','actual_reps'),{min:0,max:10000,integer:true});
     const load=epKnownLoadKg(row);
     if(!id||!Number.isFinite(reps)||reps<0||!Number.isFinite(load)||load<0)return null;
     const variant=String(first(row,'variantId','variant_id','exerciseVariantId','exercise_variant_id')||'');
@@ -72,8 +63,8 @@ function volumeComparisonKey(execution){
   return JSON.stringify(items.sort());
 }
 function volumeOf(execution){
-  return setRows(execution).reduce((total,row)=>{
-    const reps=number(first(row,'reps','actualReps','actual_reps'));
+  return setRows(execution).filter(observedSet).reduce((total,row)=>{
+    const reps=number(first(row,'reps','actualReps','actual_reps'),{min:0,max:10000,integer:true});
     const loadKg=epKnownLoadKg(row);
     return total+(
       Number.isFinite(reps)&&
@@ -88,12 +79,12 @@ function volumeOf(execution){
 function checkinValues(record){
   const item=unwrap(record)||{};
   return {
-    energy:number(first(item,'energy','energia')),
-    sleep:number(first(item,'sleep','sueno','sueño')),
-    stress:number(first(item,'stress','estres','estrés')),
-    pain:number(first(item,'pain','dolor')),
-    fatigue:number(first(item,'fatigue','fatiga')),
-    motivation:number(first(item,'motivation','motivacion','motivación')),
+    energy:number(first(item,'energy','energia'),{min:0,max:10}),
+    sleep:number(first(item,'sleep','sueno','sueño'),{min:0,max:10}),
+    stress:number(first(item,'stress','estres','estrés'),{min:0,max:10}),
+    pain:number(first(item,'pain','dolor'),{min:0,max:10}),
+    fatigue:number(first(item,'fatigue','fatiga'),{min:0,max:10}),
+    motivation:number(first(item,'motivation','motivacion','motivación'),{min:0,max:10}),
   };
 }
 function average(values){const valid=values.filter(Number.isFinite);return valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:null;}
@@ -353,10 +344,10 @@ function withinWindow(value,window){
   return window.civilPeriod?isWithinCivilPeriod(value,window.periodStart,window.periodEnd,window.end):within(value,window.start,window.end);
 }
 function executionWithinWindow(record,window){
-  return withinWindow(window.civilPeriod?sessionExecutionCompletionDate(record):dateOf(record),window);
+  return withinWindow(sessionExecutionCompletionDate(record),window);
 }
 function executionTime(record,window){
-  return safeDate(window.civilPeriod?sessionExecutionCompletionDate(record):dateOf(record))?.getTime()||0;
+  return safeDate(sessionExecutionCompletionDate(record))?.getTime()||0;
 }
 
 export function computeProgressSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false,reportEvidenceOnly=false}={}){
@@ -383,7 +374,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
   // the same owner/revision/conflict index for every report period.
   const completedExecutions=reconciliation.records
     .filter(record=>executionIsConfirmed(record,blockedExecutionIds)&&executionIsCompleted(record)&&
-      (civilPeriod||Boolean(sessionExecutionDate(record))))
+      Boolean(sessionExecutionCompletionDate(record)))
     .map(unwrap)
     .filter(item=>executionWithinWindow(item,window));
   const verifiedAdherence=confirmedAdherenceEvidence({appointments,executions:completedExecutions});
@@ -415,7 +406,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
         volume:round(item.volume,1),
       })))
     :Object.freeze([]);
-  const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window)).sort(byDateDesc);
+  const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window)&&observedSet(item)&&Object.values(checkinValues(item)).some(Number.isFinite)).sort(byDateDesc);
   const wearable=reportEvidenceOnly?null:summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
   const checkinSeries=checkins.map(checkinValues);
   const iriBaselineRecordValue=reportEvidenceOnly?null:iriBaselineRecord(state,clientId);
@@ -429,7 +420,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
   const lastExecution=sortedExecutions[0]||null;
   const lastExecutionRpe=lastExecution?rpeValues(lastExecution):[];
   const latestCheckin=checkins[0]||null;
-  const dataPoints=completedExecutions.length+checkins.length+iri.length;
+  const dataPoints=completedExecutions.length+checkinSeries.filter(values=>Object.values(values).some(Number.isFinite)).length;
   const dataQuality=dataPoints>=8?'alta':dataPoints>=3?'media':'limitada';
   return Object.freeze({
     clientId,startAt:start.toISOString(),endAt:end.toISOString(),days:window.days,
@@ -453,7 +444,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
       stress:round(average(checkinSeries.map((x)=>x.stress)),1),pain:round(average(checkinSeries.map((x)=>x.pain)),1),
       fatigue:round(average(checkinSeries.map((x)=>x.fatigue)),1),motivation:round(average(checkinSeries.map((x)=>x.motivation)),1),
     }),
-    lastExecutionAt:(civilPeriod?sessionExecutionCompletionDate(lastExecution):dateOf(lastExecution))||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
+    lastExecutionAt:sessionExecutionCompletionDate(lastExecution)||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
     latestCheckinAt:dateOf(latestCheckin)||null,
     unconfirmedExecutions:unconfirmedRows.length+conflictedRows.length,dataQuality,wearable,
   });
@@ -522,16 +513,7 @@ function epFirst(record,...keys){
   return null;
 }
 
-function epNumber(value){
-  if(typeof value==='number')return Number.isFinite(value)?value:null;
-  if(typeof value!=='string')return null;
-  const normalized=value.trim().replace(/\s+/g,'').replace(',','.');
-  if(!normalized)return null;
-  const match=normalized.match(/[-+]?\d+(?:\.\d+)?/);
-  if(!match)return null;
-  const parsed=Number(match[0]);
-  return Number.isFinite(parsed)?parsed:null;
-}
+function epNumber(value){return number(value);}
 
 function epRound(value,digits=1){
   if(!Number.isFinite(value))return null;
@@ -583,54 +565,7 @@ function epSafeDate(value){
   return date&&!Number.isNaN(date.getTime())?date:null;
 }
 
-function epKnownLoadKg(row){
-  const strict=epNumber(epFirst(
-    row,
-    'loadKg','load_kg',
-    'weightKg','weight_kg',
-    'kg'
-  ));
-
-  if(Number.isFinite(strict)&&strict>=0)return strict;
-
-  const unit=String(epFirst(
-    row,
-    'loadUnit','load_unit',
-    'weightUnit','weight_unit',
-    'unit'
-  )||'').trim().toLowerCase();
-
-  if([
-    'kg','kgs',
-    'kilogram','kilograms',
-    'kilogramo','kilogramos'
-  ].includes(unit)){
-    const generic=epNumber(epFirst(
-      row,
-      'load','weight','carga'
-    ));
-    return Number.isFinite(generic)&&generic>=0?generic:null;
-  }
-
-  const raw=String(epFirst(
-    row,
-    'load','weight','carga'
-  )||'').trim();
-
-  if(!raw)return null;
-
-  const kgMatch=raw.match(
-    /([-+]?\d+(?:[.,]\d+)?)\s*(?:kg|kgs|kilogramo(?:s)?|kilogram(?:s)?)\b/i
-  );
-
-  if(!kgMatch)return null;
-
-  const parsed=Number(
-    String(kgMatch[1]).replace(',','.')
-  );
-
-  return Number.isFinite(parsed)&&parsed>=0?parsed:null;
-}
+function epKnownLoadKg(row){return observedLoadKg(row);}
 
 function epLoadLabel(row){
   const raw=epFirst(
@@ -901,7 +836,7 @@ function epLatestValidTrend(
   return epTrend(current,previous,options);
 }
 
-function epPoint(execution,rows,meta){
+function epPoint(execution,rows,meta,completionDate){
   const reps=rows
     .map((row)=>epNumber(epFirst(
       row,
@@ -957,16 +892,7 @@ function epPoint(execution,rows,meta){
     })
     .filter(Number.isFinite);
 
-  const at=epSafeDate(
-    epFirst(
-      execution,
-      'completedAt','completed_at',
-      'endedAt','ended_at',
-      'recordedAt','recorded_at',
-      'createdAt','created_at'
-    )||
-    rows.map(epDate).find(Boolean)
-  );
+  const at=epSafeDate(completionDate);
 
   return Object.freeze({
     executionId:String(epFirst(execution,'id','executionId','execution_id')||''),
@@ -992,7 +918,7 @@ function epPoint(execution,rows,meta){
 export function buildExerciseLongitudinalProgress(
   state,
   clientId,
-  {limitPerExercise=36}={}
+  {limitPerExercise=36,now=new Date()}={}
 ){
   if(!clientId){
     return Object.freeze({
@@ -1019,8 +945,10 @@ export function buildExerciseLongitudinalProgress(
   let acceptedExecutions=0;
 
   for(const original of executions){
+    const completionDate=sessionExecutionCompletionDate(original);
+    if(!isWithinCivilPeriod(completionDate,'0001-01-01',reportCivilDate(now),now))continue;
     const source=epExecutionSource(original);
-    const rows=epResultRows(source);
+    const rows=epResultRows(source).filter(observedSet);
 
     if(!rows.length)continue;
 
@@ -1087,7 +1015,7 @@ export function buildExerciseLongitudinalProgress(
     }
 
     for(const group of grouped.values()){
-      const point=epPoint(source,group.rows,group.meta);
+      const point=epPoint(source,group.rows,group.meta,completionDate);
 
       if(!byExercise.has(group.meta.id)){
         byExercise.set(group.meta.id,{

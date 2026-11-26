@@ -74,7 +74,7 @@ function feedbackOf(execution){
   const item=unwrap(execution);
   const feedback=item?.feedback&&typeof item.feedback==='object'&&!Array.isArray(item.feedback)?item.feedback:{};
   return Object.freeze({
-    sessionRpe:finite(feedback.sessionRpe??feedback.session_rpe),
+    sessionRpe:evidenceNumber(feedback.sessionRpe??feedback.session_rpe,{min:1,max:10}),
     comment:text(feedback.comment??feedback.comments??feedback.note??feedback.notes,1200)||null,
     pain:feedback.pain===true||feedback.pain==='true',
     painNotes:text(feedback.painNotes??feedback.pain_notes,800)||null,

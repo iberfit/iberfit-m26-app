@@ -1,4 +1,5 @@
 import {canonicalTrainingRecordsForClient} from './training-operational-truth.js';
+import {stableEvidenceJson} from './evidence-signal.js';
 
 const COMPLETE_STATUSES=new Set([
   'completed',
@@ -132,14 +133,6 @@ function executionRevision(record){
   return (typeof raw==='number'||typeof raw==='string')&&Number.isSafeInteger(number)
     &&number>=0?number:0;
 }
-function stableEvidenceJson(value){
-  if(Array.isArray(value))return '['+value.map(stableEvidenceJson).join(',')+']';
-  if(value&&typeof value==='object'){
-    return '{'+Object.keys(value).sort((left,right)=>left.localeCompare(right)).map(key=>
-      JSON.stringify(key)+':'+stableEvidenceJson(value[key])).join(',')+'}';
-  }
-  return JSON.stringify(value??null);
-}
 export function sessionExecutionEvidenceSignature(record){
   const row=unwrap(record);
   const evidence={
@@ -156,6 +149,7 @@ export function sessionExecutionEvidenceSignature(record){
     // All date fallbacks can affect report windows, so they cannot depend on
     // which same-revision response arrived first.
     effectiveDate:sessionExecutionDate(row),
+    actualCompletionDate:sessionExecutionCompletionDate(row),
     results:first(row,'results','setResults','set_results','progressSnapshot','progress_snapshot'),
     feedback:first(row,'feedback'),
     metrics:first(row,'metrics'),

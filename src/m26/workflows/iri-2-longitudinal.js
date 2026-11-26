@@ -1,4 +1,5 @@
 import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
+import {stableEvidenceJson} from '../domain/evidence-signal.js';
 
 export const IRI2_SNAPSHOT_SCHEMA='iberfit-iri2-snapshot-v1';
 export const IRI2_LONGITUDINAL_SCHEMA='iberfit-iri2-longitudinal-v1';
@@ -58,7 +59,7 @@ export function selectInitialIriBaseline(records,clientId,{now=new Date()}={}){
     const revision=(typeof raw==='number'||typeof raw==='string')&&String(raw).trim()!==''&&Number.isSafeInteger(Number(raw))&&Number(raw)>=0?Number(raw):0;
     const previous=byId.get(id);
     if(!previous||revision>previous.revision)byId.set(id,{record,revision,conflict:false});
-    else if(revision===previous.revision&&JSON.stringify(previous.record)!==JSON.stringify(record))previous.conflict=true;
+    else if(revision===previous.revision&&stableEvidenceJson(previous.record)!==stableEvidenceJson(record))previous.conflict=true;
   }
   let selected=null;
   for(const [id,{record,revision,conflict}] of byId){

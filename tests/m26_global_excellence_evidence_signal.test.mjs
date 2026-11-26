@@ -99,3 +99,50 @@ test('GX09/GX26 the recent strength indicator cannot borrow old or future observ
   assert.equal(buildExercisePerformanceMemory(state,'c1','squat',{now,from:'2026-10-28'}).exposureCount,1);
   assert.equal(buildPeriodProgressEvidence(state,'c1',{now,days:30,executions:old}).some(x=>x.id==='strength'),false);
 });
+
+import {observedLoadKg,observedSet} from '../src/m26/domain/evidence-signal.js';
+import {computeProgressSummary,buildExerciseLongitudinalProgress} from '../src/m26/engagement/progress-engine.js';
+import {buildPostSessionSportEvidence} from '../src/m26/workflows/report-sport-evidence.js';
+import {buildPeriodizationSnapshot} from '../src/m26/planning/periodization-workbench.js';
+import {reconcileSessionExecutionsForClient} from '../src/m26/domain/session-execution-truth.js';
+
+test('GX06/GX14 shared measured kg preserves zero, rejects inconsistent units and omitted sets',()=>{
+  assert.equal(observedLoadKg({load:'0 kg'}),0);
+  assert.equal(observedLoadKg({load:'22,5 kg'}),22.5);
+  assert.equal(observedLoadKg({load:20,loadUnit:'kg'}),20);
+  for(const row of [{load:'20'},{load:[20],loadUnit:'kg'},{loadKg:20,load:'30 kg'},{loadKg:20,load:'30 lb'},{loadKg:20,loadLb:44},{loadKg:'0x20'},{loadKg:-1},{loadKg:20,skipped:true},{loadKg:20,status:'pending'}]){
+    assert.equal(observedLoadKg(row),null,JSON.stringify(row));
+  }
+  assert.equal(observedSet({completed:false}),false);
+});
+test('GX06/GX09/GX26 dashboard, Coach load board and report reject incompatible records',()=>{
+  const now=new Date('2026-11-25T12:00:00Z');
+  const base={clientId:'c1',status:'completed',syncStatus:'clean',sport:'strength'};
+  const measured={...base,id:'real',completedAt:'2026-11-24T12:00:00Z',results:{
+    good:{exerciseId:'squat',reps:10,load:'20 kg',rpe:7},
+    skipped:{exerciseId:'squat',reps:10,loadKg:100,skipped:true},
+    contradiction:{exerciseId:'squat',reps:10,loadKg:50,load:'30 kg',rpe:99},
+    coercion:{exerciseId:'squat',reps:[10],loadKg:200,rpe:'0x7'},
+  }};
+  const state={collections:{sessionExecutions:[
+    measured,
+    {...base,id:'future',completedAt:'2026-11-26T12:00:00Z',results:measured.results},
+    {...base,id:'creation-only',createdAt:'2026-11-24T10:00:00Z',results:measured.results},
+  ],checkins:[{id:'bad',clientId:'c1',createdAt:'2026-11-24T08:00:00Z',energy:99,pain:[10]}]}};
+  const p=computeProgressSummary(state,'c1',{now});
+  assert.equal(p.confirmedWorkoutExecutions,1);
+  assert.equal(p.volume,200);
+  assert.equal(p.averageRpe,7);
+  assert.equal(p.checkins,0);
+  const board=buildPeriodizationSnapshot(state,'c1',{now,cycle:{clientId:'c1',startDate:'2026-11-01',endDate:'2026-11-30'}});
+  assert.equal(board.completed,1);
+  assert.equal(board.weeks.reduce((n,w)=>n+(w.strengthVolume||0),0),200);
+  assert.equal(buildExerciseLongitudinalProgress(state,'c1',{now}).totalExecutions,1);
+  const report=buildPostSessionSportEvidence(measured,{clientId:'c1'});
+  assert.equal(report.some(x=>/100 kg|50 kg|200 kg|RPE 99/.test(x.text)),false);
+});
+test('GX06 same revision but differing summary completion dates cannot certify chronology',()=>{
+  const row={id:'typed',clientId:'c1',revision:2,status:'completed',summary:{completedAt:'2026-11-01T12:00:00Z'}};
+  const state={collections:{sessionExecutions:[row,{...row,summary:{completedAt:'2026-11-24T12:00:00Z'}}]}};
+  assert.equal(reconcileSessionExecutionsForClient(state,'c1').conflicts.length,1);
+});

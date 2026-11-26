@@ -1,14 +1,10 @@
-import {civilDateInTimeZone,parseCivilDate,parseDateValue} from '../domain/civil-date.js';
-import {confirmedSessionExecutionsForClient,sessionExecutionDate,sessionExecutionId} from '../domain/session-execution-truth.js';
+import {civilDateInTimeZone,parseCivilDate,parseDateValue,reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
+import {evidenceNumber,observedSet,observedLoadKg} from '../domain/evidence-signal.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionCompletionDate,sessionExecutionId} from '../domain/session-execution-truth.js';
 import {recordsForClient} from '../modules/domain-selectors.js';
 const unwrap=x=>x?.body&&typeof x.body==='object'&&!Array.isArray(x.body)?{...x,...x.body}:x||{};
 const val=(x,...fields)=>fields.map(k=>x?.[k]).find(v=>v!==null&&v!==undefined&&v!=='')??null;
-const finite=(x,min=0,max=1000000)=>{
-  if(x===null||x===undefined||x==='')return null;
-  const s=String(x).trim().replace(',','.');
-  if(!/^\d+(?:\.\d+)?$/u.test(s))return null;
-  const n=Number(s);return Number.isFinite(n)&&n>=min&&n<=max?n:null;
-};
+const finite=(x,min=0,max=1000000)=>evidenceNumber(typeof x==='string'?x.trim().replace(',','.'):x,{min,max});
 const dayMs=iso=>{const d=parseCivilDate(iso);return d?Date.UTC(d.year,d.month-1,d.day):null;};
 const isoOf=x=>x?civilDateInTimeZone(parseDateValue(x)):null;
 const escape=x=>String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
@@ -20,20 +16,9 @@ function volumeOf(execution){
     ?Object.values(record.results):[];
   let known=0,valid=0;
   for(const row of rows){
-    if(!row||typeof row!=='object'||Array.isArray(row)||
-      row.skipped===true||row.completed===false||
-      ['skipped','omitida','omitido','unconfirmed'].includes(String(row.status||'').toLowerCase()))continue;
-    const reps=finite(val(row,'reps','actualReps'),0,10000);
-    // Exact kg units only: never infer kilograms from an unlabelled number or lb.
-    const raw=val(row,'loadKg','load_kg');
-    const label=String(row.load??'').trim();
-    const direct=finite(raw,0,10000);
-    const match=label.match(/^(\d+(?:[.,]\d+)?)\s*kg$/iu);
-    const labelled=match?finite(match[1],0,10000):null;
-    // Two contradictory explicit kg fields must never inflate confirmed volume.
-    if(direct!==null&&labelled!==null&&Math.abs(direct-labelled)>0.01)continue;
-    if(direct!==null&&label&&labelled===null)continue;
-    const kg=direct??labelled;
+    if(!observedSet(row))continue;
+    const reps=evidenceNumber(val(row,'reps','actualReps'),{min:0,max:10000,integer:true});
+    const kg=observedLoadKg(row);
     if(reps!==null&&kg!==null){known+=kg*reps;valid+=1;}
   }
   return valid?{kgReps:Math.round(known),sets:valid}:null;
@@ -61,7 +46,8 @@ export function buildPeriodizationSnapshot(state,clientId,{cycle,now=new Date()}
     const id=recordId(appointment);if(w&&id)w.scheduledIds.add(id);
   }
   for(const execution of confirmedSessionExecutionsForClient(state,safeId,{requireDate:true})){
-    const item=unwrap(execution),id=sessionExecutionId(item),date=isoOf(sessionExecutionDate(item)),w=weekOf(date);
+    const item=unwrap(execution),id=sessionExecutionId(item),completedAt=sessionExecutionCompletionDate(item),date=reportCivilDate(completedAt),w=weekOf(date);
+    if(!isWithinCivilPeriod(completedAt,'0001-01-01',reportCivilDate(now),now))continue;
     if(!w||!id||w.executedIds.has(id))continue;
     w.executedIds.add(id);
     const rpe=finite(val(item.feedback,'sessionRpe','session_rpe'),1,10);

@@ -1,4 +1,5 @@
 import {parseDateValue,reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
+import {observedSet,observedLoadKg} from '../domain/evidence-signal.js';
 import {
   unconfirmedSessionExecutionIds as blockedCompletionIds,
   sessionExecutionIsConfirmed as executionConfirmed,
@@ -130,14 +131,19 @@ export function normalizeExerciseLoad(row={}){
     ),
   );
 
-  if(Number.isFinite(kg)){
+  const typedKg=first(row,'loadKg','load_kg','weightKg','weight_kg','kg');
+  const kgValue=observedLoadKg(row);
+  if(kgValue!==null){
     return Object.freeze({
-      raw:`${kg} kg`,
-      value:kg,
+      raw:typedKg!==null?`${kgValue} kg`:String(first(row,'load','weight','carga')).trim(),
+      value:kgValue,
       unit:'kg',
       comparableKey:'kg',
     });
   }
+  if(typedKg!==null)return Object.freeze({
+    raw:null,value:null,unit:null,comparableKey:null,
+  });
 
   const lb=numeric(
     first(
@@ -180,14 +186,9 @@ export function normalizeExerciseLoad(row={}){
     /^([-+]?\d+(?:[.,]\d+)?)\s*(kg|kgs?|kilogramos?)$/iu,
   );
 
-  if(match){
-    return Object.freeze({
-      raw:text,
-      value:Number(match[1].replace(',','.')),
-      unit:'kg',
-      comparableKey:'kg',
-    });
-  }
+  if(match)return Object.freeze({
+    raw:text,value:null,unit:null,comparableKey:null,
+  });
 
   match=text.match(
     /^([-+]?\d+(?:[.,]\d+)?)\s*(lb|lbs?|libras?)$/iu,
@@ -231,7 +232,7 @@ function observedPace(value){
   return /^\d{1,2}:[0-5]\d$/u.test(text)&&Number(text.split(':')[0])*60+Number(text.split(':')[1])>0?text:null;
 }
 function normalizeSet(row,index){
-  if(row?.skipped===true||row?.completed===false)return null;
+  if(!observedSet(row))return null;
   const exerciseId=String(
     first(
       row,
@@ -298,15 +299,15 @@ function normalizeSet(row,index){
   return Object.freeze({
     exerciseId,
     setNumber,
-    reps:Number.isFinite(reps)?reps:null,
-    seconds:Number.isFinite(seconds)?seconds:null,
+    reps:Number.isSafeInteger(reps)&&reps>=0&&reps<=10000?reps:null,
+    seconds:Number.isFinite(seconds)&&seconds>=0?seconds:null,
     distanceKm:observedDistance(first(row,'distanceKm','distance_km'),1000),
     distanceM:observedDistance(first(row,'distanceM','distance_m'),100000),
     paceMinPerKm:observedPace(first(row,'paceMinPerKm','pace_min_per_km')),
     pacePer100M:observedPace(first(row,'pacePer100M','pace_per_100m')),
     load:normalizeExerciseLoad(row),
-    rpe:Number.isFinite(rpe)?rpe:null,
-    rir:Number.isFinite(rir)?rir:null,
+    rpe:Number.isFinite(rpe)&&rpe>=1&&rpe<=10?rpe:null,
+    rir:Number.isFinite(rir)&&rir>=0&&rir<=10?rir:null,
     notes:String(
       first(
         row,

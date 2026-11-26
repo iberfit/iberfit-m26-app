@@ -1,5 +1,6 @@
 // Life & Performance 360: conservative, owner-scoped workout evidence.
 import {exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
+import {observedSet,observedLoadKg} from '../domain/evidence-signal.js';
 // Only canonical confirmed session executions may call this projector.
 const clean=(x,max=100)=>String(x??'').trim().replace(/\s+/g,' ').slice(0,max);
 const finite=(x,min,max)=>typeof x==='number'&&Number.isFinite(x)&&x>=min&&x<=max?x:null;
@@ -31,12 +32,12 @@ function exerciseRows(record){
   const rows=Array.isArray(raw)?raw:raw&&typeof raw==='object'?Object.values(raw):[];
   const records=[];
   for(const row of rows){
-    if(!row||typeof row!=='object'||Array.isArray(row))continue;
+    if(!observedSet(row))continue;
     const id=clean(val(row,'exerciseId','exercise_id','exerciseName','name'),100);
     if(!id)continue;
     const reps=finite(val(row,'reps','repetitions'),0,500);
-    const kg=finite(val(row,'loadKg','weightKg'),0,1500);
-    const rpe=finite(row.rpe,0,10);
+    const kg=observedLoadKg(row,{max:1500});
+    const rpe=finite(row.rpe,1,10);
     if(reps===null&&kg===null&&rpe===null)continue;
     const name=clean(val(row,'exerciseName','name')||'Ejercicio registrado',65);
     const basis=clean(val(row,'loadBasis','loadUnit'),40).toLowerCase();
@@ -63,7 +64,7 @@ function classifiedResultRows(source){
     results&&typeof results==='object'?Object.values(results):[];
   const rows=[];
   for(const row of observed){
-    if(!row||typeof row!=='object'||Array.isArray(row))continue;
+    if(!observedSet(row))continue;
     const exerciseId=clean(row.exerciseId||row.exercise_id,160);
     if(!exerciseId)continue;
     const block=snapshot.blocks.find(block=>block?.type==='exercise'
@@ -86,15 +87,8 @@ function classifiedResultRows(source){
   }
   return rows;
 }
-function measuredLoad(row){
-  const direct=finite(val(row,'loadKg','weightKg'),0,1500);
-  if(direct!==null)return direct;
-  const raw=String(row?.load??'').trim();
-  const match=raw.match(/^([0-9]+(?:[.,][0-9]+)?)\s*kg$/iu);
-  if(!match)return null;
-  const amount=Number(match[1].replace(',','.'));
-  return finite(amount,0,1500);
-}
+function measuredLoad(row){return observedLoadKg(row,{max:1500});}
+
 function verifiedSetEvidence(source){
   const rows=classifiedResultRows(source);
   const result=[];
@@ -127,7 +121,7 @@ function verifiedSetEvidence(source){
     }else if(!profile.cardio&&profile.kind!=='carry'){
       const reps=finite(row.reps,0,500);
       const kg=measuredLoad(row);
-      const rpe=finite(row.rpe,0,10);
+      const rpe=finite(row.rpe,1,10);
       const pieces=[];
       if(reps!==null)pieces.push(reps+' rep');
       if(kg!==null)pieces.push(kg+' kg (base por implemento no especificada)');
