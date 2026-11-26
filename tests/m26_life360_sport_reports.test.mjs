@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildPostSessionSportEvidence} from '../src/m26/workflows/report-sport-evidence.js';
+import {buildPostSessionSportEvidence,summarizePeriodSportEvidence,periodSportEvidence} from '../src/m26/workflows/report-sport-evidence.js';
 test('sport report fails closed with no workout evidence',()=>{assert.deepEqual(buildPostSessionSportEvidence(null,{}),[]);});
 test('running pace uses only measured duration and distance',()=>{
   const execution={clientId:'c1',sport:'running',distanceKm:6.5,durationSeconds:2145};
@@ -52,4 +52,14 @@ test('Life360 actual M26 strength set uses observed load string without multipli
   assert.ok(rows[0].text.includes('8 rep'));
   assert.ok(rows[0].text.includes('10 kg'));
   assert.equal(rows[0].text.includes('20 kg'),false);
+});
+
+test('period sport totals keep disciplines separate, reject contradictory units and never double-count session summaries',()=>{
+ const base={clientId:'c1',status:'completed',syncStatus:'clean'};
+ const setSession={...base,id:'run-sets',sessionId:'run',sport:'running',distanceKm:100,durationSeconds:1000,planSnapshot:{sessionId:'run',blocks:[{type:'exercise',exerciseId:'run',name:'Carrera suave'}]},results:[{exerciseId:'run',setNumber:1,distanceKm:5,seconds:1500},{exerciseId:'run',setNumber:2,distanceKm:2},{exerciseId:'run',setNumber:3,distanceKm:1,distanceM:500,seconds:300},{exerciseId:'run',setNumber:4,distanceKm:5,seconds:1500,completed:false},{exerciseId:'run',setNumber:5,distanceKm:3},{exerciseId:'run',setNumber:5,distanceKm:3}]};
+ const records=[setSession,setSession,{...base,id:'run-legacy',sport:'running',distanceKm:3,durationSeconds:900},{...base,id:'swim',sport:'swimming',distanceM:1000,durationSeconds:1800},{...base,id:'bad',sport:'running',distanceKm:10,distanceM:5},{...base,id:'foreign',clientId:'c2',sport:'running',distanceKm:30},{...base,id:'pending',syncStatus:'pending',sport:'running',distanceKm:10}];
+ const [run,swim]=summarizePeriodSportEvidence(records,{clientId:'c1'});
+ assert.deepEqual(run,{sport:'running',sessions:2,rows:3,metres:10000,pairedRows:2,pairedMetres:8000,pairedSeconds:2400});
+ assert.equal(swim.metres,1000);assert.equal(swim.pairedSeconds,1800);
+ const rows=periodSportEvidence(records,{clientId:'c1'});assert.match(rows[0].text,/10 km/);assert.match(rows[0].text,/5:00 min\/km/);assert.match(rows[1].text,/3:00 min\/100 m/);
 });

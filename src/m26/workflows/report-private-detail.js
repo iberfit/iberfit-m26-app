@@ -4,6 +4,7 @@ import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionC
 import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
 import {observedSet,evidenceNumber,observedLoadKg} from '../domain/evidence-signal.js';
 import {normalizeExerciseLoad} from '../engagement/exercise-performance-engine.js';
+import {summarizePeriodSportEvidence} from './report-sport-evidence.js';
 const LIMIT=360,ANALYSIS_LIMIT=48;
 const clean=(v,max=100)=>String(v??'').replace(/[\u0000-\u001f\u007f]/gu,' ').replace(/\s+/gu,' ').trim().slice(0,max);
 const first=(o,...keys)=>{for(const key of keys){const v=o?.[key];if(v!==undefined&&v!==null&&v!=='')return v;}return null;};
@@ -31,7 +32,9 @@ function summarizeExerciseGroups(groups,comparisonGroups){
    const p=[...g.days.values()].sort((a,b)=>a.date.localeCompare(b.date));
    if(p.length<2)continue;
    const a=p[0],b=p.at(-1);
-   eligible.push({exercise:g.exercise,protocol:g.protocol,reps:g.reps,dates:p.length,first:a,last:b,change:rounded(b.kg-a.kg),percent:a.kg>0?rounded((b.kg-a.kg)/a.kg*100):null,bestKg:Math.max(...p.map(x=>x.kg)),points:p.length<=10?p:Array.from({length:10},(_,i)=>p[Math.round(i*(p.length-1)/9)])});
+   let runningMax=p[0].kg;const milestones=[];
+   for(const point of p.slice(1)){if(point.kg>runningMax){milestones.push({date:point.date,kg:point.kg,previousKg:runningMax});runningMax=point.kg;}}
+   eligible.push({milestoneCount:milestones.length,milestones:milestones.slice(-5),exercise:g.exercise,protocol:g.protocol,reps:g.reps,dates:p.length,first:a,last:b,change:rounded(b.kg-a.kg),percent:a.kg>0?rounded((b.kg-a.kg)/a.kg*100):null,bestKg:Math.max(...p.map(x=>x.kg)),points:p.length<=10?p:Array.from({length:10},(_,i)=>p[Math.round(i*(p.length-1)/9)])});
  }
  eligible.sort((a,b)=>b.dates-a.dates||a.exercise.localeCompare(b.exercise)||a.reps-b.reps||JSON.stringify(a.protocol).localeCompare(JSON.stringify(b.protocol)));
  return {exerciseSummary:exercises.slice(0,ANALYSIS_LIMIT),exerciseSummaryTotal:exercises.length,loadComparisons:eligible.slice(0,ANALYSIS_LIMIT),loadComparisonTotal:eligible.length};
@@ -96,5 +99,5 @@ export function buildPrivateReportDetail(state,clientId,report,{now=new Date()}=
     }
     if(!count)emptySessions++;
   }
-  return Object.freeze({...summarizeExerciseGroups(exerciseGroups,comparisonGroups),role,periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
+  return Object.freeze({...summarizeExerciseGroups(exerciseGroups,comparisonGroups),sportSummary:summarizePeriodSportEvidence(executions,{clientId:owner}),role,periodStart:report.periodStart,periodEnd:report.periodEnd,sessions:executions.length,exercises:uniqueExercises.size,observedRows,omittedRows,emptySessions,coverage:Object.freeze(coverage),details:Object.freeze(details),limited:observedRows>details.length});
 }

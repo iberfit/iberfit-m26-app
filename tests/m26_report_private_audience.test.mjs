@@ -43,7 +43,7 @@ test('Technical longitudinal analysis requires complete matching explicit protoc
  const d=buildPrivateReportDetail(s,'c1',report,{now});
  assert.equal(d.exerciseSummary[0].rows,7);assert.equal(d.exerciseSummary[0].exposures,3);
  assert.equal(d.loadComparisons.length,1);const c=d.loadComparisons[0];
- assert.equal(c.first.kg,40);assert.equal(c.last.kg,50);assert.equal(c.change,10);assert.equal(c.percent,25);assert.equal(c.bestKg,50);assert.equal(c.points[1].rpe,null);assert.equal(c.points[1].rir,null);
+ assert.equal(c.first.kg,40);assert.equal(c.last.kg,50);assert.equal(c.change,10);assert.equal(c.percent,25);assert.equal(c.bestKg,50);assert.equal(c.milestoneCount,2);assert.deepEqual(c.milestones.map(x=>x.kg),[45,50]);assert.equal(c.points[1].rpe,null);assert.equal(c.points[1].rir,null);
  const internal=buildEvolutionReportHtml({report,technicalDetail:d});assert.match(internal,/Comparaciones de carga por ejercicio/);assert.match(internal,/Sentadilla técnica/);
  assert.doesNotMatch(buildEvolutionReportHtml({report,technicalDetail:d,audience:'client'}),/Sentadilla técnica|Comparaciones de carga por ejercicio/);
 });

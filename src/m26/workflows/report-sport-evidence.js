@@ -1,6 +1,7 @@
 // Life & Performance 360: conservative, owner-scoped workout evidence.
 import {exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
 import {observedSet,observedLoadKg} from '../domain/evidence-signal.js';
+import {sessionExecutionId,sessionExecutionClientId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
 // Only canonical confirmed session executions may call this projector.
 const clean=(x,max=100)=>String(x??'').trim().replace(/\s+/g,' ').slice(0,max);
 const finite=(x,min,max)=>typeof x==='number'&&Number.isFinite(x)&&x>=min&&x<=max?x:null;
@@ -55,7 +56,7 @@ function exerciseRows(record){
 }
 // Real M26 executions store observed measurements inside results per set.
 // A planSnapshot is used ONLY to classify the exercise and cannot supply results.
-function classifiedResultRows(source){
+function classifiedResultRows(source,{limit=16,strict=false}={}){
   const snapshot=source?.planSnapshot||source?.plan_snapshot;
   if(!snapshot||String(snapshot.sessionId||'')!==String(source?.sessionId||'')
     ||!Array.isArray(snapshot.blocks))return [];
@@ -67,10 +68,11 @@ function classifiedResultRows(source){
     if(!observedSet(row))continue;
     const exerciseId=clean(row.exerciseId||row.exercise_id,160);
     if(!exerciseId)continue;
-    const block=snapshot.blocks.find(block=>block?.type==='exercise'
+    const matching=snapshot.blocks.filter(block=>(block?.type==='exercise'
       &&String(block.exerciseId||'')===exerciseId)
-      ||snapshot.blocks.find(block=>Array.isArray(block?.exerciseIds)
-        &&block.exerciseIds.some(id=>String(id)===exerciseId));
+      ||(Array.isArray(block?.exerciseIds)&&block.exerciseIds.some(id=>String(id)===exerciseId)));
+    if(strict&&matching.length!==1)continue;
+    const block=matching[0];
     if(!block)continue; // no valid prescription/exercise identity
     const grouped=block?.prescriptions?.[exerciseId]||{};
     const raw=block.type==='exercise'?block:grouped;
@@ -83,7 +85,7 @@ function classifiedResultRows(source){
     });
     rows.push({row,exerciseId,profile,
       name:clean(raw.name||raw.exerciseName||block.name||'Ejercicio',65)});
-    if(rows.length>=16)break;
+    if(rows.length>=limit)break;
   }
   return rows;
 }
@@ -170,4 +172,61 @@ export function buildPostSessionSportEvidence(record,{clientId}={}){
   // A load is never automatically multiplied by dumbbells or summed with bodyweight.
   if(sport==='strength'||sport==='mixed'||sport==='unknown')output.push(...exerciseRows(source));
   return Object.freeze(output.slice(0,8));
+}
+
+// Period aggregates describe recorded work only. No best-pace or fitness inference
+// across distances, intervals, terrain, stroke, equipment or timing protocols.
+function pairedDistance(km,m){
+ if(km!==null&&m!==null&&Math.abs(km*1000-m)>.01)return null;
+ return m??(km===null?null:km*1000);
+}
+export function summarizePeriodSportEvidence(executions,{clientId}={}){
+ const owner=String(clientId||'').trim();if(!owner)return [];
+ const groups=new Map(),seen=new Set();
+ const add=(sport,id,distance,seconds)=>{
+  if(!['running','swimming'].includes(sport)||distance===null||distance<=0)return;
+  let g=groups.get(sport);if(!g){g={sport,sessions:new Set(),rows:0,metres:0,pairedRows:0,pairedMetres:0,pairedSeconds:0};groups.set(sport,g);}
+  g.sessions.add(id);g.rows++;g.metres+=distance;
+  if(seconds!==null&&seconds>0){g.pairedRows++;g.pairedMetres+=distance;g.pairedSeconds+=seconds;}
+ };
+ for(const record of executions??[]){
+  const id=sessionExecutionId(record),source=bodyOf(record);
+  if(!id||seen.has(id)||sessionExecutionClientId(record)!==owner||sessionExecutionClientId(source)!==owner||!sessionExecutionIsCompleted(record,{allowDatedFallback:false})||!sessionExecutionIsConfirmed(record))continue;
+  seen.add(id);
+  const raw=source.results??source.setResults??source.set_results;
+  const hasRows=Array.isArray(raw)?raw.length>0:raw&&typeof raw==='object'&&Object.keys(raw).length>0;
+  if(hasRows){
+   // Only unambiguous snapshot-classified, explicitly numbered sets.
+   // Duplicate exercise/set coordinates are excluded rather than summed.
+   const coordinates=new Map();
+   for(const row of Array.isArray(raw)?raw:Object.values(raw)){
+    if(!row||typeof row!=='object')continue;
+    const key=JSON.stringify([String(row.exerciseId??row.exercise_id??''),row.setNumber??row.set_number]);
+    coordinates.set(key,(coordinates.get(key)||0)+1);
+   }
+   for(const {row,profile} of classifiedResultRows({...source,results:raw},{limit:Infinity,strict:true})){
+    const number=row.setNumber??row.set_number;
+    const key=JSON.stringify([String(row.exerciseId??row.exercise_id??''),number]);
+    if(!Number.isSafeInteger(number)||number<1||coordinates.get(key)!==1)continue;
+    const km=finite(row.distanceKm,0,1000),m=finite(row.distanceM,0,100000);
+    if((row.distanceKm!=null&&km===null)||(row.distanceM!=null&&m===null))continue;
+    add(profile.sport,id,pairedDistance(km,m),finite(row.seconds,0,86400));
+   }
+   continue; // never add a whole-session summary on top of set measurements
+  }
+  const metrics=source.metrics&&typeof source.metrics==='object'?source.metrics:{};
+  const rawKm=val(source,'distanceKm','actualDistanceKm')??val(metrics,'distanceKm');
+  const rawM=val(source,'distanceMeters','distanceM','actualDistanceMeters')??val(metrics,'distanceMeters','distanceM');
+  const km=finite(rawKm,0,1000),m=finite(rawM,0,100000);
+  if((rawKm!==null&&km===null)||(rawM!==null&&m===null))continue;
+  add(sportOf(source),id,pairedDistance(km,m),finite(val(source,'durationSeconds','elapsedSeconds','actualDurationSeconds')??val(metrics,'durationSeconds','elapsedSeconds'),0,86400));
+ }
+ return [...groups.values()].sort((a,b)=>a.sport.localeCompare(b.sport)).map(g=>Object.freeze({sport:g.sport,sessions:g.sessions.size,rows:g.rows,metres:g.metres,pairedRows:g.pairedRows,pairedMetres:g.pairedMetres,pairedSeconds:g.pairedSeconds}));
+}
+export function periodSportEvidence(executions,options){
+ return summarizePeriodSportEvidence(executions,options).map(g=>{
+  const running=g.sport==='running',dist=m=>Number((running?m/1000:m).toFixed(running?3:1))+(running?' km':' m');
+  const pace=paceText(g.pairedSeconds,g.pairedMetres/(running?1000:100));
+  return Object.freeze({label:running?'Running · distancia registrada':'Natación · distancia registrada',text:dist(g.metres)+' en '+g.sessions+' sesiones con distancia medida; '+g.rows+' registros de distancia.'+(g.pairedRows?' Tiempo registrado: '+durationText(g.pairedSeconds)+' sobre '+dist(g.pairedMetres)+' ('+g.pairedRows+'/'+g.rows+' registros con distancia y tiempo).':'')+(pace?' Ritmo global de esos registros: '+pace+(running?' min/km':' min/100 m')+'. Puede incluir pausas; no compara rendimiento.':''),source:'sessionExecutions',quality:'registrada'});
+ });
 }
