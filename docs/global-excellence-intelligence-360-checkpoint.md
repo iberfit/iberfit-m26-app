@@ -82,3 +82,7 @@ GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19
 - Appointment revisions are reconciled before applying time windows: rescheduled appointments cannot leave a stale commitment in the former period, and same-revision date conflicts are excluded. Retention cancellation factor uses the same reconciliation, not raw duplicates. Explicit client absence, coach absence and unresolved bookings remain distinct. Existing adherence lower-bound rate is retained; retention red is downgraded to human-review yellow when uncertain appointment evidence could explain it. Shared current wearable evidence reused.
 - First28 uses actual canonical workout count where present, distinguishes legacy recorded activity, rejects future same-day enrollment and contradictory owner. Existing navigation-only flow retained.
 - Prior recovery/Admin directed checks passed 8/8, total prior phase 25/25. New tests added; no DB writes, no migrations or additional remote requests.
+
+## Fifteenth commit — native media lifecycle
+- Existing native exercise player supports explicit 0.75×/0.5× slow technique review while retaining normal and faster playback. Tracks active video and pauses previous playback, detached videos and active playback on controller teardown; moved nodes are not stopped unnecessarily. No autoplay, preload, additional dependencies, backend requests or changes to media publication approval. Added directed lifecycle regression.
+- Fourteenth commit directed domain checks 10/10 passed; browser and full suite remain pending.
