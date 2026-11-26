@@ -287,6 +287,10 @@ const VIEWER_TAG='m26-exercise-media-viewer';
 const VIEWER_STYLE_HREF='/src/m26/library/exercise-media-viewer.css';
 const VIEWER_STYLE_TIMEOUT_MS=1200;
 const viewerState={dialog:null,opener:null,stylePromise:null};
+// Each pending request belongs to one connected trigger. Later taps or route
+// teardown invalidate the previous request before it can open an overlay.
+let viewerRequest=0;
+let pendingViewerTrigger=null;
 
 function ensureExerciseMediaViewerStyle(documentLike=globalThis.document){
   if(!documentLike?.head)return Promise.resolve(false);
@@ -327,11 +331,23 @@ function ensureExerciseMediaViewerStyle(documentLike=globalThis.document){
   return viewerState.stylePromise;
 }
 
+function restoreViewerFocus(){
+  const opener=viewerState.opener;
+  viewerState.opener=null;
+  if(opener?.isConnected)opener.focus?.({preventScroll:true});
+}
 function closeExerciseMediaViewer(){
+  viewerRequest++;
+  pendingViewerTrigger?.removeAttribute?.('aria-busy');
+  pendingViewerTrigger=null;
   const dialog=viewerState.dialog;
   if(!dialog)return;
   if(typeof dialog.close==='function'&&dialog.open)dialog.close();
   else dialog.removeAttribute?.('open');
+  // Native close events may be queued. Restore immediately and never let a
+  // delayed close event clear the focus target of a newly opened dialog.
+  restoreViewerFocus();
+  dialog.querySelector?.('[data-exercise-media-viewer-body]')?.replaceChildren();
 }
 
 function viewerFrame(documentLike,sourceImage,label){
@@ -341,7 +357,7 @@ function viewerFrame(documentLike,sourceImage,label){
 
   const image=documentLike.createElement('img');
   image.className='m26-exercise-media-viewer-image';
-  image.src=sourceImage.currentSrc||sourceImage.getAttribute?.('src')||'';
+  const src=sourceImage.currentSrc||sourceImage.getAttribute?.('src')||'';
   image.alt=sourceImage.alt||'';
   image.decoding='async';
   image.loading='eager';
@@ -349,16 +365,18 @@ function viewerFrame(documentLike,sourceImage,label){
   const fallback=documentLike.createElement('p');
   fallback.className='m26-exercise-media-viewer-error';
   fallback.hidden=true;
+  fallback.setAttribute('role','status');
+  fallback.setAttribute('aria-live','polite');
   fallback.textContent='No fue posible cargar esta referencia visual.';
 
-  image.addEventListener?.('load',()=>{frame.dataset.state='ready';});
-  image.addEventListener?.('error',()=>{
-    frame.dataset.state='error';
-    image.hidden=true;
-    fallback.hidden=false;
-  });
-
+  const ready=()=>{frame.dataset.state='ready';image.hidden=false;fallback.hidden=true;};
+  const failed=()=>{frame.dataset.state='error';image.hidden=true;fallback.hidden=false;};
+  image.addEventListener?.('load',ready);
+  image.addEventListener?.('error',failed);
   frame.append(image,fallback);
+  // Register listeners before setting src; cached images can already be complete.
+  if(src){image.src=src;if(image.complete){if(image.naturalWidth>0)ready();else failed();}}
+  else failed();
   if(label){
     const caption=documentLike.createElement('figcaption');
     caption.textContent=label;
@@ -419,9 +437,9 @@ function ensureExerciseMediaViewer(documentLike=globalThis.document){
     if(event.key==='Escape'&&typeof dialog.close!=='function')closeExerciseMediaViewer();
   });
   dialog.addEventListener('close',()=>{
-    const opener=viewerState.opener;
-    viewerState.opener=null;
-    if(opener?.isConnected)opener.focus?.({preventScroll:true});
+    if(dialog.open)return;
+    restoreViewerFocus();
+    body.replaceChildren();
   });
 
   viewerState.dialog=dialog;
@@ -429,11 +447,15 @@ function ensureExerciseMediaViewer(documentLike=globalThis.document){
 }
 
 async function openExerciseMediaViewer(trigger){
-  const documentLike=trigger?.ownerDocument||globalThis.document;
-  trigger?.setAttribute?.('aria-busy','true');
-  await ensureExerciseMediaViewerStyle(documentLike);
-  trigger?.removeAttribute?.('aria-busy');
   if(!trigger?.isConnected)return false;
+  const documentLike=trigger.ownerDocument||globalThis.document;
+  const request=++viewerRequest;
+  pendingViewerTrigger?.removeAttribute?.('aria-busy');
+  pendingViewerTrigger=trigger;
+  trigger.setAttribute?.('aria-busy','true');
+  try{await ensureExerciseMediaViewerStyle(documentLike);}catch{/* Native dialog remains available without enhanced styling. */}
+  finally{if(request===viewerRequest){trigger.removeAttribute?.('aria-busy');pendingViewerTrigger=null;}}
+  if(request!==viewerRequest||!trigger.isConnected)return false;
 
   const dialog=ensureExerciseMediaViewer(documentLike);
   if(!dialog)return false;
@@ -453,10 +475,15 @@ async function openExerciseMediaViewer(trigger){
   }
 
   viewerState.opener=trigger;
-  if(typeof dialog.showModal==='function'){
-    if(!dialog.open)dialog.showModal();
-  }else{
-    dialog.setAttribute('open','');
+  try{
+    if(typeof dialog.showModal==='function'){
+      if(!dialog.open)dialog.showModal();
+    }else{
+      dialog.setAttribute('open','');
+    }
+  }catch{
+    closeExerciseMediaViewer();
+    return false;
   }
   dialog.querySelector?.('[data-exercise-media-viewer-close]')?.focus?.({preventScroll:true});
   return true;
@@ -478,6 +505,11 @@ if(globalThis.customElements&&globalThis.HTMLElement&&!globalThis.customElements
     disconnectedCallback(){
       if(this.__iberfitViewerClick)this.removeEventListener('click',this.__iberfitViewerClick);
       this.__iberfitViewerBound=false;
+      if(pendingViewerTrigger&&this.contains(pendingViewerTrigger)){
+        viewerRequest++;
+        pendingViewerTrigger.removeAttribute?.('aria-busy');
+        pendingViewerTrigger=null;
+      }
       if(viewerState.opener&&this.contains(viewerState.opener))closeExerciseMediaViewer();
     }
   }
@@ -589,7 +621,7 @@ export function renderExerciseMedia({
     const frames=media.images.map((src,index)=>`<span class="m26-exercise-media-frame"><img class="m26-exercise-media-image" src="${e(src)}" alt="${e(`${name} · ${labels[index]||'referencia visual'}`)}" ${imageLoading} decoding="async"><small>${e(labels[index]||'Referencia')}</small></span>`).join('');
     const frameGroup=`<div class="m26-exercise-media-frames">${frames}</div>`;
     const interactiveFrames=enableViewer
-      ?`<${VIEWER_TAG}><button type="button" class="m26-exercise-media-open" data-exercise-media-open data-exercise-media-name="${e(name)}" aria-label="Ver ${e(name)} en grande">${frameGroup}<span class="m26-exercise-media-open-label" aria-hidden="true">Ver en grande</span></button></${VIEWER_TAG}>`
+      ?`<${VIEWER_TAG}><button type="button" class="m26-exercise-media-open" data-exercise-media-open aria-haspopup="dialog" data-exercise-media-name="${e(name)}" aria-label="Ver ${e(name)} en grande">${frameGroup}<span class="m26-exercise-media-open-label" aria-hidden="true">Ver en grande</span></button></${VIEWER_TAG}>`
       :frameGroup;
 
     const quality=showQuality&&media.quality.startsWith('C')

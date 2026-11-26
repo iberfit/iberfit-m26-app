@@ -96,3 +96,8 @@ GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19
 - Preserved the established general sessions challenge contract (confirmed activity, including verified in-person attendance). Booked planning challenge remains strictly booked fulfillment. Device consent gate returns before expensive longitudinal aggregation. Dated reusable summary must match exact rolling clock/window when supplied, while legacy undated same-frame inputs remain supported.
 - Latest post-session feedback uses actual completion rather than creation or update time. Adaptive exercise history reuses observed set/kg evidence and omits skipped rows, unit conflicts and unknown unit loads. No additional DB calls; no automatic prescription introduced.
 - Added targeted regression cases. Native browser, full test suite and performance SLA are still unverified.
+
+## Eighteenth commit — media viewer accessibility and lifecycle
+- The existing native dialog viewer fences asynchronous opens by connected trigger/request generation. Route teardown invalidates pending opens. Native close and fallback close restore focus without stale close events clearing a reopened dialog. Image listeners precede source assignment, cached success/failure is reconciled, and error placeholders hide broken images correctly. No new network calls, dependencies or backend mutations.
+- Added regression assertions; full native browser focus/keyboard validation remains pending.
+- Seventeenth commit 10/10 isolated evidence/challenge/adaptive checks passed (upstream aggregate fixtures); actual route performance SLA not certified.

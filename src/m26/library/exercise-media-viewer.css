@@ -149,7 +149,7 @@ m26-exercise-media-viewer{display:block;min-width:0}
   text-align:center;
 }
 
-.m26-exercise-media-viewer-error[hidden]{display:none}
+.m26-exercise-media-viewer-error[hidden],.m26-exercise-media-viewer-image[hidden]{display:none}
 
 @media(max-width:719px){
   .iberfit-dialog.m26-exercise-media-viewer-dialog{
