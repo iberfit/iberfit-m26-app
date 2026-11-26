@@ -1,6 +1,7 @@
 function required(v,c){if(!v)throw new Error(c);}
 import {createM26Id} from '../platform/id.js';
-import {civilDateInTimeZone} from '../domain/civil-date.js';
+import {reportCivilDate} from '../domain/civil-date.js';
+import {evidenceNumber,stableEvidenceJson} from '../domain/evidence-signal.js';
 function cycleCivilDate(value){
   if(value instanceof Date){
     if(!Number.isFinite(value.getTime()))return null;
@@ -37,9 +38,9 @@ function cycleSortTimestamp(record){
 }
 export function selectCurrentTrainingCycle(records=[],{clientId,now=new Date()}={}){
   const expected=String(clientId||'').trim();
-  const today=cycleCivilDate(civilDateInTimeZone(now));
+  const today=cycleCivilDate(reportCivilDate(now));
   if(!expected||today===null)return null;
-  const current=[],legacy=[];
+  const current=[],legacy=[],revisions=new Map(),unidentified=[];
   for(const original of Array.isArray(records)?records:[]){
     const cycle=unwrappedCycle(original);
     // A conflicting client ID in the persisted wrapper/body is not trustworthy.
@@ -47,6 +48,15 @@ export function selectCurrentTrainingCycle(records=[],{clientId,now=new Date()}=
     const bodyClient=String(original?.body?.clientId??original?.body?.client_id??'').trim();
     if((wrapperClient&&wrapperClient!==expected)||(bodyClient&&bodyClient!==expected))continue;
     if(!cycle||String(cycle.clientId??cycle.client_id??'').trim()!==expected)continue;
+    const id=String(cycle.id??cycle.entityId??cycle.entity_id??'').trim();
+    const revision=evidenceNumber(cycle.revision,{min:0,integer:true})??0;
+    if(!id){unidentified.push(original);continue;}
+    const signature=stableEvidenceJson(cycle),previous=revisions.get(id);
+    if(!previous||revision>previous.revision)revisions.set(id,{original,revision,signature,conflict:false});
+    else if(revision===previous.revision&&signature!==previous.signature)previous.conflict=true;
+  }
+  for(const original of [...unidentified,...[...revisions.values()].filter(row=>!row.conflict).map(row=>row.original)]){
+    const cycle=unwrappedCycle(original);
     const status=String(cycle.status??cycle.estado??'').trim().toLowerCase();
     if(INELIGIBLE_CYCLE_STATUSES.has(status))continue;
     const startRaw=cycle.startDate??cycle.start_date??null;
@@ -85,8 +95,7 @@ export function validateCycleDraft(d={}){
   for(const [field,min,max] of [['weeklyFrequency',1,14],['sessionDurationMinutes',20,240]]){
     const value=d[field];
     if(value===undefined||value===null||value==='')continue; // optional in historic command format
-    const numeric=Number(value);
-    if(typeof value==='boolean'||!Number.isInteger(numeric)||numeric<min||numeric>max)errors.push(field);
+    if(evidenceNumber(value,{min,max,integer:true})===null)errors.push(field);
   }
   return {ok:!errors.length,errors:[...new Set(errors)]};
 }

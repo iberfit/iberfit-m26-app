@@ -62,3 +62,7 @@ GX01–05: open verification / recovery / RLS / PDF. GX06–07, GX10, GX15, GX19
 - Each daily wearable metric carries its own known provider/channel labels; equal values appear once, conflicting values remain unavailable, and unknown source stays explicitly unidentified. No physical-watch inference. Existing wellness and activity remain separate.
 - Eighth-commit directed checks passed 17/17 (including invalid-series rejection by the actual issuer function before PDF generation, report revision and privacy). Physical PDF rendering/visual QA and Edge deployment still pending.
 - Added tests and i18n for Client context. CSS/browser validation pending. No database writes.
+
+## Tenth commit — planning and measured weekly context
+- GX25: existing periodization board separates elapsed/current/future weeks, exposes agreed integer weekly frequency without claiming adherence or prorating partial weeks, respects canonical civil dates and rejects conflicting cycle/appointment ownership. Cycle selector reconciles highest revision before status filtering so archived planning cannot resurrect; conflicting same revisions are excluded. Numeric prescription inputs reject coerced arrays/hex values. Shared alternative measurement compatibility helper prepared for next integration, not yet wired to live execution.
+- Ninth-commit directed checks 12/12 passed (Client daily context); cumulative directed checks from prior turn 38/38. Added regression tests for cycle revisions and weekly semantics. Full browser/CI pending; no DB writes or migrations.

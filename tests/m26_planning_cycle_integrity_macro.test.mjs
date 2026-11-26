@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateCycleDraft,buildCycleCommand} from '../src/m26/workflows/planning-workflow.js';
+import {validateCycleDraft,buildCycleCommand,selectCurrentTrainingCycle} from '../src/m26/workflows/planning-workflow.js';
 
 const draft=(extra={})=>({
  clientId:'client-cycle-integrity',name:'Fuerza · bloque base',
@@ -70,4 +70,14 @@ test('un ciclo inválido no genera comando ni muta el borrador',()=>{
  const before=structuredClone(input);
  assert.throws(()=>buildCycleCommand(input),/M26_CYCLE_INVALID/);
  assert.deepEqual(input,before);
+});
+
+test('GX25 canonical cycle revisions cannot resurrect retired planning or ambiguous prescriptions',()=>{
+ const now=new Date('2026-10-15T15:00:00Z'),old={...draft(),id:'cycle1',revision:1,status:'publicado'},latest={...old,revision:2,status:'archivado'};
+ assert.equal(selectCurrentTrainingCycle([old,latest],{clientId:old.clientId,now}),null);
+ assert.equal(selectCurrentTrainingCycle([latest,old],{clientId:old.clientId,now}),null);
+ const current={...old,revision:2,goal:'Nuevo objetivo'};
+ assert.equal(selectCurrentTrainingCycle([old,current],{clientId:old.clientId,now}).goal,'Nuevo objetivo');
+ assert.equal(selectCurrentTrainingCycle([current,{...current,goal:'Conflicto'}],{clientId:old.clientId,now}),null);
+ for(const invalid of [[2],true,'0x2'])assert.ok(errors({weeklyFrequency:invalid}).includes('weeklyFrequency'));
 });

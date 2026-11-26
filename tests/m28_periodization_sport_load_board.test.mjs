@@ -41,3 +41,14 @@ test('IRI-only, mismatched, invalid and enormous civil-date cycles cannot fabric
  assert.equal(buildPeriodizationSnapshot(state(),id,{cycle:{...cycle,endDate:'2030-01-01'}}),null);
  assert.equal(renderPeriodizationBoard(null),'');
 });
+
+
+test('GX25 weekly frequency, partial weeks and future dates retain distinct semantics',()=>{
+ const snap=buildPeriodizationSnapshot(state(),id,{cycle:{...cycle,endDate:'2026-10-12'},now:new Date('2026-10-04T15:00:00Z')});
+ assert.equal(snap.weeks[0].phase,'current');assert.equal(snap.weeks[0].agreedFrequency,2);
+ assert.equal(snap.weeks[1].phase,'future');assert.equal(snap.weeks[1].agreedFrequency,null);
+ assert.equal(snap.weeks[1].completed,0);assert.match(renderPeriodizationBoard(snap),/m28-week is-future/);
+ assert.match(renderPeriodizationBoard(snap),/Frecuencia acordada/);
+ assert.equal(buildPeriodizationSnapshot(state(),id,{cycle:{...cycle,weeklyFrequency:'0x2'}}).weeklyFrequency,null);
+ assert.equal(buildPeriodizationSnapshot(state(),id,{cycle:{...cycle,clientId:'other',body:cycle}}),null);
+});

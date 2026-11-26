@@ -2303,3 +2303,9 @@ body {
 
 /* GX08/GX19: source labels remain subordinate to measured values. */
 .m26-client-day-metric .m26-client-day-source{font-size:.69rem;font-weight:400;line-height:1.45;overflow-wrap:anywhere;color:var(--iberfit-color-text-secondary,#d6d9d1);margin-top:.15rem}
+
+/* GX25: future weeks are not measured zeroes; retain CSP-safe chart heights. */
+.m28-week.is-future .m28-week-bar{background:none;border-top:2px dashed var(--iberfit-color-text-secondary,#a7b2aa);opacity:.8}
+.m28-week.is-current small{color:var(--iberfit-role-accent,#c8a65d);font-weight:700}
+.m28-frequency{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:baseline;font-size:.84rem;color:var(--iberfit-color-text-secondary)}
+.m28-frequency span{flex-basis:100%}
