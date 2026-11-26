@@ -15,6 +15,9 @@ on:
       - 'supabase/functions/iberfit-iri-report-emission-v1/**'
       - 'tests/m26_iri_elite_measurements.test.mjs'
       - 'tests/m26_report_private_audience.test.mjs'
+      - 'tests/m44_evolution_report_visual_quality.test.mjs'
+      - 'tests/m44_server_pdf_renderer.test.mjs'
+      - 'tests/m44_pdf_issuance_broker_contract.test.mjs'
       - 'src/m26/admin/business-report.js'
       - 'tests/m26_business_report.test.mjs'
   workflow_dispatch:

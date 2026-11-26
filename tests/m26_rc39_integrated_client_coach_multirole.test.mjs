@@ -100,7 +100,15 @@ test('cualquier combinación con más de una app autorizada exige elección expl
   assert.match(application,/const allowed=Array\.isArray\(applicationAccess\.authorizedRoles\)\?applicationAccess\.authorizedRoles:\[\];/u);
   assert.match(application,/if\(!canSwitchApplication\(applicationAccess\)\|\|!allowed\.includes\(role\)\)\{/u);
   assert.doesNotMatch(application,/if\(!canSwitchApplication\(identity\)\|\|!allowed\.includes\(role\)\)\{/u);
-  assert.doesNotMatch(application,/!\['coach','admin'\]\.includes\(role\)/u);
+  const switchStart=application.indexOf('async function onSwitchRole(event){');
+  assert.ok(switchStart>=0);
+  const switchEnd=application.indexOf('\n  }',switchStart);
+  assert.ok(switchEnd>switchStart);
+  const switchHandler=application.slice(switchStart,switchEnd);
+  assert.match(switchHandler,/if\(!canSwitchApplication\(applicationAccess\)\|\|!allowed\.includes\(role\)\)\{/u);
+  // Restrict this invariant to the actual role chooser; privileged create
+  // operations separately require Coach or Admin, not Client.
+  assert.doesNotMatch(switchHandler,/!\['coach','admin'\]\.includes\(role\)/u);
   assert.match(application,/const roleChoiceConfirmed=!roleChoiceRequired\|\|Boolean\(requestedRole\)/u);
   assert.match(application,/if\(roleChoiceConfirmed\)writePreferredApplicationRole/u);
   assert.match(enhancer,/¿Cómo quieres entrar\?/u);
