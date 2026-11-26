@@ -157,3 +157,38 @@ test('GX11 initial IRI cannot resurrect after newer noninitial or conflicting re
  assert.equal(selectInitialIriBaseline([{...initial,serverConfirmed:false}],'c1',{now}),null);
  assert.equal(selectInitialIriBaseline([initial],'c1',{now}),initial);
 });
+
+
+test('GX26 volume preserves measured zero, exposes sample coverage and avoids direction-based scoring',async()=>{
+ const {buildProgressHub}=await import('../src/m26/engagement/progress-hub.js');
+ const now=new Date('2026-11-25T12:00:00Z');
+ const base={clientId:'c1',status:'completed',syncStatus:'clean'};
+ const workout=(id,day,loadKg)=>({...base,id,completedAt:`2026-11-${day}T12:00:00Z`,results:[{exerciseId:'squat',reps:10,loadKg}]});
+ const state={collections:{sessionExecutions:[workout('a','20',20),workout('b','24',0)]}};
+ const p=computeProgressSummary(state,'c1',{now});
+ assert.equal(p.volumeDelta,-100);
+ assert.equal(p.comparableVolumeSeries.at(-1).volume,0);
+ assert.equal(p.volumeEvidence.comparableSessions,2);
+ const hub=buildProgressHub(state,'c1',{now});
+ const volume=hub.pillars.find(row=>row.id==='volume');
+ assert.equal(volume.status,'building');
+ assert.ok(!hub.actionable.includes('volume'));
+ const reverse={collections:{sessionExecutions:[workout('a','20',0),workout('b','24',20)]}};
+ const q=computeProgressSummary(reverse,'c1',{now});
+ assert.equal(q.volumeDelta,null);
+ assert.equal(q.volumeEvidence.comparableSessions,2);
+ const partial={collections:{sessionExecutions:[workout('a','20',20),{...workout('b','24',20),results:[{exerciseId:'squat',reps:10,loadKg:20},{exerciseId:'squat',reps:10,load:'unknown'}]}]}};
+ const r=computeProgressSummary(partial,'c1',{now});
+ assert.equal(r.volumeEvidence.partialSessions,1);
+ assert.equal(r.volumeDelta,null);
+});
+test('GX09 trends require at least two distinct dated exposures',async()=>{
+ const {buildExercisePerformanceTrend}=await import('../src/m26/engagement/exercise-performance-engine-core.js');
+ const exposure=(completedAt,value)=>({completedAt,peakLoad:{value,unit:'kg',comparableKey:'kg'}});
+ const first=exposure('2026-11-20',20),latest=exposure('2026-11-21',25);
+ const one=buildExercisePerformanceTrend({latest:first,history:[first]}).metrics.load;
+ assert.equal(one.absoluteDelta,null);assert.equal(one.percentageDelta,null);
+ assert.equal(one.direction,'insufficient');assert.equal(one.comparable,false);
+ assert.equal(buildExercisePerformanceTrend({latest,history:[latest,first]}).metrics.load.absoluteDelta,5);
+ assert.equal(buildExercisePerformanceTrend({latest:first,history:[first,{...first}]}).metrics.load.comparable,false);
+});

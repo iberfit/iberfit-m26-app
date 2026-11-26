@@ -349,6 +349,28 @@ function executionTime(record,window){
   return safeDate(sessionExecutionCompletionDate(record))?.getTime()||0;
 }
 
+// Positive partial records still describe observed work, but cannot establish
+// a session-to-session trend. An explicitly measured zero is not missing.
+function summarizeRecordedVolume(records){
+  const series=records.filter(item=>item.volume>0||(item.volume===0&&item.comparisonKey!==null))
+    .sort((a,b)=>a.date-b.date);
+  const volumes=series.map(item=>item.volume);
+  const split=Math.ceil(series.length/2);
+  const complete=series.filter(item=>item.comparisonKey!==null).length;
+  const comparable=series.length>=2&&series[0].comparisonKey!==null
+    &&series.every(item=>item.comparisonKey===series[0].comparisonKey)
+    &&series[split-1].date<series[split].date;
+  const older=comparable?average(volumes.slice(0,split)):null;
+  const recent=comparable?average(volumes.slice(split)):null;
+  const volumeDelta=older!==null&&older>0&&recent!==null?round((recent-older)/older*100,1):null;
+  const comparableVolumeSeries=comparable?Object.freeze(series.slice(-16)
+    .filter(item=>item.date>0).map(item=>Object.freeze({date:new Date(item.date).toISOString(),volume:round(item.volume,1)}))):Object.freeze([]);
+  return {volume:round(average(volumes),1),volumeDelta,comparableVolumeSeries,
+    volumeEvidence:Object.freeze({recordedSessions:series.length,completeSessions:complete,partialSessions:series.length-complete,
+      comparableSessions:comparable?series.length:0,olderSessions:comparable?split:0,recentSessions:comparable?series.length-split:0,
+      olderMean:round(older,1),recentMean:round(recent,1)})};
+}
+
 export function computeProgressSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false,reportEvidenceOnly=false}={}){
   if(!clientId)return null;
   const window=progressWindow({now,days,civilPeriod}),{start,end}=window;
@@ -384,28 +406,8 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
   });
   const {plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence}=adherenceEvidence;
   const rpes=completedExecutions.flatMap(rpeValues);
-  const volumeSeries=completedExecutions
-    .map((item)=>({date:executionTime(item,window),volume:volumeOf(item),comparisonKey:volumeComparisonKey(item)}))
-    .filter((item)=>item.volume>0)
-    .sort((a,b)=>a.date-b.date);
-  const volumes=volumeSeries.map((item)=>item.volume);
-  const split=Math.ceil(volumes.length/2);
-  const comparableVolumes=volumeSeries.length>=2&&volumeSeries[0].comparisonKey!==null
-    &&volumeSeries.every((item)=>item.comparisonKey===volumeSeries[0].comparisonKey);
-  const olderVolume=comparableVolumes?average(volumes.slice(0,split)):null;
-  const recentVolume=comparableVolumes?average(volumes.slice(split)):null;
-  const volumeDelta=Number.isFinite(olderVolume)&&olderVolume>0&&Number.isFinite(recentVolume)?((recentVolume-olderVolume)/olderVolume)*100:null;
-  // Only same-composition, confirmed execution volumes can form a real trend.
-  // Keep the last 16 points to protect large histories and mobile rendering;
-  // no interpolated, missing, draft or cross-exercise values.
-  const comparableVolumeSeries=comparableVolumes
-    ?Object.freeze(volumeSeries.slice(-16)
-      .filter((item)=>item.date>0&&Number.isFinite(item.volume)&&item.volume>0)
-      .map((item)=>Object.freeze({
-        date:new Date(item.date).toISOString(),
-        volume:round(item.volume,1),
-      })))
-    :Object.freeze([]);
+  const {volume,volumeDelta,comparableVolumeSeries,volumeEvidence}=summarizeRecordedVolume(completedExecutions
+    .map((item)=>({date:executionTime(item,window),volume:volumeOf(item),comparisonKey:volumeComparisonKey(item)})));
   const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window)&&observedSet(item)&&Object.values(checkinValues(item)).some(Number.isFinite)).sort(byDateDesc);
   const wearable=reportEvidenceOnly?null:summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
   const checkinSeries=checkins.map(checkinValues);
@@ -432,8 +434,8 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
     explicitlyMissedAppointments:adherenceEvidence.missedAppointments,
     evidenceConflicts:conflictedRows.length,
     adherenceEvidence,
-    averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
-    comparableVolumeSeries,
+    averageRpe:round(average(rpes),1),volume,volumeDelta,
+    comparableVolumeSeries,volumeEvidence,
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
     iriBaseline,
     evolution,

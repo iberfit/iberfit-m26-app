@@ -78,7 +78,11 @@ export function buildPeriodProgressEvidence(state,clientId,{now=new Date(),days}
   const rows=[];
   if(scheduled)rows.push({id:'consistency',label:'Constancia',evidence:`${scheduled.completed} de ${scheduled.planned} citas programadas cumplidas en ${days} días`,source:'appointments+sessionExecutions',quality:summary.dataQuality});
   if(strength.comparable)rows.push({id:'strength',label:'Fuerza',evidence:`${strength.improving} de ${strength.comparable} ejercicios comparables con evolución favorable confirmada en el periodo`,source:'sessionExecutions',quality:strength.comparable>=3?'alta':'media'});
-  if(Number.isFinite(summary.volumeDelta))rows.push({id:'volume',label:'Volumen comparable',evidence:`Variación descriptiva ${summary.volumeDelta>0?'+':''}${summary.volumeDelta}% entre grupos cronológicos de sesiones comparables del mismo periodo; no equivale a una mejora automática`,source:'sessionExecutions',quality:summary.dataQuality});
+  if(summary.volumeEvidence?.comparableSessions>=2){
+    const v=summary.volumeEvidence;
+    const variation=Number.isFinite(summary.volumeDelta)?`Variación descriptiva ${summary.volumeDelta>0?'+':''}${summary.volumeDelta}%`:'Variación porcentual no calculable desde una referencia de cero';
+    rows.push({id:'volume',label:'Volumen comparable',evidence:`${variation} entre grupos cronológicos de sesiones comparables del mismo periodo (${v.olderSessions} y ${v.recentSessions} sesiones; medias ${v.olderMean} y ${v.recentMean} kg·rep); no equivale a una mejora automática`,source:'sessionExecutions',quality:v.comparableSessions>=3?'media':'limitada'});
+  }
   if(summary.checkins>0)rows.push({id:'wellbeing',label:'Bienestar',evidence:`${summary.checkins} registro${summary.checkins===1?'':'s'} en el periodo; último registro ${summary.latestCheckinAt||'confirmado'}`,source:'checkins',quality:summary.checkins>=8?'alta':summary.checkins>=3?'media':'limitada'});
   return Object.freeze(rows.map(row=>Object.freeze({...row,status:'available'})));
 }
@@ -147,13 +151,16 @@ export function buildProgressHub(
     Object.freeze({
       id:'volume',
       label:'Volumen',
-      status:Number.isFinite(summary28.volumeDelta)?(summary28.volumeDelta>5?'strong':summary28.volumeDelta>=-5?'building':'review'):'insufficient',
+      // Volume is descriptive. Increasing or decreasing it may be intentional.
+      status:Number.isFinite(summary28.volume)?'building':'insufficient',
       value:Number.isFinite(summary28.volume)?summary28.volume:null,
-      unit:'kg·rep medio',
-      evidence:Number.isFinite(summary28.volumeDelta)?`Cambio reciente ${summary28.volumeDelta>0?'+':''}${summary28.volumeDelta}% entre grupos cronológicos de sesiones comparables de la ventana de 28 días`:'Sin suficiente volumen comparable',
-      context:'Solo carga × repeticiones en kg; exige ejercicios, variantes y series comparables. Más volumen no equivale a mejor rendimiento.',
+      unit:'kg·rep medio registrado',
+      evidence:Number.isFinite(summary28.volumeDelta)?`Cambio reciente ${summary28.volumeDelta>0?'+':''}${summary28.volumeDelta}% entre grupos cronológicos de sesiones comparables de la ventana de 28 días (${summary28.volumeEvidence?.comparableSessions??'número no disponible'} sesiones)`
+        :summary28.volumeEvidence?.comparableSessions>=2?'Volumen comparable; no se puede calcular un porcentaje desde una referencia de cero.'
+        :Number.isFinite(summary28.volume)?'Trabajo registrado; sin suficiente volumen comparable':'Sin suficiente volumen comparable',
+      context:'Solo carga × repeticiones en kg; exige ejercicios, variantes y series comparables. Más volumen no equivale a mejor rendimiento.'+(summary28.volumeEvidence?.partialSessions?` Incluye ${summary28.volumeEvidence.partialSessions} sesión(es) con registro parcial.`:''),
       source:'sessionExecutions',
-      quality:summary28.dataQuality,
+      quality:summary28.volumeEvidence?.comparableSessions>=3?'media':'limitada',
     }),
     Object.freeze({
       id:'wellbeing',

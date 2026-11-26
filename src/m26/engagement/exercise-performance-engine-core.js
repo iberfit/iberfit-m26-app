@@ -769,8 +769,11 @@ function performanceMetricTrend(
     points.at(-1)||
     null;
 
+  const hasComparison=points.length>=2&&Boolean(safeDate(firstPoint?.completedAt))
+    &&Boolean(safeDate(latestPoint?.completedAt))
+    &&safeDate(firstPoint.completedAt).getTime()<safeDate(latestPoint.completedAt).getTime();
   const absoluteDelta=
-    firstPoint&&latestPoint
+    hasComparison
       ?delta(
           latestPoint.value,
           firstPoint.value,
@@ -778,7 +781,7 @@ function performanceMetricTrend(
       :null;
 
   const percentageDelta=
-    firstPoint&&latestPoint
+    hasComparison
       ?percentDelta(
           latestPoint.value,
           firstPoint.value,
@@ -805,8 +808,7 @@ function performanceMetricTrend(
     absoluteDelta,
     percentageDelta,
     direction,
-    comparable:
-      points.length>=2,
+    comparable:hasComparison,
   });
 }
 
