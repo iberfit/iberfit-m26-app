@@ -97,7 +97,7 @@ function stable(value:unknown):unknown{
 function stableJson(value:unknown){return JSON.stringify(stable(value));}
 async function sha256(bytes:Uint8Array|string){
   const source=typeof bytes==='string'?new TextEncoder().encode(bytes):bytes;
-  const digest=await crypto.subtle.digest('SHA-256',source);
+  const digest=await crypto.subtle.digest('SHA-256',new Uint8Array(source));
   return [...new Uint8Array(digest)].map((b)=>b.toString(16).padStart(2,'0')).join('');
 }
 function latestByView(rows:any[]){
@@ -1393,7 +1393,7 @@ async function issueReport({userClient,service,actorUserId,actorEmail,assessment
   if(!SHA256.test(sourceHash))throw new Error('IRI_REPORT_SOURCE_HASH_INVALID');
 
   let pdf=await renderPdf({draft,audience,clientName:clientResult.data.name||'Cliente IBERFIT',coachName,iriOnly:authz.data?.iriOnly===true,photoReport,annex,appOrigin,assessmentMeta:{protocolVersion:assessment.protocol_version,completedAt:assessment.completed_at},signatureEligible:/carlos/iu.test(coachName)||String(actorEmail||'').toLowerCase()==='iberfit.cl@gmail.com'});
-  pdf=await appendExternal(pdf,externalBytes,annex);
+  pdf=new Uint8Array(await appendExternal(pdf,externalBytes,annex));
   if(pdf.byteLength<=1000||pdf.byteLength>MAX_ARTIFACT_BYTES)throw new Error('IRI_REPORT_ARTIFACT_SIZE_INVALID');
   const artifactHash=await sha256(pdf);
   const issuanceId=crypto.randomUUID();

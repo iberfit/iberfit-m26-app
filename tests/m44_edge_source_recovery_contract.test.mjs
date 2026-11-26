@@ -55,8 +55,8 @@ test('Tampering of an archived deployed source fails closed before release',()=>
    const extra=[
     'supabase/functions/iberfit-ai/deno.json',
     'supabase/functions/iberfit-client-onboarding-v1/index.ts',
-    'supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js',
-    'supabase/functions/iberfit-evolution-report-emission-v1/storage-recovery.js',
+    'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/pdf-renderer.js',
+    'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/storage-recovery.js',
    ];
    for(const s of extra){
      const dst=path.join(dir,s);fs.mkdirSync(path.dirname(dst),{recursive:true});
@@ -67,7 +67,7 @@ test('Tampering of an archived deployed source fails closed before release',()=>
    fs.appendFileSync(ai,'\n// unexpected unauthorized drift\n');
    assert.throws(()=>validateLocalSources(inventory,dir),/SOURCE_CONTENT_DRIFT:iberfit-ai/);
    fs.copyFileSync(path.join(repo,'supabase/functions/iberfit-ai/index.ts'),ai);
-   const aux=path.join(dir,'supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js');
+   const aux=path.join(dir,'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/pdf-renderer.js');
    fs.appendFileSync(aux,'\n// unexpected dependency drift\n');
    assert.throws(()=>validateLocalSources(inventory,dir),/AUXILIARY_SOURCE_DRIFT:iberfit-evolution-report-emission-v1/);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
@@ -124,4 +124,12 @@ test('M44 active LIVE invitation retains immutable recoverable bytes; candidate 
  assert.deepEqual(extractReferencedNames(candidate.toString('utf8')),
   extractReferencedNames(live.toString('utf8')),
   'CANDIDATE_SECRET_ENV_REFERENCE_EXPANSION');
+});
+
+test('M44 reporting candidates retain separately archived exact live source bytes',()=>{
+ for(const slug of ['iberfit-evolution-report-emission-v1','iberfit-iri-report-emission-v1']){
+  const s=inventory.sources.find(x=>x.slug===slug);assert.equal(s.source_state,'canonical_live_snapshot_pending_release');
+  assert.notEqual(s.source_path,`supabase/functions/${slug}/index.ts`);
+  const bytes=fs.readFileSync(s.source_path);assert.equal(createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`)).update(bytes).digest('hex'),s.source_git_blob_sha1);
+ }
 });

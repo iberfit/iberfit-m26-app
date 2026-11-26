@@ -378,9 +378,11 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
   const appointments=collection(state,'appointments');
   const appointmentInWindow=item=>withinWindow(first(item,'scheduledAt','scheduled_at','startAt','start_at','date','fecha'),window);
   const reconciliation=reconcileSessionExecutionsForClient(state,clientId);
-  const executionRows=reconciliation.records.map(unwrap)
-    .filter((item)=>executionWithinWindow(item,window));
   const blockedExecutionIds=unconfirmedCompletionIds(state);
+  const executionRows=reconciliation.records.map(unwrap)
+    .filter((item)=>executionWithinWindow(item,window)||(
+      !sessionExecutionCompletionDate(item)&&blockedExecutionIds.has(sessionExecutionId(item))&&withinWindow(dateOf(item),window)
+    ));
   const unconfirmedRows=executionRows
     .filter((item)=>!executionIsConfirmed(item,blockedExecutionIds));
   const conflictedRows=reconciliation.conflicts.filter((group)=>group.some(

@@ -19,10 +19,10 @@ const PREFIX='IBERFIT_EDGE_RECOVERY_';
 // Their live PROD bytes were compared exactly with GitHub on 15/11/2026.
 export const AUXILIARY_SOURCES=Object.freeze([
  Object.freeze({slug:'iberfit-evolution-report-emission-v1',
-  path:'supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js',
+  path:'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/pdf-renderer.js',
   git_blob_sha1:'d240795f24154e3f67c2d9740a364f83baf0f8c3'}),
  Object.freeze({slug:'iberfit-evolution-report-emission-v1',
-  path:'supabase/functions/iberfit-evolution-report-emission-v1/storage-recovery.js',
+  path:'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/storage-recovery.js',
   git_blob_sha1:'71bd779a0186c6b30af1b2723a1309c16d8a3309'}),
 ]);
 
@@ -46,8 +46,12 @@ export function loadInventory(file=INVENTORY){
         x.source_path!=='scripts/ops/m44_legacy_edge_source/iberfit-client-onboarding-v1-prod-20261016.ts')
         throw Error(PREFIX+'ARCHIVE_BOUNDARY_INVALID');
     }else if(x.source_state==='canonical_live_snapshot_pending_release'){
-      if(x.slug!=='iberfit-admin-client-invite-v1'||
-         x.source_path!=='scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts')
+      const exactArchives={
+        'iberfit-admin-client-invite-v1':'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts',
+        'iberfit-evolution-report-emission-v1':'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/index.ts',
+        'iberfit-iri-report-emission-v1':'scripts/ops/m44_legacy_edge_source/iberfit-iri-report-emission-v1-prod-20261115/index.ts',
+      };
+      if(!Object.hasOwn(exactArchives,x.slug)||x.source_path!==exactArchives[x.slug])
         throw Error(PREFIX+'LIVE_PENDING_RELEASE_BOUNDARY_INVALID');
     }else if(x.source_path!==`supabase/functions/${x.slug}/index.ts`)
       throw Error(PREFIX+'CANONICAL_PATH_INVALID');
