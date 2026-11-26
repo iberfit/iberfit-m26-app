@@ -28,13 +28,18 @@ test('preauth-disabled-runtime actual launch candidate has no console network or
   expect(response?.ok()).toBeTruthy();
   await expect(page).toHaveTitle('IBERFIT');
   await expect(page.locator('html')).toHaveAttribute('lang','es-ES');
-  await expect(page.getByRole('heading',{name:'Entrenamiento personal con criterio'})).toBeVisible();
-  await expect(page.getByText('Diagnóstico, planificación, control y seguimiento.')).toBeVisible();
-  await expect(page.getByRole('button',{name:'Entrar'})).toBeDisabled();
-
-  const warning=page.locator('.m26-notice.is-warning');
+  // The current static private access shell deliberately hides the credential
+  // form when runtime is disabled. Verify the settled state, not legacy copy.
+  await expect(page.getByRole('heading',{name:'Acceso privado',exact:true})).toBeVisible();
+  await expect(page.locator('.m26-auth-page')).toHaveAttribute('data-auth-state','unavailable');
+  await expect(page.locator('.m26-auth-card')).toHaveAttribute('aria-busy','false');
+  const form=page.locator('[data-auth-form="login"]');
+  await expect(form).toBeHidden();
+  await expect(form).toHaveAttribute('aria-hidden','true');
+  await expect(form.locator('button[type="submit"]')).toBeDisabled();
+  const warning=page.locator('.m26-auth-actions[role="status"]');
   await expect(warning).toBeVisible();
-  await expect(warning).toHaveText(/\S+/u);
+  await expect(warning).toHaveText('Acceso no disponible temporalmente.');
 
   const layout=await page.evaluate(()=>({
     documentWidth:document.documentElement.scrollWidth,

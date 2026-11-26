@@ -350,7 +350,19 @@ function radarProgressAlert(pillar,generatedAt){
   });
 }
 
-function progressRadarSignals(progressHub,existingAlerts=[]){
+// Keep volume descriptive in Progress Hub and client reports. Only the Coach
+// radar may request contextual review of a material decline, with replicated
+// observations in both chronological groups; no direction-based performance score.
+function volumeNeedsContextReview(summary){
+  const v=summary?.volumeEvidence;
+  return Number.isFinite(summary?.volumeDelta)&&summary.volumeDelta < -5
+    && Number.isSafeInteger(v?.olderSessions)&&v.olderSessions>=2
+    && Number.isSafeInteger(v?.recentSessions)&&v.recentSessions>=2
+    && v.partialSessions===0&&v.comparableSessions===v.olderSessions+v.recentSessions
+    && Number.isFinite(v.olderMean)&&v.olderMean>0&&Number.isFinite(v.recentMean)&&v.recentMean>=0;
+}
+
+function progressRadarSignals(progressHub,existingAlerts=[],summary=null){
   if(!progressHub||!Array.isArray(progressHub.pillars))return Object.freeze([]);
   if(progressHub?.diagnosticBaseline?.contributesToEvolution!==false){
     return Object.freeze([]);
@@ -358,8 +370,8 @@ function progressRadarSignals(progressHub,existingAlerts=[]){
   const actionable=new Set(arr(progressHub.actionable).map((id)=>txt(id)));
   const existingIds=new Set(arr(existingAlerts).map((alert)=>txt(alert?.id)));
   const result=progressHub.pillars
-    .filter((pillar)=>actionable.has(txt(pillar?.id)))
-    .map((pillar)=>radarProgressAlert(pillar,progressHub.generatedAt))
+    .filter((pillar)=>txt(pillar?.id)==='volume'?volumeNeedsContextReview(summary):actionable.has(txt(pillar?.id)))
+    .map((pillar)=>radarProgressAlert(pillar.id==='volume'?{...pillar,status:'review'}:pillar,progressHub.generatedAt))
     .filter(Boolean)
     .filter((alert)=>!existingIds.has(alert.id));
   return Object.freeze(result);
@@ -437,7 +449,7 @@ export function deriveCoachHomeDecisionAlerts(
       },
     }
   );
-  const progress=progressRadarSignals(hub,base);
+  const progress=progressRadarSignals(hub,base,d28);
   if(!progress.length)return base;
 
   const priority={critical:0,warning:1,info:2};

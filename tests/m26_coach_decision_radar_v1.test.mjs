@@ -185,3 +185,15 @@ test('Cockpit expone contrato de decisión sin score y enlaza solo a una ruta re
   assert.equal(Object.hasOwn(item,'score'),false);
   assert.equal(Object.hasOwn(item,'overallScore'),false);
 });
+
+test('GX07 volume contextual review requires repeated comparable sessions, never treats a planned increase as automatic progress',()=>{
+  for(const mode of ['one-per-group','different-variant','increase','partial']){
+    const state=coachState();
+    const rows=state.collections.sessionExecutions;
+    if(mode==='one-per-group'){state.collections.sessionExecutions=[rows[0],rows[3]];}
+    if(mode==='different-variant'){rows[3].results.x.variantId='different';}
+    if(mode==='increase'){rows[0].results.x.loadKg=50;rows[1].results.x.loadKg=50;rows[2].results.x.loadKg=100;rows[3].results.x.loadKg=100;}
+    if(mode==='partial'){rows[3].results.y={exerciseId:'exercise-1',reps:8,load:'unknown'};}
+    assert.equal(deriveAdherenceAlerts(state,'c1',{now:NOW}).some(x=>x.id==='progress-volume-review'),false,mode);
+  }
+});

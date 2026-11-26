@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {assessM43SyntheticFixtureBudget,M43_SYNTHETIC_SESSION_LIMIT,retainedM43HistoricalFingerprint} from '../scripts/remote-gates/m43-qa-fixture-safety.mjs';
 
 const old=JSON.parse(readFileSync(new URL('../scripts/remote-gates/m43-qa-retained-history-v1.json',import.meta.url),'utf8'));
@@ -23,7 +24,23 @@ test('M43 U92 only archives 84 additional QA completed sessions, leaving the ori
  assert.deepEqual(next.sha256EntityScopeRevisionAndTitle,[...next.sha256EntityScopeRevisionAndTitle].sort());
  assert.match(next.selection,/no linked appointment or active execution lock/i);
  assert.match(next.selection,/exactly one completed canonical execution/i);
- assert.match(source,/m43-qa-retained-history-v3\.json/u);
+ // The historical v2 checkpoint is still immutable; the active v5 guard
+ // must preserve every intermediate ledger and its Git blob identity.
+ const readLedger=v=>{
+  const bytes=readFileSync(new URL('../scripts/remote-gates/m43-qa-retained-history-v'+v+'.json',import.meta.url));
+  const sha=createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
+  return {body:JSON.parse(bytes),sha};
+ };
+ for(const v of [3,4,5]){
+  const prior=readLedger(v-1),current=readLedger(v);
+  assert.equal(current.body.parentLedger,'m43-qa-retained-history-v'+(v-1)+'.json');
+  assert.equal(current.body.parentBlobSha,prior.sha);
+  assert.ok(prior.body.sha256EntityScopeRevisionAndTitle.every(x=>current.body.sha256EntityScopeRevisionAndTitle.includes(x)));
+  assert.equal(current.body.qaOnly,true);
+  assert.equal(current.body.mode,'logical_retention_only_no_database_mutation');
+ }
+ assert.match(source,/m43-qa-retained-history-v4\.json/u);
+ assert.match(source,/m43-qa-retained-history-v5\.json/u);
  assert.equal(M43_SYNTHETIC_SESSION_LIMIT,150);
  assert.match(source,/status!=='completada'/u);
  assert.match(source,/item\.body\?\.clientId/u);

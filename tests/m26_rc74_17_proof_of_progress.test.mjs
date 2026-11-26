@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
+import {observedLoadKg} from '../src/m26/domain/evidence-signal.js';
 
 const uiUrl=new URL('../src/m26/ui/client-360.js',import.meta.url);
 const engineUrl=new URL('../src/m26/engagement/progress-engine.js',import.meta.url);
@@ -60,7 +61,10 @@ test('RC74.17 grafica sólo puntos comparables y conserva ausencia como ausencia
   assert.match(block,/createElementNS\(namespace,'polyline'\)/);
   assert.match(block,/Dato ausente se conserva como ausente|datos ausentes en cero/);
   assert.match(engine,/function epKnownLoadKg\(row\)/);
-  assert.match(engine,/if\(!kgMatch\)return null/);
+  assert.match(engine,/function epKnownLoadKg\(row\)\{return observedLoadKg\(row\);\}/u);
+  for(const row of [{load:'20'},{load:'20 lb'},{loadKg:20,load:'30 kg'},{loadKg:20,skipped:true}])assert.equal(observedLoadKg(row),null);
+  assert.equal(observedLoadKg({load:'20 kg'}),20);
+  assert.equal(observedLoadKg({loadKg:0}),0);
   assert.match(engine,/function epLoadLabel\(row\)/);
   assert.match(engine,/const knownKg=epKnownLoadKg\(row\)/);
   assert.match(engine,/return Number\.isFinite\(load\)&&Number\.isFinite\(rowReps\)\s*\?\s*load\*rowReps\s*:\s*null/s);

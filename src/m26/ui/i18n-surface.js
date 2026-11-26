@@ -5,6 +5,10 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  ['Permite abrir una ventana para imprimir el informe.','Allow pop-ups to print the report.','Autorisez les fenêtres contextuelles pour imprimer le rapport.','Permita abrir uma janela para imprimir o relatório.'],
+  ['No fue posible abrir el informe interno con los permisos actuales.','The internal report could not be opened with the current permissions.','Impossible d’ouvrir le rapport interne avec les autorisations actuelles.','Não foi possível abrir o relatório interno com as permissões atuais.'],
+  ['Datos insuficientes','Insufficient data','Données insuffisantes','Dados insuficientes'],
+  ['No hay datos confirmados suficientes para calcular constancia.','There is not enough confirmed data to calculate consistency.','Il n’y a pas assez de données confirmées pour calculer la régularité.','Não há dados confirmados suficientes para calcular a regularidade.'],
   ['Actividad registrada en el historial reciente','Activity recorded in recent history','Activité enregistrée dans l’historique récent','Atividade registada no histórico recente'],
   ['Existen citas sin cierre, ausencias del Coach o registros contradictorios. Revisar antes de atribuir la falta de continuidad al cliente.','Some appointments remain unresolved, coaches were absent, or records conflict. Review before attributing lack of continuity to the client.','Des rendez-vous restent non clôturés, des coachs étaient absents ou des données se contredisent. Vérifiez avant d’attribuer le manque de continuité au client.','Existem marcações por fechar, ausências do treinador ou registos contraditórios. Reveja antes de atribuir a falta de continuidade ao cliente.'],
   ['Frecuencia acordada:','Agreed frequency:','Fréquence convenue :','Frequência acordada:'],

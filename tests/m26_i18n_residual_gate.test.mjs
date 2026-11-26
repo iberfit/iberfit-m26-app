@@ -6,6 +6,9 @@ import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const ROOTS=['src/m26/modules','src/m26/app','src/m26/admin','src/m26/ui','src/m26/workflows','src/m26/wearables','src/m26/onboarding'];
 const EXCLUDES=[/i18n(?:-|\.)/,/guided-tour\.js$/,/(?:protocol|catalog|norms|evidence)/,/base\.js$/,/iri-report-document\.js$/,/evolution-report-document\.js$/,/iri-report-visuals\.js$/,/report-workflow\.js$/,/iri-external-report-controller\.js$/,/iri-report-page\.js$/,/contextual-guidance\.js$/,/historical-acquisition\.js$/,/contracts\.js$/,/exercise-video-player\.js$/,/exercise-media\.js$/];
+// Fixed-language print templates and machine-readable signed report evidence
+// are not runtime UI. Keep the exemption exact; controllers remain scanned.
+EXCLUDES.push(/^src\/m26\/admin\/business-report\.js$/u,/^src\/m26\/workflows\/(?:report-cycle-objective|report-private-detail|report-trend-contract)\.js$/u);
 const SPANISH=/[áéíóúüñÁÉÍÓÚÜÑ¿¡]|\b(?:cliente|clientes|sesión|sesiones|entrenamiento|entrenador|agenda|revisar|pendiente|confirmad[oa]s?|disponible|datos|informe|cita|evaluación|progreso|siguiente|guardad[oa]|selecciona|bienestar|sueño|estrés|dispositivo|expediente|planificación|ejercicio|ejercicios|sincronización|contraseña|seguimiento|carga|series|repeticiones)\b/iu;
 const QUOTED=/(?:'([^'\\]*(?:\\.[^'\\]*)*)'|"([^"\\]*(?:\\.[^"\\]*)*)"|`([^`\\]*(?:\\.[^`\\]*)*)`)/gs;
 
@@ -52,7 +55,14 @@ test('rendered Spanish UI literals are classified by the i18n surface',()=>{
 
 test('M44 A4 report copy is classified as a document template, not an unlocalized UI control',()=>{
  const file=fs.readFileSync('src/m26/workflows/evolution-report-document.js','utf8');
- assert.match(file,/EVOLUCIÓN · SEGUIMIENTO PERSONALIZADO/);
+ assert.match(file,/EVOLUCIÓN · TU SEGUIMIENTO/);
+ assert.match(file,/EVOLUCIÓN · DOCUMENTO DE TRABAJO INTERNO/);
+ assert.match(file,/<html lang="es">/);
+ const business=fs.readFileSync('src/m26/admin/business-report.js','utf8');
+ assert.match(business,/<html lang="es">/);
+ assert.match(business,/IBERFIT · Informe agregado de consulta interna, no archivado ni firmado\./u);
+ assert.ok(EXCLUDES.some(pattern=>pattern.test('src/m26/admin/business-report.js')));
+ assert.ok(!EXCLUDES.some(pattern=>pattern.test('src/m26/admin/controller.js')));
  assert.ok(EXCLUDES.some(pattern=>pattern.test('src/m26/workflows/evolution-report-document.js')));
  assert.notEqual(iberfitSurfaceTranslate('Indica por qué se retira esta versión',{language:'en'}),'Indica por qué se retira esta versión');
 });
@@ -99,4 +109,8 @@ test('U74 dated remote-write confirmation is translated in EN, FR and PT',()=>{
   'Confirmation de l’opération auprès du serveur. Ne répétez pas l’action.');
  assert.equal(iberfitSurfaceTranslate(copy,{language:'pt'}),
   'A confirmar a operação no servidor. Não repita a ação.');
+});
+
+test('GX44 and GX10 interactive report controls and unavailable continuity remain localized',()=>{
+ for(const text of ['Permite abrir una ventana para imprimir el informe.','No fue posible abrir el informe interno con los permisos actuales.','Datos insuficientes','No hay datos confirmados suficientes para calcular constancia.'])for(const language of ['en','fr','pt'])assert.notEqual(iberfitSurfaceTranslate(text,{language}),text,language+': '+text);
 });
