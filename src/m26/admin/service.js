@@ -1,6 +1,6 @@
 import {runWebAuthnCeremony} from '../app/webauthn.js';
 import {createAdminCommand} from './command-catalog.js';
-import {createInvitationAttemptTracker} from '../workflows/coach-invitation-outcome.js';
+import {createInvitationAttemptTracker,verifyInvitationReceipt} from '../workflows/coach-invitation-outcome.js';
 
 const PRIVILEGED_REAUTH_COMMANDS=new Set(['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_REENVIAR_INVITACION','ADMIN_CLIENTE_ACTUALIZAR_FICHA','ADMIN_CLIENTE_CAMBIAR_SERVICIO','ADMIN_CLIENTE_ELIMINAR','ADMIN_USUARIO_ELIMINAR']);
 const ADMIN_SERVICE_EVENT='m26:admin-service-ready';
@@ -89,6 +89,10 @@ export function createAdminCommandService({
   if(!transport?.execute)throw new Error('M26_ADMIN_TRANSPORT_REQUIRED');
   const inFlight=new Map();
   const invitationAttempts=createInvitationAttemptTracker();
+  // Pending creation identity is memory-only, bounded and scoped to the login.
+  // Never dispatch a retry automatically; only a new explicit identical request.
+  const creationAttempts=new Map();
+  let creationLease=null;
   const boundedRefreshWait=Math.max(0,Math.min(Number(refreshWaitMs)||0,1_000));
   function sessionFence(){
     if(typeof getSessionLease!=='function')return ()=>{};
@@ -131,15 +135,30 @@ export function createAdminCommandService({
       if(tracked){const operationId=invitationAttempts.begin(lease,command.entityId,()=>command.operationId);
         if(operationId!==command.operationId)command=Object.freeze({...command,operationId});}
       const signature=fingerprint(command);
+      if(creationLease!==lease){creationAttempts.clear();creationLease=lease;}
+      const trackCreation=Boolean(lease&&command.type==='ADMIN_CLIENTE_CREAR'&&!input.operationId);
+      if(trackCreation){
+        const previous=creationAttempts.get(signature);
+        if(previous)command=Object.freeze({...command,operationId:previous});
+        else{
+          if(creationAttempts.size>=64)return Promise.reject(new Error('M26_ADMIN_CREATION_REVIEW_REQUIRED'));
+          creationAttempts.set(signature,command.operationId);
+        }
+      }
+      const clearCreation=()=>{
+        if(trackCreation&&creationLease===lease&&creationAttempts.get(signature)===command.operationId)creationAttempts.delete(signature);
+      };
       const current=inFlight.get(command.operationId);
       if(current){
         if(current.lease!==lease||current.signature!==signature)return Promise.reject(new Error('M26_ADMIN_OPERATION_ID_COLLISION'));
         return current.promise;
       }
+      let dispatched=false;
       const promise=(async()=>{
         const token=await getToken();assertCurrent();
         let response;
         try{
+          dispatched=true;
           response=await transport.execute(token,command);
         }catch(error){
           assertCurrent();
@@ -149,9 +168,15 @@ export function createAdminCommandService({
         }
         assertCurrent();
         if(tracked)invitationAttempts.settle(lease,command.entityId,command.operationId,response);
+        if(trackCreation){verifyInvitationReceipt(response,{type:command.type,operationId:command.operationId});clearCreation();}
         const refresh=await refreshAfterAck(response,assertCurrent);assertCurrent();
         return Object.freeze({ok:true,command,response,...refresh});
-      })().finally(()=>inFlight.delete(command.operationId));
+      })().catch(error=>{
+        // Before dispatch there can be no ambiguous remote mutation. After it,
+        // retain the original ID until a scoped receipt is confirmed.
+        if(!dispatched)clearCreation();
+        throw error;
+      }).finally(()=>inFlight.delete(command.operationId));
       inFlight.set(command.operationId,{signature,promise,lease});
       return promise;
     },
