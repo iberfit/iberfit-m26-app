@@ -14,8 +14,24 @@ test('Todas las variables de bienestar conservan sus fechas, valores y cobertura
  assert.equal(readDatedTrends([bundled,rows[0]],start,end).some(s=>s.label==='Energía'),false);
  assert.equal(readDatedTrends([{...bundled,source:'wearableDailySummaries'}],start,end).length,0);
 });
-test('Elite data transport is identical in browser and Edge',async()=>{
- assert.equal(await readFile(new URL('../src/m26/workflows/report-trend-contract.js',import.meta.url),'utf8'),await readFile(new URL('../supabase/functions/iberfit-evolution-report-emission-v1/report-trend-contract.js',import.meta.url),'utf8'));
+test('Elite data transport has one canonical implementation and an exact self-contained Edge stage',async()=>{
+ const browser=await import('../src/m26/workflows/report-trend-contract.js');
+ const adapter=await import('../supabase/functions/iberfit-evolution-report-emission-v1/report-trend-contract.js');
+ assert.deepEqual(Object.keys(adapter),Object.keys(browser));
+ for(const key of Object.keys(browser))assert.equal(adapter[key],browser[key]);
+ const {stageEvolutionEdge}=await import('../scripts/ops/stage_gx_evolution_edge.mjs');
+ const {rm}=await import('node:fs/promises');
+ const {join}=await import('node:path');
+ const {pathToFileURL}=await import('node:url');
+ const stage=stageEvolutionEdge();
+ try{
+  const target=join(stage,'supabase/functions/iberfit-evolution-report-emission-v1/report-trend-contract.js');
+  assert.deepEqual(await readFile(target),await readFile(new URL('../src/m26/workflows/report-trend-contract.js',import.meta.url)));
+  const staged=await import(pathToFileURL(target).href);
+  assert.deepEqual(Object.keys(staged),Object.keys(browser));
+  const readings=[{date:start,value:0},{date:'2026-01-03',value:4},{date:'2026-02-01',value:5}];
+  assert.deepEqual(staged.buildDatedTrendEvidence('Energía',readings,start,end),browser.buildDatedTrendEvidence('Energía',readings,start,end));
+ }finally{await rm(stage,{recursive:true,force:true});}
 });
 test('Elite trends keep measured zero and daily means, reject missing and invalid observations',()=>{
  const r=buildDatedTrendEvidence('Energía',[{date:start,value:0},{date:start,value:2},{date:'2026-01-03',value:4},{date:'2026-02-01',value:5},{date:'2026-03-32',value:9},{date:end,value:null}],start,end);

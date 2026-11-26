@@ -46,6 +46,9 @@ jobs:
         run: |
           deno check --node-modules-dir=auto supabase/functions/iberfit-iri-report-emission-v1/index.ts
           deno check --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json supabase/functions/iberfit-evolution-report-emission-v1/index.ts
+          stage="$(node scripts/ops/stage_gx_evolution_edge.mjs)"
+          trap 'rm -rf "$stage"' EXIT
+          deno check --config "$stage/supabase/functions/iberfit-evolution-report-emission-v1/deno.json" "$stage/supabase/functions/iberfit-evolution-report-emission-v1/index.ts"
       - name: Generate official-template synthetic PDF
         run: deno run --config supabase/functions/iberfit-evolution-report-emission-v1/deno.json --allow-read --allow-write=qa-output/annual-report-sample --allow-env=GITHUB_SHA qa/m44/generate-synthetic-annual-report.mjs
       - name: Raster preview of actual PDF pages

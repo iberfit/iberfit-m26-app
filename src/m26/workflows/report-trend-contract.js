@@ -1,4 +1,4 @@
-// Pure Signature Elite graph contract. Mirrored in the Edge bundle; CI checks byte parity.
+// Canonical Signature Elite graph contract. Edge staging copies these exact bytes.
 // Existing approved evidence fields carry the dated readings, not live re-queries.
 const DAY=86400000;
 const METRICS=Object.freeze({
