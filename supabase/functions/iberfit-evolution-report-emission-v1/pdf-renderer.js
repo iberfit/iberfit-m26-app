@@ -102,7 +102,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
    y=ty-9;
   }
  }
- function next(){add(section+' · continuación');}
+ function next(){const base=section.replace(/ · continuación$/u,'');add(base+' · continuación');}
  function ensure(h){if(y-h<BASE)next();}
  function block(v,{font=sans,size=10.5,leading=14.5,c='ink',gap=10}={}){
   for(const row of wrap(font,size,v,WIDTH)){
@@ -117,6 +117,8 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  const days=countValue(rowBy(['Días con entrenamiento confirmado'],'sessionExecutions'));
  const consistency=rowText(rowBy(['Constancia'],'appointments+sessionExecutions')).match(/^(\d+) de (\d+) citas programadas cumplidas/u);
  const wellbeing=rowText(rowBy(['Bienestar'],'checkins')).match(/^(\d+) registros? en el periodo/u);
+ const volumeMatch=rowText(rowBy(['Volumen comparable'],'sessionExecutions')).match(/\((\d+) y (\d+) sesiones; medias (\d+(?:\.\d+)?) y (\d+(?:\.\d+)?) kg·rep\)/u);
+ const volume=volumeMatch?volumeMatch.slice(1).map(Number):null;
  const metrics=[];
  if(sessions!==null)metrics.push([fmt(sessions),'Sesiones confirmadas']);
  if(consistency&&Number(consistency[2])>0&&Number(consistency[1])<=Number(consistency[2]))metrics.push([fmt(100*Number(consistency[1])/Number(consistency[2]))+'%','Citas cumplidas']);
@@ -160,6 +162,18 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  // Preserve every approved evidence row; compact typography and measured
  // keep-together layout replace arbitrary page breaks and orphan rows.
  if(y<235)add('Resultados y comparaciones');
+ if(volume&&volume.every(Number.isFinite)&&volume[0]>0&&volume[1]>0&&Math.max(volume[2],volume[3])>0){
+  ensure(156);heading('Trabajo de fuerza comparable');
+  const max=Math.max(volume[2],volume[3]),barWidth=WIDTH-170;
+  for(let i=0;i<2;i++){
+   const cy=y-i*34,label=i?'Grupo reciente':'Grupo anterior',v=volume[i+2];
+   text(label,M,cy,9.5,bold,'forest');text(String(volume[i])+' sesiones',M,cy-12,8,sans,'muted');
+   rect(M+112,cy-8,barWidth,11,'soft');
+   if(v>0)rect(M+112,cy-8,barWidth*v/max,11,i?'forest2':'gold');
+   const reading=fmt(v)+' kg·rep';text(reading,R-sans.widthOfTextAtSize(reading,9),cy-6,9,sans,'ink');
+  }
+  y-=80;block('Media de carga × repeticiones en cada grupo. La diferencia de trabajo no equivale a una mejora del rendimiento.',{size:8.5,leading:12,c:'muted',gap:8});
+ }
  heading('Resultados verificables');
  block('No se rellenan mediciones ausentes con estimaciones.',{size:8.8,leading:12,c:'muted',gap:8});
  for(const [i,item] of source.evidence.entries()){

@@ -169,6 +169,10 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   else if(trainingDays)summaryMetrics.push([fmt(Number(trainingDays.text)),'Días con entrenamiento']);
   if(checkins)summaryMetrics.push([fmt(Number(checkins[1])),'Registros de bienestar']);
   if(summaryMetrics.length<3&&trainingDays&&!summaryMetrics.some(m=>m[1]==='Días con entrenamiento'))summaryMetrics.push([fmt(Number(trainingDays.text)),'Días con entrenamiento']);
+  const volume=lines.find(item=>item.label==='Volumen comparable'&&item.source==='sessionExecutions')?.text.match(/\((\d+) y (\d+) sesiones; medias (\d+(?:\.\d+)?) y (\d+(?:\.\d+)?) kg·rep\)/u);
+  const comparable=volume?volume.slice(1).map(Number):null;
+  const volumeGraphic=comparable&&comparable.every(Number.isFinite)&&comparable[0]>0&&comparable[1]>0&&Math.max(comparable[2],comparable[3])>0?
+    '<figure class="m44-volume-compare"><figcaption>Trabajo de fuerza comparable</figcaption>'+[0,1].map(i=>'<div class="m44-volume-row"><span>'+ (i?'Grupo reciente':'Grupo anterior')+'<small>'+comparable[i]+' sesiones</small></span><div class="m44-volume-track"><i style="width:'+ (100*comparable[i+2]/Math.max(comparable[2],comparable[3])).toFixed(2)+'%"></i></div><b>'+esc(fmt(comparable[i+2]))+' kg·rep</b></div>').join('')+'<p>Media de carga × repeticiones; más trabajo no equivale a mejor rendimiento.</p></figure>':'';
   const summaryBand=summaryMetrics.length?'<div class="m44-summary-metrics">'+summaryMetrics.map(([v,label])=>'<div><strong>'+esc(v)+'</strong><span>'+esc(label)+'</span></div>').join('')+'</div>':'';
   pages.push('<section class="m44-sheet m44-cover" aria-label="Portada del informe">'+
     '<div class="m44-cover-accent" aria-hidden="true"></div>'+
@@ -183,7 +187,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     '<p class="m44-section-lead">'+esc(title===TYPES[report.id]?'El periodo en contexto':title)+'</p>'+summaryBand+
     '<div class="m44-prose m44-report-summary">'+paragraphs(summaryChunks[0],2500)+'</div>'+
     '<div class="m44-period-line"><div><span>Desde</span><strong>'+esc(dateLabel(report.periodStart))+'</strong></div><div><span>Hasta</span><strong>'+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Tipo de seguimiento</span><strong>'+esc(TYPES[report.id])+'</strong></div></div>'+
-    '<div class="m44-reading-rule"><span>Cómo interpretar estos resultados</span><p>Los hechos describen lo que está confirmado; las conclusiones y próximos pasos corresponden a la revisión del coach. Un cambio de carga, volumen o frecuencia no implica por sí mismo una mejora funcional.</p></div>'));
+    volumeGraphic+'<div class="m44-reading-rule"><span>Cómo interpretar estos resultados</span><p>Los hechos describen lo que está confirmado; las conclusiones y próximos pasos corresponden a la revisión del coach. Un cambio de carga, volumen o frecuencia no implica por sí mismo una mejora funcional.</p></div>'));
   for(let i=1;i<summaryChunks.length;i++){
     pages.push(page(2+i,total,'01 · LA LECTURA','El periodo en detalle',
       '<p class="m44-section-lead">La lectura, continuación '+i+'</p>'+

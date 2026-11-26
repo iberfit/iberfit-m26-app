@@ -84,6 +84,17 @@ export function buildPeriodProgressEvidence(state,clientId,{now=new Date(),days}
     rows.push({id:'volume',label:'Volumen comparable',evidence:`${variation} entre grupos cronológicos de sesiones comparables del mismo periodo (${v.olderSessions} y ${v.recentSessions} sesiones; medias ${v.olderMean} y ${v.recentMean} kg·rep); no equivale a una mejora automática`,source:'sessionExecutions',quality:v.comparableSessions>=3?'media':'limitada'});
   }
   if(summary.checkins>0)rows.push({id:'wellbeing',label:'Bienestar',evidence:`${summary.checkins} registro${summary.checkins===1?'':'s'} en el periodo; último registro ${summary.latestCheckinAt?String(summary.latestCheckinAt).slice(0,10).split('-').reverse().join('/'):'confirmado'}`,source:'checkins',quality:summary.checkins>=8?'alta':summary.checkins>=3?'media':'limitada'});
+  // Keep each wellbeing dimension separate. Means describe the submitted
+  // records, not a validated composite score or clinical evaluation.
+  if(summary.checkins>0){
+    const labels={energy:'Energía',sleep:'Sueño',stress:'Estrés',pain:'Dolor',fatigue:'Fatiga',motivation:'Motivación'};
+    const means=Object.entries(labels).filter(([key])=>Number.isFinite(summary.checkinAverage?.[key]))
+      .map(([key,label])=>label+' '+summary.checkinAverage[key]+'/10');
+    if(means.length){
+      const index=rows.findIndex(row=>row.id==='wellbeing');
+      rows[index]={...rows[index],evidence:rows[index].evidence+'. Medias de los valores registrados (pueden tener distinta cobertura): '+means.join(' · ')+'.'};
+    }
+  }
   return Object.freeze(rows.map(row=>Object.freeze({...row,status:'available'})));
 }
 

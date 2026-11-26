@@ -17,7 +17,7 @@ function label(value,fallback='Sin registro'){const text=clean(value,1200);retur
 function excerpt(value,max=420,fallback='Sin registro'){const text=clean(value,4000);if(!text)return fallback;if(text.length<=max)return text;const slice=text.slice(0,Math.max(0,max-1));const lastSpace=slice.lastIndexOf(' ');const cutoff=lastSpace>=Math.floor(max*.65)?lastSpace:slice.length;return `${slice.slice(0,cutoff).trimEnd()}…`;}
 function distinctText(primary,secondary){const first=clean(primary,1200).toLocaleLowerCase('es');const second=clean(secondary,1200);return second&&second.toLocaleLowerCase('es')!==first?second:'';}
 function number(value,digits=0){return finiteValue(value)?Number(value).toLocaleString('es-ES',{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';}
-function finiteValue(value){return (typeof value==='number'||(typeof value==='string'&&value.trim()!==''))&&Number.isFinite(Number(value));}
+function finiteValue(value){return (typeof value==='number'||(typeof value==='string'&&/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/u.test(value.trim())))&&Number.isFinite(Number(value));}
 function dateLabel(value,fallback='Sin fecha'){
   const raw=clean(value,64);
   if(!raw)return fallback;

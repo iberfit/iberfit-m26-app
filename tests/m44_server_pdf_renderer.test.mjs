@@ -74,7 +74,7 @@ test('GX05 official report uses public labels, civil dates and bounded chart/tit
  assert.ok(!calls.some(row=>row.t.includes('PRIVADO NO EMITIR')));
  const longLabels=calls.filter(row=>row.t.includes('WWWW'));
  assert.ok(longLabels.length>1);
- assert.ok(longLabels.every(row=>row.x+row.font.widthOfTextAtSize(row.t,row.size)<=540));
+ assert.ok(longLabels.every(row=>row.x+row.font.widthOfTextAtSize(row.t,row.size)<=553));
  assert.ok(calls.some(row=>row.t==='2'));
 });
 

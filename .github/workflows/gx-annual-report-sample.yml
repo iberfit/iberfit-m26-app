@@ -5,6 +5,7 @@ on:
     paths:
       - 'qa/m44/generate-synthetic-annual-report.mjs'
       - '.github/workflows/gx-annual-report-sample.yml'
+      - 'supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js'
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,7 +26,12 @@ jobs:
       - name: Raster preview of actual PDF pages
         run: |
           if command -v pdftoppm >/dev/null; then
-            pdftoppm -r 110 -png qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.pdf qa-output/annual-report-sample/page
+            for file in qa-output/annual-report-sample/*.pdf; do
+              pdftoppm -r 100 -png "$file" "${file%.pdf}-page"
+              pdftotext -layout "$file" "${file%.pdf}.txt"
+            done
+            grep -F 'Tu año en IBERFIT' qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.txt
+            grep -F '104' qa-output/annual-report-sample/Tu-ano-en-IBERFIT-muestra.txt
           fi
       - uses: actions/upload-artifact@v4
         with:

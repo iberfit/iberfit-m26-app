@@ -221,14 +221,21 @@ const PDF_C=Object.freeze({
   gold2:rgb(215/255,186/255,124/255),
   cream:rgb(245/255,245/255,240/255),
   cream2:rgb(205/255,212/255,208/255),
-  muted:rgb(154/255,168/255,161/255),
+  muted:rgb(79/255,98/255,86/255),
+  darkMuted:rgb(154/255,168/255,161/255),
 });
 function pdfSafe(value:unknown,max=4000){
   return text(value,max).replace(/[–—]/gu,'-').replace(/[“”]/gu,'"').replace(/[‘’]/gu,"'").replace(/[^\u0020-\u00ff]/gu,' ');
 }
+function pdfMeasured(value:unknown){
+  if(typeof value!=='number'&&typeof value!=='string')return null;
+  if(typeof value==='string'&&!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/u.test(value.trim().replace(',','.')))return null;
+  const n=Number(typeof value==='string'?value.trim().replace(',','.'):value);
+  return Number.isFinite(n)?n:null;
+}
 function pdfNum(value:unknown,digits=0){
-  const n=Number(value);
-  return Number.isFinite(n)?n.toLocaleString('es-ES',{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';
+  const n=pdfMeasured(value);
+  return n!==null?n.toLocaleString('es-ES',{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';
 }
 function pdfDate(value:unknown){
   const raw=pdfSafe(value,64),m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/u);
@@ -490,10 +497,7 @@ function pdfPhotoDecisionRows(report:any){
   return considerations.map((item:any)=>pdfSafe(item,300));
 }
 
-function pdfClientFinite(value:unknown){
-  const n=Number(value);
-  return Number.isFinite(n)?n:null;
-}
+function pdfClientFinite(value:unknown){return pdfMeasured(value);}
 function pdfClientBasisLabel(rating:any){
   return rating?.basis==='baremo-compatible'?'Baremo compatible':'Valoración IBERFIT';
 }
@@ -506,6 +510,7 @@ function pdfClientFooter(page:any,fonts:any,n:number){
 function pdfClientPage(doc:any,fonts:any,n:number,kicker:string,title:string,subtitle=''){
   const page=doc.addPage([PDF_W,PDF_H]);
   page.drawRectangle({x:0,y:0,width:PDF_W,height:PDF_H,color:PDF_C.cream});
+  page.drawRectangle({x:0,y:PDF_H-7,width:PDF_W,height:7,color:PDF_C.ink});
   page.drawText(String(Math.max(1,n-1)).padStart(2,'0'),{x:PDF_M,y:PDF_H-67,size:15,font:fonts.serifBold,color:PDF_C.gold});
   page.drawText(pdfSafe(kicker,90).toUpperCase(),{x:PDF_M+62,y:PDF_H-49,size:6.2,font:fonts.bold,color:PDF_C.muted});
   page.drawText(pdfSafe(title,120),{x:PDF_M+62,y:PDF_H-72,size:22.5,font:fonts.serifBold,color:PDF_C.ink});
@@ -592,9 +597,9 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
     page.drawLine({start:{x:PDF_M,y:176},end:{x:PDF_W-PDF_M,y:176},thickness:.55,color:PDF_C.cream2,opacity:.35});
     page.drawText('PERSONA EVALUADA',{x:PDF_M,y:152,size:6.1,font:fonts.bold,color:PDF_C.gold2});
     page.drawText(client,{x:PDF_M,y:130,size:15.5,font:fonts.serifBold,color:PDF_C.cream});
-    page.drawText(pdfDate(draft?.assessmentDate),{x:PDF_M,y:114,size:6.5,font:fonts.regular,color:PDF_C.muted});
+    page.drawText(pdfDate(draft?.assessmentDate),{x:PDF_M,y:114,size:6.5,font:fonts.regular,color:PDF_C.darkMuted});
     page.drawLine({start:{x:PDF_M,y:92},end:{x:PDF_W-PDF_M,y:92},thickness:.55,color:PDF_C.gold,opacity:.6});
-    page.drawText('DOCUMENTO',{x:PDF_M,y:76,size:5.8,font:fonts.bold,color:PDF_C.muted});
+    page.drawText('DOCUMENTO',{x:PDF_M,y:76,size:5.8,font:fonts.bold,color:PDF_C.darkMuted});
     page.drawText(iriOnly?'IRI independiente':'IRI · punto de partida',{x:PDF_M,y:61,size:7.8,font:fonts.bold,color:PDF_C.cream2});
     page.drawText('Entrenamiento personal con criterio · diagnóstico · planificación · control · seguimiento',{x:PDF_M,y:43,size:5.6,font:fonts.regular,color:PDF_C.gold2});
   }
@@ -724,7 +729,7 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
         if(!image)continue;
         const fit=pdfFit(image,105,145),slot=slots[i];
         page.drawImage(image,{x:slot.x+(105-fit.w)/2,y:slot.y+(145-fit.h)/2,width:fit.w,height:fit.h});
-        page.drawText(pdfPhotoView(photos[i]?.view),{x:slot.x,y:88,size:5.8,font:fonts.bold,color:PDF_C.muted});
+        page.drawText(pdfPhotoView(photos[i]?.view),{x:slot.x,y:88,size:5.8,font:fonts.bold,color:PDF_C.darkMuted});
       }
     }else{
       page.drawLine({start:{x:PDF_M,y:280},end:{x:535,y:280},thickness:.45,color:PDF_C.gold,opacity:.55});
@@ -840,7 +845,7 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
     page.drawText('SIGUIENTE PASO',{x:PDF_M,y:384,size:6.1,font:fonts.bold,color:PDF_C.gold});
     pdfText(page,fonts.serif,iriOnly?'Conserva este informe como referencia. Si más adelante quieres reevaluar o iniciar un proceso de entrenamiento, las prioridades y pruebas iniciales quedan documentadas para poder comparar.':(draft?.diagnosis?.initialPlan||'Convertir las prioridades identificadas en una planificación progresiva y revisable.'),PDF_M,355,430,11,14.8,PDF_C.ink2,9);
     if(signaturePath){
-      page.drawText('FIRMA DEL ENTRENADOR',{x:PDF_M,y:215,size:5.8,font:fonts.bold,color:PDF_C.muted});
+      page.drawText('FIRMA DEL ENTRENADOR',{x:PDF_M,y:215,size:5.8,font:fonts.bold,color:PDF_C.darkMuted});
       page.drawSvgPath(signaturePath,{x:PDF_M+5,y:118,scale:.23,color:PDF_C.ink,opacity:.92});
       page.drawText(coach,{x:PDF_M,y:91,size:6.5,font:fonts.serifItalic,color:PDF_C.ink});
     }else{

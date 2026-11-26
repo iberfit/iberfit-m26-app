@@ -19,11 +19,16 @@ for(let i=0;i<104;i++){
  if(i%2===0)checkins.push({id:'demo-checkin-'+i,clientId,createdAt:completedAt,energy:7,sleep:7,stress:3,pain:1});
 }
 const state={collections:{clients:[{id:clientId,name:'Cliente de demostración'}],appointments,sessions:[{id:'demo-plan',clientId,blocks:[{exerciseId:'squat',exerciseName:'Sentadilla'},{exerciseId:'press',exerciseName:'Press de banca'},{exerciseId:'row',exerciseName:'Remo'}]}],sessionExecutions,checkins,iriAssessments:[],wearableDailySummaries:[],reports:[]},pendingOperations:[],conflicts:[],rejectedOperations:[]};
-const report=buildPremiumReportPortfolio(state,clientId,{now}).find(x=>x.id==='year-in-iberfit');
-if(!report?.ready||report.title!=='Tu año en IBERFIT')throw Error('ANNUAL_DEMO_NOT_READY');
-const total=report.activitySeries.reduce((n,x)=>n+x.count,0);
-if(total!==104)throw Error('ANNUAL_DEMO_SESSION_COUNT');
-const source={reportId,clientId,revision:1,clientName:'Cliente de demostración',reportType:report.id,sourceType:report.sourceType,periodStart:report.periodStart,periodEnd:report.periodEnd,summary:report.summary,conclusions:report.conclusions,recommendations:report.recommendations,evidence:report.evidence,activitySeries:report.activitySeries};
+const portfolio=buildPremiumReportPortfolio(state,clientId,{now});
+const reports=portfolio.filter(x=>['post-session','weekly','monthly','quarterly','year-in-iberfit'].includes(x.id));
+if(reports.length!==5||reports.some(x=>!x.ready))throw Error('SIGNATURE_SAMPLE_NOT_READY');
+const dir='qa-output/annual-report-sample';
+await Deno.mkdir(dir,{recursive:true});
+const manifest=[];
+for(const report of reports){
+ const total=report.activitySeries.reduce((n,x)=>n+x.count,0);
+ if(report.id==='year-in-iberfit'&&(report.title!=='Tu año en IBERFIT'||total!==104))throw Error('ANNUAL_DEMO_SESSION_COUNT');
+ const source={reportId,clientId,revision:1,clientName:'Cliente de demostración',reportType:report.id,sourceType:report.sourceType,periodStart:report.periodStart,periodEnd:report.periodEnd,summary:report.summary,conclusions:report.conclusions,recommendations:report.recommendations,evidence:report.evidence,activitySeries:report.activitySeries};
 const hash=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('');
 const sourceSha256=await hash(new TextEncoder().encode(JSON.stringify(source)));
 const fingerprint='IBERFIT M44 | SYNTHETIC SAMPLE | '+sourceSha256;
@@ -33,8 +38,9 @@ const verified=await PDFDocument.load(result.bytes,{updateMetadata:false});
 if(verified.getPageCount()!==result.pages)throw Error('ANNUAL_DEMO_PAGE_COUNT_INVALID');
 if(verified.getSubject()!==fingerprint)throw Error('ANNUAL_DEMO_SOURCE_FINGERPRINT_INVALID');
 if(verified.getProducer()!==M44_PDF_TEMPLATE)throw Error('ANNUAL_DEMO_PRODUCER_INVALID: '+verified.getProducer());
-const dir='qa-output/annual-report-sample';
-await Deno.mkdir(dir,{recursive:true});
-await Deno.writeFile(dir+'/Tu-ano-en-IBERFIT-muestra.pdf',result.bytes);
-await Deno.writeTextFile(dir+'/manifest.json',JSON.stringify({synthetic:true,notIssued:true,notProductionCertified:true,sourceSha256,artifactSha256:await hash(result.bytes),pages:result.pages,bytes:result.bytes.length,template:result.templateVersion,confirmedSessions:total,periodStart:report.periodStart,periodEnd:report.periodEnd,gitSha:Deno.env.get('GITHUB_SHA')||null},null,2));
-console.log('ANNUAL_DEMO_PDF_OK',result.pages,result.bytes.length);
+const filename=report.id==='year-in-iberfit'?'Tu-ano-en-IBERFIT-muestra.pdf':report.id+'.pdf';
+await Deno.writeFile(dir+'/'+filename,result.bytes);
+manifest.push({file:filename,reportType:report.id,sourceSha256,artifactSha256:await hash(result.bytes),pages:result.pages,bytes:result.bytes.length,template:result.templateVersion,confirmedSessions:total,periodStart:report.periodStart,periodEnd:report.periodEnd});
+console.log('SIGNATURE_SAMPLE_OK',report.id,result.pages,result.bytes.length);
+}
+await Deno.writeTextFile(dir+'/manifest.json',JSON.stringify({synthetic:true,notIssued:true,notProductionCertified:true,gitSha:Deno.env.get('GITHUB_SHA')||null,reports:manifest},null,2));
