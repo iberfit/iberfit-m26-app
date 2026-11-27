@@ -1,0 +1,13 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "de1220c0d9599e9426a6e019fa37c1b72172a736",
+  "sourceBranch": "canary/rc74-4",
+  "frontendOnly": true,
+  "expectedPreviousLiveSha": "50ba022115091478a86900be6f0b0e4c816044ef",
+  "datedTrainingMode": "active",
+  "backendActivationProof": "verified-dated-sql-edge",
+  "gx350BackendActivation": true
+}
