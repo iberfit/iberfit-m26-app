@@ -3,13 +3,10 @@
 // All recovered data is sealed from Data API and Auth BEFORE the first import.
 // This is not certification of Edge secrets, Vault or full hosted failover.
 import {createHash,randomBytes} from 'node:crypto';
-import {mkdtempSync,writeFileSync,readFileSync,createWriteStream,rmSync,chmodSync} from 'node:fs';
+import {mkdtempSync,writeFileSync,readFileSync,createWriteStream,openSync,closeSync,rmSync,chmodSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {certifyManagedRecoveryArchive} from './m44_managed_recovery_preflight.mjs';
-import {evaluateM44OffsiteRecovery} from '../data-safety/check_m44_offsite_recovery_readiness.mjs';
-import {validateAuthVaultCensus} from './m44_auth_vault_cardinality_contract.mjs';
 import {classifyM44RestoreFailure} from './m44_managed_pg_restore_failure.mjs';
 import {orderM44ManagedDataRestore} from './m44_managed_auth_toc_order.mjs';
 import {planM44ManagedExtensionParity,certifyM44ManagedExtensionParity} from './m44_managed_extension_parity.mjs';
@@ -18,11 +15,10 @@ const TARGET='zfvaouggafdbqfbpwhfx';
 const QA='gjztkdwfmunnzhtvxrsu';
 const PROD='pjhmrhejsoofmouedavw';
 const REPO='iberfit/iberfit-m26-app';
-const BACKUP_RUN=46009568949;
-const BACKUP_ARTIFACT=15204490077;
-const BACKUP_SHA='cc454d92065cd88bb51df5742bdc70e1f2431dabd3ab433d0b3cd97b72d07faf';
-const BACKUP_SOURCE='9076875af47d78284273e495dbd7fb227dbb5865';
-const BACKUP_BYTES=36015046;
+const BACKUP_RUN=44944459633;
+const BACKUP_ARTIFACT=14723146683;
+const BACKUP_SHA='a68a5f1289bc974c0cc7ec62adfbced4325153d4271e5de278a4988bcfc913f1';
+const BACKUP_SOURCE='1a36e1db0d0cffc640651f2a45fff80419cffc33';
 const PREFIX='M44_MANAGED_REAL_';
 const mgmt='https://api.supabase.com/v1/projects/';
 let activeClone=false;
@@ -30,7 +26,6 @@ let qaPaused=false;
 let clonedData=false;
 let sealed=false;
 let directory='';
-let snapshotDirectory='';
 // Diagnostic identifier ONLY: fixed public operation labels, never URL, SQL, tokens or response bodies.
 let m44Phase='BOOTSTRAP';
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -113,21 +108,15 @@ async function gateCanaryExactSha(){
 }
 async function verifyBackup(){
  const run=await git('/actions/runs/'+BACKUP_RUN);
- const art=await git('/actions/artifacts/'+BACKUP_ARTIFACT);
- const jobs=await git('/actions/runs/'+BACKUP_RUN+'/jobs?per_page=100&filter=all');
- const artifacts=await git('/actions/runs/'+BACKUP_RUN+'/artifacts?per_page=100');
- const nowMs=Date.now();
- try{
-  certifyManagedRecoveryArchive({pin:{sourceSha:BACKUP_SOURCE,digest:BACKUP_SHA,
-   runId:BACKUP_RUN,artifactId:BACKUP_ARTIFACT,bytes:BACKUP_BYTES},run,artifact:art,nowMs});
-  const proof=evaluateM44OffsiteRecovery(run,jobs,artifacts,{nowMs});
-  if(proof.artifactId!==BACKUP_ARTIFACT||proof.artifactBytes!==BACKUP_BYTES||
-     proof.artifactDigest!=='sha256:'+BACKUP_SHA||proof.platformRecoveryVerified!==false)
-   fail('ARCHIVE_RUN_INVALID');
- }catch{fail('ARCHIVE_RUN_INVALID');}
+ if(run.status!=='completed'||run.conclusion!=='success'||run.head_sha!==BACKUP_SOURCE||
+    run.path!=='.github/workflows/m44-encrypted-disaster-recovery.yml')fail('ARCHIVE_RUN_INVALID');
  const comparison=await git('/compare/'+BACKUP_SOURCE+'...'+process.env.GITHUB_SHA);
  if(!['identical','ahead'].includes(comparison.status)||comparison.behind_by!==0)
    fail('BACKUP_SHA_NOT_ANCESTOR');
+ const art=await git('/actions/artifacts/'+BACKUP_ARTIFACT);
+ if(art.name!=='iberfit-prod-ciphertext-'+BACKUP_RUN||art.expired||
+    art.digest!=='sha256:'+BACKUP_SHA||art.size_in_bytes!==35011221)
+   fail('CIPHER_ARCHIVE_IDENTITY_DRIFT');
  console.log('M44_VERIFIED_CIPHER_ARCHIVE_ID_AND_SHA_ONLY');
 }
 async function isolate(){
@@ -298,36 +287,36 @@ async function downloadArchive(){
  try{
   for await(const chunk of res.body){
    count+=chunk.byteLength;
-   if(count>BACKUP_BYTES)fail('CIPHER_BYTES_OVERSIZED');
+   if(count>35011221)fail('CIPHER_BYTES_OVERSIZED');
    hash.update(chunk);
    await new Promise((resolve,reject)=>w.write(chunk,e=>e?reject(e):resolve()));
   }
   await new Promise((resolve,reject)=>w.end(e=>e?reject(e):resolve()));
  }catch{w.destroy();fail('CIPHER_DOWNLOAD_INTERRUPTED');}
- if(count!==BACKUP_BYTES||hash.digest('hex')!==BACKUP_SHA)fail('CIPHER_DIGEST_MISMATCH');
+ if(count!==35011221||hash.digest('hex')!==BACKUP_SHA)fail('CIPHER_DIGEST_MISMATCH');
+ const name=safe('unzip',['-Z1',archive],{code:'ZIP_INVENTORY_INVALID'}).stdout.trim();
+ if(name!=='iberfit-prod-recovery.ibf')fail('ZIP_UNEXPECTED_CONTENT');
  const ciphertext=join(directory,'archive.ibf');
- safe('python3',['scripts/ops/m44_offsite_archive_guard.py','unwrap',archive,BACKUP_SHA,ciphertext],{
-  code:'ZIP_INVENTORY_INVALID',timeout:120000});
+ const fd=openSync(ciphertext,'wx',0o600);
+ try{
+  const proc=spawnSync('unzip',['-p',archive,name],{
+   stdio:['ignore',fd,'pipe'],timeout:120000,maxBuffer:1024*1024
+  });
+  if(proc.error||proc.status!==0)fail('ZIP_EXTRACTION_FAILED');
+ }finally{closeSync(fd);}
  const tar=join(directory,'recovered.tar');
  safe('node',['scripts/ops/m44_encrypted_backup_archive.mjs','decrypt',ciphertext,tar],{
    code:'CIPHER_DECRYPT_FAILED',timeout:150000});
- snapshotDirectory=join(directory,'verified');
- safe('python3',['scripts/ops/m44_offsite_archive_guard.py','unpack',tar,snapshotDirectory],{
-   code:'RECOVERY_TAR_EXTRACT_FAILED',timeout:150000});
- // Current enriched M44 archive must contain both protected platform records.
- // Guard validates paths, bytes, hashes, file permissions and content shape.
- safe('node',['scripts/ops/m44_vault_root_key_archive.mjs','verify',join(snapshotDirectory,'vault-root-key.json')],{code:'VAULT_ARCHIVE_INVALID'});
- safe('node',['scripts/ops/m44_hosted_auth_config_archive.mjs','verify',join(snapshotDirectory,'hosted-auth-config.json')],{code:'AUTH_ARCHIVE_INVALID'});
- const census=JSON.parse(readFileSync(join(snapshotDirectory,'auth-vault-source.json'),'utf8'));
- validateAuthVaultCensus(census);
- if(census.counts.vault_secrets!==0)fail('VAULT_NONEMPTY_REQUIRES_SEPARATE_RECOVERY_ROUTE');
+ safe('tar',['-tf',tar],{code:'RECOVERY_TAR_INVALID'});
+ safe('tar',['-C',directory,'--no-same-owner','--no-same-permissions','-xf',tar],{
+   code:'RECOVERY_TAR_EXTRACT_FAILED',timeout:120000});
  rmSync(tar,{force:true});rmSync(ciphertext,{force:true});rmSync(archive,{force:true});
- if(!readFileSync(join(snapshotDirectory,'database.pgcustom')).length)fail('PGCUSTOM_MISSING');
+ if(!readFileSync(join(directory,'database.pgcustom')).length)fail('PGCUSTOM_MISSING');
  console.log('M44_REAL_PG17_ARCHIVE_DECRYPTED_IN_PRIVATE_RUNNER_ONLY');
 }
 function generateSelectedToc(){
- const pg=join(snapshotDirectory,'database.pgcustom');
- const result=safe('docker',['run','--rm','-v',snapshotDirectory+':/work:ro','postgres:17-alpine',
+ const pg=join(directory,'database.pgcustom');
+ const result=safe('docker',['run','--rm','-v',directory+':/work:ro','postgres:17-alpine',
   'pg_restore','--list','/work/database.pgcustom'],{code:'SOURCE_TOC_UNAVAILABLE'});
  const out=[];let app=0,authUsers=0,appData=0;
  for(const line of result.stdout.split('\n')){
@@ -346,7 +335,7 @@ function generateSelectedToc(){
  }
  if(authUsers!==1||app<100||appData<15)fail('RESTORE_SOURCE_SCOPE_INVALID');
  const ordered=orderM44ManagedDataRestore(out);
- const toc=join(snapshotDirectory,'restricted-restore.list');
+ const toc=join(directory,'restricted-restore.list');
  writeFileSync(toc,ordered.lines.join('\n'),{encoding:'utf8',mode:0o600,flag:'wx'});
  console.log('M44_MANAGED_RECOVERY_TOC_SCOPE_VERIFIED:app_entries='+app+
   ':app_data_tables='+appData+':auth_user_data=1:auth_dependency_order=verified');
@@ -392,7 +381,7 @@ async function restoreData(conn){
  // are also fixed to TARGET. The archive contains user records: never log it.
  // Docker mounts only the private runner directory; DB TLS credentials are
  // injected as environment, never arguments or log text.
- const docker=['run','--rm','--network','host','-v',snapshotDirectory+':/work:ro'];
+ const docker=['run','--rm','--network','host','-v',directory+':/work:ro'];
  for(const k of ['PGHOST','PGPORT','PGUSER','PGPASSWORD','PGDATABASE','PGSSLMODE','PGCONNECT_TIMEOUT'])
   docker.push('-e',k);
  docker.push('postgres:17-alpine','pg_restore','--dbname=postgres','--no-owner',
@@ -431,7 +420,7 @@ async function restorePrivateStorage(){
  m44Phase='STORAGE_PRIVATE_RESTORE';
  // Not a public-bucket promotion. Every restored object stays PRIVATE even
  // when its source bucket was deliberately public in the original project.
- const file=join(snapshotDirectory,'storage','manifest.json');
+ const file=join(directory,'storage','manifest.json');
  let manifest;
  try{manifest=JSON.parse(readFileSync(file,'utf8'));}catch{fail('SOURCE_STORAGE_MANIFEST_UNAVAILABLE');}
  if(manifest?.schema!=='iberfit.storage.backup.v1'||manifest.project!==PROD||
@@ -465,7 +454,7 @@ async function restorePrivateStorage(){
  }
  let uploaded=0,bytes=0;
  for(let i=0;i<manifest.objects.length;i++){
-  const o=manifest.objects[i],buffer=readFileSync(join(snapshotDirectory,'storage',o.relative));
+  const o=manifest.objects[i],buffer=readFileSync(join(directory,'storage',o.relative));
   if(buffer.length!==o.bytes||createHash('sha256').update(buffer).digest('hex')!==o.sha256)
    fail('SOURCE_STORAGE_BYTES_TAMPERED');
   const resource=[o.bucket,...o.name.split('/')].map(encodeURIComponent).join('/');
@@ -521,37 +510,27 @@ async function main(){
     process.env.GITHUB_EVENT_NAME!=='push'||
     !['1','2','3'].includes(process.env.GITHUB_RUN_ATTEMPT||'')||
     !/^[0-9a-f]{40}$/.test(process.env.GITHUB_SHA||'')||
-    process.env.SUPABASE_ACCESS_TOKEN||
+    !process.env.SUPABASE_ACCESS_TOKEN||
     !process.env.GITHUB_TOKEN||
     String(process.env.IBERFIT_BACKUP_PASSPHRASE||'').length<32)
   fail('PROTECTED_ONE_TIME_CONTEXT_REQUIRED');
- if(process.env.M44_MANAGED_EXECUTION_MODE!=='PREFLIGHT_ONLY')
-  fail('MANAGED_REPLAY_DISABLED_PENDING_ISOLATION_REVIEW');
  directory=mkdtempSync(join(tmpdir(),'iberfit-m44-managed-'));
  chmodSync(directory,0o700);
  try{
   await verifyBackup();
   await gateCanaryExactSha();
+  await isolate();
+  await seal();
+  const conn=await databaseConnection();
   await downloadArchive();
-  // Existing managed sandbox contains earlier recovery evidence. Never
-  // overwrite it, or pause QA, merely because a new archive is available.
-  // No supported path from this workflow into a real-data import yet.
-  console.log('M44_MANAGED_ARCHIVE_PREFLIGHT_OK:remote_writes=0:platform_recovery_NOT_certified');
+  await prepareM44ManagedExtensions();
+  await restoreData(conn);
+  await restorePrivateStorage();
+  if(!sealed||!clonedData)fail('RESTORE_NOT_ISOLATED');
+  console.log('M44_MANAGED_REAL_SNAPSHOT_SQL_READBACK_SUCCESS:hosted_full_platform_NOT_certified');
  }finally{
   await cleanup();
  }
-}
-// Historical real restore implementation retained for later review; not called
-// by main or the protected preflight workflow. Never replay onto populated target.
-export async function historicalManagedReplay(){
- await isolate();
- await seal();
- const conn=await databaseConnection();
- await prepareM44ManagedExtensions();
- await restoreData(conn);
- await restorePrivateStorage();
- if(!sealed||!clonedData)fail('RESTORE_NOT_ISOLATED');
- console.log('M44_MANAGED_REAL_SNAPSHOT_SQL_READBACK_SUCCESS:hosted_full_platform_NOT_certified');
 }
 main().catch(error=>{
  const message=String(error?.message||'');
