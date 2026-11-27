@@ -2,6 +2,8 @@
 // Frozen functional candidate and previous LIVE baseline, observed QA 2026-11-27.
 // This module is read-only, does not authorize SQL/Edge mutation or certify M44.
 import {execFileSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
+import {gitBlob,validateScope} from '../ops/gx350_edge_scope.mjs';
 const GIT=process.platform==='win32'?'C:/Program Files/Git/cmd/git.exe':'/usr/bin/git';
 const SHA=/^[a-f0-9]{40}$/u;
 export const GX350_CANDIDATE='9076875af47d78284273e495dbd7fb227dbb5865';
@@ -144,3 +146,84 @@ export function verifyGx350Edges(raw){
  }
  return Object.freeze({functions:3});
 }
+
+ // PROD packaging may include the function directory in the provider bundle.
+ // Never equate an unfamiliar bundle digest with a certified source. Attest
+ // every deployed file, entrypoint, import map, JWT and stable live metadata.
+ const LIVE_SCOPE=validateScope(JSON.parse(readFileSync(new URL('../ops/gx350_edge_scope.json',import.meta.url),'utf8')));
+ const VERIFIED_PROD_PROOFS=new WeakSet();
+ function edgeList(raw){const a=Array.isArray(raw)?raw:raw?.functions;if(!Array.isArray(a))fail('LIVE_EDGE_SHAPE');return a;}
+ function pathValue(p){return typeof p==='string'?p.replace(/^file:\/\//u,''):'';}
+ function exactMeta(raw,f){
+  const a=edgeList(raw).filter(x=>x?.slug===f.slug),e=a[0];
+  if(a.length!==1||!e||e.status!=='ACTIVE'||e.verify_jwt!==f.verifyJwt||typeof e.id!=='string'||!Number.isSafeInteger(e.version)||e.version<1||!/^[a-f0-9]{64}$/u.test(e.ezbr_sha256||''))fail('LIVE_EDGE_METADATA:'+f.slug);
+  const entry=pathValue(e.entrypoint_path);
+  if(!entry.endsWith('/index.ts')||!entry.startsWith('/')||entry.includes('/../')||entry.includes('/./'))fail('LIVE_EDGE_ENTRYPOINT:'+f.slug);
+  const root=entry.slice(0,-'/index.ts'.length);
+  if(!(root.endsWith('/'+f.slug)||root.endsWith('/source')))fail('LIVE_EDGE_ROOT:'+f.slug);
+  const mapExpected=f.candidate.some(x=>x.name==='deno.json'),map=pathValue(e.import_map_path);
+  if(mapExpected?(e.import_map!==true||map!==root+'/deno.json'):(e.import_map===true||Boolean(map)))fail('LIVE_EDGE_IMPORT_MAP:'+f.slug);
+  return Object.freeze({slug:f.slug,id:e.id,version:e.version,digest:e.ezbr_sha256,jwt:e.verify_jwt,entry,map});
+ }
+ export function verifyCandidateFiles(f,files,entry=''){
+  if(!Array.isArray(files)||files.length!==f.candidate.length)fail('LIVE_EDGE_FILE_COUNT:'+f.slug);
+  // Only one consistent package root; never strip arbitrary suffixes.
+  const root=entry.endsWith('/index.ts')?entry.slice(0,-'index.ts'.length):'';
+  const segments=root.split('/').filter(Boolean);
+  const relativeRoots=segments.map((_,i)=>segments.slice(i).join('/')+'/');
+  const prefixes=['',f.slug+'/','supabase/functions/'+f.slug+'/',...relativeRoots,...(root?[root,'file://'+root]:[])];
+  const prefix=prefixes.find(pre=>files.every(x=>typeof x.name==='string'&&x.name.startsWith(pre)&&f.candidate.some(y=>x.name===pre+y.name)));
+  if(prefix===undefined){console.log('GX350_EDGE_PATH_DIAGNOSTIC:'+f.slug+':'+JSON.stringify(files.map(x=>String(x.name).slice(0,300))));fail('LIVE_EDGE_FILE_PATH:'+f.slug);}
+  const names=new Set();
+  for(const x of files){
+   const name=x.name.slice(prefix.length),expected=f.candidate.find(y=>y.name===name);
+   if(names.has(name)||!expected||gitBlob(x.bytes)!==expected.blob)fail('LIVE_EDGE_SOURCE_DRIFT:'+f.slug);
+   names.add(name);
+  }
+  return names.size;
+ }
+ async function getBodyFiles(project,f,token){
+  const url='https://api.supabase.com/v1/projects/'+project+'/functions/'+f.slug+'/body';
+  const res=await fetch(url,{headers:{Authorization:'Bearer '+token,Accept:'multipart/form-data'},redirect:'error',signal:AbortSignal.timeout(30000)});
+  if(!res.ok||!/^multipart\/form-data\s*;/iu.test(res.headers.get('content-type')||'')){await res.body?.cancel();fail('LIVE_EDGE_BODY_HTTP_'+res.status);}
+  const form=await res.formData(),files=[];let metadata=0;
+  for(const [,value] of form){
+   if(typeof value==='string'){if(++metadata>1)fail('LIVE_EDGE_BODY_METADATA');const obj=JSON.parse(value);if(!obj||typeof obj!=='object'||Array.isArray(obj))fail('LIVE_EDGE_BODY_METADATA');}
+   else{if(typeof value.name!=='string'||value.size>2*1024*1024||files.length>=18)fail('LIVE_EDGE_BODY_SIZE');files.push({name:value.name,bytes:Buffer.from(await value.arrayBuffer())});}
+  }
+  return files;
+ }
+ async function listLive(project,token){
+  const res=await fetch('https://api.supabase.com/v1/projects/'+project+'/functions',{headers:{Authorization:'Bearer '+token,Accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(30000)});
+  if(!res.ok){await res.body?.cancel();fail('LIVE_EDGE_LIST_HTTP_'+res.status);}
+  return res.json();
+ }
+ export async function verifyGx350CandidateEdge(project,raw,slug,token){
+  if(![LIVE_SCOPE.productionProject,LIVE_SCOPE.qaProject].includes(project)||typeof token!=='string'||token.length<16)fail('LIVE_EDGE_SCOPE');
+  const f=LIVE_SCOPE.functions.find(x=>x.slug===slug);
+  if(!f)fail('LIVE_EDGE_SLUG');
+  const before=exactMeta(raw,f);
+  if(project===LIVE_SCOPE.productionProject&&before.version<f.prodVersion)fail('LIVE_EDGE_VERSION');
+  const count=verifyCandidateFiles(f,await getBodyFiles(project,f,token),before.entry);
+  const after=exactMeta(await listLive(project,token),f);
+  if(JSON.stringify(before)!==JSON.stringify(after))fail('LIVE_EDGE_CHANGED_DURING_READBACK:'+slug);
+  return Object.freeze({...after,files:count});
+ }
+ export async function verifyGx350ProdEdges(raw,token){
+  const snapshots=[];
+  for(const f of LIVE_SCOPE.functions)snapshots.push(await verifyGx350CandidateEdge(LIVE_SCOPE.productionProject,raw,f.slug,token));
+  const proof=Object.freeze({snapshots:Object.freeze(snapshots),functions:3});
+  VERIFIED_PROD_PROOFS.add(proof);
+  assertGx350ProdProof(await listLive(LIVE_SCOPE.productionProject,token),proof);
+  return proof;
+ }
+ export function assertGx350ProdProof(raw,proof){
+  if(!proof||!VERIFIED_PROD_PROOFS.has(proof))fail('LIVE_EDGE_PROOF_REQUIRED');
+  for(const f of LIVE_SCOPE.functions){
+   const expected=proof.snapshots.find(x=>x.slug===f.slug);
+   const actual=exactMeta(raw,f);
+   const {files,...snapshot}=expected;
+   if(files!==f.candidate.length||JSON.stringify(actual)!==JSON.stringify(snapshot))fail('LIVE_EDGE_PROOF_DRIFT:'+f.slug);
+  }
+  return true;
+ }

@@ -2,7 +2,7 @@
 // or certify full Hosted Auth/JWT/Vault disaster recovery.
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {gx350SourceScope,verifyGx350Catalog,verifyGx350Edges,CATALOG_SQL,RLS_SQL,GX350_INVITE_DIGEST} from './verify_gx350_preactivated.mjs';
+import {gx350SourceScope,verifyGx350Catalog,verifyGx350Edges,CATALOG_SQL,RLS_SQL,GX350_INVITE_DIGEST,verifyGx350ProdEdges,assertGx350ProdProof} from './verify_gx350_preactivated.mjs';
 
 const PROJECT='pjhmrhejsoofmouedavw';
 export const EDGE_DIGEST='c847ac0732966de086e82a4b4a5570719a18a9159b75a141305b3e136efc0e5d';
@@ -56,7 +56,7 @@ SELECT jsonb_build_object(
  'legacyAuth',has_function_privilege('authenticated','public.iberfit_occurrence_api_v1(text,jsonb)','EXECUTE'),
  'legacyAnon',has_function_privilege('anon','public.iberfit_occurrence_api_v1(text,jsonb)','EXECUTE')
 ) AS report`;
-export function certifyAlreadyActiveBackend(raw,edge,{gx350=false}={}){
+export function certifyAlreadyActiveBackend(raw,edge,{gx350=false,prodProof=null}={}){
  const rows=Array.isArray(raw)?raw:raw?.result;
  if(!Array.isArray(rows)||rows.length!==1||!rows[0]?.report)
    throw Error('CUTOVER_SQL_READBACK_INVALID');
@@ -74,11 +74,11 @@ export function certifyAlreadyActiveBackend(raw,edge,{gx350=false}={}){
      'auth_acl_ok','anon_denied'].every(k=>f[k]===true))
       throw Error('CUTOVER_FUNCTION_SIGNATURE_ACL_DRIFT:'+String(f.name||''));
  }
- if(gx350)verifyGx350Edges(edge);
+ if(gx350){if(prodProof)assertGx350ProdProof(edge,prodProof);else verifyGx350Edges(edge);}
  const functions=Array.isArray(edge)?edge:edge?.functions;
  const invite=functions?.find(f=>f.slug==='iberfit-admin-client-invite-v1');
  if(!invite||invite.status!=='ACTIVE'||invite.verify_jwt!==false||
-   invite.ezbr_sha256!==(gx350?GX350_INVITE_DIGEST:EDGE_DIGEST)||!Number.isInteger(invite.version)||invite.version<10)
+   ((!prodProof||!gx350)&&invite.ezbr_sha256!==(gx350?GX350_INVITE_DIGEST:EDGE_DIGEST))||!Number.isInteger(invite.version)||invite.version<10)
    throw Error('CUTOVER_EDGE_BUNDLE_DRIFT');
  return Object.freeze({ok:true,readOnly:true,functionsVerified:FUNCTIONS.length,
    edgeVerified:true,backendWrites:0,hostedAuthWrites:0,fullPlatformRecoveryCertified:false});
@@ -106,16 +106,18 @@ if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.u
     management('https://api.supabase.com/v1/projects/'+PROJECT+'/functions',token,'GET'),
    ]);
    const gx350=gx350SourceScope({sourceSha:process.env.SOURCE_SHA,expectedPreviousLiveSha:process.env.EXPECTED_PREVIOUS_LIVE_SHA});
+   let prodProof=null;
    if(gx350){
     const [catalog,rls]=await Promise.all([
      management('https://api.supabase.com/v1/projects/'+PROJECT+'/database/query/read-only',token,'POST',{query:CATALOG_SQL}),
      management('https://api.supabase.com/v1/projects/'+PROJECT+'/database/query/read-only',token,'POST',{query:RLS_SQL})
     ]);
     const gxProof=verifyGx350Catalog(catalog,rls);
-    verifyGx350Edges(edge);
+    prodProof=await verifyGx350ProdEdges(edge,token);
+    for(const e of prodProof.snapshots)console.log('GX350_PROD_EDGE_SOURCE_VERIFIED:'+e.slug+':'+e.digest+':files='+e.files);
     console.log('GX350_PROD_CATALOG_EDGE_VERIFIED:sqlFunctions='+gxProof.functions+':edges=3:writes=0');
    }
-   const proof=certifyAlreadyActiveBackend(sql,edge,{gx350:Boolean(gx350)});
+   const proof=certifyAlreadyActiveBackend(sql,edge,{gx350:Boolean(gx350),prodProof});
    process.stdout.write('IBERFIT_CUTOVER_BACKEND_CERTIFIED_READONLY functions='+
      proof.functionsVerified+' edge='+proof.edgeVerified+' writes=0\n');
   }catch(error){

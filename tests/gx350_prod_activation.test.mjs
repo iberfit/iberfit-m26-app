@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildAtomicSql,validateMarker,classifyEdgeState,classifyCatalogState,verifyCanaryIdentity} from '../scripts/ops/gx350_prod_activation.mjs';
-import {GX350_CANDIDATE,GX350_PREVIOUS_LIVE} from '../scripts/release/verify_gx350_preactivated.mjs';
+import {GX350_CANDIDATE,GX350_PREVIOUS_LIVE,verifyCandidateFiles,assertGx350ProdProof} from '../scripts/release/verify_gx350_preactivated.mjs';
 test('atomic GX350 install and dry run preserve one transaction and catalog assertions',()=>{
  for(const dryRun of [true,false]){
   const s=buildAtomicSql({dryRun});
@@ -36,4 +36,22 @@ test('Canary identity matches the actual QA version manifest and rejects mixed e
  const live={sourceSha:source,sourceBranch:'canary/rc74-4',projectRef:'gjztkdwfmunnzhtvxrsu',environment:'QA',qaOnly:true,production:false};
  assert.equal(verifyCanaryIdentity(live,source),true);
  for(const patch of [{environment:'CANARY'},{environment:'PRODUCTION'},{qaOnly:false},{production:true},{projectRef:'pjhmrhejsoofmouedavw'},{sourceSha:GX350_PREVIOUS_LIVE},{sourceBranch:'main'}])assert.throws(()=>verifyCanaryIdentity({...live,...patch},source),/CANARY_LIVE_DRIFT/);
+});
+
+test('provider package prefix never substitutes for exact candidate bytes or complete inventory',()=>{
+ const f={slug:'example-edge',candidate:[{name:'index.ts',blob:'ce013625030ba8dba906f756967f9e9ca394464a'},{name:'vendor/dep.js',blob:'ce013625030ba8dba906f756967f9e9ca394464a'}]};
+ const good=[{name:'example-edge/index.ts',bytes:Buffer.from('hello\n')},{name:'example-edge/vendor/dep.js',bytes:Buffer.from('hello\n')}];
+ assert.equal(verifyCandidateFiles(f,good),2);
+ const entry='/tmp/provider/source/index.ts';
+ const absolute=good.map(x=>({...x,name:'file:///tmp/provider/source/'+x.name.slice('example-edge/'.length)}));
+ assert.equal(verifyCandidateFiles(f,absolute,entry),2);
+ const relative=absolute.map(x=>({...x,name:x.name.slice('file:///tmp/provider/'.length)}));
+ assert.equal(verifyCandidateFiles(f,relative,entry),2);
+ assert.throws(()=>verifyCandidateFiles(f,relative,'/tmp/provider/foreign/index.ts'),/FILE_PATH/);
+ assert.throws(()=>verifyCandidateFiles(f,absolute,'/tmp/other/source/index.ts'),/FILE_PATH/);
+ assert.throws(()=>verifyCandidateFiles(f,[good[0]]),/FILE_COUNT/);
+ assert.throws(()=>verifyCandidateFiles(f,[good[0],good[0]]),/SOURCE_DRIFT/);
+ assert.throws(()=>verifyCandidateFiles(f,[good[0],{...good[1],bytes:Buffer.from('wrong')}]),/SOURCE_DRIFT/);
+ assert.throws(()=>verifyCandidateFiles(f,[good[0],{...good[1],name:'vendor/dep.js'}]),/FILE_PATH/);
+ assert.throws(()=>assertGx350ProdProof([],{snapshots:[]}),/PROOF_REQUIRED/);
 });
