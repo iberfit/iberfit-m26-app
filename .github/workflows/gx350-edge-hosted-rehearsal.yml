@@ -1,4 +1,5 @@
 name: GX350 isolated QA hosted Edge rollback
+# Retry with canonical direct settings read; no changed target or permissions.
 on:
   push:
     branches: [ops/gx350-m44-managed-recovery-preflight]

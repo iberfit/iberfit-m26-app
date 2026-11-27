@@ -25,17 +25,21 @@ async function request(path,method='GET',body){
  const response=await fetch(api+path,{method,redirect:'error',
   headers:{Authorization:'Bearer '+token,Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},
   ...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(30000)});
- if(!response.ok)fail('MANAGEMENT_HTTP_'+response.status);
+ if(!response.ok){
+  const scope=path===''?'PROJECT':path==='/database/query/read-only'?'QA_SETTINGS':path==='/functions'?'LIST':'ALIAS_CLEANUP';
+  await response.body?.cancel();
+  fail('MANAGEMENT_'+scope+'_HTTP_'+response.status);
+ }
  if(method==='DELETE')return null;
  try{return await response.json();}catch{fail('MANAGEMENT_JSON');}
 }
 async function assertQA(){
  const project=await request('');
  if(project.status!=='ACTIVE_HEALTHY'||(project.id??project.ref)!==QA)fail('QA_PROJECT_STATE');
- const raw=await request('/database/query/read-only','POST',{query:'select public.iberfit_environment() as environment'});
+ const raw=await request('/database/query/read-only','POST',{query:"SELECT (SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='environment') AS environment,(SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='real_data_allowed') AS real_data_allowed,(SELECT value#>>'{}' FROM public.iberfit_system_settings WHERE key='production_blocked') AS production_blocked"});
  const rows=Array.isArray(raw)?raw:raw?.result;
- const env=rows?.[0]?.environment;
- if(rows?.length!==1||env?.environment!=='QA'||env.realDataAllowed!==false||env.productionBlocked!==true)fail('QA_SAFETY');
+ const env=rows?.[0];
+ if(rows?.length!==1||env?.environment!=='QA'||env.real_data_allowed!=='false'||env.production_blocked!=='true')fail('QA_SAFETY');
 }
 async function list(){
  const raw=await request('/functions');
@@ -96,6 +100,7 @@ async function probe(f,alias){
 }
 async function main(){
  await assertQA();
+ console.log('GX350_HOSTED_QA_SETTINGS_OK');
  const original=await list();verifyGx350Edges(original);
  if(original.some(x=>aliases.includes(x.slug)))fail('ALIAS_COLLISION');
  const baseline=canonical(original);
