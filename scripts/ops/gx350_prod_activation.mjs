@@ -89,11 +89,15 @@ async function checkLive(){
  const v=await json('https://app.iberfit.cl/m26/version.json?gx350='+Date.now());
  if(v.sourceSha!==GX350_PREVIOUS_LIVE||v.projectRef!==PROD||v.environment!=='PRODUCTION'||v.production!==true||v.qaOnly!==false)fail('LIVE_BASELINE_DRIFT');
 }
+export function verifyCanaryIdentity(v,source){
+ if(!v||v.sourceSha!==source||v.sourceBranch!==CANARY||v.projectRef!==QA||v.environment!=='QA'||v.qaOnly!==true||v.production!==false)fail('CANARY_LIVE_DRIFT');
+ return true;
+}
 async function checkCanary(source){
  const ref=await gh('/branches/canary%2Frc74-4');
  if(ref.commit?.sha!==source)fail('CANARY_HEAD_DRIFT');
  const v=await json('https://m26-canary.iberfit.cl/m26/version.json?gx350='+Date.now());
- if(v.sourceSha!==source||v.projectRef!==QA||v.environment!=='CANARY')fail('CANARY_LIVE_DRIFT');
+ verifyCanaryIdentity(v,source);
 }
 async function readbackPrior(){
  const [a,b,m,e]=await Promise.all([sql(PROD,CATALOG_SQL),sql(PROD,RLS_SQL),sql(PROD,M1_SQL),list(PROD)]);

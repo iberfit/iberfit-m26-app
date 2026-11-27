@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildAtomicSql,validateMarker,classifyEdgeState,classifyCatalogState} from '../scripts/ops/gx350_prod_activation.mjs';
+import {buildAtomicSql,validateMarker,classifyEdgeState,classifyCatalogState,verifyCanaryIdentity} from '../scripts/ops/gx350_prod_activation.mjs';
 import {GX350_CANDIDATE,GX350_PREVIOUS_LIVE} from '../scripts/release/verify_gx350_preactivated.mjs';
 test('atomic GX350 install and dry run preserve one transaction and catalog assertions',()=>{
  for(const dryRun of [true,false]){
@@ -28,4 +28,12 @@ test('resume accepts only the exact prior or candidate bundle and JWT policy',()
  assert.throws(()=>classifyEdgeState([{...e,verify_jwt:true}],f),/EDGE_STATE_DRIFT/);
  assert.throws(()=>classifyEdgeState([e,e],f),/EDGE_STATE_DRIFT/);
  assert.throws(()=>classifyCatalogState([],[]),/SQL_STATE_UNKNOWN/);
+});
+
+
+test('Canary identity matches the actual QA version manifest and rejects mixed environments',()=>{
+ const source=GX350_CANDIDATE;
+ const live={sourceSha:source,sourceBranch:'canary/rc74-4',projectRef:'gjztkdwfmunnzhtvxrsu',environment:'QA',qaOnly:true,production:false};
+ assert.equal(verifyCanaryIdentity(live,source),true);
+ for(const patch of [{environment:'CANARY'},{environment:'PRODUCTION'},{qaOnly:false},{production:true},{projectRef:'pjhmrhejsoofmouedavw'},{sourceSha:GX350_PREVIOUS_LIVE},{sourceBranch:'main'}])assert.throws(()=>verifyCanaryIdentity({...live,...patch},source),/CANARY_LIVE_DRIFT/);
 });
