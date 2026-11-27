@@ -67,6 +67,7 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       IBERFIT_BACKUP_PASSPHRASE: ${{ secrets.IBERFIT_BACKUP_PASSPHRASE }}
       M44_USER_AUTHORIZATION: REAL_DATA_CLONE_ONLY_20261121
+      M44_MANAGED_EXECUTION_MODE: PREFLIGHT_ONLY
     steps:
       - name: Checkout exact certified source
         uses: actions/checkout@v4
@@ -83,14 +84,15 @@ jobs:
       - name: Verify restore script syntax and policy regression
         run: |
           node --check scripts/ops/m44_managed_real_recovery.mjs
-          node --test tests/m44_managed_real_recovery_guard.test.mjs tests/m44_managed_pg_restore_failure.test.mjs tests/m44_managed_auth_toc_order.test.mjs tests/m44_managed_extension_parity.test.mjs
-      - name: Run isolated real-snapshot recovery and ALWAYS restore two Free slots
+          node --test tests/m44_managed_recovery_preflight.test.mjs tests/m44_managed_real_recovery_guard.test.mjs tests/m44_managed_pg_restore_failure.test.mjs tests/m44_managed_auth_toc_order.test.mjs tests/m44_managed_extension_parity.test.mjs
+      - name: Validate encrypted recovery archive before any remote state change
         shell: bash
         run: node scripts/ops/m44_managed_real_recovery.mjs
 
   restore-free-slots:
     needs: [wait-exact-canary, managed-recovery]
-    if: ${{ always() && github.repository == 'iberfit/iberfit-m26-app' }}
+    # Dormant during preflight-only mode: this job itself can mutate project slots.
+    if: ${{ always() && false && github.repository == 'iberfit/iberfit-m26-app' }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
     timeout-minutes: 15

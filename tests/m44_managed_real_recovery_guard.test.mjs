@@ -30,8 +30,8 @@ test('Never touch PROD as a database mutation target and never send external app
 });
 test('M44 real ciphertext provenance, strict digest and no plaintext artifact upload',()=>{
  for(const part of [
-  '44944459633','14723146683',
-  'a68a5f1289bc974c0cc7ec62adfbced4325153d4271e5de278a4988bcfc913f1',
+  '46009568949','15204490077',
+  'cc454d92065cd88bb51df5742bdc70e1f2431dabd3ab433d0b3cd97b72d07faf',
   'ARCHIVE_RUN_INVALID','BACKUP_SHA_NOT_ANCESTOR','CIPHER_DIGEST_MISMATCH',
   'CIPHER_DECRYPT_FAILED'
  ])assert.ok(code.includes(part),part);
@@ -39,7 +39,7 @@ test('M44 real ciphertext provenance, strict digest and no plaintext artifact up
  assert.match(code,/rmSync\(directory,\{force:true,recursive:true/);
 });
 test('Public Data API, Auth email/phone and signup are isolated before any real restore',()=>{
- const main=code.slice(code.indexOf('async function main()'));
+ const main=code.slice(code.indexOf('async function historicalManagedReplay()'),code.indexOf('async function main()'));
  assert.ok(main.indexOf('await isolate()')<main.indexOf('await seal()'));
  assert.ok(main.indexOf('await seal()')<main.indexOf('await restoreData(conn)'));
  for(const item of [
@@ -88,7 +88,7 @@ test('Real Storage stays PRIVATE with per-object SHA-256 parity; no public resto
  assert.ok(code.indexOf('await restoreData(conn)')<code.indexOf('await restorePrivateStorage()'));
  assert.doesNotMatch(workflow,/supabase\/functions\/.*deploy|smtp_host:/i);
 });
-test('Failed or cancelled data-replay is followed by a separate protected Free-slot recovery job',()=>{
+test('Historical Free-slot recovery job is retained but disabled in preflight-only mode',()=>{
  assert.match(workflow,/restore-free-slots:/);
  assert.match(workflow,/needs: \[wait-exact-canary, managed-recovery\]/);
  assert.match(workflow,/if: \$\{\{ always\(\)/);
@@ -203,4 +203,17 @@ test('Managed PostgREST must repeatedly deny an originally public synthetic view
  assert.doesNotMatch(control,/if\(response\.ok\)fail/);
  assert.ok(seal.indexOf('sealed=true;')>controlEnd);
  assert.ok(code.indexOf('await restoreData(conn);')>code.indexOf('await seal();'));
+});
+
+test('Current protected workflow can only verify archive, never swap or import',()=>{
+ const main=code.slice(code.indexOf('async function main()'));
+ assert.match(workflow,/M44_MANAGED_EXECUTION_MODE: PREFLIGHT_ONLY/);
+ assert.match(workflow,/always\(\) && false/);
+ assert.ok(main.indexOf('await verifyBackup()')<main.indexOf('await downloadArchive()'));
+ assert.ok(main.indexOf('await downloadArchive()')<main.indexOf("M44_MANAGED_ARCHIVE_PREFLIGHT_OK"));
+ assert.doesNotMatch(main,/await (isolate|seal|restoreData|historicalManagedReplay)\(/);
+ assert.match(main,/MANAGED_REPLAY_DISABLED_PENDING_ISOLATION_REVIEW/);
+ assert.match(code,/evaluateM44OffsiteRecovery\(run,jobs,artifacts/);
+ assert.match(code,/m44_offsite_archive_guard\.py','unpack'/);
+ assert.match(code,/VAULT_NONEMPTY_REQUIRES_SEPARATE_RECOVERY_ROUTE/);
 });
