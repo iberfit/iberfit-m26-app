@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const install=readFileSync(new URL('../supabase/release-procedures/gx_onboarding_scoped_readback_v1.sql',import.meta.url),'utf8');
+const rollback=readFileSync(new URL('../supabase/release-procedures/gx_onboarding_scoped_readback_v1.rollback.sql',import.meta.url),'utf8');
+test('scoped readback supplements exact GX release without new grants or timeout changes',()=>{
+  assert.match(install,/833239e847db56f90de23c6b407e1384/);
+  assert.match(install,/5eca7c696f69e01a25d1d56f053974ce/);
+  assert.match(rollback,/5eca7c696f69e01a25d1d56f053974ce/);
+  assert.match(rollback,/833239e847db56f90de23c6b407e1384/);
+  const newBlock=install.split('$gx_to$')[1];
+  assert.ok(newBlock);
+  assert.match(newBlock,/perform public\.iberfit_require_privileged_assurance_v65d\(\)/);
+  assert.match(newBlock,/iberfit_current_role_v26\(\) in \('admin','coach'\)/);
+  assert.match(newBlock,/iberfit_can_access_client_v26\(v_candidate\)/);
+  assert.match(newBlock,/p\.client_id=v_candidate/);
+  assert.match(newBlock,/i\.client_id=v_candidate/);
+  assert.match(newBlock,/into v_visible/);
+  assert.match(newBlock,/into v_profile_visible/);
+  assert.match(newBlock,/into v_iri_available/);
+  assert.doesNotMatch(newBlock,/iberfit_bootstrap_v26\(|\bGRANT\b|statement_timeout/i);
+  assert.match(install,/before_metadata is distinct from after_metadata/);
+  assert.match(rollback,/before_metadata is distinct from after_metadata/);
+});
