@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 export const TEMPLATE_SHA256='dd54514b8c25c0a3d7775f6259046f279b2edb62170bef44154fef35e59c072e';
-export const DEFERRED_IRI_SHA256='18c061a6776b8227943ac3edbec98e8771182c4bf565602e36bf847019722fd8';
+export const DEFERRED_IRI_SHA256='7a8be01a0b6a0dc18b15c3eb085fccae4405b9f44e51ac3f1c43dadb4f0368bb';
 export const readDeferredIriTemplate=()=>readFileSync(new URL('../../supabase/release-procedures/gx_admin_deferred_iri_identity_v1.sql',import.meta.url),'utf8');
 const marker='__GX350_READBACK_DIRECTION__';
 export const readTemplate=()=>readFileSync(new URL('../../supabase/release-procedures/gx_onboarding_scoped_readback_v1.sql',import.meta.url),'utf8');

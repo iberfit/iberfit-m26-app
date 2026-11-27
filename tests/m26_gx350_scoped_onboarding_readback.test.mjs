@@ -37,10 +37,11 @@ test('deferred IRI cleanup receives only the precise new-client identifier, fail
   const source=readDeferredIriTemplate();
   const install=renderDeferredIri(source);
   const undo=renderDeferredIri(source,{mode:'rollback'});
-  assert.match(source,/v_created->>'reused'='false'/);
+  assert.match(source,/gx350_iri_inserted:=true/);
+  assert.match(source,/v_created->>'gx350IriInserted'='true'/);
   assert.match(source,/v_created->>'iri_id'/);
   assert.match(source,/GX350_DEFERRED_IRI_CLEANUP_UNCONFIRMED/);
-  assert.match(source,/not v_had_iri/);
+  assert.match(source,/GX350_DEFERRED_IRI_RESIDUAL/);
   assert.match(source,/GX350_IRI_INTERNAL_ACL_DRIFT/);
   assert.match(source,/prior_meta IS DISTINCT FROM revised_meta/);
   assert.equal(install.replace("direction constant text:='install'","direction constant text:='rollback'"),undo);
