@@ -1,0 +1,94 @@
+name: GX350 SMTP original custody (no send)
+on:
+  push:
+    branches: [ops/gx350-m44-managed-recovery-preflight]
+    paths: ['.github/workflows/gx350-smtp-custody-readonly.yml']
+permissions:
+  contents: read
+concurrency:
+  group: iberfit-gx350-smtp-custody-readonly
+  cancel-in-progress: false
+jobs:
+  verify-original:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    environment: m26-canary-readonly
+    steps:
+      - name: Compare live SMTP config and authenticate over TLS without sending mail
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ORIGINAL_SMTP_HOST: ${{ secrets.IBERFIT_SMTP_HOST }}
+          ORIGINAL_SMTP_PORT: ${{ secrets.IBERFIT_SMTP_PORT }}
+          ORIGINAL_SMTP_USER: ${{ secrets.IBERFIT_SMTP_USER }}
+          ORIGINAL_SMTP_PASSWORD: ${{ secrets.IBERFIT_SMTP_PASS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = iberfit/iberfit-m26-app
+          test "$GITHUB_REF" = refs/heads/ops/gx350-m44-managed-recovery-preflight
+          python3 - <<'PY'
+          import os, ssl, smtplib, json, urllib.request
+          from hmac import compare_digest
+          def stop(code):
+              print("GX350_SMTP_" + code)
+              raise SystemExit(1)
+          def same(a,b):
+              return compare_digest(str(a).encode(), str(b).encode())
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs):
+                  return None
+          def main():
+              token=os.environ.get("SUPABASE_ACCESS_TOKEN","")
+              password=os.environ.get("ORIGINAL_SMTP_PASSWORD","")
+              host=os.environ.get("ORIGINAL_SMTP_HOST","").strip().lower()
+              port=os.environ.get("ORIGINAL_SMTP_PORT","").strip()
+              user=os.environ.get("ORIGINAL_SMTP_USER","")
+              if len(token)<20 or len(password)<12 or not user:
+                  stop("CUSTODY_MISSING")
+              if host!="smtp.resend.com" or port not in ("465","587","2465","2587"):
+                  stop("PROVIDER_NOT_ALLOWLISTED")
+              if any(c in password+user for c in ("\r","\n","\x00")):
+                  stop("CUSTODY_FORMAT_INVALID")
+              request=urllib.request.Request(
+                  "https://api.supabase.com/v1/projects/pjhmrhejsoofmouedavw/config/auth",
+                  headers={"Authorization":"Bearer "+token,"Accept":"application/json"},
+                  method="GET")
+              opener=urllib.request.build_opener(NoRedirect(),urllib.request.HTTPSHandler(context=ssl.create_default_context()))
+              try:
+                  with opener.open(request,timeout=20) as response:
+                      config=json.loads(response.read(1024*1024))
+              except Exception:
+                  stop("LIVE_CONFIG_READ_FAILED")
+              if not same(config.get("smtp_host",""),host) or not same(config.get("smtp_port",""),port) or not same(config.get("smtp_user",""),user):
+                  stop("LIVE_CONFIG_MISMATCH")
+              print("GX350_SMTP_LIVE_CONFIG_MATCH:host=1:port=1:user=1")
+              try:
+                  context=ssl.create_default_context()
+                  if port in ("465","2465"):
+                      connection=smtplib.SMTP_SSL(host,int(port),timeout=20,context=context)
+                  else:
+                      connection=smtplib.SMTP(host,int(port),timeout=20)
+                  with connection as smtp:
+                      smtp.set_debuglevel(0)
+                      smtp.ehlo()
+                      if port in ("587","2587"):
+                          if not smtp.has_extn("starttls"):
+                              stop("STARTTLS_REQUIRED")
+                          smtp.starttls(context=context)
+                          smtp.ehlo()
+                      if not isinstance(smtp.sock,ssl.SSLSocket):
+                          stop("TLS_REQUIRED")
+                      code,_=smtp.login(user,password)
+                      if code!=235:
+                          stop("AUTH_NOT_CONFIRMED")
+              except smtplib.SMTPAuthenticationError:
+                  stop("ORIGINAL_CREDENTIAL_REJECTED")
+              except Exception:
+                  stop("PROVIDER_AUTH_UNVERIFIED")
+              print("GX350_SMTP_ORIGINAL_AUTH_VERIFIED:tls=1:credential=1:messages_sent=0:production_writes=0")
+              print("GX350_SMTP_SCOPE:hosted_password_exact_match_unverified=1:delivery_unverified=1:full_platform_recovery=0")
+          try:
+              main()
+          except Exception:
+              stop("DIAGNOSTIC_FAILED")
+          PY
