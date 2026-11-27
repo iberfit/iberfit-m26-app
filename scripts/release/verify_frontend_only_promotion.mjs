@@ -1,6 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
+import {gx350SourceScope} from './verify_gx350_preactivated.mjs';
 
 // Release hosts use the system Git installation, never a PATH-resolved executable.
 const SYSTEM_GIT=process.platform==='win32'?'C:/Program Files/Git/cmd/git.exe':'/usr/bin/git';
@@ -227,26 +228,32 @@ async function main(){
   const changedPaths=execFileSync(SYSTEM_GIT,['diff','--name-only',
     expectedPreviousLiveSha,sourceSha],{encoding:'utf8',timeout:10000})
     .split(/\r?\n/u).filter(Boolean);
-  const proof=evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,changedPaths});
+  // GX350 remains a Pages-only workflow; its backend is separately preactivated.
+  // Exact candidate source scope is necessary but not sufficient: the independent
+  // live backend attestation is executed before build and again before cutover.
+  const gx350=gx350SourceScope({sourceSha,expectedPreviousLiveSha});
+  if(gx350&&process.env.M26_U60_PROD_MODE!=='active')throw Error('GX350_RELEASE_ACTIVE_MODE_REQUIRED');
+  const legacyPaths=gx350?changedPaths.filter(p=>!gx350.paths.includes(p)):changedPaths;
+  const proof=evaluateFrontendOnlyChanges({sourceSha,expectedPreviousLiveSha,changedPaths:legacyPaths});
   // Special-case QA material is frozen by source blob and never executed.
   // Git object lookup is locked to the signed release SHA, not HEAD/working tree.
   const qaArtifacts=verifyFrozenQaArtifacts({
-    sourceSha,changedPaths,
+    sourceSha,changedPaths:legacyPaths,
     blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
       {encoding:'utf8',timeout:10000}).trim(),
   });
   const m1Procedures=verifyFrozenM1ReleaseProcedures({
-    sourceSha,changedPaths,
+    sourceSha,changedPaths:legacyPaths,
     blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
       {encoding:'utf8',timeout:10000}).trim(),
   });
   const inertSql=verifyFrozenInertCutoverSql({
-    sourceSha,changedPaths,
+    sourceSha,changedPaths:legacyPaths,
     blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
       {encoding:'utf8',timeout:10000}).trim(),
   });
   const edgeSource=verifyFrozenPreactivatedEdge({
-    sourceSha,changedPaths,
+    sourceSha,changedPaths:legacyPaths,
     blobAtSource:(source,path)=>execFileSync(SYSTEM_GIT,['rev-parse',source+':'+path],
       {encoding:'utf8',timeout:10000}).trim(),
   });
@@ -261,12 +268,12 @@ async function main(){
   catch{throw Error('FRONTEND_ONLY_PROD_IDENTITY_NOT_JSON');}
   verifyFrontendOnlyLiveIdentity(version,{expectedPreviousLiveSha,prodRef});
   writeFileSync('FRONTEND_ONLY_SCOPE_EVIDENCE.json',
-    JSON.stringify({...proof,frozenQaInertArtifactsVerified:qaArtifacts.verified,
+    JSON.stringify({...proof,changedFileCount:changedPaths.length,gx350ScopedSourceVerified:gx350?.paths.length??0,frozenQaInertArtifactsVerified:qaArtifacts.verified,
       stagedM1SqlProceduresVerified:m1Procedures.verified,
       preactivatedEdgeSourceVerified:edgeSource.verified,
       inertCutoverSqlFilesVerified:inertSql.verified,liveIdentityVerified:true},null,2)+'\n',{encoding:'utf8',flag:'w',mode:0o600});
   console.log('FRONTEND_ONLY_PROD_SCOPE_CERTIFIED source='+sourceSha+
-    ' previous='+expectedPreviousLiveSha+' changed='+proof.changedFileCount+
+    ' previous='+expectedPreviousLiveSha+' changed='+changedPaths.length+
     ' unappliedMigrations='+proof.unappliedMigrationFileCount+
     ' backendWrites=false hostedAuthWrites=false');
 }

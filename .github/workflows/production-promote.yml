@@ -32,7 +32,7 @@ jobs:
   promote-production:
     name: promote-production-fail-closed
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout promotion branch
@@ -99,6 +99,13 @@ jobs:
       # Full backend activation must use a distinct certified reversible process.
       - name: Enforce frontend-only release boundary before any backend mutation
         run: node scripts/release/enforce_frontend_only_release_boundary.mjs
+
+      # GX350 alone waits for a separate, exact-marker backend activation run.
+      # The normal live SQL/Edge, backup, source and Pages protections below remain mandatory.
+      - name: Wait for independent GX350 backend activation (exact marker)
+        env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+        run: node scripts/ops/gx350_prod_activation.mjs --wait-pages
 
       - name: Certify exact Canary CI, deploy and privileged WebAuthn (fail closed)
         env:

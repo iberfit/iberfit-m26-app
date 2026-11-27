@@ -1,0 +1,59 @@
+name: IBERFIT GX350 Independent Backend Activation
+on:
+  push:
+    branches:
+      - 'ops/gx350-m44-managed-recovery-preflight'
+      - 'release/prod-*'
+    paths:
+      - '.github/workflows/gx350-prod-activation.yml'
+      - 'scripts/ops/gx350_prod_activation.mjs'
+      - '.iberfit/production-release.json'
+permissions: {}
+concurrency:
+  group: iberfit-gx350-independent-backend
+  cancel-in-progress: false
+jobs:
+  preflight:
+    permissions:
+      contents: read
+      actions: read
+    if: github.ref == 'refs/heads/ops/gx350-m44-managed-recovery-preflight'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    environment: m26-canary-readonly
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/gx350_prod_activation.test.mjs
+      - name: Read-only production and QA preflight
+        env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/gx350_prod_activation.mjs --preflight
+  activate:
+    permissions:
+      contents: read
+      actions: read
+    if: startsWith(github.ref, 'refs/heads/release/prod-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate exact release contract before accessing credentials
+        run: node --test tests/gx350_prod_activation.test.mjs
+      - name: Independently activate exact GX350 SQL and three Edge functions
+        env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/gx350_prod_activation.mjs --activate

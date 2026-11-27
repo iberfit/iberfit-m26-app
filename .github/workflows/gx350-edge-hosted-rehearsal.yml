@@ -1,0 +1,43 @@
+name: GX350 isolated QA hosted Edge rollback
+# Retry with canonical direct settings read; no changed target or permissions.
+on:
+  push:
+    branches: [ops/gx350-m44-managed-recovery-preflight]
+    paths: ['.github/workflows/gx350-edge-hosted-rehearsal.yml']
+permissions:
+  contents: read
+concurrency:
+  group: iberfit-gx350-hosted-edge-one-time
+  cancel-in-progress: false
+jobs:
+  qa-hosted-rollback:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: m26-canary-readonly
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify syntax and package identities before obtaining management credentials
+        run: |
+          node --check scripts/ops/gx350_edge_hosted_rehearsal.mjs
+          node --test tests/gx350_preactivated_release_gate.test.mjs tests/gx350_edge_scope.test.mjs tests/gx350_edge_stage_rehearsal.test.mjs
+          node scripts/ops/gx350_edge_stage_rehearsal.mjs
+      - name: Rehearse three exact packages under disposable QA aliases
+        id: rehearsal
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/gx350_edge_hosted_rehearsal.mjs
+      - name: Always remove this run's verified disposable QA aliases
+        if: ${{ always() && steps.rehearsal.outputs.cleanup_safe == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/ops/gx350_edge_hosted_rehearsal.mjs --cleanup
