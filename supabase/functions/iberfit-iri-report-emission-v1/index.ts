@@ -1,5 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
+import {recoveryObservations,bodyMeasurements} from './vendor/workflows/iri-report-measurements.js';
 import {confirmedFirstSessionDraft,firstSessionCompletion,validateFirstSessionDraft} from './vendor/workflows/iri-first-session.js';
 import {iriProtocolById} from './vendor/workflows/iri-protocol-catalog.js';
 import {scoreIriPerformance} from './vendor/norms/iri-scoring.js';
@@ -96,7 +97,7 @@ function stable(value:unknown):unknown{
 function stableJson(value:unknown){return JSON.stringify(stable(value));}
 async function sha256(bytes:Uint8Array|string){
   const source=typeof bytes==='string'?new TextEncoder().encode(bytes):bytes;
-  const digest=await crypto.subtle.digest('SHA-256',source);
+  const digest=await crypto.subtle.digest('SHA-256',new Uint8Array(source));
   return [...new Uint8Array(digest)].map((b)=>b.toString(16).padStart(2,'0')).join('');
 }
 function latestByView(rows:any[]){
@@ -221,14 +222,21 @@ const PDF_C=Object.freeze({
   gold2:rgb(215/255,186/255,124/255),
   cream:rgb(245/255,245/255,240/255),
   cream2:rgb(205/255,212/255,208/255),
-  muted:rgb(154/255,168/255,161/255),
+  muted:rgb(79/255,98/255,86/255),
+  darkMuted:rgb(154/255,168/255,161/255),
 });
 function pdfSafe(value:unknown,max=4000){
   return text(value,max).replace(/[–—]/gu,'-').replace(/[“”]/gu,'"').replace(/[‘’]/gu,"'").replace(/[^\u0020-\u00ff]/gu,' ');
 }
+function pdfMeasured(value:unknown){
+  if(typeof value!=='number'&&typeof value!=='string')return null;
+  if(typeof value==='string'&&!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/u.test(value.trim().replace(',','.')))return null;
+  const n=Number(typeof value==='string'?value.trim().replace(',','.'):value);
+  return Number.isFinite(n)?n:null;
+}
 function pdfNum(value:unknown,digits=0){
-  const n=Number(value);
-  return Number.isFinite(n)?n.toLocaleString('es-ES',{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';
+  const n=pdfMeasured(value);
+  return n!==null?n.toLocaleString('es-ES',{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';
 }
 function pdfDate(value:unknown){
   const raw=pdfSafe(value,64),m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/u);
@@ -490,10 +498,7 @@ function pdfPhotoDecisionRows(report:any){
   return considerations.map((item:any)=>pdfSafe(item,300));
 }
 
-function pdfClientFinite(value:unknown){
-  const n=Number(value);
-  return Number.isFinite(n)?n:null;
-}
+function pdfClientFinite(value:unknown){return pdfMeasured(value);}
 function pdfClientBasisLabel(rating:any){
   return rating?.basis==='baremo-compatible'?'Baremo compatible':'Valoración IBERFIT';
 }
@@ -506,6 +511,7 @@ function pdfClientFooter(page:any,fonts:any,n:number){
 function pdfClientPage(doc:any,fonts:any,n:number,kicker:string,title:string,subtitle=''){
   const page=doc.addPage([PDF_W,PDF_H]);
   page.drawRectangle({x:0,y:0,width:PDF_W,height:PDF_H,color:PDF_C.cream});
+  page.drawRectangle({x:0,y:PDF_H-7,width:PDF_W,height:7,color:PDF_C.ink});
   page.drawText(String(Math.max(1,n-1)).padStart(2,'0'),{x:PDF_M,y:PDF_H-67,size:15,font:fonts.serifBold,color:PDF_C.gold});
   page.drawText(pdfSafe(kicker,90).toUpperCase(),{x:PDF_M+62,y:PDF_H-49,size:6.2,font:fonts.bold,color:PDF_C.muted});
   page.drawText(pdfSafe(title,120),{x:PDF_M+62,y:PDF_H-72,size:22.5,font:fonts.serifBold,color:PDF_C.ink});
@@ -526,28 +532,20 @@ function pdfClientAreaMetric(page:any,fonts:any,label:string,rating:any,x:number
   page.drawText(pdfClientBasisLabel(rating),{x,y:y-20,size:6.2,font:fonts.regular,color:PDF_C.muted});
 }
 function pdfClientRecoveryGraph(page:any,fonts:any,cardio:any,x:number,y:number,w:number,h:number){
-  const points=[
-    {label:'Final',value:pdfClientFinite(cardio?.finalHr)},
-    {label:'1 min',value:pdfClientFinite(cardio?.oneMinuteHr)},
-    {label:'2 min',value:pdfClientFinite(cardio?.twoMinuteHr)},
-  ].filter((item)=>item.value!==null);
-  if(points.length<2)return;
-  const values=points.map((item)=>Number(item.value));
-  const min=Math.min(...values)-8,max=Math.max(...values)+8,range=Math.max(1,max-min);
-  const coords=points.map((item,index)=>({
-    ...item,
-    px:x+(points.length===1?0:index*(w/(points.length-1))),
-    py:y+((Number(item.value)-min)/range)*h,
-  }));
-  page.drawLine({start:{x,y},end:{x:x+w,y},thickness:.45,color:PDF_C.ink,opacity:.2});
-  for(let index=0;index<coords.length-1;index+=1){
-    page.drawLine({start:{x:coords[index].px,y:coords[index].py},end:{x:coords[index+1].px,y:coords[index+1].py},thickness:1.6,color:PDF_C.ink2,opacity:.85});
+  const g=recoveryObservations(cardio);
+  if(!g.points.length){pdfText(page,fonts.regular,'Sin mediciones de frecuencia cardiaca disponibles.',x,y+40,w,8.5,12,PDF_C.muted,3);return;}
+  const px=(i:number)=>x+i*w/3,py=(v:number)=>y+(v-g.min)/Math.max(1,g.max-g.min)*h;
+  for(const value of [g.min,g.max]){
+    const at=py(value);page.drawLine({start:{x,y:at},end:{x:x+w,y:at},thickness:.45,color:PDF_C.ink,opacity:.2});
+    page.drawText(String(value),{x:x-19,y:at-2,size:6,font:fonts.regular,color:PDF_C.muted});
   }
-  for(const point of coords){
-    page.drawCircle({x:point.px,y:point.py,size:3.1,color:PDF_C.gold});
-    page.drawText(String(point.value),{x:point.px-6,y:point.py+9,size:6.5,font:fonts.bold,color:PDF_C.ink});
-    page.drawText(point.label,{x:point.px-9,y:y-16,size:6,font:fonts.regular,color:PDF_C.muted});
+  for(const [a,b] of g.segments)page.drawLine({start:{x:px(a.index),y:py(a.value)},end:{x:px(b.index),y:py(b.value)},thickness:1.6,color:PDF_C.ink2});
+  for(const point of g.points){
+    page.drawCircle({x:px(point.index),y:py(point.value),size:3.1,color:PDF_C.gold});
+    page.drawText(String(point.value),{x:px(point.index)-6,y:py(point.value)+9,size:7,font:fonts.bold,color:PDF_C.ink});
   }
+  ['Reposo','Final','1 min','2 min'].forEach((label,i)=>page.drawText(label,{x:px(i)-9,y:y-16,size:6,font:fonts.regular,color:PDF_C.muted}));
+  pdfText(page,fonts.regular,'FC (lpm) · Solo mediciones registradas; no se unen fases distintas ni huecos.',x,y-31,w,6.7,8.5,PDF_C.muted,2);
 }
 async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,annex,appOrigin,assessmentMeta,signatureEligible}:any){
   const doc=await PDFDocument.create();
@@ -592,9 +590,9 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
     page.drawLine({start:{x:PDF_M,y:176},end:{x:PDF_W-PDF_M,y:176},thickness:.55,color:PDF_C.cream2,opacity:.35});
     page.drawText('PERSONA EVALUADA',{x:PDF_M,y:152,size:6.1,font:fonts.bold,color:PDF_C.gold2});
     page.drawText(client,{x:PDF_M,y:130,size:15.5,font:fonts.serifBold,color:PDF_C.cream});
-    page.drawText(pdfDate(draft?.assessmentDate),{x:PDF_M,y:114,size:6.5,font:fonts.regular,color:PDF_C.muted});
+    page.drawText(pdfDate(draft?.assessmentDate),{x:PDF_M,y:114,size:6.5,font:fonts.regular,color:PDF_C.darkMuted});
     page.drawLine({start:{x:PDF_M,y:92},end:{x:PDF_W-PDF_M,y:92},thickness:.55,color:PDF_C.gold,opacity:.6});
-    page.drawText('DOCUMENTO',{x:PDF_M,y:76,size:5.8,font:fonts.bold,color:PDF_C.muted});
+    page.drawText('DOCUMENTO',{x:PDF_M,y:76,size:5.8,font:fonts.bold,color:PDF_C.darkMuted});
     page.drawText(iriOnly?'IRI independiente':'IRI · punto de partida',{x:PDF_M,y:61,size:7.8,font:fonts.bold,color:PDF_C.cream2});
     page.drawText('Entrenamiento personal con criterio · diagnóstico · planificación · control · seguimiento',{x:PDF_M,y:43,size:5.6,font:fonts.regular,color:PDF_C.gold2});
   }
@@ -641,20 +639,26 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
   n+=1;
   {
     const page=pdfClientPage(doc,fonts,n,'Composición corporal','Composición corporal','La composición corporal describe el punto de partida medido y las condiciones de esa medición. Se utiliza para seguimiento, no como juicio estético ni como nota funcional.');
-    const body=draft?.bodyComposition||{};
+    const body=draft?.bodyComposition||{},measured=bodyMeasurements(body);
+    const display=(value:number|null,unit:string='',digits=1)=>body?.skipped?'No evaluado':value===null?'-':pdfNum(value,digits)+unit;
     page.drawText('GRASA CORPORAL',{x:PDF_M,y:612,size:6.1,font:fonts.bold,color:PDF_C.gold});
-    page.drawText(body?.skipped?'—':pdfNum(body.bodyFatPercent,1)+'%',{x:PDF_M,y:558,size:39,font:fonts.serifBold,color:PDF_C.ink});
+    page.drawText(display(measured.bodyFatPercent,' %'),{x:PDF_M,y:558,size:39,font:fonts.serifBold,color:PDF_C.ink});
     page.drawText('Método · '+pdfClientCardioValue(body?.method||body?.device||'Sin método registrado'),{x:PDF_M,y:536,size:6.2,font:fonts.regular,color:PDF_C.muted});
-    const lean=pdfClientFinite(body?.leanMassKg)!==null?body.leanMassKg:body?.muscleMassKg;
     const metrics=[
-      ['Peso',body?.skipped?'No evaluado':pdfNum(body?.weightKg,1)+' kg'],
-      ['Masa grasa',body?.skipped?'No evaluado':(pdfClientFinite(body?.fatMassKg)!==null?pdfNum(body.fatMassKg,1)+' kg':'—')],
-      ['Masa libre de grasa',body?.skipped?'No evaluado':(pdfClientFinite(body?.leanMassKg)!==null?pdfNum(body.leanMassKg,1)+' kg':'—')],
-      ['Masa muscular',body?.skipped?'No evaluado':(pdfClientFinite(body?.muscleMassKg)!==null?pdfNum(body.muscleMassKg,1)+' kg':'—')],
-      ['Agua corporal',body?.skipped?'No evaluado':pdfNum(body?.bodyWaterPercent,1)+'%'],
-      ['Cintura',body?.skipped?'No evaluado':pdfNum(body?.waistCm,1)+' cm'],
-      ['Grasa visceral',body?.skipped?'No evaluado':pdfNum(body?.visceralFatLevel)],
+      ['Peso',display(measured.weightKg,' kg')],
+      ['Masa grasa',display(measured.fatMassKg,' kg')],
+      ['Masa libre de grasa',display(measured.leanMassKg,' kg')],
+      ['Masa muscular',display(measured.muscleMassKg,' kg')],
+      ['Agua corporal',display(measured.bodyWaterPercent,' %')],
+      ['Cintura',display(measured.waistCm,' cm')],
+      ['Grasa visceral',display(measured.visceralFatLevel,'',0)],
     ];
+    if(measured.bodyFatPercent!==null){
+      const cx=PDF_M,cy=496,w=215;
+      page.drawRectangle({x:cx,y:cy,width:w,height:10,color:PDF_C.cream2});
+      page.drawRectangle({x:cx,y:cy,width:w*measured.bodyFatPercent/100,height:10,color:PDF_C.ink2});
+      page.drawText('Fracción grasa registrada · resto no graso',{x:cx,y:cy-15,size:6.7,font:fonts.regular,color:PDF_C.muted});
+    }
     let y=618;
     for(const [label,value] of metrics){
       page.drawLine({start:{x:315,y:y+8},end:{x:535,y:y+8},thickness:.4,color:PDF_C.ink,opacity:.16});
@@ -666,7 +670,8 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
     page.drawText('DOCUMENTO COMPLEMENTARIO',{x:PDF_M,y:268,size:6.1,font:fonts.bold,color:PDF_C.gold});
     page.drawText(annex?'Informe de bioimpedancia incorporado':'Sin documento original incorporado',{x:PDF_M,y:244,size:11.5,font:fonts.serifBold,color:PDF_C.ink});
     pdfText(page,fonts.regular,annex?'El archivo original se incorpora íntegro al final de este informe emitido. Sus valores no se reconstruyen ni se inventan; se conserva como evidencia del punto de partida.':'La composición registrada se conserva con el método y las condiciones disponibles en la evaluación.',PDF_M,219,487,8.3,11.6,PDF_C.ink2,6);
-    if(pdfClientFinite(lean)!==null)page.drawText('Referencia de masa magra/muscular disponible: '+pdfNum(lean,1)+' kg',{x:PDF_M,y:145,size:6.4,font:fonts.regular,color:PDF_C.muted});
+    const compositionNotes=[measured.fatMassDerived||measured.leanMassDerived?'Masa grasa y/o masa libre de grasa calculada. Masa muscular es una variable distinta.':'',measured.fatConflict||measured.leanConflict?'Mediciones de composición discordantes; requieren revisión profesional.':''].filter(Boolean).join(' ');
+    if(compositionNotes)pdfText(page,fonts.regular,compositionNotes,PDF_M,155,487,6.4,8.2,PDF_C.muted,3);
     page.drawText('CONDICIONES REGISTRADAS',{x:PDF_M,y:114,size:6.1,font:fonts.bold,color:PDF_C.gold});
     pdfText(page,fonts.regular,body?.measurementConditions||'Sin condiciones de medición adicionales registradas.',PDF_M,96,487,7.4,10,PDF_C.ink2,3);
   }
@@ -724,7 +729,7 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
         if(!image)continue;
         const fit=pdfFit(image,105,145),slot=slots[i];
         page.drawImage(image,{x:slot.x+(105-fit.w)/2,y:slot.y+(145-fit.h)/2,width:fit.w,height:fit.h});
-        page.drawText(pdfPhotoView(photos[i]?.view),{x:slot.x,y:88,size:5.8,font:fonts.bold,color:PDF_C.muted});
+        page.drawText(pdfPhotoView(photos[i]?.view),{x:slot.x,y:88,size:5.8,font:fonts.bold,color:PDF_C.darkMuted});
       }
     }else{
       page.drawLine({start:{x:PDF_M,y:280},end:{x:535,y:280},thickness:.45,color:PDF_C.gold,opacity:.55});
@@ -737,11 +742,11 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
   {
     const page=pdfClientPage(doc,fonts,n,'Fuerza por patrones','Fuerza','Cada prueba conserva su variante y configuración real. Las cifras se presentan como resultados observados y solo son comparables cuando se repite una referencia equivalente.');
     const strength=draft?.strength||draft?.strengthAssessment||{};
-    const squat=pdfClientFinite(strength?.squat60?.repetitions);
-    const chair=pdfClientFinite(strength?.chairStand?.repetitions);
-    const lowerLabel=squat!==null?'Sentadilla libre · 60 s':'Silla · 30 s';
-    const lowerValue=squat!==null?squat:chair;
-    const push=pdfClientFinite(strength?.push?.repetitions),trx=pdfClientFinite(strength?.trxRow?.repetitions),plank=pdfClientFinite(strength?.core?.frontPlankSeconds);
+    const squat=strength?.skipped||strength?.lowerBody?.skipped?null:pdfClientFinite(strength?.squat60?.repetitions);
+    const chair=strength?.skipped||strength?.lowerBody?.skipped?null:pdfClientFinite(strength?.chairStand?.repetitions);
+    const lowerLabel=chair!==null?'Silla · 30 s':squat!==null?'Sentadilla libre · 60 s':'Tren inferior';
+    const lowerValue=chair??squat;
+    const push=strength?.skipped||strength?.push?.skipped?null:pdfClientFinite(strength?.push?.repetitions),trx=strength?.skipped||strength?.trxRow?.skipped?null:pdfClientFinite(strength?.trxRow?.repetitions),plank=strength?.skipped||strength?.core?.skipped?null:pdfClientFinite(strength?.core?.frontPlankSeconds);
     pdfClientAreaMetric(page,fonts,'Valoración de fuerza',ratings.strength,PDF_M,650,205);
     const boxes=[
       [lowerLabel,lowerValue===null?'—':pdfNum(lowerValue)+' rep',PDF_M,555],
@@ -769,10 +774,15 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
   n+=1;
   {
     const page=pdfClientPage(doc,fonts,n,'Capacidad de esfuerzo','Capacidad de esfuerzo','La recuperación se lee dentro del protocolo realizado. En una prueba de campo se utiliza como referencia individual y no hereda baremos de otros protocolos.');
-    const cardio=draft?.cardio||{};
-    page.drawText(pdfProtocolName(cardio),{x:PDF_M,y:636,size:13,font:fonts.serifBold,color:PDF_C.ink});
+    const originalCardio=draft?.cardio||{};
+    const cardio=originalCardio.skipped?{skipped:true,skipReason:originalCardio.skipReason}:originalCardio;
+    page.drawText(cardio.skipped?'Prueba no realizada':pdfProtocolName(cardio),{x:PDF_M,y:636,size:13,font:fonts.serifBold,color:PDF_C.ink});
     pdfClientRecoveryGraph(page,fonts,cardio,PDF_M+15,510,230,90);
-    const metrics=[
+    const metrics=cardio.skipped?[]:cardio.protocol==='1msts-standard'?[
+      ['Repeticiones',pdfNum(cardio.repetitions)],['Altura silla',pdfClientFinite(cardio.chairHeightCm)!==null?pdfNum(cardio.chairHeightCm,1)+' cm':'-'],['Esfuerzo RPE',pdfClientFinite(cardio.rpe)!==null?pdfNum(cardio.rpe,1)+'/10':'-'],['Validez',pdfBool(cardio.valid)],
+    ]:cardio.protocol==='ymca-3min-standard'?[
+      ['Altura escalón',pdfClientFinite(cardio.stepHeightCm)!==null?pdfNum(cardio.stepHeightCm,1)+' cm':'-'],['Cadencia',pdfClientFinite(cardio.cadenceBpm)!==null?pdfNum(cardio.cadenceBpm)+' puls/min':'-'],['FC final',pdfNum(cardio.finalHr)],['FC 1 min',pdfNum(cardio.oneMinuteHr)],
+    ]:[
       ['Velocidad',pdfClientFinite(cardio?.speedKmh)!==null?pdfNum(cardio.speedKmh,1)+' km/h':'—'],
       ['Inclinación',pdfClientFinite(cardio?.inclinePercent)!==null?pdfNum(cardio.inclinePercent,1)+'%':'—'],
       ['Recuperación 1 min',pdfClientFinite(cardio?.deltaOneMinute)!==null?pdfNum(cardio.deltaOneMinute)+' lpm':'—'],
@@ -792,6 +802,7 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
       pdfClientFinite(cardio?.rpe)!==null&&'Esfuerzo percibido: '+pdfNum(cardio.rpe,1)+'/10',
     ].filter(Boolean);
     let y=610;
+    if(cardio.skipped)y=pdfText(page,fonts.serif,cardio.skipReason||'Motivo no registrado.',315,y,220,9,12.2,PDF_C.ink,4)-7;
     for(const item of how)y=pdfText(page,fonts.serif,item,315,y,220,9,12.2,PDF_C.ink,3)-7;
     page.drawText('VALORACIÓN IBERFIT',{x:315,y:440,size:6.1,font:fonts.bold,color:PDF_C.gold});
     page.drawText(pdfAreaRating(ratings.recovery),{x:315,y:409,size:20,font:fonts.serifBold,color:PDF_C.ink});
@@ -840,7 +851,7 @@ async function renderClientPdf({draft,clientName,coachName,iriOnly,photoReport,a
     page.drawText('SIGUIENTE PASO',{x:PDF_M,y:384,size:6.1,font:fonts.bold,color:PDF_C.gold});
     pdfText(page,fonts.serif,iriOnly?'Conserva este informe como referencia. Si más adelante quieres reevaluar o iniciar un proceso de entrenamiento, las prioridades y pruebas iniciales quedan documentadas para poder comparar.':(draft?.diagnosis?.initialPlan||'Convertir las prioridades identificadas en una planificación progresiva y revisable.'),PDF_M,355,430,11,14.8,PDF_C.ink2,9);
     if(signaturePath){
-      page.drawText('FIRMA DEL ENTRENADOR',{x:PDF_M,y:215,size:5.8,font:fonts.bold,color:PDF_C.muted});
+      page.drawText('FIRMA DEL ENTRENADOR',{x:PDF_M,y:215,size:5.8,font:fonts.bold,color:PDF_C.darkMuted});
       page.drawSvgPath(signaturePath,{x:PDF_M+5,y:118,scale:.23,color:PDF_C.ink,opacity:.92});
       page.drawText(coach,{x:PDF_M,y:91,size:6.5,font:fonts.serifItalic,color:PDF_C.ink});
     }else{
@@ -1383,7 +1394,7 @@ async function issueReport({userClient,service,actorUserId,actorEmail,assessment
   if(!SHA256.test(sourceHash))throw new Error('IRI_REPORT_SOURCE_HASH_INVALID');
 
   let pdf=await renderPdf({draft,audience,clientName:clientResult.data.name||'Cliente IBERFIT',coachName,iriOnly:authz.data?.iriOnly===true,photoReport,annex,appOrigin,assessmentMeta:{protocolVersion:assessment.protocol_version,completedAt:assessment.completed_at},signatureEligible:/carlos/iu.test(coachName)||String(actorEmail||'').toLowerCase()==='iberfit.cl@gmail.com'});
-  pdf=await appendExternal(pdf,externalBytes,annex);
+  pdf=new Uint8Array(await appendExternal(pdf,externalBytes,annex));
   if(pdf.byteLength<=1000||pdf.byteLength>MAX_ARTIFACT_BYTES)throw new Error('IRI_REPORT_ARTIFACT_SIZE_INVALID');
   const artifactHash=await sha256(pdf);
   const issuanceId=crypto.randomUUID();

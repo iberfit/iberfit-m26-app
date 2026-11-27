@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createExecution} from '../src/m26/workflows/session-execution.js';
 import {createOccurrenceWorkoutService} from '../src/m26/workflows/occurrence-workout-service.js';
 
 // No Supabase credentials, actual data or mutable network. Reproduces the
@@ -14,7 +13,8 @@ const PAUSED='2026-11-12T16:20:00Z';
 const RESUMED='2026-11-12T16:24:00Z';
 const block={id:'u72-base',type:'exercise',exerciseId:'squat',sets:2,reps:'8'};
 const session={id:SESSION,clientId:CLIENT,blocks:[block]};
-const queue=createExecution({session,clientId:CLIENT,executionId:EXEC}).queue;
+// The private U60 endpoint returns the raw U32 SQL queue, not the locally normalized sports queue.
+const queue=[{blockId:block.id,exerciseId:block.exerciseId,sets:block.sets,prescription:{reps:block.reps}}];
 const prescriptionSnapshot={clientId:CLIENT,sessionId:SESSION,
   blocks:structuredClone(session.blocks),queue:structuredClone(queue)};
 function checkpoint(){

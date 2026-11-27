@@ -5,6 +5,7 @@ import {selectCurrentTrainingCycle} from '../workflows/planning-workflow.js';
 import {linkableSessionsForCoachAgenda} from '../workflows/agenda-workflow.js';
 export {linkableSessionsForCoachAgenda} from '../workflows/agenda-workflow.js';
 import {buildPeriodizationSnapshot} from '../planning/periodization-workbench.js';
+import {buildGoalBaselineOptions} from '../workflows/report-reassessment-evidence.js';
 import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
 import {createAdminRouteViewModel} from '../admin/view-model.js';
@@ -31,7 +32,8 @@ import {
   experienceNextAction,
 } from '../experience/client-experience.js';
 import { buildAdaptiveSessionContext } from '../intelligence/adaptive-context.js';
-import {reusableConfirmedSummary} from '../engagement/progress-continuity.js';
+import {reusableConfirmedSummary,confirmedScheduledCompletion} from '../engagement/progress-continuity.js';
+import {evidenceNumber} from '../domain/evidence-signal.js';
 import { deriveAdaptiveExperience } from '../experience/adaptive-experience.js';
 import { buildWearableViewModel } from '../wearables/view-model.js';
 import {buildClientDayContext} from '../experience/client-day-context.js';
@@ -46,6 +48,7 @@ import {
 } from '../domain/civil-date.js';
 import { deriveAgeYears } from '../workflows/iri-profile.js';
 import {confirmedFirstSessionDraft} from '../workflows/iri-first-session.js';
+import {buildReassessmentReview} from '../workflows/report-reassessment-evidence.js';
 import {scoreIriPerformance} from '../norms/iri-scoring.js';
 import {buildIri2DecisionLog,buildIriPlanningSeed,isInitialIriAssessment} from '../workflows/iri-2-longitudinal.js';
 import {getIberfitLanguage,iberfitLanguageOptions,iberfitLocaleOptions,iberfitPlannedLanguages} from '../ui/i18n.js';
@@ -575,45 +578,37 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     // No truncation or permissions inference. Reuse the owner-scoped directory
     // index so per-client 7/28/90 histories no longer rescan the full archive.
     const ownerState=(id)=>options.clientScopeIndex?.get(String(id||''))||state;
-    // The Client's 28-day confirmed evidence is a single snapshot per frame.
-    // Reuse it for alerts, adaptive next-action, and challenges. Coaches still
-    // compute their separate owner-scoped professional summaries as before.
-    const clientProgressSummary=
-      overview.role==='client'&&clientId&&selectedHasTraining
-        ?computeProgressSummary(state,clientId,{now,days:28})
-        :null;
-    const alerts = clientId&&selectedHasTraining
-      ? deriveAdherenceAlerts(ownerState(clientId), clientId,
-          clientProgressSummary?{now,summary:clientProgressSummary}:{now})
-      : [];
-
+    // Frame-local owner evidence. Never cache across hydration, navigation or
+    // identity changes; all consumers share the same clock and scope.
+    const frameEvidence=new Map();
+    const evidenceFor=id=>{
+      const key=String(id||'');
+      if(!key||!clientHasTrainingService(state,key))return {progressSummary:null,adherenceAlerts:[]};
+      if(!frameEvidence.has(key)){
+        const scoped=ownerState(key);
+        const progressSummary=computeProgressSummary(scoped,key,{now,days:28});
+        const adherenceAlerts=deriveAdherenceAlerts(scoped,key,{now,summary:progressSummary});
+        frameEvidence.set(key,{progressSummary,adherenceAlerts});
+      }
+      return frameEvidence.get(key);
+    };
+    const selectedEvidence=clientId&&selectedHasTraining?evidenceFor(clientId):null;
+    const clientProgressSummary=overview.role==='client'?selectedEvidence?.progressSummary??null:null;
+    const alerts=selectedEvidence?.adherenceAlerts??[];
     qaStage('rc64-hoy-clients-start');
-    const clients=overview.summaries.map((summary)=>{
-      const sameClient=overview.role==='client'
-        &&String(summary?.client?.id||'')===String(clientId||'');
-      return compactSummary(summary,overview.role,{
-        state:ownerState(summary?.client?.id),now,
-        ...(sameClient?{progressSummary:clientProgressSummary,adherenceAlerts:alerts}:{}),
-      });
+    const clients=overview.summaries.map(summary=>{
+      const id=summary?.client?.id;
+      return compactSummary(summary,overview.role,{state:ownerState(id),now,...evidenceFor(id)});
     });
     qaStage('rc64-hoy-clients-ready');
 
     qaStage('rc64-hoy-cockpit-start');
-    const coachCockpit=
-      overview.role==='coach'
-        ?deriveCoachCockpit(
-            clients.map((client)=>({
-              client,
-              alerts:client.experience?.serviceKind!=='training'
-                ?[]
-                :deriveAdherenceAlerts(
-                    ownerState(client.id),
-                    client.id,
-                    {now}
-                  ),
-            }))
-          )
-        :null;
+    const coachCockpit=overview.role==='coach'
+      ?deriveCoachCockpit(clients.map(client=>({
+        client,
+        alerts:client.experience?.serviceKind!=='training'?[]:evidenceFor(client.id).adherenceAlerts,
+      })))
+      :null;
     qaStage('rc64-hoy-cockpit-ready');
 
     const challengeSnapshot=
@@ -741,7 +736,7 @@ if (area === 'clientes') {
       : [];
     const role = String(shellVm.identity?.role || '');
     const compact = summary
-      ? compactSummary(summary, role, {state,now})
+      ? compactSummary(summary, role, {state,now,progressSummary:progress,adherenceAlerts:alerts})
       : null;
     const coachCockpit =
       compact && ['coach', 'admin'].includes(role)
@@ -812,7 +807,7 @@ if (area === 'clientes') {
     const summary = !trainingActive?null:(longitudinal?.progress?.d28
       ?? (clientId ? computeProgressSummary(state, clientId, { now, days: 28 }) : null));
     const planExecution = !trainingActive?null:buildPlanExecutionSummary(state, clientId, { now, days: summary?.days||28 });
-    const alerts = !trainingActive?[]:deriveAdherenceAlerts(state, clientId, { now, summary });
+    const alerts = !trainingActive?[]:deriveAdherenceAlerts(state, clientId, { now, summary,summaries:longitudinal?.progress });
     const exercisePerformance=!trainingActive
       ?Object.freeze([])
       :buildExercisePerformanceProjection(
@@ -821,7 +816,10 @@ if (area === 'clientes') {
         role,
         options,
       );
-    return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
+    const canReview=trainingActive&&['coach','admin'].includes(role)&&state?.identity?.role===role&&String(state?.selectedClientId||'')===String(clientId||'')&&Boolean(clientId);
+    const review=canReview?buildReassessmentReview(state,clientId,{now}):null;
+    const reassessmentReview=review?Object.freeze({periodStart:review.periodStart,periodEnd:review.periodEnd,comparisons:Object.freeze(review.comparisons.map(({label,previous,value,delta,unit,deltaUnit})=>Object.freeze({label,previous,value,delta,unit,deltaUnit})))}):null;
+    return Object.freeze({reassessmentReview,exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'progreso',
       clientId,
       role,
@@ -983,6 +981,7 @@ if (area === 'clientes') {
         :[]),
       canEdit,
       iriPlanningSeed,
+      goalBaselineOptions:canEdit?buildGoalBaselineOptions(state,clientId,{now}):[],
       profile,
       clientContext:['admin','coach'].includes(role)?professionalClientContext(state,clientId):null,
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),
@@ -1178,8 +1177,8 @@ export const __routeViewModelInternals = Object.freeze({
 /* M26_RC39_ROUTE_VIEW_MODEL_WRAPPER */
 // RC71_0_CHALLENGE_VM_BEGIN
 function rc71ChallengePercent(current,target){
-  const safeCurrent=Number(current);
-  const safeTarget=Number(target);
+  const safeCurrent=evidenceNumber(current,{min:0});
+  const safeTarget=evidenceNumber(target,{min:0});
 
   if(
     !Number.isFinite(safeCurrent)||
@@ -1215,12 +1214,8 @@ function rc71ChallengeItem({
     id,
     title,
     detail,
-    current:Number.isFinite(Number(current))
-      ? Number(current)
-      : null,
-    target:Number.isFinite(Number(target))
-      ? Number(target)
-      : null,
+    current:evidenceNumber(current,{min:0}),
+    target:evidenceNumber(target,{min:0}),
     unit,
     available:Boolean(available),
     progress,
@@ -1250,7 +1245,7 @@ function rc71ChallengeSnapshot(
   {summary:providedSummary=null}={}
 ){
   const summary=clientId
-    ? reusableConfirmedSummary(providedSummary,clientId,28)
+    ? reusableConfirmedSummary(providedSummary,clientId,28,{now})
       ??computeProgressSummary(state,clientId,{now,days:28})
     : null;
 
@@ -1265,16 +1260,15 @@ function rc71ChallengeSnapshot(
     });
   }
 
-  const planned=Number(summary.plannedSessions||0);
-  const completed=Number(summary.completedSessions||0);
-  const checkins=Number(summary.checkins||0);
-  const wearableDays=Number(
-    summary.wearable?.daysWithData||0
-  );
+  const attendance=confirmedScheduledCompletion(summary);
+  const planned=attendance?.planned??null;
+  const completed=attendance?.completed??null;
+  const checkins=evidenceNumber(summary.checkins,{min:0,integer:true});
+  const wearableDays=evidenceNumber(summary.wearable?.daysWithData,{min:0,integer:true});
   const wearableWindow=Number(
     summary.wearable?.days||7
   );
-  const planAvailable=planned>0;
+  const planAvailable=attendance!==null;
 
   return Object.freeze({
     clientId,
@@ -1298,7 +1292,7 @@ function rc71ChallengeSnapshot(
         current:checkins,
         target:4,
         unit:'registros',
-        available:true,
+        available:checkins!==null,
       }),
       rc71ChallengeItem({
         id:'datos',

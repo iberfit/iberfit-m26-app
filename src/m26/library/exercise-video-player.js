@@ -29,7 +29,7 @@ const MEDIA_EVENTS=Object.freeze([
   'ended',
   'emptied',
 ]);
-const PLAYBACK_RATES=Object.freeze([1,1.25,1.5,2]);
+const PLAYBACK_RATES=Object.freeze([1,0.75,0.5,1.25,1.5,2]);
 
 function e(value){
   return String(value??'')
@@ -176,6 +176,7 @@ export function createExerciseVideoExperienceController({
   const loadStarted=new WeakMap();
   let observer=null;
   let mounted=false;
+  let activeVideo=null;
 
   function figureFor(video){
     return video?.closest?.('[data-exercise-video]')||null;
@@ -206,13 +207,22 @@ export function createExerciseVideoExperienceController({
   function refreshAddedFigures(records){
     // Updating an aria-live status or typing in a training form is not a new
     // media mount. Inspect only added element subtrees, once per batch.
-    const figures=new Set();
+    const figures=new Set(),removedVideos=new Set();
     for(const record of records||[]){
+      for(const node of record.removedNodes||[]){
+        if(node?.nodeType!==1)continue;
+        if(node.matches?.('[data-exercise-video-element]'))removedVideos.add(node);
+        for(const video of node.querySelectorAll?.('[data-exercise-video-element]')||[])removedVideos.add(video);
+      }
       for(const node of record.addedNodes||[]){
         if(node?.nodeType!==1)continue;
         if(node.matches?.('[data-exercise-video]'))figures.add(node);
         for(const figure of node.querySelectorAll?.('[data-exercise-video]')||[])figures.add(figure);
       }
+    }
+    for(const video of removedVideos)if(root.contains?.(video)===false){
+      stopExerciseVideo(video);
+      if(activeVideo===video)activeVideo=null;
     }
     for(const figure of figures)if(root.contains?.(figure)!==false)refreshFigure(figure);
   }
@@ -231,7 +241,11 @@ export function createExerciseVideoExperienceController({
 
   function onMediaEvent(event){
     const video=event.target?.matches?.('[data-exercise-video-element]')?event.target:null;
-    if(!video)return;
+    if(!video||!mounted||root.contains?.(video)===false)return;
+    if(event.type==='playing'){
+      const previous=activeVideo;activeVideo=video;
+      if(previous&&previous!==video)stopExerciseVideo(previous);
+    }else if(['pause','ended','error','emptied'].includes(event.type)&&activeVideo===video){activeVideo=null;}
     const figure=figureFor(video);
     const online=networkState(navigatorRef)==='online';
     let state=mediaStateForEvent(event.type,{online});
@@ -362,6 +376,8 @@ export function createExerciseVideoExperienceController({
       scope?.removeEventListener?.('offline',onNetwork);
       observer?.disconnect?.();
       observer=null;
+      if(activeVideo)stopExerciseVideo(activeVideo);
+      activeVideo=null;
     },
     analyticsSnapshot:()=>analytics.snapshot(),
   });

@@ -1,5 +1,6 @@
 import {isClientVisibleAppointment} from '../domain/appointment.js';
 import {sessionVisibilityLevel} from '../rc39/session-policy.js';
+import {readGoalMeasurement} from '../planning/goal-measurement.js';
 
 const ROLE_ALIASES=Object.freeze({admin:'admin',administrador:'admin',administrator:'admin',coach:'coach',entrenador:'coach',client:'client',cliente:'client'});
 const ALWAYS_PRIVATE_FOR_CLIENT=new Set(['privateNotes','coachAvailability','intelligenceRuns','domainEvents','wearableSyncRuns']);
@@ -96,6 +97,7 @@ function safeExecutionResults(record){
     ['cadenceRpm',['cadenceRpm']],['powerWatts',['powerWatts']],
     ['elevationGainM',['elevationGainM']],['intervalsCompleted',['intervalsCompleted']],
     ['completed',['completed','completado']],
+    ['skipped',['skipped']],['serverConfirmed',['serverConfirmed','server_confirmed']],['status',['status','estado']],
     ['recordedAt',['recordedAt','recorded_at']],
     ['completedAt',['completedAt','completed_at']],
     ['correctedAt',['correctedAt','corrected_at']],
@@ -104,6 +106,12 @@ function safeExecutionResults(record){
     .map(row=>{
       const item={};
       for(const [canonical,keys] of approved)assign(item,canonical,row,...keys);
+      for(const [key,allowed] of [['loadBasis',['total','per-hand','per-side','per-implement','assistance','bodyweight']],['side',['bilateral','left','right','alternating']],['loadUnit',['kg','lb']]]){
+        if(allowed.includes(row[key]))item[key]=row[key];
+      }
+      for(const key of ['variantId','equipmentId']){
+        const v=row[key];if(typeof v==='string'&&v.trim()&&v.length<=80&&!/[<>\u0000-\u001f\u007f]/u.test(v))item[key]=v;
+      }
       return item;
     });
 }
@@ -122,11 +130,14 @@ function projectPublication(key,record){
   const out=publicationBase(record,key);
   if(key==='trainingCycles'){
     assign(out,'name',record,'name','nombre','title','titulo');assign(out,'goal',record,'goal','objective','objetivo','summary','resumen');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');
+    const measured=readGoalMeasurement(record,{clientId:out.clientId});if(measured){const {evidenceRef,...shared}=measured;out.goalMeasurement=shared;}
   }else if(key==='sessions'){
     // Publication time is safe, user-visible metadata for an already
     // authorized session. Omitting it discarded the canonical ordering clock,
     // leaving the newest enabled training buried under old QA/history cards.
     assign(out,'publishedAt',record,'publishedAt','published_at');
+    const cycleRefs=[record,bodyOf(record)].flatMap(r=>['cycleId','cycle_id','trainingCycleId','training_cycle_id'].map(k=>r[k])).filter(v=>v!=null&&v!=='');
+    if(sessionVisibilityLevel(record)==='full'&&cycleRefs.length&&cycleRefs.every(v=>typeof v==='string'&&safeId(v)===v&&v===cycleRefs[0]))out.cycleId=cycleRefs[0];
     assign(out,'objective',record,'objective','goal','objetivo','summary','resumen');assign(out,'durationMinutes',record,'durationMinutes','duration_minutes','duracionMinutos','duration');assign(out,'startDate',record,'startDate','start_date');assign(out,'endDate',record,'endDate','end_date');assign(out,'deliveryOwnership',record,'deliveryOwnership','delivery_ownership','executionMode','execution_mode');assign(out,'deliveryModality',record,'deliveryModality','delivery_modality','modality','modalidad','execution_type','executionType');const visibility=sessionVisibilityLevel(record);out.clientVisibilityLevel=visibility;out.blocks=visibility==='full'?safeSessionBlocks(record):[];
   }else if(key==='reports'){
     assign(out,'periodStart',record,'periodStart','period_start');assign(out,'periodEnd',record,'periodEnd','period_end');assign(out,'summary',record,'summary','resumen');assign(out,'conclusions',record,'conclusions','conclusiones');assign(out,'recommendations',record,'recommendations','recomendaciones','nextSteps','next_steps');

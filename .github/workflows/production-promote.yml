@@ -404,7 +404,10 @@ jobs:
             | grep -Fq 'verify_jwt = true'
           sha256sum "$broker"
           # Gateway JWT verification is mandatory for M44.
+          stage="$(node scripts/ops/stage_gx_evolution_edge.mjs)"
+          trap 'rm -rf "$stage"' EXIT
           npx --yes supabase@2.117.0 functions deploy iberfit-evolution-report-emission-v1 \
+            --workdir "$stage" \
             --project-ref "${PROD_SUPABASE_REF}"
           npx --yes supabase@2.117.0 functions list --project-ref "${PROD_SUPABASE_REF}" \
             | grep -F 'iberfit-evolution-report-emission-v1'

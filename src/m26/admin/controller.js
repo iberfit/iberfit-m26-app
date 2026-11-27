@@ -1,5 +1,7 @@
 import {createClientCreateWizard} from './client-create-wizard.js';
 import {focusFirstNeededControl} from '../ui/guided-input.js';
+import {createAdminRouteViewModel} from './view-model.js';
+import {openBusinessReport} from './business-report.js';
 const toast=(message)=>{try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}catch{}};
 const text=(data,key,max=4000)=>String(data.get(key)||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
 const rev=(data)=>{const n=Number(data.get('baseRevision')||0);return Number.isInteger(n)&&n>=0?n:0;};
@@ -186,14 +188,15 @@ function creationSuccess(result={},context={}){
   const reason=String(invitation.reason||'').toLowerCase();
   const internal=context.accessMode==='internal'||reason==='internal_record'||String(invitation.accessStatus||'').toLowerCase()==='sin_acceso';
   const subject=context.iriEntry?'Persona':'Cliente';
+  if(reason==='creation_recovered_review_access'||result?.response?.recoveryOnly===true||result?.recoveryOnly===true)return 'Alta anterior localizada. Revisa el estado actual de la persona y su acceso antes de solicitar una invitación.';
   if(internal)return `${subject} creado sin enviar invitación. El acceso puede habilitarse después.`;
-  if(delivery==='sent')return `${subject} creado. Invitación enviada correctamente.`;
+  if(delivery==='sent')return `${subject} creado. El proveedor aceptó la invitación; confirma la recepción con la persona.`;
   if(delivery==='error')return `${subject} creado, pero la invitación no pudo enviarse. Queda pendiente para reintento.`;
   if(delivery==='pending')return `${subject} creado. Invitación en proceso.`;
   return `${subject} creado y acceso preparado.`;
 }
 function invitationSuccess(result={}){return creationSuccess(result,{iriEntry:false,accessMode:'app'});}
-function invitationResendSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();const reason=String(invitation.reason||'').toLowerCase();if(delivery==='sent')return 'Invitación reenviada correctamente.';if(reason==='already_sent')return 'La invitación ya constaba como enviada; no se duplicó el correo.';if(delivery==='pending')return 'Reenvío solicitado. La invitación queda pendiente de confirmación.';if(delivery==='error')return 'El reenvío no pudo completarse. La invitación sigue pendiente para reintento.';return 'Estado de invitación actualizado.';}
+function invitationResendSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();const reason=String(invitation.reason||'').toLowerCase();if(reason==='already_sent')return 'La invitación ya constaba como enviada; no se duplicó el correo.';if(reason==='already_active')return 'La persona ya tiene acceso activo.';if(delivery==='sent')return 'El proveedor aceptó la invitación. Confirma la recepción con la persona.';if(delivery==='pending')return 'La invitación está pendiente de confirmación. Revisa el estado antes de solicitar otro envío.';if(delivery==='error')return 'El reenvío no pudo completarse. La invitación sigue pendiente para reintento.';return 'Estado de invitación actualizado.';}
 function createdClientId(result={}){
   const response=Array.isArray(result?.response)?result.response[0]:result?.response;
   const candidates=[
@@ -203,7 +206,7 @@ function createdClientId(result={}){
   ];
   return candidates.map((value)=>String(value||'').trim()).find(Boolean)||'';
 }
-function adminError(error){const value=String(error?.message||error||'');if(/V26_CLIENT_PROFILE_REVISION_CONFLICT/.test(value))return 'La ficha cambió mientras la estabas editando. La vista se actualizará para que revises la última versión antes de guardar de nuevo.';if(/V26_CLIENT_PROFILE_(?:NAME|OBJECTIVE|MODALITY|FREQUENCY|DURATION)_INVALID/.test(value))return 'Revisa los datos obligatorios de la ficha antes de guardar.';if(/ONLINE_REQUIRED/.test(value))return 'Esta operación administrativa requiere conexión.';if(/IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED/.test(value))return 'Confirma tu identidad con la verificación segura de IBERFIT antes de continuar.';if(/ADMIN_USER_DELETE_SELF_FORBIDDEN|USER_DELETE_SELF_FORBIDDEN/.test(value))return 'No puedes eliminar la cuenta con la que estás administrando IBERFIT.';if(/ADMIN_USER_DELETE_LAST_ADMIN_PROTECTED|LAST_ADMIN_PROTECTED/.test(value))return 'IBERFIT protege al último Admin activo. Autoriza otro Admin antes de eliminar esta cuenta.';if(/ADMIN_USER_DELETE_ACK_REQUIRED/.test(value))return 'Debes confirmar que entiendes la pérdida inmediata de acceso antes de eliminar la cuenta.';if(/ADMIN_USER_DELETE_CONFIRMATION_INVALID|USER_DECOMMISSION_COMMAND_INVALID/.test(value))return 'La confirmación no coincide con la cuenta. Revisa el correo y escribe ELIMINAR.';if(/ADMIN_USER_DELETE_REVISION_CONFLICT/.test(value))return 'La cuenta cambió mientras la estabas revisando. Actualiza la vista y vuelve a intentarlo.';if(/ADMIN_USER_AUTH_SOFT_DELETE|USER_DECOMMISSION_FAILED/.test(value))return 'El acceso ya quedó revocado, pero falta terminar la baja de identidad. Reintenta para completar el cierre seguro.';if(/V26_INVITATION_RATE_LIMITED/.test(value))return 'El cliente se creó, pero el proveedor limitó temporalmente el envío. La invitación queda pendiente.';if(/V26_INVITATION|V26_ADMIN_CLIENT_CREATE/.test(value))return 'No fue posible completar el alta segura del cliente.';if(/IBERFIT_CLIENT_DELETE_PROTECTED_HISTORY/.test(value))return 'Este cliente conserva registros protegidos que IBERFIT no puede eliminar. El expediente permanece intacto.';if(/IBERFIT_CLIENT_DELETE_UNMANAGED_REFERENCE/.test(value))return 'IBERFIT detectó información vinculada que todavía no tiene una política de eliminación segura. No se ha borrado nada.';if(/IBERFIT_CLIENT_DELETE_CONFIRMATION_INVALID/.test(value))return 'La confirmación no coincide con el cliente. Revisa el correo o nombre y escribe ELIMINAR.';if(/IBERFIT_CLIENT_DELETE_NOT_FOUND|V65E_CLIENT_SCOPE/.test(value))return 'El cliente no existe o no pertenece a esta organización.';return 'No fue posible confirmar el cambio.';}
+function adminError(error){const value=String(error?.message||error||'');if(/V26_CLIENT_PROFILE_REVISION_CONFLICT/.test(value))return 'La ficha cambió mientras la estabas editando. La vista se actualizará para que revises la última versión antes de guardar de nuevo.';if(/V26_CLIENT_PROFILE_(?:NAME|OBJECTIVE|MODALITY|FREQUENCY|DURATION)_INVALID/.test(value))return 'Revisa los datos obligatorios de la ficha antes de guardar.';if(/M26_ADMIN_CREATION_REVIEW_REQUIRED/.test(value))return 'Hay demasiadas altas sin confirmación. Revisa las fichas existentes antes de iniciar nuevas altas.';if(/ONLINE_REQUIRED/.test(value))return 'Esta operación administrativa requiere conexión.';if(/IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED/.test(value))return 'Confirma tu identidad con la verificación segura de IBERFIT antes de continuar.';if(/ADMIN_USER_DELETE_SELF_FORBIDDEN|USER_DELETE_SELF_FORBIDDEN/.test(value))return 'No puedes eliminar la cuenta con la que estás administrando IBERFIT.';if(/ADMIN_USER_DELETE_LAST_ADMIN_PROTECTED|LAST_ADMIN_PROTECTED/.test(value))return 'IBERFIT protege al último Admin activo. Autoriza otro Admin antes de eliminar esta cuenta.';if(/ADMIN_USER_DELETE_ACK_REQUIRED/.test(value))return 'Debes confirmar que entiendes la pérdida inmediata de acceso antes de eliminar la cuenta.';if(/ADMIN_USER_DELETE_CONFIRMATION_INVALID|USER_DECOMMISSION_COMMAND_INVALID/.test(value))return 'La confirmación no coincide con la cuenta. Revisa el correo y escribe ELIMINAR.';if(/ADMIN_USER_DELETE_REVISION_CONFLICT/.test(value))return 'La cuenta cambió mientras la estabas revisando. Actualiza la vista y vuelve a intentarlo.';if(/ADMIN_USER_AUTH_SOFT_DELETE|USER_DECOMMISSION_FAILED/.test(value))return 'El acceso ya quedó revocado, pero falta terminar la baja de identidad. Reintenta para completar el cierre seguro.';if(/V26_INVITATION_RATE_LIMITED/.test(value))return 'El cliente se creó, pero el proveedor limitó temporalmente el envío. La invitación queda pendiente.';if(/V26_INVITATION|V26_ADMIN_CLIENT_CREATE/.test(value))return 'No fue posible completar el alta segura del cliente.';if(/IBERFIT_CLIENT_DELETE_PROTECTED_HISTORY/.test(value))return 'Este cliente conserva registros protegidos que IBERFIT no puede eliminar. El expediente permanece intacto.';if(/IBERFIT_CLIENT_DELETE_UNMANAGED_REFERENCE/.test(value))return 'IBERFIT detectó información vinculada que todavía no tiene una política de eliminación segura. No se ha borrado nada.';if(/IBERFIT_CLIENT_DELETE_CONFIRMATION_INVALID/.test(value))return 'La confirmación no coincide con el cliente. Revisa el correo o nombre y escribe ELIMINAR.';if(/IBERFIT_CLIENT_DELETE_NOT_FOUND|V65E_CLIENT_SCOPE/.test(value))return 'El cliente no existe o no pertenece a esta organización.';return 'No fue posible confirmar el cambio.';}
 // Administrative receipts are not proof of whole-person erasure.
 // Backend may preserve a legal history or require a separate Auth action.
 export function adminDeletionOutcome(kind,result={}){
@@ -222,16 +225,23 @@ export function adminDeletionOutcome(kind,result={}){
   throw new Error('M26_ADMIN_DELETION_OUTCOME_INVALID');
 }
 
-export function createAdminController({root,store,service,render=()=>{}}={}){
+export function createAdminController({root,store,service,render=()=>{},getSessionLease=null}={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_ADMIN_CONTROLLER_CONTEXT_REQUIRED');
   const pendingLocks=new Set();
   const submitLabels=new WeakMap();
   let mounted=false;
   let clientEditReturnFocus=null;
   let pendingCreatedClientId='';
+  function adminScope(){
+    const state=store.getState();
+    const actor=String(state.identity?.id||'').trim(),org=String(state.admin?.organization?.id||'').trim();
+    const id=/^[0-9a-zA-Z-]{1,54}$/u;
+    return state.identity?.role==='admin'&&id.test(actor)&&id.test(org)?'org:'+org+':actor:'+actor:'';
+  }
   const clientWizard=createClientCreateWizard({
     root,
-    getScopeKey:()=>String(store.getState().admin?.organization?.id||'default'),
+    getScopeKey:adminScope,
+    getLegacyScopeKey:()=>String(store.getState().admin?.organization?.id||''),
   });
   function restoreCreatedClientFocus(){
     const clientId=String(pendingCreatedClientId||'').trim();
@@ -287,6 +297,9 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       toast('Ese registro ya tiene un cambio en curso.');
       return false;
     }
+    const scope=adminScope(),lease=typeof getSessionLease==='function'?getSessionLease():null;
+    if(!scope||(typeof getSessionLease==='function'&&!lease)){toast('No se pudo confirmar la sesión administrativa. Vuelve a acceder.');return false;}
+    const sameScope=()=>mounted&&adminScope()===scope&&(typeof getSessionLease!=='function'||getSessionLease()===lease);
     pendingLocks.add(key);
     setFormPending(form,true);
     syncPendingUserForms();
@@ -299,6 +312,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     };
     try{
       const result=await service.execute(input);
+      if(!sameScope())return false;
       try{onSuccess?.(result);}catch{}
       const successMessage=typeof success==='function'?success(result):success;
       const initialMessage=result?.refreshPending===true
@@ -309,6 +323,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       toast(initialMessage);
       if(result?.refreshPending===true&&result?.whenRefreshed?.then){
         void result.whenRefreshed.then((outcome)=>{
+          if(!sameScope())return;
           if(outcome?.ok===true){
             render();
             restoreUserDirectoryDisclosures(root,disclosures);
@@ -332,12 +347,11 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       }
       return true;
     }catch(error){
-      toast(adminError(error));
+      if(sameScope())toast(adminError(error));
       return false;
     }finally{
       pendingLocks.delete(key);
-      setFormPending(form,false);
-      syncPendingUserForms();
+      if(sameScope()){setFormPending(form,false);syncPendingUserForms();}
     }
   }
   async function onSubmit(event){
@@ -542,6 +556,14 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     if(empty)empty.hidden=Boolean(id);
   }
   function onClientEditClick(event){
+    if(event.target?.closest?.('[data-admin-business-report]')){
+      event.preventDefault?.();
+      try{const state=store.getState();if(state.identity?.role!=='admin'||state.activeArea!=='admin-analitica')throw Error('M26_BUSINESS_REPORT_FORBIDDEN');
+        const vm=createAdminRouteViewModel({}, {identity:state.identity,activeArea:state.activeArea},state);
+        openBusinessReport(vm.businessReport);
+      }catch(error){toast(String(error?.message)==='M26_BUSINESS_REPORT_POPUP_BLOCKED'?'Permite abrir una ventana para imprimir el informe.':'No fue posible abrir el informe interno con los permisos actuales.');}
+      return;
+    }
     const person=event.target?.closest?.('[data-admin-person-select]');
     if(person){event.preventDefault();selectPerson(person.getAttribute('data-admin-person-select'));return;}
 

@@ -331,7 +331,9 @@ test('Live Workout V3 añade geometría responsive sin ocultar capacidades',()=>
   );
   const start=css.indexOf('LIVE_WORKOUT_FOCUS_V3_BEGIN');
   assert.ok(start>=0);
-  const added=css.slice(start);
+  const end=css.indexOf('LIVE_WORKOUT_FOCUS_V3_END',start);
+  assert.ok(end>start,'explicit V3 section boundary');
+  const added=css.slice(start,end);
 
   for(const selector of [
     '.m26-session-live-v3',
@@ -369,7 +371,10 @@ test('SIGNATURE U57 places the single real Client save/exit next to sticky Pause
   assert.match(coach,/m26-session-live-quick-exit/,'coach keeps existing desktop affordance');
   assert.doesNotMatch(coach,/m26-session-live-quick-save/,'no duplicate Coach command');
   const css=fs.readFileSync(new URL('../src/m26/design/premium-ux.css',import.meta.url),'utf8');
-  const block=css.slice(css.indexOf('SIGNATURE U57 · Cliente guided execution'));
+  const start=css.indexOf('SIGNATURE U57 · Cliente guided execution');
+  const end=css.indexOf('SIGNATURE_U57_GUIDED_EXECUTION_END',start);
+  assert.ok(start>=0&&end>start,'explicit U57 section boundary');
+  const block=css.slice(start,end);
   assert.match(block,/position:sticky/);
   assert.match(block,/max-width:900px/);
   assert.match(block,/min-height:48px/);

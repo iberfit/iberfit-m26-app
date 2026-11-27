@@ -7,9 +7,9 @@
       "slug": "iberfit-admin-client-invite-v1",
       "verify_jwt": false,
       "live_bundle_sha256": "c847ac0732966de086e82a4b4a5570719a18a9159b75a141305b3e136efc0e5d",
-      "source_path": "supabase/functions/iberfit-admin-client-invite-v1/index.ts",
+      "source_path": "scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261119/index.ts",
       "source_git_blob_sha1": "9124e4e5c46419f4cc339fed05f6be34ac67524b",
-      "source_state": "canonical"
+      "source_state": "canonical_live_snapshot_pending_release"
     },
     {
       "slug": "iberfit-admin-media-review-v1",
@@ -63,9 +63,9 @@
       "slug": "iberfit-evolution-report-emission-v1",
       "verify_jwt": true,
       "live_bundle_sha256": "07e2e3b0d4ceff9c303bc45fbb49308a0dffb1bf747374f217edac28dfab7605",
-      "source_path": "supabase/functions/iberfit-evolution-report-emission-v1/index.ts",
+      "source_path": "scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/index.ts",
       "source_git_blob_sha1": "d0487ad9800f219b0c241a5d85e0e734ba1ecf9d",
-      "source_state": "canonical"
+      "source_state": "canonical_live_snapshot_pending_release"
     },
     {
       "slug": "iberfit-exercise-media-auto-factory-v1",
@@ -87,9 +87,9 @@
       "slug": "iberfit-iri-report-emission-v1",
       "verify_jwt": false,
       "live_bundle_sha256": "f32f3327dc52a2f1a3c8dfb3c89fcae51e5f9ad24730b2f2fc9bfc42771c5a1c",
-      "source_path": "supabase/functions/iberfit-iri-report-emission-v1/index.ts",
+      "source_path": "scripts/ops/m44_legacy_edge_source/iberfit-iri-report-emission-v1-prod-20261115/index.ts",
       "source_git_blob_sha1": "088e8a8aa1a0c5b0c67d337e14182c6ebaad728c",
-      "source_state": "canonical"
+      "source_state": "canonical_live_snapshot_pending_release"
     },
     {
       "slug": "iberfit-one-time-create-juan-v1",

@@ -394,7 +394,7 @@ function generatedConfiguration(protocolId,raw,parts){
   if(protocolId==='core-plank')return [raw.coreProtocolVariant||'',strength.core?.quality&&`calidad: ${strength.core.quality}`].filter(Boolean).join(' · ');
   if(protocolId==='bodyweight-squat-60s')return ['60 s',strength.squat60?.depthCriterion&&`profundidad: ${strength.squat60.depthCriterion}`,strength.squat60?.stance&&`base: ${strength.squat60.stance}`].filter(Boolean).join(' · ');
   if(protocolId==='posterior-chain-endurance')return [strength.posteriorChain?.protocol,strength.posteriorChain?.equipmentCompatible?'equipo compatible':'equipo no confirmado'].filter(Boolean).join(' · ');
-  if(protocolId==='one-minute-sit-to-stand')return [`silla ${cardio.chairHeightCm??'—'} cm`,`duración ${cardio.durationSeconds??'—'} s`,`repeticiones ${cardio.repetitions??'—'}`].join(' · ');
+  if(protocolId==='one-minute-sit-to-stand')return [`silla ${cardio.chairHeightCm??'—'} cm`,`duración ${cardio.durationSeconds??'—'} s`].join(' · ');
   if(protocolId==='ymca-three-minute-step'||protocolId==='legacy-iberfit-three-minute-step-adapted')return [`escalón ${cardio.stepHeightCm??'—'} cm`,`cadencia ${cardio.cadenceBpm??'—'} bpm`,`duración ${cardio.durationSeconds??'—'} s`].join(' · ');
   if(protocolId==='treadmill-three-minute-field')return [`cinta ${cardio.speedKmh??'—'} km/h`,`${cardio.inclinePercent??'—'}% inclinación`,cardio.locomotionMode&&`modo ${cardio.locomotionMode}`,cardio.hrMethod&&`FC ${cardio.hrMethod}`,cardio.recoveryMode&&`recuperación ${cardio.recoveryMode}`].filter(Boolean).join(' · ');
   return '';
@@ -477,10 +477,22 @@ const SETUP_FIELDS=Object.freeze({
   'treadmill-three-minute-field':['durationSeconds','speedKmh','inclinePercent','locomotionMode','hrMethod','recoveryMode'],
 });
 function repeatableSetup(id,result={}){
+  if(id==='one-minute-sit-to-stand')return result.chairHeightCm!=null&&result.chairHeightCm!==''&&Number.isFinite(Number(result.chairHeightCm))&&Number(result.chairHeightCm)>0&&Number(result.durationSeconds)===60;
   if(id==='trx-row')return result.handleHeightCm!=null&&(result.heelDistanceCm!=null||result.bodyAngleDeg!=null)&&Boolean(result.position);
   if(id==='bodyweight-squat-60s')return Boolean(result.depthCriterion&&result.stance);
   if(id==='treadmill-three-minute-field')return SETUP_FIELDS[id].every((key)=>result[key]!=null&&result[key]!=='');
   return true;
+}
+// La configuración automática histórica de 1MSTS incluía el resultado. Solo
+// se separa cuando coincide exactamente con la estructura que generaba el catálogo.
+export function protocolSetupIdentity(record={}){
+ const raw=typeof record.configuration==='string'?record.configuration:'';
+ if(record.testId!=='one-minute-sit-to-stand')return raw;
+ const r=record.result||{},height=Number(r.chairHeightCm),duration=Number(r.durationSeconds),reps=r.repetitions;
+ if(r.chairHeightCm==null||r.chairHeightCm===''||!Number.isFinite(height)||height<=0||duration!==60)return raw;
+ const setup='silla '+r.chairHeightCm+' cm · duración '+r.durationSeconds+' s';
+ if(reps!=null&&reps!==''&&Number.isSafeInteger(Number(reps))&&Number(reps)>=0&&raw===setup+' · repeticiones '+reps)return setup;
+ return raw;
 }
 export function protocolComparabilityWarnings(previousRecords=[],currentRecords=[]){
   const previousRows=Array.isArray(previousRecords)?previousRecords:[];
@@ -498,7 +510,7 @@ export function protocolComparabilityWarnings(previousRecords=[],currentRecords=
     const side=current.side&&current.side!=='not-applicable'?` · ${current.side==='left'?'izquierda':current.side==='right'?'derecha':current.side}`:'';
     if(prior.protocolVersion&&current.protocolVersion&&prior.protocolVersion!==current.protocolVersion){warnings.push(`“${current.testName}${side}” cambió de versión (${prior.protocolVersion} → ${current.protocolVersion}); los resultados no son directamente comparables.`);continue;}
     if(comparableValue(prior.variant)!==comparableValue(current.variant)){warnings.push(`“${current.testName}${side}” se realizó antes con la variante “${prior.variant||'sin registrar'}”. Mantén la misma variante o interpreta la evolución como no comparable.`);continue;}
-    if(comparableValue(prior.configuration)!==comparableValue(current.configuration)){warnings.push(`“${current.testName}${side}” tiene una configuración diferente. Antes: “${prior.configuration||'sin registrar'}”. Ahora: “${current.configuration||'sin registrar'}”.`);}
+    if(comparableValue(protocolSetupIdentity(prior))!==comparableValue(protocolSetupIdentity(current))){warnings.push(`“${current.testName}${side}” tiene una configuración diferente. Antes: “${prior.configuration||'sin registrar'}”. Ahora: “${current.configuration||'sin registrar'}”.`);}
   }
   return Object.freeze([...new Set(warnings)]);
 }

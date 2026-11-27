@@ -1,3 +1,4 @@
+import {evidenceNumber} from '../domain/evidence-signal.js';
 // Exercise-specific prescription profiles. The catalog remains the source of identity;
 // this deterministic projection supplies presentation/validation without rewriting history.
 const norm=(value)=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -88,8 +89,19 @@ export function metricPrescriptionSummary(p={},exercise={}){
   }else if(p.reps)parts.push(p.reps);
   return parts.join(' · ')||'Objetivo por concretar';
 }
+// A live replacement reuses the original prescription, so its measurement
+// kind and, for cardio, known sport must match. This is not a clinical or
+// biomechanical equivalence claim.
+export function exerciseAlternativeCompatibility(source,target){
+  if(!source||!target)return false;
+  const a=exerciseMeasurementProfile(source),b=exerciseMeasurementProfile(target);
+  if(a.kind!==b.kind)return false;
+  if(a.cardio)return Boolean(a.sport&&b.sport&&a.sport===b.sport);
+  return true;
+}
 export function metricValueValid(field,value){
-  if(value===undefined||value===null||String(value).trim()==='')return true;
+  if(value===undefined||value===null||(typeof value==='string'&&!value.trim()))return true;
+  if(typeof value!=='number'&&typeof value!=='string')return false;
   if(['plannedPace','plannedPacePer100M'].includes(field))return /^\d{1,2}:[0-5]\d$/.test(String(value).trim())&&Number(String(value).trim().split(':')[0])*60+Number(String(value).trim().split(':')[1])>0;
   if(field==='targetHeartRateZone')return /^(?:Z[1-7]|zona [1-7])$/i.test(String(value).trim());
   if(field==='targetHeartRateBpm'){
@@ -100,14 +112,14 @@ export function metricValueValid(field,value){
   }
   const descriptor=EXERCISE_METRIC_FIELDS[field];
   if(!descriptor)return false;
-  const n=Number(String(value).replace(',','.'));
+  const n=evidenceNumber(typeof value==='string'?value.replace(',','.'):value,{min:0,max:descriptor.max});
   if(field==='poolLengthM')return Number.isFinite(n)&&n>=15&&n<=100;
   return Number.isFinite(n)&&n>=0&&n<=descriptor.max&&
     (field!=='intervalRepetitions'||(n>=1&&Number.isInteger(n)))&&
     (field!=='intervalDistanceM'||n>0);
 }
 export function hasCardioPrescription(p={}){
-  const positive=(v)=>v!==undefined&&v!==null&&String(v).trim()!==''&&Number(String(v).replace(',','.'))>0;
+  const positive=(v)=>{const n=evidenceNumber(typeof v==='string'?v.replace(',','.'):v,{min:0});return n!==null&&n>0;};
   return positive(p.plannedDistanceKm)||positive(p.plannedDistanceM)||positive(p.plannedDurationMinutes)||
     (positive(p.intervalRepetitions)&&positive(p.intervalWorkSeconds));
 }

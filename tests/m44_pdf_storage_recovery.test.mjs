@@ -88,3 +88,10 @@ test('M44 Edge embeds exact server source fingerprint and validates replay befor
  assert.match(pdf,/doc\.setSubject\(String\(sourceFingerprint\)\)/);
  assert.doesNotMatch(src,/if\(uploaded&&!finalizeStarted\)/);
 });
+
+
+test('M44 orphan recovery reads the original PDF producer without rewriting metadata in memory',async()=>{
+ const src=await readFile(new URL('../supabase/functions/iberfit-evolution-report-emission-v1/index.ts',import.meta.url),'utf8');
+ assert.match(src,/PDFDocument\.load\(stored,\{updateMetadata:false\}\)/);
+ assert.match(src,/M44_ACCEPTED_REPLAY_TEMPLATES\.includes\(pdf\.getProducer\(\)\|\|''\)/);
+});

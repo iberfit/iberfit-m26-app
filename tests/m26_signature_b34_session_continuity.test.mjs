@@ -67,13 +67,18 @@ test('B34 el listado ya purga snapshots inválidos sin un barrido previo duplica
   const store=createExecutionRecoveryStore({
     ownerId:'synthetic-coach',
     storage:{
-      entries:async(prefix)=>[[prefix+'invalid',{ownerId:'synthetic-coach',invalid:true}]],
+      entries:async(prefix)=>[
+        [prefix+'invalid',{ownerId:'synthetic-coach',execution:{id:'invalid'},invalid:true}],
+        [prefix+'unidentified',{ownerId:'synthetic-coach',invalid:true}],
+        [prefix+'miskeyed',{ownerId:'synthetic-coach',execution:{id:'different'}}],
+        [prefix+'other:foreign',{ownerId:'synthetic-coach:other',execution:{id:'foreign'}}],
+      ],
       remove:async(key)=>{removed.push(key);},
     },
     now:()=>new Date('2026-10-27T15:00:00.000Z'),
   });
   assert.deepEqual(await store.list(),[]);
-  assert.deepEqual(removed,['m26:execution:synthetic-coach:invalid']);
+  assert.deepEqual(removed,['m26:execution:synthetic-coach:invalid'],'purge only invalid snapshots with proven owner and exact key; retain ambiguous and foreign records');
 });
 
 test('B34 abort y lease de identidad se verifican antes de navegar o asignar sesión',()=>{

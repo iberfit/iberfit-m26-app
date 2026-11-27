@@ -6,7 +6,7 @@ const edge=fs.readFileSync('supabase/functions/iberfit-admin-client-invite-v1/in
 const config=fs.readFileSync('supabase/config.toml','utf8').replace(/\r\n/g,'\n');
 
 test('client invite edge derives an exact origin from the deployed Supabase project',()=>{
-  assert.match(edge,/FUNCTION_VERSION='admin-client-invite-v26\.6'/u);
+  assert.match(edge,/FUNCTION_VERSION='admin-client-invite-v26\.8'/u);
   assert.match(edge,/QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu'/u);
   assert.match(edge,/PROD_PROJECT_REF='pjhmrhejsoofmouedavw'/u);
   assert.match(edge,/deploymentProjectRef\(Deno\.env\.get\('SUPABASE_URL'\)\|\|''\)/u);
@@ -49,7 +49,7 @@ test('provider acceptance preserves identity and remains pending until database 
   assert.equal(edge.includes('service.auth.admin.deleteUser'),false);
   assert.ok(edge.includes('providerAccepted=true'));
   assert.ok(edge.includes("deliveryStatus:'pending'"));
-  assert.ok(edge.includes("reason:'provider_accepted_reconciliation_pending'"));
+  assert.ok(edge.includes("reason:providerAccepted?'provider_accepted_reconciliation_pending':'provider_delivery_unconfirmed'"));
   assert.ok(edge.includes('V26_INVITATION_RECONCILIATION_REQUIRED'));
 });
 

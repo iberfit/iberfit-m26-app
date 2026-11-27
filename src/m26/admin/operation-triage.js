@@ -1,3 +1,4 @@
+import {evidenceNumber,stableEvidenceJson} from '../domain/evidence-signal.js';
 // Read-only operational triage: no task mutations, inferred owners or fabricated deadlines.
 const CLOSED=new Set(['resolved','cancelled','canceled','closed','resuelto','cancelado','cerrado']);
 const PRIORITIES=Object.freeze({critical:{rank:0,label:'Crítica'},high:{rank:1,label:'Alta'},normal:{rank:2,label:'Normal'}});
@@ -25,6 +26,8 @@ function dueDate(raw,timeZone){
   const dayOnly=validDateOnly(value);
   if(dayOnly)return Object.freeze({day:dayOnly,label:dayOnly.split('-').reverse().join('/'),dateOnly:true});
   if(/^\d{4}-\d{2}-\d{2}$/u.test(value))return null;
+  // Reject a timestamp with an impossible calendar date before JS can roll it forward.
+  if(!/^\d{4}-\d{2}-\d{2}T/u.test(value)||!validDateOnly(value.slice(0,10)))return null;
   const time=Date.parse(value);
   if(!Number.isFinite(time))return null;
   const day=dayAt(time,timeZone);
@@ -38,12 +41,29 @@ function createdTime(item){
   const parsed=Date.parse(str(item?.createdAt||item?.updatedAt));
   return Number.isFinite(parsed)?parsed:0;
 }
+function reconcileTasks(tasks){
+  const groups=new Map();let unidentified=0;
+  for(const task of list(tasks)){
+    if(!task||typeof task!=='object'||Array.isArray(task))continue;
+    const id=str(task.id);
+    if(!id){unidentified++;continue;}
+    const raw=task.revision,parsed=evidenceNumber(raw,{min:0,integer:true}),revision=parsed??0;
+    const invalid=raw!=null&&raw!==''&&parsed===null;
+    const signature=stableEvidenceJson(task),previous=groups.get(id);
+    if(!previous||revision>previous.revision)groups.set(id,{task,revision,signature,invalid,conflict:false});
+    else if(revision===previous.revision&&signature!==previous.signature)previous.conflict=true;
+  }
+  const rows=[...groups.values()];
+  return {tasks:rows.filter(row=>!row.invalid&&!row.conflict).map(row=>row.task),
+    unverifiedCount:unidentified+rows.filter(row=>row.invalid||row.conflict).length};
+}
 export function deriveAdminOperationsTriage({tasks=[],users=[],now=new Date(),timeZone='America/Santiago'}={}){
   const today=dayAt(now,timeZone);
   const names=new Map(list(users).filter(Boolean).map((user)=>[
     str(user.userId||user.id),str(user.name||user.email),
   ]).filter(([id])=>id));
-  const all=list(tasks).filter((item)=>item&&typeof item==='object').map((task)=>{
+  const reconciled=reconcileTasks(tasks);
+  const all=reconciled.tasks.map((task)=>{
     const open=isOperationalTaskOpen(task);
     const level=priority(task.priority);
     const due=dueDate(task.dueAt,timeZone);
@@ -76,5 +96,5 @@ export function deriveAdminOperationsTriage({tasks=[],users=[],now=new Date(),ti
     unassigned:open.filter(x=>x.unassigned).length,
     history:history.length,
   });
-  return Object.freeze({open:Object.freeze(open),history:Object.freeze(history),summary});
+  return Object.freeze({open:Object.freeze(open),history:Object.freeze(history),summary,unverifiedCount:reconciled.unverifiedCount});
 }

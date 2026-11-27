@@ -17,6 +17,7 @@ function coachComposeAssists(vm){
     ['session','Después de la sesión'],
     ['recovery','Recuperación'],
     ['next','Próxima sesión'],
+    ['report','Revisar informe'],
   ];
   return `<div class="m45-compose-assists" aria-label="Atajos de seguimiento para Coach">
     <span>Empezar con una idea</span>

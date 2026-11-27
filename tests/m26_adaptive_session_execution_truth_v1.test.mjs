@@ -143,3 +143,10 @@ test('adaptive history rejects ACK-only, future and ambiguous load data without 
   assert.equal(context.decision.reason,'insufficient_or_neutral_data');
   assert.equal(context.decision.progressionAllowed,false);
 });
+
+
+import {extractSessionHistory} from '../src/m26/intelligence/adaptive-context.js';
+test('GX adaptive history never uses omitted sets or contradictory weight units for coaching',()=>{
+ const result=extractSessionHistory([{completedAt:'2026-11-25T10:00:00Z',results:[{exerciseId:'squat',loadKg:20,reps:8,rpe:7},{exerciseId:'squat',loadKg:150,skipped:true,reps:10},{exerciseId:'bench',loadKg:50,load:'50 lb',reps:8},{exerciseId:'press',load:'40',reps:8}]}]);
+ assert.equal(result.previousLoads.squat,20);assert.equal(result.performanceHistory.squat[0].setCount,1);assert.equal(result.previousLoads.bench,undefined);assert.equal(result.previousLoads.press,undefined);
+});

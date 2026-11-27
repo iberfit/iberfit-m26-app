@@ -39,6 +39,8 @@ const MIME=Object.freeze({
   '.webp':'image/webp',
   '.woff':'font/woff',
   '.woff2':'font/woff2',
+  '.ttf':'font/ttf',
+  '.webmanifest':'application/manifest+json; charset=utf-8',
 });
 
 function sendText(response,status,text,extraHeaders={}){
@@ -127,7 +129,12 @@ const server=http.createServer(async(request,response)=>{
     }
 
     const contentType=MIME[path.extname(resolved.file).toLowerCase()]||'application/octet-stream';
+    // Match the production Service-Worker-Allowed contract only for the
+    // two first-party worker entry points; no general scope enlargement.
+    const workerPath=new URL(request.url||'/','http://127.0.0.1').pathname;
+    const workerHeaders=['/m26/iberfit-sw.js','/m26/sw.js'].includes(workerPath)?{'Service-Worker-Allowed':'/'}:{};
     response.writeHead(200,{
+      ...workerHeaders,
       'Content-Type':contentType,
       'Content-Length':resolved.size,
       'Cache-Control':'no-store',

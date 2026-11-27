@@ -28,7 +28,9 @@ on:
       - 'scripts/remote-gates/m43-qa-fixture-safety.mjs'
       - 'scripts/remote-gates/m43-qa-retained-history-v3.json'
       - 'scripts/remote-gates/m43-qa-retained-history-v4.json'
+      - 'scripts/remote-gates/m43-qa-retained-history-v5.json'
       - 'tests/m26_universal_m43_qa_retention_v4.test.mjs'
+      - 'tests/m26_universal_m43_qa_retention_v5.test.mjs'
       - 'scripts/remote-gates/m43-writer-handoff.mjs'
       - 'src/m26/profile/client-avatar.js'
       - 'src/m26/exercises/catalog.js'
@@ -79,7 +81,9 @@ on:
       - 'scripts/remote-gates/m43-qa-fixture-safety.mjs'
       - 'scripts/remote-gates/m43-qa-retained-history-v3.json'
       - 'scripts/remote-gates/m43-qa-retained-history-v4.json'
+      - 'scripts/remote-gates/m43-qa-retained-history-v5.json'
       - 'tests/m26_universal_m43_qa_retention_v4.test.mjs'
+      - 'tests/m26_universal_m43_qa_retention_v5.test.mjs'
       - 'scripts/remote-gates/m43-writer-handoff.mjs'
       - 'src/m26/profile/client-avatar.js'
       - 'src/m26/exercises/catalog.js'
@@ -129,6 +133,7 @@ jobs:
     timeout-minutes: 2
     outputs:
       current: ${{ steps.verify.outputs.current == 'true' && steps.dedupe.outputs.run != 'false' }}
+      reused: ${{ steps.verify.outputs.current == 'true' && steps.dedupe.outputs.run == 'false' }}
     steps:
       - name: Verify head of live PR without calling Supabase
         id: verify
@@ -552,3 +557,38 @@ jobs:
             playwright-report/
           if-no-files-found: error
           retention-days: 30
+
+  qa-real-write-certification-gate:
+    name: qa-real-write-certification-gate
+    needs: [pr-current-head, m42-avatar-private-real-qa, connected360-v45-synthetic-write, qa-real-write, m43-real-coach-client-qa, m43-real-client-browser]
+    if: ${{ always() && (needs.pr-current-head.outputs.current == 'true' || needs.pr-current-head.outputs.reused == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Require complete current or verified exact-head reused QA evidence
+        env:
+          HEAD_GATE: ${{ needs.pr-current-head.result }}
+          CURRENT: ${{ needs.pr-current-head.outputs.current }}
+          REUSED: ${{ needs.pr-current-head.outputs.reused }}
+          AVATAR: ${{ needs.m42-avatar-private-real-qa.result }}
+          CONNECTED: ${{ needs.connected360-v45-synthetic-write.result }}
+          WRITE: ${{ needs.qa-real-write.result }}
+          M43: ${{ needs.m43-real-coach-client-qa.result }}
+          BROWSER: ${{ needs.m43-real-client-browser.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$HEAD_GATE" == success ]] || exit 41
+          results=("$AVATAR" "$CONNECTED" "$WRITE" "$M43" "$BROWSER")
+          if [[ "$CURRENT" == true && "$REUSED" != true ]]; then
+            for result in "${results[@]}"; do [[ "$result" == success ]] || exit 42; done
+            echo 'QA_REAL_WRITE_CERTIFIED_CURRENT'
+          elif [[ "$CURRENT" == false && "$REUSED" == true ]]; then
+            # The existing GitHub-only dedupe has verified all five jobs on
+            # the same immutable head, branch and prior successful PR run.
+            for result in "${results[@]}"; do [[ "$result" == skipped ]] || exit 43; done
+            echo 'QA_REAL_WRITE_CERTIFIED_EXACT_HEAD_REUSE'
+          else
+            exit 44
+          fi

@@ -1,4 +1,5 @@
 import {createM26Transport} from '../supabase-transport.js';
+import {verifyInvitationReceipt} from '../workflows/coach-invitation-outcome.js';
 import {createQaInFlightReadGate} from '../domain/qa-inflight-read-gate.js';
 
 const RPC=Object.freeze({context:'iberfit_application_context_v14',bootstrap:'iberfit_admin_bootstrap_v14',execute:'iberfit_admin_execute_v14'});
@@ -115,6 +116,8 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
           ?await request(MEDIA_REVIEW_FUNCTION,token,{command},{timeout:MEDIA_REVIEW_TIMEOUT_MS})
           :await rpc(RPC.execute,token,{p_command:command});
     if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))throw new Error('M26_ADMIN_MUTATION_NOT_CONFIRMED');
+    if(['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_REENVIAR_INVITACION'].includes(type))
+      verifyInvitationReceipt(result,{type,operationId:command.operationId,clientId:type==='ADMIN_CLIENTE_REENVIAR_INVITACION'?command.entityId:null});
     return Object.freeze({...result});
   }
 

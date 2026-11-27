@@ -170,7 +170,10 @@ test('RC63.2 player renders explicit state retry speed PiP provenance and captio
 
 test('RC63.2 native controller defines deterministic speed and media-state transitions',()=>{
   const internals=__exerciseVideoPlayerInternals;
-  assert.equal(internals.nextPlaybackRate(1),1.25);
+  assert.equal(internals.nextPlaybackRate(1),0.75);
+  assert.equal(internals.nextPlaybackRate(0.75),0.5);
+  assert.equal(internals.nextPlaybackRate(0.5),1.25);
+  assert.deepEqual([...internals.PLAYBACK_RATES],[1,0.75,0.5,1.25,1.5,2]);
   assert.equal(internals.nextPlaybackRate(1.25),1.5);
   assert.equal(internals.nextPlaybackRate(1.5),2);
   assert.equal(internals.nextPlaybackRate(2),1);

@@ -182,7 +182,15 @@ test('Admin and Coach surfaces both retain real client-create capability',()=>{
   assert.match(workflow,/store\.navigate\?\.\(nextArea\)/u);
   assert.match(workflow,/M26_PRIVILEGED_ACTION_TIMEOUT/u);
 
-  assert.match(application,/ensurePrivilegedActionAssurance\(\{transport,token,userId:session\?\.user\?\.id/u);
+  const createStart=application.indexOf('createClientDraft:async(payload)=>{');
+  const createEnd=application.indexOf('engagement=createEngagementController',createStart);
+  assert.ok(createStart>=0&&createEnd>createStart);
+  const createDraft=application.slice(createStart,createEnd);
+  assert.match(createDraft,/const lease=hydrationLeaseFor\(session\),actorId=session\?\.user\?\.id,role=store\.getState\(\)\.identity\?\.role/u);
+  assert.match(createDraft,/hydrationLeaseFor\(session\)!==lease\|\|store\.getState\(\)\.identity\?\.role!==role\|\|store\.getState\(\)\.identity\?\.id!==actorId/u);
+  assert.match(createDraft,/assertCurrent\(\);await refreshSessionIfNeeded\(\);assertCurrent\(\);const token=currentToken\(\);/u);
+  assert.match(createDraft,/await ensurePrivilegedActionAssurance\(\{transport,token,userId:actorId,[^}]*\}\);assertCurrent\(\);/u);
+  assert.match(createDraft,/await transport\.clientOnboardingPreflight\(token\);assertCurrent\(\);const result=await transport\.createClientDraft\(token,payload\);assertCurrent\(\);/u);
   assert.match(application,/await transport\.clientOnboardingPreflight\(token\)/u);
   assert.match(application,/await transport\.createClientDraft\(token,payload\)/u);
   assert.match(application,/waitForCreatedClient/u);

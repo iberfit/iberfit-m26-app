@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
-import retainedHistory from './m43-qa-retained-history-v4.json' with {type:'json'};
+import previousRetainedHistory from './m43-qa-retained-history-v4.json' with {type:'json'};
+import retainedHistory from './m43-qa-retained-history-v5.json' with {type:'json'};
 /**
  * M43 QA-only acceptance controls. Never relax Coach/Client server authorization.
  * Observe the existing synthetic fixture, do not mutate or delete prior history.
@@ -7,9 +8,12 @@ import retainedHistory from './m43-qa-retained-history-v4.json' with {type:'json
 export const M43_SYNTHETIC_SESSION_LIMIT=150;
 const MARKER='IBERFIT QA M43';
 const RETAINED_HISTORY_DIGESTS=new Set(retainedHistory.sha256EntityScopeRevisionAndTitle);
-if(retainedHistory.schema!=='iberfit.qa.m43.retained-historical-v4'||retainedHistory.parentLedger!=='m43-qa-retained-history-v3.json'||retainedHistory.parentBlobSha!=='2c94a2f694500b5277c30da4bd6cdef5c4a05227'||retainedHistory.frozenBeforeUtc!=='2026-11-17T18:29:00Z'||retainedHistory.qaOnly!==true||retainedHistory.sourceProject!=='gjztkdwfmunnzhtvxrsu'
+if(retainedHistory.schema!=='iberfit.qa.m43.retained-historical-v5'||retainedHistory.parentLedger!=='m43-qa-retained-history-v4.json'||retainedHistory.parentBlobSha!=='3781f3ef929b76def851e78b513ab6853f54043b'||retainedHistory.frozenBeforeUtc!=='2026-11-26T00:57:00Z'||retainedHistory.qaOnly!==true||retainedHistory.sourceProject!=='gjztkdwfmunnzhtvxrsu'
   ||retainedHistory.mode!=='logical_retention_only_no_database_mutation'
-  ||RETAINED_HISTORY_DIGESTS.size!==773 ||RETAINED_HISTORY_DIGESTS.size!==retainedHistory.sha256EntityScopeRevisionAndTitle.length
+  ||RETAINED_HISTORY_DIGESTS.size!==936 || retainedHistory.newlyVerifiedCompleteSessions!==163
+  ||previousRetainedHistory.sha256EntityScopeRevisionAndTitle.length!==773
+  ||previousRetainedHistory.sha256EntityScopeRevisionAndTitle.some(d=>!RETAINED_HISTORY_DIGESTS.has(d))
+  ||RETAINED_HISTORY_DIGESTS.size!==retainedHistory.sha256EntityScopeRevisionAndTitle.length
   ||[...RETAINED_HISTORY_DIGESTS].some(d=>!/^[a-f0-9]{64}$/u.test(d)))
   throw Error('M43_RETENTION_CHECKPOINT_INVALID');
 

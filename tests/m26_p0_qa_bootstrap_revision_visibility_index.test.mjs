@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {HISTORICAL_CPD_EDGE_PATHS} from './helpers/sonar-immutable-recovery-paths.mjs';
 const migration=readFileSync(new URL('../supabase/qa-migrations/20261111033000_p0_qa_bootstrap_revision_visibility_index.sql',import.meta.url),'utf8');
 const rollback=readFileSync(new URL('../supabase/qa-rollbacks/20261111033000_p0_qa_bootstrap_revision_visibility_index.rollback.sql',import.meta.url),'utf8');
 const oldHash='243c5df0f05cb35fffd3cf777a5932c5',newHash='5b9547e2230994fa96cb6cb629f8fb2d';
@@ -67,8 +68,7 @@ test('Sonar only exempts exact immutable SQL snapshots from duplication',()=>{
   const paths=line.slice('sonar.cpd.exclusions='.length).split(',');
   assert.equal(paths.length,new Set(paths).size);
   for(const file of ['supabase/qa-migrations/20261111033000_p0_qa_bootstrap_revision_visibility_index.sql','supabase/qa-rollbacks/20261111033000_p0_qa_bootstrap_revision_visibility_index.rollback.sql'])assert.equal(paths.filter(x=>x===file).length,1);
-  // Keep all SQL snapshots plus the exactly pinned original PROD Edge source.
-  const historicEdge='scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts';
-  assert.ok(paths.every(x=>(x.endsWith('.sql')||x===historicEdge)&&!/[?*]/.test(x)));
+  // Exact immutable Edge archives remain subject to source/security analysis.
+  assert.ok(paths.every(x=>(x.endsWith('.sql')||HISTORICAL_CPD_EDGE_PATHS.includes(x))&&!/[?*]/.test(x)));
   assert.ok(!config.includes('sonar.exclusions='));
 });

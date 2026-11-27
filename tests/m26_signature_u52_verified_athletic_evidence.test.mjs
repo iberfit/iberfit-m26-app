@@ -58,8 +58,10 @@ test('U53 home continuity never inserts using a nested node from the new editori
  assert.match(source,/node\?\.parentNode===host/u,'insertBefore reference must be owned by its parent');
  assert.match(source,/host\.querySelector\?\.\(':scope > \.m26-athletic-evidence'\)/u);
  assert.doesNotMatch(source,/host\.insertBefore\(section,anchor\.nextSibling\);\s*else if\(anchor\)/u);
- assert.match(engine,/const comparableVolumeSeries=comparableVolumes/u);
- assert.match(engine,/volumeSeries\.slice\(-16\)/u);
+ assert.match(engine,/const comparableVolumeSeries=comparable\?Object\.freeze\(series/u);
+ assert.match(engine,/series\.every\(item=>item\.comparisonKey===series\[0\]\.comparisonKey\)/u);
+ assert.match(engine,/series\[split-1\]\.date<series\[split\]\.date/u);
+ assert.match(engine,/series\.slice\(-16\)/u);
  assert.match(css,/shape-rendering:geometricPrecision/u);
  assert.match(css,/vector-effect:non-scaling-stroke/u);
 });

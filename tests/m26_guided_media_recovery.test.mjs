@@ -84,3 +84,23 @@ test('video observer inspects new figures only; metadata, form mutations and ret
   assert.equal(loads,1);assert.equal(attrs.get('data-video-state'),'error');assert.equal(retry.hidden,false);
   controller.destroy();
 });
+
+
+test('GX native video playback permits slow technique review and stops previous or detached playback',async()=>{
+ const listeners=new Map();let callback;
+ const scope={MutationObserver:class{constructor(cb){callback=cb}observe(){}disconnect(){}}};
+ const mounted=new Set();
+ const make=()=>{let pauses=0;const attrs=new Map();const speed={textContent:'1×',setAttribute(){}};
+  const v={nodeType:1,paused:false,readyState:4,playbackRate:1,pause(){pauses++;this.paused=true;},matches:s=>s==='[data-exercise-video-element]',closest:()=>figure};
+  const figure={getAttribute:k=>attrs.get(k),setAttribute:(k,x)=>attrs.set(k,x),querySelector:s=>s==='[data-exercise-video-element]'?v:null};speed.closest=()=>figure;
+  return {v,speed,pauses:()=>pauses};};
+ const a=make(),b=make();mounted.add(a.v);mounted.add(b.v);
+ const root={addEventListener:(k,f)=>listeners.set(k,f),removeEventListener:k=>listeners.delete(k),querySelectorAll:()=>[],contains:x=>mounted.has(x)};
+ const c=createExerciseVideoExperienceController({root,scope,navigatorRef:{onLine:true},documentRef:{}});c.mount();
+ const fire=v=>listeners.get('playing')({type:'playing',target:v});fire(a.v);fire(b.v);assert.equal(a.pauses(),1);
+ await listeners.get('click')({target:{closest:s=>s==='[data-exercise-video-speed]'?b.speed:null}});assert.equal(b.v.playbackRate,.75);
+ await listeners.get('click')({target:{closest:s=>s==='[data-exercise-video-speed]'?b.speed:null}});assert.equal(b.v.playbackRate,.5);
+ callback([{removedNodes:[b.v],addedNodes:[b.v]}]);assert.equal(b.pauses(),0,'moving an element inside the root does not pause it');
+ mounted.delete(b.v);callback([{removedNodes:[b.v]}]);assert.equal(b.pauses(),1);
+ fire(a.v);c.destroy();assert.equal(a.pauses(),2);
+});

@@ -1,4 +1,5 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
+import {evidenceNumber,observedSet,observedLoadKg} from '../domain/evidence-signal.js';
 import {confirmedAdherenceEvidence} from './confirmed-adherence.js';
 import {parseDateValue,reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
@@ -10,8 +11,9 @@ import {
   sessionExecutionIsCompleted as executionIsCompleted,
   sessionExecutionId,
   sessionExecutionCompletionDate,
-  sessionExecutionDate,
   reconcileSessionExecutionsForClient,
+  readOriginalExecutionPrescription,
+  originalSeriesCoverage,
 } from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
@@ -23,17 +25,7 @@ function dateOf(record){return first(record,
   'assessmentDate','assessment_date','evaluatedAt','evaluated_at','startAt','start_at',
   'scheduledAt','scheduled_at','savedAt','saved_at','createdAt','created_at','date','fecha');}
 function safeDate(value){return parseDateValue(value);}
-function normalizeNumericString(value){
-  let raw=String(value??'').trim().replace(/\s+/g,'');
-  if(!raw)return '';
-  const match=raw.match(/[-+]?\d[\d.,]*/);if(!match)return '';
-  raw=match[0];
-  const comma=raw.lastIndexOf(','),dot=raw.lastIndexOf('.');
-  if(comma>=0&&dot>=0){const decimal=Math.max(comma,dot),separator=raw[decimal];raw=raw.slice(0,decimal).replace(/[.,]/g,'')+'.'+raw.slice(decimal+1).replace(/[.,]/g,'');if(separator!==','&&separator!=='.')return '';}
-  else if(comma>=0)raw=raw.replace(',','.');
-  return raw;
-}
-function number(value){if(typeof value==='number')return Number.isFinite(value)?value:null;const normalized=normalizeNumericString(value);if(!normalized)return null;const n=Number(normalized);return Number.isFinite(n)?n:null;}
+function number(value,range={}){return evidenceNumber(typeof value==='string'?value.trim().replace(',','.'):value,range);}
 function round(value,digits=1){if(!Number.isFinite(value))return null;const p=10**digits;return Math.round(value*p)/p;}
 function within(date,from,to){const time=safeDate(date)?.getTime();return Number.isFinite(time)&&time>=from.getTime()&&time<=to.getTime();}
 function byDateDesc(a,b){return (safeDate(dateOf(b))?.getTime()||0)-(safeDate(dateOf(a))?.getTime()||0);}
@@ -52,15 +44,15 @@ function setRows(execution){
   for(const candidate of candidates){const rows=rowsFrom(candidate);if(rows.length)return rows;}
   return [];
 }
-function rpeValues(execution){return setRows(execution).map((row)=>number(first(row,'rpe','actualRpe','actual_rpe'))).filter(Number.isFinite);}
+function rpeValues(execution){return setRows(execution).filter(observedSet).map((row)=>number(first(row,'rpe','actualRpe','actual_rpe'),{min:1,max:10})).filter(Number.isFinite);}
 // Never infer progression by mixing different movements, variants or set counts.
 function volumeComparisonKey(execution){
-  const rows=setRows(execution);
+  const rows=setRows(execution).filter(observedSet);
   if(!rows.length)return null;
   const items=[];
   for(const row of rows){
     const id=String(first(row,'exerciseId','exercise_id','exerciseKey','exercise_key')||'').trim();
-    const reps=number(first(row,'reps','actualReps','actual_reps'));
+    const reps=number(first(row,'reps','actualReps','actual_reps'),{min:0,max:10000,integer:true});
     const load=epKnownLoadKg(row);
     if(!id||!Number.isFinite(reps)||reps<0||!Number.isFinite(load)||load<0)return null;
     const variant=String(first(row,'variantId','variant_id','exerciseVariantId','exercise_variant_id')||'');
@@ -72,8 +64,8 @@ function volumeComparisonKey(execution){
   return JSON.stringify(items.sort());
 }
 function volumeOf(execution){
-  return setRows(execution).reduce((total,row)=>{
-    const reps=number(first(row,'reps','actualReps','actual_reps'));
+  return setRows(execution).filter(observedSet).reduce((total,row)=>{
+    const reps=number(first(row,'reps','actualReps','actual_reps'),{min:0,max:10000,integer:true});
     const loadKg=epKnownLoadKg(row);
     return total+(
       Number.isFinite(reps)&&
@@ -88,12 +80,12 @@ function volumeOf(execution){
 function checkinValues(record){
   const item=unwrap(record)||{};
   return {
-    energy:number(first(item,'energy','energia')),
-    sleep:number(first(item,'sleep','sueno','sueño')),
-    stress:number(first(item,'stress','estres','estrés')),
-    pain:number(first(item,'pain','dolor')),
-    fatigue:number(first(item,'fatigue','fatiga')),
-    motivation:number(first(item,'motivation','motivacion','motivación')),
+    energy:number(first(item,'energy','energia'),{min:0,max:10}),
+    sleep:number(first(item,'sleep','sueno','sueño'),{min:0,max:10}),
+    stress:number(first(item,'stress','estres','estrés'),{min:0,max:10}),
+    pain:number(first(item,'pain','dolor'),{min:0,max:10}),
+    fatigue:number(first(item,'fatigue','fatiga'),{min:0,max:10}),
+    motivation:number(first(item,'motivation','motivacion','motivación'),{min:0,max:10}),
   };
 }
 function average(values){const valid=values.filter(Number.isFinite);return valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:null;}
@@ -204,14 +196,6 @@ function sessionPlanShape(record={}){
   return Object.freeze({plannedSets,plannedExercises});
 }
 
-function executionPlanSnapshot(record={}){
-  const execution=unwrap(record)||{};
-  const snapshot=first(execution,'planSnapshot','plan_snapshot');
-  return snapshot&&typeof snapshot==='object'&&!Array.isArray(snapshot)
-    ?snapshot
-    :null;
-}
-
 function skippedSetCount(record={}){
   const execution=unwrap(record)||{};
   const skipped=execution.skippedSets??execution.skipped_sets;
@@ -232,7 +216,7 @@ function planExecutionQuality(compared){
   return compared>=6?'alta':compared>=2?'media':compared>=1?'limitada':'insuficiente';
 }
 
-export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false}={}){
+export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false,requireSnapshot=false}={}){
   if(!clientId)return null;
   const window=progressWindow({now,days,civilPeriod});
   const expectedClient=String(clientId);
@@ -249,18 +233,21 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
   const completed=confirmedSessionExecutionsForClient(
     state,
     clientId,
-    {requireCompleted:true,requireDate:!civilPeriod},
+    {requireCompleted:true,requireDate:false},
   )
-    .map(unwrap)
-    .filter((item)=>executionWithinWindow(item,window))
-    .sort((a,b)=>executionTime(b,window)-executionTime(a,window));
+    .filter((item)=>executionWithinWindow(unwrap(item),window))
+    .sort((a,b)=>executionTime(unwrap(b),window)-executionTime(unwrap(a),window));
 
   const rows=[];
   let unmatchedExecutions=0;
-  for(const execution of completed){
+  for(const original of completed){
+    const execution=unwrap(original);
     const sessionId=String(first(execution,'sessionId','session_id')||'').trim();
     const session=sessionId?sessions.get(sessionId):null;
-    const planSnapshot=executionPlanSnapshot(execution);
+    const historical=readOriginalExecutionPrescription(original);
+    if(historical.kind==='invalid'){unmatchedExecutions+=1;continue;}
+    const planSnapshot=historical.snapshot;
+    if(requireSnapshot&&(!planSnapshot||!sessionId||String(first(planSnapshot,'sessionId','session_id')||'').trim()!==sessionId)){unmatchedExecutions+=1;continue;}
     if(planSnapshot){
       const snapshotSessionId=String(first(planSnapshot,'sessionId','session_id')||'').trim();
       if(snapshotSessionId&&snapshotSessionId!==sessionId){unmatchedExecutions+=1;continue;}
@@ -270,15 +257,20 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     const shape=sessionPlanShape(planSource);
     if(!shape.plannedSets){unmatchedExecutions+=1;continue;}
 
-    const recordedSets=setRows(execution).length;
-    const skippedSets=skippedSetCount(execution);
+    const coverage=planSnapshot?originalSeriesCoverage(original,planSnapshot):null;
+    const coordinateVerified=Boolean(coverage&&coverage.plannedSets===shape.plannedSets);
+    const verified=coordinateVerified?coverage:null;
+    // Preserve legacy descriptive counts without certifying the old plan.
+    const recordedSets=verified?verified.matchedRecordedSets+verified.unlinkedRecordedSets:setRows(execution).filter(observedSet).length;
+    const skippedSets=verified?verified.matchedSkippedSets+verified.unlinkedSkippedSets:skippedSetCount(execution);
     const addedSets=executionEventCount(execution,'SET_ADDED');
     const addedExercises=executionEventCount(execution,'EXERCISE_ADDED');
     const substitutions=executionEventCount(execution,'EXERCISE_SUBSTITUTED');
     const explicitAdjustments=addedSets+addedExercises+substitutions;
     const resolvedPlannedSets=Math.min(shape.plannedSets,recordedSets+skippedSets);
-    const unresolvedPlannedSets=Math.max(0,shape.plannedSets-resolvedPlannedSets);
-    const asPlanned=recordedSets===shape.plannedSets&&skippedSets===0&&explicitAdjustments===0;
+    const unresolvedPlannedSets=verified?verified.unresolvedPlannedSets:Math.max(0,shape.plannedSets-resolvedPlannedSets);
+    const countMatched=recordedSets===shape.plannedSets&&skippedSets===0&&explicitAdjustments===0;
+    const asPlanned=Boolean(verified&&verified.completeEvidence&&verified.matchedRecordedSets===shape.plannedSets&&verified.unlinkedRecordedSets===0&&verified.unlinkedSkippedSets===0&&countMatched);
 
     rows.push(Object.freeze({
       executionId:String(first(execution,'id','executionId','execution_id')||''),
@@ -295,6 +287,8 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
       substitutions,
       explicitAdjustments,
       asPlanned,
+      countMatched,
+      coordinateCoverage:verified,
     }));
   }
 
@@ -308,10 +302,15 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     acc.addedExercises+=row.addedExercises;
     acc.substitutions+=row.substitutions;
     acc.explicitAdjustments+=row.explicitAdjustments;
+    const c=row.coordinateCoverage;
     if(row.asPlanned)acc.asPlannedSessions+=1;
-    else acc.adjustedSessions+=1;
+    if(row.explicitAdjustments>0)acc.explicitlyAdjustedSessions+=1;
+    // Backward-compatible descriptive difference counter, not a judgement.
+    if(!row.countMatched||c&&!row.asPlanned)acc.adjustedSessions+=1;
+    if(!c)acc.unverifiedSessions+=1;
+    else{acc.coordinateSessions+=1;acc.matchedRecordedSets+=c.matchedRecordedSets;acc.matchedSkippedSets+=c.matchedSkippedSets;acc.unlinkedRecordedSets+=c.unlinkedRecordedSets;acc.unlinkedSkippedSets+=c.unlinkedSkippedSets;acc.excludedRows+=c.excludedRows;acc.conflictingCoordinates+=c.conflictingCoordinates;if(!c.completeEvidence)acc.incompleteCoordinateSessions+=1;}
     return acc;
-  },{plannedExercises:0,plannedSets:0,recordedSets:0,skippedSets:0,unresolvedPlannedSets:0,addedSets:0,addedExercises:0,substitutions:0,explicitAdjustments:0,asPlannedSessions:0,adjustedSessions:0});
+  },{plannedExercises:0,plannedSets:0,recordedSets:0,skippedSets:0,unresolvedPlannedSets:0,addedSets:0,addedExercises:0,substitutions:0,explicitAdjustments:0,asPlannedSessions:0,adjustedSessions:0,explicitlyAdjustedSessions:0,coordinateSessions:0,unverifiedSessions:0,incompleteCoordinateSessions:0,matchedRecordedSets:0,matchedSkippedSets:0,unlinkedRecordedSets:0,unlinkedSkippedSets:0,excludedRows:0,conflictingCoordinates:0});
 
   const comparedSessions=rows.length;
   return Object.freeze({
@@ -333,6 +332,7 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
       skipped:'Una serie omitida se conserva como omitida y nunca se cuenta como registrada.',
       adjustments:'Sustituciones, series añadidas y ejercicios añadidos se informan como ajustes explícitos; el Coach interpreta el contexto.',
       missing:'Una ejecución sin una sesión publicada comparable queda fuera del recuento y se informa por separado.',
+      coordinates:'La coincidencia de series acredita únicamente las coordenadas registradas, no la intensidad, técnica ni el logro deportivo. Los recuentos sin prescripción original son descriptivos.',
     }),
   });
 }
@@ -353,20 +353,46 @@ function withinWindow(value,window){
   return window.civilPeriod?isWithinCivilPeriod(value,window.periodStart,window.periodEnd,window.end):within(value,window.start,window.end);
 }
 function executionWithinWindow(record,window){
-  return withinWindow(window.civilPeriod?sessionExecutionCompletionDate(record):dateOf(record),window);
+  return withinWindow(sessionExecutionCompletionDate(record),window);
 }
 function executionTime(record,window){
-  return safeDate(window.civilPeriod?sessionExecutionCompletionDate(record):dateOf(record))?.getTime()||0;
+  return safeDate(sessionExecutionCompletionDate(record))?.getTime()||0;
+}
+
+// Positive partial records still describe observed work, but cannot establish
+// a session-to-session trend. An explicitly measured zero is not missing.
+function summarizeRecordedVolume(records,{reportEvidenceOnly=false}={}){
+  const series=records.filter(item=>item.volume>0||(item.volume===0&&item.comparisonKey!==null))
+    .sort((a,b)=>a.date-b.date);
+  const volumes=series.map(item=>item.volume);
+  const split=Math.ceil(series.length/2);
+  const complete=series.filter(item=>item.comparisonKey!==null).length;
+  const comparable=series.length>=2&&series[0].comparisonKey!==null
+    &&series.every(item=>item.comparisonKey===series[0].comparisonKey)
+    &&series[split-1].date<series[split].date;
+  const older=comparable?average(volumes.slice(0,split)):null;
+  const recent=comparable?average(volumes.slice(split)):null;
+  const volumeDelta=older!==null&&older>0&&recent!==null?round((recent-older)/older*100,1):null;
+  const comparableVolumeSeries=comparable?Object.freeze(series.slice(-16)
+    .filter(item=>item.date>0).map(item=>Object.freeze({date:new Date(item.date).toISOString(),volume:round(item.volume,1)}))):Object.freeze([]);
+  return {volume:round(average(volumes),1),volumeDelta,comparableVolumeSeries,
+    reportVolumeReadings:reportEvidenceOnly&&comparable?series.map(item=>({date:reportCivilDate(new Date(item.date)),value:round(item.volume,2)})):[],
+    volumeEvidence:Object.freeze({recordedSessions:series.length,completeSessions:complete,partialSessions:series.length-complete,
+      comparableSessions:comparable?series.length:0,olderSessions:comparable?split:0,recentSessions:comparable?series.length-split:0,
+      olderMean:round(older,1),recentMean:round(recent,1)})};
 }
 
 export function computeProgressSummary(state,clientId,{now=new Date(),days=28,civilPeriod=false,reportEvidenceOnly=false}={}){
   if(!clientId)return null;
   const window=progressWindow({now,days,civilPeriod}),{start,end}=window;
-  const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>withinWindow(civilPeriod?first(item,'scheduledAt','scheduled_at','startAt','start_at','date','fecha'):dateOf(item),window));
+  const appointments=collection(state,'appointments');
+  const appointmentInWindow=item=>withinWindow(first(item,'scheduledAt','scheduled_at','startAt','start_at','date','fecha'),window);
   const reconciliation=reconcileSessionExecutionsForClient(state,clientId);
-  const executionRows=reconciliation.records.map(unwrap)
-    .filter((item)=>executionWithinWindow(item,window));
   const blockedExecutionIds=unconfirmedCompletionIds(state);
+  const executionRows=reconciliation.records.map(unwrap)
+    .filter((item)=>executionWithinWindow(item,window)||(
+      !sessionExecutionCompletionDate(item)&&blockedExecutionIds.has(sessionExecutionId(item))&&withinWindow(dateOf(item),window)
+    ));
   const unconfirmedRows=executionRows
     .filter((item)=>!executionIsConfirmed(item,blockedExecutionIds));
   const conflictedRows=reconciliation.conflicts.filter((group)=>group.some(
@@ -383,39 +409,19 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
   // the same owner/revision/conflict index for every report period.
   const completedExecutions=reconciliation.records
     .filter(record=>executionIsConfirmed(record,blockedExecutionIds)&&executionIsCompleted(record)&&
-      (civilPeriod||Boolean(sessionExecutionDate(record))))
+      Boolean(sessionExecutionCompletionDate(record)))
     .map(unwrap)
     .filter(item=>executionWithinWindow(item,window));
-  const verifiedAdherence=confirmedAdherenceEvidence({appointments,executions:completedExecutions});
+  const verifiedAdherence=confirmedAdherenceEvidence({appointments,executions:completedExecutions,clientId,appointmentInWindow});
   const adherenceEvidence=Object.freeze({
     ...verifiedAdherence,
     conflictingExecutions:verifiedAdherence.conflictingExecutions+conflictedRows.length,
   });
   const {plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence}=adherenceEvidence;
   const rpes=completedExecutions.flatMap(rpeValues);
-  const volumeSeries=completedExecutions
-    .map((item)=>({date:executionTime(item,window),volume:volumeOf(item),comparisonKey:volumeComparisonKey(item)}))
-    .filter((item)=>item.volume>0)
-    .sort((a,b)=>a.date-b.date);
-  const volumes=volumeSeries.map((item)=>item.volume);
-  const split=Math.ceil(volumes.length/2);
-  const comparableVolumes=volumeSeries.length>=2&&volumeSeries[0].comparisonKey!==null
-    &&volumeSeries.every((item)=>item.comparisonKey===volumeSeries[0].comparisonKey);
-  const olderVolume=comparableVolumes?average(volumes.slice(0,split)):null;
-  const recentVolume=comparableVolumes?average(volumes.slice(split)):null;
-  const volumeDelta=Number.isFinite(olderVolume)&&olderVolume>0&&Number.isFinite(recentVolume)?((recentVolume-olderVolume)/olderVolume)*100:null;
-  // Only same-composition, confirmed execution volumes can form a real trend.
-  // Keep the last 16 points to protect large histories and mobile rendering;
-  // no interpolated, missing, draft or cross-exercise values.
-  const comparableVolumeSeries=comparableVolumes
-    ?Object.freeze(volumeSeries.slice(-16)
-      .filter((item)=>item.date>0&&Number.isFinite(item.volume)&&item.volume>0)
-      .map((item)=>Object.freeze({
-        date:new Date(item.date).toISOString(),
-        volume:round(item.volume,1),
-      })))
-    :Object.freeze([]);
-  const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window)).sort(byDateDesc);
+  const {volume,volumeDelta,comparableVolumeSeries,volumeEvidence,reportVolumeReadings}=summarizeRecordedVolume(completedExecutions
+    .map((item)=>({date:executionTime(item,window),volume:volumeOf(item),comparisonKey:volumeComparisonKey(item)})),{reportEvidenceOnly});
+  const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window)&&observedSet(item)&&Object.values(checkinValues(item)).some(Number.isFinite)).sort(byDateDesc);
   const wearable=reportEvidenceOnly?null:summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
   const checkinSeries=checkins.map(checkinValues);
   const iriBaselineRecordValue=reportEvidenceOnly?null:iriBaselineRecord(state,clientId);
@@ -429,7 +435,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
   const lastExecution=sortedExecutions[0]||null;
   const lastExecutionRpe=lastExecution?rpeValues(lastExecution):[];
   const latestCheckin=checkins[0]||null;
-  const dataPoints=completedExecutions.length+checkins.length+iri.length;
+  const dataPoints=completedExecutions.length+checkinSeries.filter(values=>Object.values(values).some(Number.isFinite)).length;
   const dataQuality=dataPoints>=8?'alta':dataPoints>=3?'media':'limitada';
   return Object.freeze({
     clientId,startAt:start.toISOString(),endAt:end.toISOString(),days:window.days,
@@ -441,8 +447,9 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
     explicitlyMissedAppointments:adherenceEvidence.missedAppointments,
     evidenceConflicts:conflictedRows.length,
     adherenceEvidence,
-    averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
-    comparableVolumeSeries,
+    averageRpe:round(average(rpes),1),volume,volumeDelta,
+    comparableVolumeSeries,volumeEvidence,
+    ...(reportEvidenceOnly?{reportVolumeReadings,reportCheckinReadings:checkins.filter(item=>clientIdOf(item)===clientId).map(item=>({date:reportCivilDate(dateOf(item)),...checkinValues(item)}))}:{}),
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
     iriBaseline,
     evolution,
@@ -453,7 +460,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
       stress:round(average(checkinSeries.map((x)=>x.stress)),1),pain:round(average(checkinSeries.map((x)=>x.pain)),1),
       fatigue:round(average(checkinSeries.map((x)=>x.fatigue)),1),motivation:round(average(checkinSeries.map((x)=>x.motivation)),1),
     }),
-    lastExecutionAt:(civilPeriod?sessionExecutionCompletionDate(lastExecution):dateOf(lastExecution))||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
+    lastExecutionAt:sessionExecutionCompletionDate(lastExecution)||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
     latestCheckinAt:dateOf(latestCheckin)||null,
     unconfirmedExecutions:unconfirmedRows.length+conflictedRows.length,dataQuality,wearable,
   });
@@ -522,16 +529,7 @@ function epFirst(record,...keys){
   return null;
 }
 
-function epNumber(value){
-  if(typeof value==='number')return Number.isFinite(value)?value:null;
-  if(typeof value!=='string')return null;
-  const normalized=value.trim().replace(/\s+/g,'').replace(',','.');
-  if(!normalized)return null;
-  const match=normalized.match(/[-+]?\d+(?:\.\d+)?/);
-  if(!match)return null;
-  const parsed=Number(match[0]);
-  return Number.isFinite(parsed)?parsed:null;
-}
+function epNumber(value,range={}){return number(value,range);}
 
 function epRound(value,digits=1){
   if(!Number.isFinite(value))return null;
@@ -583,54 +581,7 @@ function epSafeDate(value){
   return date&&!Number.isNaN(date.getTime())?date:null;
 }
 
-function epKnownLoadKg(row){
-  const strict=epNumber(epFirst(
-    row,
-    'loadKg','load_kg',
-    'weightKg','weight_kg',
-    'kg'
-  ));
-
-  if(Number.isFinite(strict)&&strict>=0)return strict;
-
-  const unit=String(epFirst(
-    row,
-    'loadUnit','load_unit',
-    'weightUnit','weight_unit',
-    'unit'
-  )||'').trim().toLowerCase();
-
-  if([
-    'kg','kgs',
-    'kilogram','kilograms',
-    'kilogramo','kilogramos'
-  ].includes(unit)){
-    const generic=epNumber(epFirst(
-      row,
-      'load','weight','carga'
-    ));
-    return Number.isFinite(generic)&&generic>=0?generic:null;
-  }
-
-  const raw=String(epFirst(
-    row,
-    'load','weight','carga'
-  )||'').trim();
-
-  if(!raw)return null;
-
-  const kgMatch=raw.match(
-    /([-+]?\d+(?:[.,]\d+)?)\s*(?:kg|kgs|kilogramo(?:s)?|kilogram(?:s)?)\b/i
-  );
-
-  if(!kgMatch)return null;
-
-  const parsed=Number(
-    String(kgMatch[1]).replace(',','.')
-  );
-
-  return Number.isFinite(parsed)&&parsed>=0?parsed:null;
-}
+function epKnownLoadKg(row){return observedLoadKg(row);}
 
 function epLoadLabel(row){
   const raw=epFirst(
@@ -721,7 +672,10 @@ function epExerciseMeta(session,exerciseId){
 function epExecutionPlanSnapshotForSession(source,original,sessionId){
   const expectedSessionId=String(sessionId||'').trim();
   if(!expectedSessionId)return null;
-
+  const historical=readOriginalExecutionPrescription(original);
+  if(historical.kind==='invalid')return null;
+  if(historical.snapshot)return String(historical.snapshot.sessionId??historical.snapshot.session_id??'')===expectedSessionId?historical.snapshot:null;
+  // Historical nested progress snapshots remain descriptive legacy metadata.
   for(const candidate of [source,original]){
     const item=unwrap(candidate)||{};
     const snapshot=epFirst(item,'planSnapshot','plan_snapshot');
@@ -901,13 +855,13 @@ function epLatestValidTrend(
   return epTrend(current,previous,options);
 }
 
-function epPoint(execution,rows,meta){
+function epPoint(execution,rows,meta,completionDate){
   const reps=rows
     .map((row)=>epNumber(epFirst(
       row,
       'reps','actualReps','actual_reps',
       'repetitions','repeticiones'
-    )))
+    ),{min:0,max:10000,integer:true}))
     .filter(Number.isFinite);
 
   const seconds=rows
@@ -915,21 +869,21 @@ function epPoint(execution,rows,meta){
       row,
       'seconds','actualSeconds','actual_seconds',
       'durationSeconds','duration_seconds'
-    )))
+    ),{min:0,max:86400}))
     .filter(Number.isFinite);
 
   const rpes=rows
     .map((row)=>epNumber(epFirst(
       row,
       'rpe','actualRpe','actual_rpe'
-    )))
+    ),{min:1,max:10}))
     .filter(Number.isFinite);
 
   const rirs=rows
     .map((row)=>epNumber(epFirst(
       row,
       'rir','actualRir','actual_rir'
-    )))
+    ),{min:0,max:10}))
     .filter(Number.isFinite);
 
   const knownLoads=rows
@@ -949,7 +903,7 @@ function epPoint(execution,rows,meta){
         row,
         'reps','actualReps','actual_reps',
         'repetitions','repeticiones'
-      ));
+      ),{min:0,max:10000,integer:true});
 
       return Number.isFinite(load)&&Number.isFinite(rowReps)
         ? load*rowReps
@@ -957,16 +911,7 @@ function epPoint(execution,rows,meta){
     })
     .filter(Number.isFinite);
 
-  const at=epSafeDate(
-    epFirst(
-      execution,
-      'completedAt','completed_at',
-      'endedAt','ended_at',
-      'recordedAt','recorded_at',
-      'createdAt','created_at'
-    )||
-    rows.map(epDate).find(Boolean)
-  );
+  const at=epSafeDate(completionDate);
 
   return Object.freeze({
     executionId:String(epFirst(execution,'id','executionId','execution_id')||''),
@@ -992,7 +937,7 @@ function epPoint(execution,rows,meta){
 export function buildExerciseLongitudinalProgress(
   state,
   clientId,
-  {limitPerExercise=36}={}
+  {limitPerExercise=36,now=new Date()}={}
 ){
   if(!clientId){
     return Object.freeze({
@@ -1010,7 +955,7 @@ export function buildExerciseLongitudinalProgress(
     clientId,
     {
       requireCompleted:true,
-      requireDate:true,
+      requireDate:false,
     }
   );
 
@@ -1019,8 +964,10 @@ export function buildExerciseLongitudinalProgress(
   let acceptedExecutions=0;
 
   for(const original of executions){
+    const completionDate=sessionExecutionCompletionDate(original);
+    if(!isWithinCivilPeriod(completionDate,'0001-01-01',reportCivilDate(now),now))continue;
     const source=epExecutionSource(original);
-    const rows=epResultRows(source);
+    const rows=epResultRows(source).filter(observedSet);
 
     if(!rows.length)continue;
 
@@ -1087,7 +1034,7 @@ export function buildExerciseLongitudinalProgress(
     }
 
     for(const group of grouped.values()){
-      const point=epPoint(source,group.rows,group.meta);
+      const point=epPoint(source,group.rows,group.meta,completionDate);
 
       if(!byExercise.has(group.meta.id)){
         byExercise.set(group.meta.id,{

@@ -92,3 +92,14 @@ test('viewer stylesheet stays out of global elevation, loads on demand and remai
   assert.match(viewerCss,/width:100vw/);
   assert.match(viewerCss,/height:100dvh/);
 });
+
+
+test('GX viewer fences pending requests and restores focus safely when media is detached',()=>{
+  assert.match(uiSource,/const request=\+\+viewerRequest/);
+  assert.match(uiSource,/request!==viewerRequest\|\|!trigger\.isConnected/);
+  assert.match(uiSource,/pendingViewerTrigger&&this\.contains\(pendingViewerTrigger\)/);
+  assert.match(uiSource,/if\(dialog\.open\)return;\s*restoreViewerFocus\(\)/);
+  assert.ok(uiSource.indexOf("image.addEventListener?.('load',ready)")<uiSource.indexOf('if(src){image.src=src;'));
+  assert.match(viewerCss,/\.m26-exercise-media-viewer-image\[hidden\]\{display:none\}/);
+  assert.match(renderLibraryExerciseCard(exercise,approvedManifest(),{role:'client'}),/aria-haspopup="dialog"/);
+});

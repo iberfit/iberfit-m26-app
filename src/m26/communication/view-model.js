@@ -89,7 +89,7 @@ function portfolioRow(vm,state,client,now){
       status,
       label:commercialRenewalLabel(status),
       date:crm?.renewal?.date||null,
-      dateLabel:plainDateLabel(crm?.renewal?.date),
+      dateLabel:plainDateLabel(crm?.renewal?.civilDate),
       evidence:crm?.renewal?.evidence||null,
       requiresHumanDecision:status==='overdue'||status==='upcoming',
     }),

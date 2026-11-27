@@ -14,8 +14,10 @@ import {renderClientTodayHealth} from '../wearables/client-health-snapshot.js';
 import {renderClientDayContext} from '../experience/client-day-context.js';
 import {buildCoachSessionReviewCues} from '../intelligence/session-adjustment-cues.js';
 import {renderPeriodizationBoard,renderClientCycleGoal} from '../planning/periodization-workbench.js';
+import {GOAL_UNITS,goalMeasurementFormFields} from '../planning/goal-measurement.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
+import {renderProfessionalFollowupHost} from '../workflows/professional-followup-ui.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {progressSummaryHasEvolutionEvidence} from '../engagement/progress-engine.js';
@@ -554,7 +556,7 @@ function renderClientTrainingJourney({planReady=false,projections=[],serviceActi
   const steps=[
     {title:'Planificación',detail:planDetail,state:planState},
     {title:'Sesiones',detail:sessionDetail,state:sessionState},
-    {title:'Seguimiento',detail:hasConfirmedSession?'Entrenamiento confirmado en el historial reciente'
+    {title:'Seguimiento',detail:hasConfirmedSession?(followUp.sessionSource==='legacy-activity'?'Actividad registrada en el historial reciente':'Entrenamiento confirmado en el historial reciente')
       :hasConfirmedCheckin?'Bienestar registrado como contexto'
       :'Evolución basada en registros reales',state:hasConfirmedSession||hasConfirmedCheckin?'available':'reference'},
   ];
@@ -947,7 +949,7 @@ function renderClientHoyRoute(vm) {
     </section>
 
     ${trainingSurface?renderAthleticClientEvidence(vm.clientProgressSummary):''}
-    ${renderClientDayContext(vm.clientDayContext)}
+    ${renderClientDayContext(vm.clientDayContext,{heroArea:primary.area})}
 
     ${trainingSurface?`<section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
       ${nextAppointment?`<button type="button" data-m26-area="planificacion" aria-label="Ver próxima cita en tu plan">
@@ -3574,6 +3576,7 @@ export function renderExpedienteRoute(vm) {
     </nav>
     <div class="m26-expediente-detail">
 ${summarySurface}
+    ${vm.role==='coach'&&data.id?renderProfessionalFollowupHost(data.id):''}
 
     <div class="m26-client360-context" data-m26-expediente-section="contexto">${recentContext}${vm.coachCockpit?renderCoachFollowUpPlan(vm.alerts):''}</div>
 
@@ -3692,12 +3695,17 @@ function renderPlanExecutionPanel(plan){
     <div class="m26-field-grid">
       ${field('Última sesión comparable',latestCopy)}
       ${field('Previstas / registradas / omitidas',latest?`${latest.plannedSets} / ${latest.recordedSets} / ${latest.skippedSets}`:'Sin dato')}
-      ${field('Sesiones sin ajustes explícitos',plan.asPlannedSessions||0)}
-      ${field('Sesiones con ajustes explícitos',plan.adjustedSessions||0)}
+      ${field('Sesiones con todas las series originales registradas',plan.asPlannedSessions||0)}
+      ${field('Sesiones con ajustes explícitos',plan.explicitlyAdjustedSessions??plan.adjustedSessions??0)}
+      ${Number.isFinite(plan.coordinateSessions)?field('Sesiones con correspondencia revisada',plan.coordinateSessions):''}
+      ${plan.unverifiedSessions?field('Sesiones con recuento descriptivo',plan.unverifiedSessions):''}
+      ${plan.unlinkedRecordedSets?field('Series registradas sin vínculo original',plan.unlinkedRecordedSets):''}
+      ${plan.excludedRows?field('Registros excluidos por falta de certeza',plan.excludedRows):''}
+      ${plan.incompleteCoordinateSessions?field('Sesiones con evidencia incompleta',plan.incompleteCoordinateSessions):''}
       ${field('Sustituciones',plan.substitutions||0)}
       ${field('Series añadidas',plan.addedSets||0)}
       ${field('Ejercicios añadidos',plan.addedExercises||0)}
-      ${field('Series previstas sin resolver',unresolved||'Ninguna')}
+      ${field(plan.unverifiedSessions?'Series sin resolución (incluye recuentos descriptivos)':'Series previstas sin resolver',unresolved||'Ninguna')}
       ${field('Ejecuciones sin plan comparable',plan.unmatchedExecutions||0)}
     </div>
     <p class="m26-notice"><strong>Lectura descriptiva.</strong> Omitir, sustituir o añadir trabajo no se clasifica automáticamente como mejor o peor. IBERFIT conserva lo ocurrido y el Coach interpreta el contexto.</p>
@@ -3819,6 +3827,16 @@ function renderClientProgressStage(vm,stage){
   </section>`;
 }
 
+export function renderProfessionalReassessmentReview(review,role){
+ if(!['coach','admin'].includes(role)||!review||!Array.isArray(review.comparisons))return '';
+ const tx=value=>iberfitSurfaceTranslate(value,{language:getIberfitLanguage()});
+ const label=value=>escapeHtml(tx(value));
+ const date=value=>escapeHtml(formatIberfitDate(value,{locale:IBERFIT_UI_LOCALE,includeTime:false})||'—');
+ const number=value=>escapeHtml(new Intl.NumberFormat(IBERFIT_UI_LOCALE,{maximumFractionDigits:2}).format(value));
+ const rows=review.comparisons.filter(x=>x&&[x.previous,x.value,x.delta].every(Number.isFinite)&&typeof x.label==='string'&&typeof x.unit==='string');
+ const items=rows.map(x=>'<li><strong>'+label(x.label)+'</strong> · '+number(x.previous)+' '+escapeHtml(x.unit)+' → '+number(x.value)+' '+escapeHtml(x.unit)+' ('+(x.delta>0?'+':'')+number(x.delta)+' '+escapeHtml(x.deltaUnit??x.unit)+')</li>').join('');
+ return '<details class="m26-panel m26-optional-section" data-m26-reassessment-review><summary>'+label('Reevaluación protocolizada')+'</summary><p>'+date(review.periodStart)+' — '+date(review.periodEnd)+'</p>'+(items?'<ul>'+items+'</ul>':'<p>'+label('No hay mediciones con protocolo equivalente.')+'</p>')+'<p class="m26-notice">'+label('Comparación descriptiva de mediciones confirmadas. No acredita una mejora clínica ni modifica la planificación.')+'</p><button type="button" data-m26-area="informes">'+label('Consultar informes')+'</button></details>';
+}
 export function renderProgressRoute(vm){
   const professionalRole=['coach','admin'].includes(String(vm.role||'').toLowerCase());
   const clientContextBar=professionalRole?professionalClientContextBar(vm.clientContext,{activeArea:'progreso'}):'';
@@ -3916,6 +3934,7 @@ export function renderProgressRoute(vm){
     <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
     ${professionalProgressNav}
     ${renderPeriodizationBoard(vm.periodization,{role:vm.role,compact:true})}
+    ${renderProfessionalReassessmentReview(vm.reassessmentReview,vm.role)}
     <section id="m26-progress-summary" data-m26-progress-section="summary" class="m26-stat-grid">
       ${stat('Adherencia',formatPercent(scheduledCompletion?.adherence),scheduledCompletionCopy(summary))}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
@@ -4464,6 +4483,30 @@ function iriPlanningContextPanel(seed){
   </section>`;
 }
 
+function renderMeasurableGoalFields(cycle,options=[]){
+  const g=goalMeasurementFormFields(cycle);
+  const input=(name,label,type='text',attrs='')=>`<label>${label}<input name="${name}" type="${type}" ${attrs} value="${escapeHtml(g[name])}"></label>`;
+  const opts=Object.entries(GOAL_UNITS).map(([id,label])=>`<option value="${id}"${selectedOption(g.goalUnit,id)}>${escapeHtml(label)}</option>`).join('');
+  const choices=options.map(x=>`<option value="${escapeHtml(x.ref)}"${selectedOption(g.goalEvidenceRef,x.ref)}>${escapeHtml(x.metric+' · '+x.value+' '+GOAL_UNITS[x.unit]+' · '+x.date)}</option>`).join('');
+  const unavailable=g.goalEvidenceRef&&!options.some(x=>x.ref===g.goalEvidenceRef)?`<option value="${escapeHtml(g.goalEvidenceRef)}" selected>Referencia inicial no disponible</option>`:'';
+  return `<details class="m26-panel-soft" data-m26-measurable-goal${Object.values(g).some(Boolean)?' open':''}>
+    <summary>Meta medible del ciclo (opcional)</summary>
+    <p>Define una medición comparable y su plazo. Estos datos forman parte de la planificación compartida al publicarla; no incluyas notas privadas. La línea base es declarada, no una medición automáticamente verificada.</p>
+    <div class="m26-field-grid">
+      <label class="m26-wide">Medición inicial vinculada (opcional)<select name="goalEvidenceRef"><option value="">Sin vínculo automático · revisión manual</option>${choices}${unavailable}</select><small>Si vinculas una medición, se copiarán su indicador, unidad, valor y fecha inicial. Las comparaciones usarán el protocolo registrado.</small></label>
+      ${input('goalMetric','Indicador','text','maxlength="80" placeholder="Ej. Sentadilla con barra"')}
+      <label>Unidad de medida<select name="goalUnit"><option value="">Seleccionar unidad</option>${opts}</select></label>
+      <label>Dirección de la meta<select name="goalDirection"><option value="">Seleccionar dirección</option><option value="increase"${selectedOption(g.goalDirection,'increase')}>Aumentar</option><option value="decrease"${selectedOption(g.goalDirection,'decrease')}>Reducir</option></select></label>
+      ${input('goalBaseline','Valor inicial','number','min="0" max="1000000" step="any" inputmode="decimal"')}
+      ${input('goalBaselineDate','Fecha de medición inicial','date')}
+      ${input('goalTarget','Valor objetivo','number','min="0" max="1000000" step="any" inputmode="decimal"')}
+      ${input('goalDeadline','Plazo de la meta','date')}
+      <label class="m26-wide">Protocolo de comparación<textarea name="goalProtocol" maxlength="180" placeholder="Ej. Misma variante, equipo, repeticiones y técnica">${escapeHtml(g.goalProtocol)}</textarea></label>
+    </div>
+    <small>Completa todos los campos para guardar una meta medible, o déjalos todos vacíos. El logro requiere una medición comparable y revisión profesional.</small>
+  </details>`;
+}
+
 export function renderPlanningRoute(vm){
   const isClient=vm.role==='client';
   const clientContextBar=!isClient?professionalClientContextBar(vm.clientContext,{activeArea:'planificacion'}):'';
@@ -4513,6 +4556,7 @@ export function renderPlanningRoute(vm){
       <label>Duración habitual (min)<input type="number" name="sessionDurationMinutes" min="20" max="240" value="${escapeHtml(sessionDuration)}" placeholder="Ej. 60" required></label>
       <label class="m26-wide">Objetivo<textarea name="goal" maxlength="500" required>${escapeHtml(cycleGoal||suggestedGoal)}</textarea>${suggestedGoal?'<small>Propuesta inicial desde el IRI confirmado. Revisa y adapta antes de validar.</small>':''}</label>
     </div>
+    ${renderMeasurableGoalFields(cycle,vm.goalBaselineOptions||[])}
     <p class="m26-field-help" data-guided-required-progress aria-live="polite"></p>
     <div class="m26-inline-actions">
       <button type="button" data-workflow-action="save-plan-draft">Guardar borrador</button>

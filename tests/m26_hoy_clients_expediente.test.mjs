@@ -695,7 +695,7 @@ test('Workspace Coach ordena ahora, sesiones, decisiones y evolución sin perder
   assert.match(html, /Próxima acción/);
   assert.match(
     html,
-    /m26-client360-header-action[\s\S]*?data-m26-area="progreso"[\s\S]*?>Revisar progreso<\/button>/
+    /m26-client360-header-action[\s\S]*?data-m26-area="progreso"[\s\S]*?>Revisar datos<\/button>/
   );
   assert.ok(vm.nextSessionPreparation);
   assert.match(html, /data-coach-client-workspace/);

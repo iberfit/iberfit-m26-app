@@ -138,16 +138,20 @@ function clientIdFor(viewModel,state){
 function adherenceValue(item){
   return Number.isFinite(item?.adherence)
     ?`${Math.round(item.adherence*100)}%`
-    :'Sin plan en ventana';
+    :item?.hasPlan===false?'Sin plan en ventana':'Datos insuficientes';
 }
 
 function adherenceDetail(item){
-  if(!item?.hasPlan){
+  if(item?.hasPlan===false){
     return 'No hay sesiones planificadas o confirmadas para calcular constancia.';
   }
-  const pending=Number(item?.unconfirmedExecutions||0);
+  if(item?.hasPlan!==true||!Number.isSafeInteger(item.completedSessions)||
+      !Number.isSafeInteger(item.plannedSessions)||!Number.isFinite(item.adherence)){
+    return 'No hay datos confirmados suficientes para calcular constancia.';
+  }
+  const pending=item.unconfirmedExecutions;
   const base=`${item.completedSessions} de ${item.plannedSessions} citas programadas cumplidas`;
-  return pending
+  return pending>0
     ?`${base} · ${pending} pendiente${pending===1?'':'s'} fuera del cálculo`
     :base;
 }
@@ -500,7 +504,7 @@ function buildConstancySection(document,windows,role){
   for(const item of windows){
     const card=create(document,'article','m27-constancia-window');
     card.setAttribute('data-m27-adherence-window',String(item.days));
-    card.setAttribute('data-has-plan',item.hasPlan?'true':'false');
+    card.setAttribute('data-has-plan',item.hasPlan===null?'unknown':item.hasPlan?'true':'false');
     card.append(
       create(document,'span','',item.label),
       create(document,'strong','',adherenceValue(item)),

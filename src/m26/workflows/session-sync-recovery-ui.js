@@ -33,6 +33,7 @@ const ACTIONABLE_FAILURE_MESSAGES=Object.freeze({
   M26_EXECUTION_SKIP_EXERCISE_REASON_REQUIRED:{message:'Indica por qué se omite este ejercicio antes de continuar.',focusSelector:'[data-session-skip-exercise-reason]'},
   M26_EXECUTION_SKIP_RECORDED_SET_FORBIDDEN:'Esta serie ya está registrada. Corrígela o avanza sin omitirla.',
   M26_EXECUTION_SUBSTITUTION_REASON_REQUIRED:{message:'Indica el motivo del cambio de ejercicio.',focusSelector:'[data-session-substitute-reason]'},
+  M26_EXECUTION_SUBSTITUTE_PRESCRIPTION_INCOMPATIBLE:{message:'La alternativa requiere una prescripción diferente. Conserva lo registrado y selecciona un ejercicio compatible o consulta con tu Coach.',focusSelector:'[data-session-substitute]'},
   M26_EXECUTION_SUBSTITUTE_SAME:{message:'Selecciona un ejercicio diferente para realizar la sustitución.',focusSelector:'[data-session-substitute]'},
   M26_EXECUTION_SUBSTITUTE_NOT_IN_CATALOG:{message:'Selecciona un ejercicio válido de la biblioteca IBERFIT.',focusSelector:'[data-session-substitute]'},
   M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED:'Este ejercicio ya tiene trabajo resuelto. Mantén lo registrado y modifica solo el trabajo pendiente disponible.',

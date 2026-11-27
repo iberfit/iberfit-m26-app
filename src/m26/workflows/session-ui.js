@@ -4,7 +4,7 @@ import {coachProgressionReview} from './coach-progression-review.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
-import {exerciseMeasurementProfile,metricPrescriptionSummary} from '../exercises/measurement-profiles.js';
+import {exerciseMeasurementProfile,metricPrescriptionSummary,exerciseAlternativeCompatibility} from '../exercises/measurement-profiles.js';
 import {runningPrescriptionAdvisories} from '../exercises/running-prescription-feedback.js';
 import {swimmingPrescriptionAdvisories} from '../exercises/swimming-prescription-feedback.js';
 import {renderSessionHealthContext} from '../wearables/client-health-snapshot.js';
@@ -243,7 +243,8 @@ function alternativeOptions(catalog,currentExercise={},selectedId=null){
   const currentId=String(currentExercise?.id||currentExercise||'').trim();
   const pattern=String(currentExercise?.pattern||'').trim();
   const equipment=String(currentExercise?.equipment||'').trim();
-  const candidates=catalog.search('',pattern?{pattern}:{}).filter((item)=>item.id!==currentId);
+  const compatible=item=>item.id!==currentId&&exerciseAlternativeCompatibility(currentExercise,item);
+  const candidates=pattern?catalog.search('',{pattern}).filter(compatible):[];
   const sameEquipment=equipment?candidates.filter((item)=>String(item.equipment||'').trim()===equipment):[];
   const sameIds=new Set(sameEquipment.map((item)=>item.id));
   const otherEquipment=candidates.filter((item)=>!sameIds.has(item.id));
@@ -251,20 +252,21 @@ function alternativeOptions(catalog,currentExercise={},selectedId=null){
   const secondary=otherEquipment.slice(0,18);
   // Fallback only when no same-pattern options exist. Never select it automatically.
   const otherPatterns=preferred.length===0&&secondary.length===0
-    ?catalog.search('').filter((item)=>item.id!==currentId&&item.id!==selectedId).slice(0,6)
+    ?catalog.search('').filter(item=>compatible(item)&&item.id!==selectedId).slice(0,6)
     :[];
   const visibleIds=new Set([...preferred,...secondary].map((item)=>item.id));
   const selected=selectedId&&!visibleIds.has(selectedId)?catalog.get(selectedId):null;
   const option=(item)=>`<option value="${e(item.id)}"${item.id===selectedId?' selected':''}>${e(alternativeLabel(item))}</option>`;
   const group=(label,items)=>items.length?`<optgroup label="${e(label)}">${items.map(option).join('')}</optgroup>`:'';
-  return `<option value=""${selectedId?'':' selected'}>Sin alternativa fijada</option>${selected?group('Alternativa actual',[selected]):''}${group('Mismo patrón y material',preferred)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',secondary)}${group('Otros patrones · revisar con Coach',otherPatterns)}`;
+  return `<option value=""${selectedId?'':' selected'}>Sin alternativa fijada</option>${selected?group(compatible(selected)?'Alternativa actual':'Alternativa actual · revisar prescripción',[selected]):''}${group('Mismo patrón y material',preferred)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',secondary)}${group('Otros patrones · revisar con Coach',otherPatterns)}`;
 }
 function liveAlternativeOptions(catalog,currentExercise={},plannedAlternativeId=null,allowOtherPatterns=false){
   const currentId=String(currentExercise?.id||'').trim();
   const pattern=String(currentExercise?.pattern||'').trim();
   const equipment=String(currentExercise?.equipment||'').trim();
   const plannedId=String(plannedAlternativeId||'').trim();
-  const candidates=catalog.search('',pattern?{pattern}:{}).filter((item)=>item.id!==currentId);
+  const compatible=item=>item.id!==currentId&&exerciseAlternativeCompatibility(currentExercise,item);
+  const candidates=pattern?catalog.search('',{pattern}).filter(compatible):[];
   const sameEquipment=equipment?candidates.filter((item)=>String(item.equipment||'').trim()===equipment):[];
   const sameIds=new Set(sameEquipment.map((item)=>item.id));
   const otherEquipment=candidates.filter((item)=>!sameIds.has(item.id));
@@ -273,14 +275,15 @@ function liveAlternativeOptions(catalog,currentExercise={},plannedAlternativeId=
   // Only the Coach can consider a different movement pattern, and only as
   // a last resort when the catalogue has no matching-pattern alternative.
   const otherPatterns=allowOtherPatterns&&preferred.length===0&&secondary.length===0
-    ?catalog.search('').filter((item)=>item.id!==currentId&&item.id!==plannedId).slice(0,6)
+    ?catalog.search('').filter(item=>compatible(item)&&item.id!==plannedId).slice(0,6)
     :[];
   const visibleIds=new Set([...preferred,...secondary].map((item)=>item.id));
-  const planned=plannedId&&plannedId!==currentId&&!visibleIds.has(plannedId)?catalog.get(plannedId):null;
+  const plannedRecord=plannedId&&plannedId!==currentId&&!visibleIds.has(plannedId)?catalog.get(plannedId):null;
+  const planned=plannedRecord&&compatible(plannedRecord)?plannedRecord:null;
   const option=(item)=>`<option value="${e(item.id)}"${item.id===plannedId?' selected':''}>${e(alternativeLabel(item))}</option>`;
   const group=(label,items)=>items.length?`<optgroup label="${e(label)}">${items.map(option).join('')}</optgroup>`:'';
   const markup=`${planned?group('Alternativa planificada',[planned]):''}${group('Mismo patrón y material',preferred)}${group(equipment?'Mismo patrón · otro material':'Mismo patrón',secondary)}${group('Otros patrones · revisar con Coach',otherPatterns)}`;
-  return Object.freeze({markup,count:preferred.length+secondary.length+otherPatterns.length+(planned?1:0)});
+  return Object.freeze({markup,count:preferred.length+secondary.length+otherPatterns.length+(planned?1:0),incompatiblePlanned:Boolean(plannedRecord&&!planned)});
 }
 function blockField({blockId,exerciseId='',field,label,value,type='text',min='',max='',step='',maxLength='',placeholder=''}){const guidance=field==='targetRpe'?renderGuidanceTrigger('training-load',{label:'Ayuda sobre carga, RPE y RIR'}):'';return `<label><span class="m26-guidance-inline">${e(label)}${guidance}</span><input type="${e(type)}" value="${e(value)}" data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''}${min!==''?` min="${e(min)}"`:''}${max!==''?` max="${e(max)}"`:''}${step!==''?` step="${e(step)}"`:''}${maxLength!==''?` maxlength="${e(maxLength)}"`:''}${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;}
 function blockTextarea({blockId,exerciseId='',field,label,value='',maxLength=500,placeholder=''}){return `<label class="m26-wide"><span>${e(label)}</span><textarea data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''} maxlength="${e(maxLength)}"${placeholder?` placeholder="${e(placeholder)}"`:''}>${e(value)}</textarea></label>`;}
@@ -667,7 +670,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor,tota
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
         ${prescriptionAdvancedFields(block.id,'',exercise,block)}
-        <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(block.id)}">${alternativeOptions(catalog,exercise,block.alternativeId)}</select><small class="m26-builder-alternative-note">Prioriza mismo patrón y material; IBERFIT no cambia el ejercicio automáticamente.</small></label>
+        <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(block.id)}">${alternativeOptions(catalog,{...exercise,measurementProfile:block.measurementProfile||exercise.measurementProfile},block.alternativeId)}</select><small class="m26-builder-alternative-note">Prioriza mismo patrón y material; IBERFIT no cambia el ejercicio automáticamente.</small></label>
         ${blockTextarea({blockId:block.id,field:'prescriptionNotes',label:'Indicaciones para la ejecución',value:block.prescriptionNotes||'',maxLength:1000,placeholder:'Claves técnicas o ajustes específicos para esta sesión'})}
         ${blockTextarea({blockId:block.id,field:'progression',label:'Progresión prevista',value:block.progression||'',maxLength:500,placeholder:'Criterio para avanzar o retroceder en próximas exposiciones'})}
       </div>
@@ -689,7 +692,7 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
         ${prescriptionAdvancedFields(group.id,exerciseId,exercise,p)}
-        <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(group.id)}" data-exercise-id="${e(exerciseId)}">${alternativeOptions(catalog,exercise,p.alternativeId)}</select><small class="m26-builder-alternative-note">Prioriza mismo patrón y material; IBERFIT no cambia el ejercicio automáticamente.</small></label>
+        <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(group.id)}" data-exercise-id="${e(exerciseId)}">${alternativeOptions(catalog,{...exercise,measurementProfile:p.measurementProfile||exercise.measurementProfile},p.alternativeId)}</select><small class="m26-builder-alternative-note">Prioriza mismo patrón y material; IBERFIT no cambia el ejercicio automáticamente.</small></label>
         ${blockTextarea({blockId:group.id,exerciseId,field:'prescriptionNotes',label:'Indicaciones para la ejecución',value:p.prescriptionNotes||'',maxLength:1000})}
         ${blockTextarea({blockId:group.id,exerciseId,field:'progression',label:'Progresión prevista',value:p.progression||'',maxLength:500})}
       </div>
@@ -1368,6 +1371,14 @@ function carrySetEntryFields(planned={},isCoach=false){
     <small>Registra distancia, tiempo o ambos; la carga sigue siendo opcional si corresponde.</small>
   </div>`;
 }
+function actualStrengthContextFields(recorded={}){
+ const select=(name,label,options)=>'<label>'+e(label)+'<select data-set-field="'+name+'"><option value="">Sin registrar</option>'+options.map(([value,text])=>'<option value="'+value+'"'+(recorded[name]===value?' selected':'')+'>'+e(text)+'</option>').join('')+'</select></label>';
+ return '<details class="m26-session-options" data-session-observed-context><summary>Contexto real del ejercicio (opcional)</summary><p>Registra las condiciones realizadas para comparar sesiones equivalentes. No se completan automáticamente.</p><div class="m26-field-grid">'+
+ '<label>Variante realizada<input maxlength="80" type="text" data-set-field="variantId" value="'+e(recorded.variantId??'')+'" placeholder="Ej.: agarre neutro"></label>'+
+ '<label>Equipo utilizado<input maxlength="80" type="text" data-set-field="equipmentId" value="'+e(recorded.equipmentId??'')+'" placeholder="Ej.: mancuernas"></label>'+
+ select('loadBasis','Base de carga',[['total','Carga externa total'],['per-hand','Por mano'],['per-side','Por lado'],['per-implement','Por implemento'],['assistance','Carga de asistencia'],['bodyweight','Peso corporal']])+
+ select('side','Lateralidad',[['bilateral','Bilateral'],['left','Izquierda'],['right','Derecha'],['alternating','Alterna']])+select('loadUnit','Unidad de la carga registrada',[['kg','Kilogramos (kg)'],['lb','Libras (lb)']])+'</div></details>';
+}
 function recordedSportCorrectionFields(profile,recorded={}){
   const field=(name,label,options={})=>{
     const type=options.type||'number';
@@ -1818,7 +1829,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     ?`${totals.resolvedSets} de ${totals.totalSets} series resueltas · ${plural(totals.skippedSets,'omitida','omitidas')}`
     :`${totals.completedSets} de ${totals.totalSets} series`;
   const liveAddOptions=isCoach?liveAddExerciseOptions(catalog,ex):'';
-  const liveAlternatives=liveAlternativeOptions(catalog,ex,planned.alternativeId,isCoach);
+  const liveAlternatives=liveAlternativeOptions(catalog,{...ex,measurementProfile:planned.measurementProfile||ex.measurementProfile},planned.alternativeId,isCoach);
   const alternatives=liveAlternatives.markup;
   const substitutionUnavailable=liveAlternatives.count===0;
   const visual=renderExerciseMedia({
@@ -1947,6 +1958,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <div class="m26-field-grid" data-session-correction-profile="${e(executionProfile.kind)}">
             ${recordedSportCorrectionFields(executionProfile,recorded)}
           </div>
+          ${executionProfile.kind==='strength'?actualStrengthContextFields(recorded):''}
           <label>Notas<textarea maxlength="1000" data-set-field="notes">${e(recorded.notes||'')}</textarea></label>
           <button type="button" data-session-action="correct-set">Guardar corrección</button>
         </details>
@@ -1964,6 +1976,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         ${plannedSetReuse}
         ${previousSetReuse}
         ${setEntryFields}
+        ${executionProfile.kind==='strength'?actualStrengthContextFields():''}
         ${clientQuickRpe}
         <details>
           <summary>Añadir una nota a esta serie</summary>
@@ -2039,7 +2052,8 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
                 <summary>Ajustes y alternativas</summary>
             <p>Estos cambios afectan únicamente a la ejecución de hoy; no modifican el plan futuro.</p>
             <label>Alternativa<select data-session-substitute ${substitutionUnavailable?'disabled aria-disabled="true"':''}>${alternatives||'<option value="">Sin alternativas compatibles</option>'}</select></label>
-            <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
+            ${liveAlternatives.incompatiblePlanned?`<small class="m26-field-help" role="status">${isCoach?'La alternativa prevista necesita una prescripción diferente. Añade el ejercicio con su propio objetivo.':'La alternativa prevista requiere otro objetivo. Consulta con tu Coach.'}</small>`:''}
+             <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
             ${coachReasonPresets('substitute',isCoach)}
             <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${substitutionDisabled?`disabled aria-disabled="true" title="${e(substitutionTitle)}"`:''}>${e(substitutionActionLabel)}</button>
             <label>Motivo para omitir el resto del ejercicio<input maxlength="500" data-session-skip-exercise-reason></label>

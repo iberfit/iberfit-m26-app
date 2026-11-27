@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   evaluateRequiredChecks,
+  isRealWriteQARelevant,
   requiredChecksForFiles,
 } from '../scripts/ci/canary_policy_gate.mjs';
 
@@ -228,4 +229,44 @@ test('UNIVERSAL: a failing or missing session browser gate cannot certify a sess
   const good=evaluateRequiredChecks(required,[...successful,
     {id:101,name:'browser-live-workout',status:'completed',conclusion:'success'}]);
   assert.equal(good.state,'success');
+});
+
+test('Canary requires the real QA aggregate for every existing real-write trigger',()=>{
+  const workflow=fs.readFileSync('.github/workflows/qa-real-write-cert.yml','utf8');
+  const sections=workflow.split(/\n  (?:push|workflow_dispatch):/u);
+  const triggers=section=>[...new Set([...section.matchAll(/^      - '([^']+)'$/gmu)].map(m=>m[1]))];
+  const pull=triggers(sections[0]);
+  assert.deepEqual(pull,triggers(sections[1]));
+  assert.ok(pull.length>=40);
+  for(const trigger of pull){
+    const file=trigger.endsWith('/**')?trigger.slice(0,-3)+'/example.js':trigger;
+    assert.ok(isRealWriteQARelevant(file),file);
+    assert.ok(names([file]).includes('qa-real-write-certification-gate'),file);
+  }
+  assert.equal(isRealWriteQARelevant('docs/architecture/notes.md'),false);
+  assert.equal(isRealWriteQARelevant('supabase/functions/iberfit-admin-client-invite-v1-other/index.ts'),false);
+});
+
+test('real-write aggregate is mandatory and cannot be green on missing, skipped or failed evidence',()=>{
+  const required=names(['supabase/functions/iberfit-admin-client-invite-v1/index.ts']);
+  const gate='qa-real-write-certification-gate';
+  assert.ok(required.includes(gate));
+  const other=required.filter(n=>n!==gate).map((name,i)=>({id:i+1,name,status:'completed',conclusion:'success'}));
+  assert.equal(evaluateRequiredChecks(required,other).state,'pending');
+  for(const [conclusion,state] of [['skipped','pending'],['failure','failure'],['success','success']]){
+    assert.equal(evaluateRequiredChecks(required,[...other,{id:100,name:gate,status:'completed',conclusion}]).state,state);
+  }
+});
+
+test('real-write aggregate requires all five actual results or existing verified exact-head dedupe',()=>{
+  const workflow=fs.readFileSync('.github/workflows/qa-real-write-cert.yml','utf8');
+  const gate=workflow.slice(workflow.indexOf('\n  qa-real-write-certification-gate:'));
+  assert.match(workflow,/reused:.*steps\.verify\.outputs\.current == 'true'.*steps\.dedupe\.outputs\.run == 'false'/u);
+  for(const job of ['m42-avatar-private-real-qa','connected360-v45-synthetic-write','qa-real-write','m43-real-coach-client-qa','m43-real-client-browser']){
+    assert.ok(gate.includes('needs.'+job+'.result'),job);
+  }
+  assert.match(gate,/permissions: \{\}/u);
+  assert.match(gate,/\[\[ "\$HEAD_GATE" == success \]\] \|\| exit 41/u);
+  assert.match(gate,/for result in "\$\{results\[@\]\}"; do \[\[ "\$result" == success \]\] \|\| exit 42/u);
+  assert.match(gate,/for result in "\$\{results\[@\]\}"; do \[\[ "\$result" == skipped \]\] \|\| exit 43/u);
 });

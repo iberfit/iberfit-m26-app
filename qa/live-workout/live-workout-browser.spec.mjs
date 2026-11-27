@@ -96,7 +96,7 @@ test('SIGNATURE U21: Coach conserva controles rápidos operativos con teclado',a
   expect((await state(page)).errors).toEqual([]);
 });
 
-test('Coach recorre pausa, descanso, corrección, serie extra, omisión y cierre por el controller real',async({page})=>{
+test('Coach recorre pausa, descanso, corrección, serie extra, omisión y cierre por el controller real',async({page},testInfo)=>{
   await open(page,'coach');
   await page.locator('[data-session-action="start"]').click();
   await expect(page.locator('[data-session-live-state="active"]')).toBeVisible();
@@ -116,7 +116,14 @@ test('Coach recorre pausa, descanso, corrección, serie extra, omisión y cierre
   await page.locator('[data-session-action="rest-minus"]').click();
 
   const correction=page.locator('[data-session-rest-correction]');
-  await correction.locator('summary').click();
+  await expect(correction).toHaveCount(1);
+  const correctionSummary=correction.locator(':scope > summary');
+  await expect(correctionSummary).toHaveText('Corregir esta serie');
+  // Exercise native activation with the actual input modality, not a JS toggle.
+  if(testInfo.project.use?.hasTouch)await correctionSummary.tap();
+  else await correctionSummary.click();
+  await expect(correction).toHaveAttribute('open','');
+  await expect(correction.locator('[data-session-observed-context] > summary')).toHaveText('Contexto real del ejercicio (opcional)');
   await correction.locator('[data-set-field="reps"]').fill('9');
   await correction.locator('[data-session-action="correct-set"]').click();
   await expect.poll(async()=>Object.values((await state(page)).results)[0]?.reps).toBe(9);
@@ -162,7 +169,7 @@ test('Coach recorre pausa, descanso, corrección, serie extra, omisión y cierre
 });
 
 
-test('Coach keeps one explicit Next tap while a corrected set is still being persisted',async({page})=>{
+test('Coach keeps one explicit Next tap while a corrected set is still being persisted',async({page},testInfo)=>{
   await page.goto('/qa/live-workout/fixture.html?role=coach&scenario=strength&persistDelayMs=550',
     {waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_LIVE_WORKOUT_QA__?.mounted)).toBe(true);
@@ -174,7 +181,14 @@ test('Coach keeps one explicit Next tap while a corrected set is still being per
   await expect(page.locator('#qa-root')).not.toHaveAttribute('data-m26-session-action-pending','true');
 
   const correction=page.locator('[data-session-rest-correction]');
-  await correction.locator('summary').click();
+  await expect(correction).toHaveCount(1);
+  const correctionSummary=correction.locator(':scope > summary');
+  await expect(correctionSummary).toHaveText('Corregir esta serie');
+  // Exercise native activation with the actual input modality, not a JS toggle.
+  if(testInfo.project.use?.hasTouch)await correctionSummary.tap();
+  else await correctionSummary.click();
+  await expect(correction).toHaveAttribute('open','');
+  await expect(correction.locator('[data-session-observed-context] > summary')).toHaveText('Contexto real del ejercicio (opcional)');
   await correction.locator('[data-set-field="reps"]').fill('9');
   await correction.locator('[data-session-action="correct-set"]').click();
   await expect.poll(async()=>Object.values((await state(page)).results)[0]?.reps).toBe(9);

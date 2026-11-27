@@ -1,8 +1,11 @@
-import {parseDateValue} from '../domain/civil-date.js';
+import {parseDateValue,reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
+import {observedSet,observedLoadKg} from '../domain/evidence-signal.js';
 import {
   unconfirmedSessionExecutionIds as blockedCompletionIds,
   sessionExecutionIsConfirmed as executionConfirmed,
   sessionExecutionIsCompleted as executionCompleted,
+  sessionExecutionCompletionDate,
+  reconcileSessionExecutionsForClient,
 } from '../domain/session-execution-truth.js';
 
 const COMPLETE_STATUSES=new Set(['completed','completado','complete']);
@@ -38,19 +41,7 @@ function clientIdOf(record){
 }
 
 function executionDate(record){
-  return first(
-    record,
-    'completedAt',
-    'completed_at',
-    'endedAt',
-    'ended_at',
-    'recordedAt',
-    'recorded_at',
-    'savedAt',
-    'saved_at',
-    'createdAt',
-    'created_at',
-  );
+  return sessionExecutionCompletionDate(record);
 }
 
 function safeDate(value){
@@ -58,6 +49,7 @@ function safeDate(value){
 }
 
 function numeric(value){
+  if(typeof value!=='number'&&typeof value!=='string')return null;
   if(typeof value==='number'){
     return Number.isFinite(value)?value:null;
   }
@@ -129,24 +121,19 @@ function setRows(execution){
 }
 
 export function normalizeExerciseLoad(row={}){
-  const kg=numeric(
-    first(
-      row,
-      'loadKg',
-      'load_kg',
-      'weightKg',
-      'weight_kg',
-    ),
-  );
-
-  if(Number.isFinite(kg)){
+  const typedKg=first(row,'loadKg','load_kg','weightKg','weight_kg','kg');
+  const kgValue=observedLoadKg(row);
+  if(kgValue!==null){
     return Object.freeze({
-      raw:`${kg} kg`,
-      value:kg,
+      raw:`${kgValue} kg`,
+      value:kgValue,
       unit:'kg',
       comparableKey:'kg',
     });
   }
+  if(typedKg!==null)return Object.freeze({
+    raw:null,value:null,unit:null,comparableKey:null,
+  });
 
   const lb=numeric(
     first(
@@ -158,7 +145,7 @@ export function normalizeExerciseLoad(row={}){
     ),
   );
 
-  if(Number.isFinite(lb)){
+  if(Number.isFinite(lb)&&lb>=0){
     return Object.freeze({
       raw:`${lb} lb`,
       value:lb,
@@ -183,20 +170,16 @@ export function normalizeExerciseLoad(row={}){
     });
   }
 
+  if(typeof raw!=='number'&&typeof raw!=='string')return Object.freeze({raw:null,value:null,unit:null,comparableKey:null});
   const text=String(raw).trim();
 
   let match=text.match(
     /^([-+]?\d+(?:[.,]\d+)?)\s*(kg|kgs?|kilogramos?)$/iu,
   );
 
-  if(match){
-    return Object.freeze({
-      raw:text,
-      value:Number(match[1].replace(',','.')),
-      unit:'kg',
-      comparableKey:'kg',
-    });
-  }
+  if(match)return Object.freeze({
+    raw:text,value:null,unit:null,comparableKey:null,
+  });
 
   match=text.match(
     /^([-+]?\d+(?:[.,]\d+)?)\s*(lb|lbs?|libras?)$/iu,
@@ -205,15 +188,15 @@ export function normalizeExerciseLoad(row={}){
   if(match){
     return Object.freeze({
       raw:text,
-      value:Number(match[1].replace(',','.')),
+      value:Number(match[1].replace(',','.'))>=0?Number(match[1].replace(',','.')):null,
       unit:'lb',
-      comparableKey:'lb',
+      comparableKey:Number(match[1].replace(',','.'))>=0?'lb':null,
     });
   }
 
   const value=numeric(text);
 
-  if(Number.isFinite(value)){
+  if(Number.isFinite(value)&&value>=0){
     return Object.freeze({
       raw:text,
       value,
@@ -240,6 +223,7 @@ function observedPace(value){
   return /^\d{1,2}:[0-5]\d$/u.test(text)&&Number(text.split(':')[0])*60+Number(text.split(':')[1])>0?text:null;
 }
 function normalizeSet(row,index){
+  if(!observedSet(row))return null;
   const exerciseId=String(
     first(
       row,
@@ -306,15 +290,15 @@ function normalizeSet(row,index){
   return Object.freeze({
     exerciseId,
     setNumber,
-    reps:Number.isFinite(reps)?reps:null,
-    seconds:Number.isFinite(seconds)?seconds:null,
+    reps:Number.isSafeInteger(reps)&&reps>=0&&reps<=10000?reps:null,
+    seconds:Number.isFinite(seconds)&&seconds>=0?seconds:null,
     distanceKm:observedDistance(first(row,'distanceKm','distance_km'),1000),
     distanceM:observedDistance(first(row,'distanceM','distance_m'),100000),
     paceMinPerKm:observedPace(first(row,'paceMinPerKm','pace_min_per_km')),
     pacePer100M:observedPace(first(row,'pacePer100M','pace_per_100m')),
     load:normalizeExerciseLoad(row),
-    rpe:Number.isFinite(rpe)?rpe:null,
-    rir:Number.isFinite(rir)?rir:null,
+    rpe:Number.isFinite(rpe)&&rpe>=1&&rpe<=10?rpe:null,
+    rir:Number.isFinite(rir)&&rir>=0&&rir<=10?rir:null,
     notes:String(
       first(
         row,
@@ -363,14 +347,8 @@ function exposureFrom(execution,exerciseId){
 
   if(!sets.length)return null;
 
-  const dated=
-    executionDate(source)||
-    sets
-      .map((row)=>row.completedAt)
-      .filter(Boolean)
-      .sort()
-      .at(-1)||
-    null;
+  const dated=executionDate(source);
+  if(!safeDate(dated))return null;
 
   const reps=sets
     .map((row)=>row.reps)
@@ -791,8 +769,11 @@ function performanceMetricTrend(
     points.at(-1)||
     null;
 
+  const hasComparison=points.length>=2&&Boolean(safeDate(firstPoint?.completedAt))
+    &&Boolean(safeDate(latestPoint?.completedAt))
+    &&safeDate(firstPoint.completedAt).getTime()<safeDate(latestPoint.completedAt).getTime();
   const absoluteDelta=
-    firstPoint&&latestPoint
+    hasComparison
       ?delta(
           latestPoint.value,
           firstPoint.value,
@@ -800,7 +781,7 @@ function performanceMetricTrend(
       :null;
 
   const percentageDelta=
-    firstPoint&&latestPoint
+    hasComparison
       ?percentDelta(
           latestPoint.value,
           firstPoint.value,
@@ -827,8 +808,7 @@ function performanceMetricTrend(
     absoluteDelta,
     percentageDelta,
     direction,
-    comparable:
-      points.length>=2,
+    comparable:hasComparison,
   });
 }
 
@@ -1775,10 +1755,34 @@ export function projectExercisePerformanceForRole(
   });
 }
 
+// Reconcile once for the complete exercise list: the same revision cannot
+// manufacture additional exposures, and conflicting results stay excluded.
+function exerciseEvidenceScope(state,clientId,now,{from=null,civilPeriod=false}={}){
+  const end=safeDate(now),start=from===null?null:safeDate(from);
+  const startDay=from===null?'0001-01-01':reportCivilDate(from),endDay=reportCivilDate(now);
+  const blocked=blockedCompletionIds(state);
+  const reconciliation=reconcileSessionExecutionsForClient(state,clientId);
+  const eligible=record=>{
+    const value=executionDate(record),date=safeDate(value);
+    const inWindow=civilPeriod
+      ?Boolean(startDay&&endDay&&isWithinCivilPeriod(value,startDay,endDay,now))
+      :Boolean(end&&date&&date.getTime()<=end.getTime()&&
+        (from===null||(start&&date.getTime()>=start.getTime())));
+    return inWindow&&executionCompleted(record,{allowDatedFallback:false});
+  };
+  const confirmed=[],unconfirmed=[];
+  for(const record of reconciliation.records){
+    if(!eligible(record))continue;
+    (executionConfirmed(record,blocked)?confirmed:unconfirmed).push(unwrap(record));
+  }
+  confirmed.sort((a,b)=>safeDate(executionDate(b)).getTime()-safeDate(executionDate(a)).getTime());
+  return {confirmed,unconfirmed,conflicts:reconciliation.conflicts.filter(group=>group.some(eligible))};
+}
+
 export function listExercisePerformanceMemories(
   state,
   clientId,
-  {limit=6,historyLimit=20}={},
+  {limit=6,historyLimit=20,now=new Date(),from=null,civilPeriod=false}={},
 ){
   const safeClientId=String(
     clientId||'',
@@ -1796,24 +1800,8 @@ export function listExercisePerformanceMemories(
         )
       :6;
 
-  const blocked=
-    blockedCompletionIds(state);
-
-  const executions=arr(
-    state?.collections?.sessionExecutions,
-  )
-    .map(unwrap)
-    .filter(
-      (item)=>
-        clientIdOf(item)===safeClientId&&
-        executionCompleted(item)&&
-        executionConfirmed(item,blocked),
-    )
-    .sort(
-      (a,b)=>
-        (safeDate(executionDate(b))?.getTime()||0)-
-        (safeDate(executionDate(a))?.getTime()||0),
-    );
+  const scope=exerciseEvidenceScope(state,safeClientId,now,{from,civilPeriod});
+  const executions=scope.confirmed;
 
   const exerciseIds=[];
   const seen=new Set();
@@ -1847,11 +1835,11 @@ export function listExercisePerformanceMemories(
   const memories=exerciseIds
     .map(
       (exerciseId)=>
-        buildExercisePerformanceMemory(
-          state,
+        buildScopedExercisePerformanceMemory(
+          scope,
           safeClientId,
           exerciseId,
-          {limit:historyLimit},
+          historyLimit,
         ),
     )
     .filter(
@@ -1865,7 +1853,7 @@ export function buildExercisePerformanceMemory(
   state,
   clientId,
   exerciseId,
-  {limit=50}={},
+  {limit=50,now=new Date(),from=null,civilPeriod=false}={},
 ){
   const safeClientId=String(
     clientId||'',
@@ -1879,48 +1867,15 @@ export function buildExercisePerformanceMemory(
     return null;
   }
 
-  const blocked=
-    blockedCompletionIds(state);
+  return buildScopedExercisePerformanceMemory(
+    exerciseEvidenceScope(state,safeClientId,now,{from,civilPeriod}),safeClientId,safeExerciseId,limit);
+}
 
-  const executions=arr(
-    state?.collections?.sessionExecutions,
-  )
-    .map(unwrap)
-    .filter(
-      (item)=>
-        clientIdOf(item)===safeClientId&&
-        executionCompleted(item),
-    );
-
-  const confirmed=[];
-  let excludedUnconfirmedExposures=0;
-
-  for(const execution of executions){
-    const exposure=exposureFrom(
-      execution,
-      safeExerciseId,
-    );
-
-    if(!exposure)continue;
-
-    if(
-      !executionConfirmed(
-        execution,
-        blocked,
-      )
-    ){
-      excludedUnconfirmedExposures+=1;
-      continue;
-    }
-
-    confirmed.push(exposure);
-  }
-
-  confirmed.sort(
-    (a,b)=>
-      (safeDate(b.completedAt)?.getTime()||0)-
-      (safeDate(a.completedAt)?.getTime()||0),
-  );
+function buildScopedExercisePerformanceMemory(scope,safeClientId,safeExerciseId,limit){
+  const confirmed=scope.confirmed.map(execution=>exposureFrom(execution,safeExerciseId)).filter(Boolean);
+  const excludedUnconfirmedExposures=scope.unconfirmed.filter(execution=>exposureFrom(execution,safeExerciseId)).length;
+  const excludedConflictingExposures=scope.conflicts.filter(group=>group.some(execution=>
+    exposureFrom(execution,safeExerciseId))).length;
 
   const safeLimit=
     Number.isInteger(Number(limit))
@@ -1945,6 +1900,7 @@ export function buildExercisePerformanceMemory(
     source:'sessionExecutions.results',
     exposureCount:confirmed.length,
     excludedUnconfirmedExposures,
+    excludedConflictingExposures,
     latest,
     previous,
     history:Object.freeze(history),

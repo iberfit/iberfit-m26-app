@@ -223,6 +223,7 @@ export function interpretPhotogrammetryMeasurementsV2(measurements={}, {quality=
     medicalDiagnosis:null,
   });
 }
+/** @param {{captures?: any[],landmarks?: object,calibrationByView?: object,validated?: boolean}} [input] */
 export function photogrammetryDataQualityV2({captures=[],landmarks={},calibrationByView={},validated=false}={}){
   const base=photogrammetryDataQuality({captures,landmarks,validated});
   const calibration=normalizePhotoCalibrations(calibrationByView);

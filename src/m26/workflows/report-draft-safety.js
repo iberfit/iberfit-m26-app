@@ -1,5 +1,6 @@
 // M43: keep each Coach report draft isolated and reconcile remote revision before approval.
 // This policy never changes backend authorization or publishes a report to a client.
+import {evidenceNumber} from '../domain/evidence-signal.js';
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const FINAL_STATUSES=new Set(['aprobado','approved','publicado','published','archivado','archived']);
 const DRAFT_STATUSES=new Set(['borrador','draft']);
@@ -97,13 +98,26 @@ export function reportApprovalDecision(reports,clientId,draft){
   const id=String(draft?.id||'').trim(),owner=String(clientId||'').trim();
   if(!SAFE_ID.test(id)||!SAFE_ID.test(owner)||String(draft?.clientId||'')!==owner)
     throw new Error('M43_REPORT_APPROVAL_IDENTITY_INVALID');
-  const remote=(Array.isArray(reports)?reports:[]).find(r=>String(value(r,'id')||'')===id);
-  if(!remote)return Object.freeze({kind:'create',baseRevision:0});
-  if(String(value(remote,'clientId')??value(remote,'client_id')??'')!==owner)
-    throw new Error('M43_REPORT_REMOTE_CLIENT_CONFLICT');
-  const revision=Number(value(remote,'revision'));
-  if(!Number.isInteger(revision)||revision<1)throw new Error('M43_REPORT_REMOTE_REVISION_UNKNOWN');
-  const status=String(value(remote,'status')??value(remote,'estado')??'').trim().toLowerCase();
+  const candidates=(Array.isArray(reports)?reports:[]).filter(r=>String(value(r,'id')||'')===id);
+  if(!candidates.length)return Object.freeze({kind:'create',baseRevision:0});
+  // Reconcile before choosing an approval operation. A stale draft must
+  // never override a newer approved version, regardless of arrival order.
+  let remote=null,revision=0,signature=null,conflict=false;
+  const statusOf=row=>String(value(row,'status')??value(row,'estado')??'').trim().toLowerCase();
+  for(const row of candidates){
+    const outer=row?.clientId??row?.client_id;
+    const inner=row?.body?.clientId??row?.body?.client_id??row?.content?.clientId??row?.content?.client_id;
+    if(String(value(row,'clientId')??value(row,'client_id')??'')!==owner||
+      (outer!=null&&inner!=null&&String(outer)!==String(inner)))throw new Error('M43_REPORT_REMOTE_CLIENT_CONFLICT');
+    const next=evidenceNumber(value(row,'revision'),{min:1,integer:true});
+    if(next===null)throw new Error('M43_REPORT_REMOTE_REVISION_UNKNOWN');
+    if(next<revision)continue;
+    const material=canonical([statusOf(row),...FIELDS.map(key=>canonical(value(row,key))),canonical(value(row,'evidence')??[])]);
+    if(next>revision){remote=row;revision=next;signature=material;conflict=false;}
+    else if(material!==signature)conflict=true;
+  }
+  if(conflict)throw new Error('M43_REPORT_REMOTE_REVISION_CONFLICT');
+  const status=statusOf(remote);
   if(FINAL_STATUSES.has(status)){
     // Authoritative replay must match all authored report material, not just prose.
     // A changed coach annotation or evidence payload is a new version, never an ACK replay.

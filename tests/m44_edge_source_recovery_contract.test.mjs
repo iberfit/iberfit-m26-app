@@ -55,8 +55,8 @@ test('Tampering of an archived deployed source fails closed before release',()=>
    const extra=[
     'supabase/functions/iberfit-ai/deno.json',
     'supabase/functions/iberfit-client-onboarding-v1/index.ts',
-    'supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js',
-    'supabase/functions/iberfit-evolution-report-emission-v1/storage-recovery.js',
+    'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/pdf-renderer.js',
+    'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/storage-recovery.js',
    ];
    for(const s of extra){
      const dst=path.join(dir,s);fs.mkdirSync(path.dirname(dst),{recursive:true});
@@ -67,7 +67,7 @@ test('Tampering of an archived deployed source fails closed before release',()=>
    fs.appendFileSync(ai,'\n// unexpected unauthorized drift\n');
    assert.throws(()=>validateLocalSources(inventory,dir),/SOURCE_CONTENT_DRIFT:iberfit-ai/);
    fs.copyFileSync(path.join(repo,'supabase/functions/iberfit-ai/index.ts'),ai);
-   const aux=path.join(dir,'supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js');
+   const aux=path.join(dir,'scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/pdf-renderer.js');
    fs.appendFileSync(aux,'\n// unexpected dependency drift\n');
    assert.throws(()=>validateLocalSources(inventory,dir),/AUXILIARY_SOURCE_DRIFT:iberfit-evolution-report-emission-v1/);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
@@ -80,10 +80,10 @@ test('Manifest rejects traversal, incorrect provenance and accidental restoratio
  assert.throws(()=>loadInventory(path.join(repo,'package.json')),/MANIFEST_INVALID/);
 });
 
-test('Invitation Edge v10 is current canonical, with prior PROD v9 retained for rollback',()=>{
+test('Invitation LIVE v26.6 is separately archived; older v26.5 remains available for rollback',()=>{
  const deployed=inventory.sources.find(s=>s.slug==='iberfit-admin-client-invite-v1');
- assert.equal(deployed.source_state,'canonical');
- assert.equal(deployed.source_path,'supabase/functions/iberfit-admin-client-invite-v1/index.ts');
+ assert.equal(deployed.source_state,'canonical_live_snapshot_pending_release');
+ assert.equal(deployed.source_path,'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261119/index.ts');
  assert.equal(deployed.source_git_blob_sha1,'9124e4e5c46419f4cc339fed05f6be34ac67524b');
  assert.equal(deployed.live_bundle_sha256,'c847ac0732966de086e82a4b4a5570719a18a9159b75a141305b3e136efc0e5d');
  const archived=fs.readFileSync(path.join(repo,'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts'),'utf8');
@@ -102,15 +102,15 @@ test('M44 active LIVE invitation retains immutable recoverable bytes; candidate 
  assert.equal(manifest.schema,'iberfit.m44.edge-release-candidate.v1');
  assert.equal(manifest.project_ref,'pjhmrhejsoofmouedavw');
  assert.equal(manifest.slug,'iberfit-admin-client-invite-v1');
- assert.equal(manifest.parent_canary_sha,'6b6033e395c900c42f7a0ac6209838e895df4c83');
+ assert.equal(manifest.parent_canary_sha,'50ba022115091478a86900be6f0b0e4c816044ef');
  assert.equal(manifest.external_live_attestation,false);
  assert.equal(manifest.production_release_approved,false);
  const historical=inventory.sources.find(s=>s.slug===manifest.slug);
- assert.equal(historical.source_state,'canonical');
- assert.equal(historical.source_path,manifest.candidate_source_path);
- assert.equal(historical.source_git_blob_sha1,manifest.candidate_git_blob_sha1);
+ assert.equal(historical.source_state,'canonical_live_snapshot_pending_release');
+ assert.equal(historical.source_path,manifest.live_archive_path);
+ assert.equal(historical.source_git_blob_sha1,manifest.live_archive_git_blob_sha1);
  assert.equal(manifest.live_archive_path,
-  'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261117.ts');
+  'scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261119/index.ts');
  assert.equal(manifest.candidate_source_path,
   'supabase/functions/iberfit-admin-client-invite-v1/index.ts');
  const hash=(b)=>createHash('sha1').update(Buffer.from('blob '+b.length+'\0'))
@@ -118,10 +118,19 @@ test('M44 active LIVE invitation retains immutable recoverable bytes; candidate 
  const live=fs.readFileSync(manifest.live_archive_path),candidate=fs.readFileSync(manifest.candidate_source_path);
  assert.equal(hash(live),manifest.live_archive_git_blob_sha1);
  assert.equal(hash(candidate),manifest.candidate_git_blob_sha1);
- assert.equal(hash(live),'a6ee9759dbc99267fff6cbc256d6dd906109fdea');
- assert.equal(hash(candidate),'9124e4e5c46419f4cc339fed05f6be34ac67524b');
+ assert.equal(hash(live),'9124e4e5c46419f4cc339fed05f6be34ac67524b');
+ assert.equal(hash(candidate),'dbc7c321e86cfda994e6e485721e9e209455d371');
+ assert.match(candidate.toString('utf8'),/admin-client-invite-v26\.8/u);
  assert.notEqual(hash(live),hash(candidate),'HISTORICAL_ROLLBACK_MUST_NOT_IMPERSONATE_CURRENT_LIVE');
  assert.deepEqual(extractReferencedNames(candidate.toString('utf8')),
   extractReferencedNames(live.toString('utf8')),
   'CANDIDATE_SECRET_ENV_REFERENCE_EXPANSION');
+});
+
+test('M44 reporting candidates retain separately archived exact live source bytes',()=>{
+ for(const slug of ['iberfit-evolution-report-emission-v1','iberfit-iri-report-emission-v1']){
+  const s=inventory.sources.find(x=>x.slug===slug);assert.equal(s.source_state,'canonical_live_snapshot_pending_release');
+  assert.notEqual(s.source_path,`supabase/functions/${slug}/index.ts`);
+  const bytes=fs.readFileSync(s.source_path);assert.equal(createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`)).update(bytes).digest('hex'),s.source_git_blob_sha1);
+ }
 });

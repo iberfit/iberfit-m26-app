@@ -2,7 +2,7 @@ import { computeProgressSummary, progressWindow } from './progress-engine.js';
 import {reusableConfirmedSummary,confirmedScheduledCompletion} from './progress-continuity.js';
 import {
   confirmedSessionExecutionsForClient,
-  sessionExecutionDate,
+  sessionExecutionCompletionDate,
   sessionExecutionIsCompleted,
 } from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
@@ -15,23 +15,22 @@ function statusOf(record){return String(first(record,'status','estado')||'').toL
 function daysBetween(a,b){return Math.ceil((b.getTime()-a.getTime())/86400000);}
 function makeSignal(id,severity,title,detail,action,source){return Object.freeze({id,severity,title,detail,action,source});}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record;}
-function executionDate(record){return first(record,'completedAt','completed_at','endedAt','ended_at','recordedAt','recorded_at','createdAt','created_at','date','fecha');}
 function latestConfirmedExecution(state,clientId,{now=new Date()}={}){
   const {start,end}=progressWindow({now,days:28});
   return confirmedSessionExecutionsForClient(state,clientId,{
-    requireCompleted:true,requireDate:true,
+    requireCompleted:true,requireDate:false,
   })
     .map(unwrap)
     // Historical rows lacking a status never become a post-session pain alert
     // merely because they have a creation timestamp.
     .filter(item=>sessionExecutionIsCompleted(item,{allowDatedFallback:false}))
     .filter(item=>{
-      const date=safeDate(sessionExecutionDate(item));
+      const date=safeDate(sessionExecutionCompletionDate(item));
       return Boolean(date&&date.getTime()>=start.getTime()
         &&date.getTime()<=end.getTime());
     })
-    .sort((a,b)=>(safeDate(sessionExecutionDate(b))?.getTime()||0)
-      -(safeDate(sessionExecutionDate(a))?.getTime()||0))[0]||null;
+    .sort((a,b)=>(safeDate(sessionExecutionCompletionDate(b))?.getTime()||0)
+      -(safeDate(sessionExecutionCompletionDate(a))?.getTime()||0))[0]||null;
 }
 function postSessionFeedbackSignal(state,clientId,{now=new Date()}={}){
   const execution=latestConfirmedExecution(state,clientId,{now});
@@ -161,21 +160,21 @@ export function deriveAdherenceTrajectoryFromSummaries({d7=null,d28=null,d90=nul
 export function deriveAdherenceTrajectory(state,clientId,{now=new Date(),summaries=null,summary:providedSummary=null}={}){
   if(!clientId)return deriveAdherenceTrajectoryFromSummaries();
   const d28=
-    reusableConfirmedSummary(summaries?.d28,clientId,28)
-    ??reusableConfirmedSummary(providedSummary,clientId,28)
+    reusableConfirmedSummary(summaries?.d28,clientId,28,{now})
+    ??reusableConfirmedSummary(providedSummary,clientId,28,{now})
     ??computeProgressSummary(state,clientId,{now,days:28});
   const d7=
-    reusableConfirmedSummary(summaries?.d7,clientId,7)
+    reusableConfirmedSummary(summaries?.d7,clientId,7,{now})
     ??computeProgressSummary(state,clientId,{now,days:7});
   const d90=
-    reusableConfirmedSummary(summaries?.d90,clientId,90)
+    reusableConfirmedSummary(summaries?.d90,clientId,90,{now})
     ??computeProgressSummary(state,clientId,{now,days:90});
   return deriveAdherenceTrajectoryFromSummaries({d7,d28,d90});
 }
 
 export function deriveAdherenceAlerts(state,clientId,{now=new Date(),summary:providedSummary=null,trajectory:providedTrajectory=null,summaries=null}={}){
   const summary=
-    reusableConfirmedSummary(providedSummary,clientId,28)
+    reusableConfirmedSummary(providedSummary,clientId,28,{now})
     ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary)return [];
   const trajectory=providedTrajectory||deriveAdherenceTrajectory(state,clientId,{now,summaries,summary});

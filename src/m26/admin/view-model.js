@@ -6,6 +6,7 @@ import {hasTrainingService,trainingServiceActive,trainingServiceStatusFrom} from
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {deriveAdaptiveExperience} from '../experience/adaptive-experience.js';
 import {coachCapacityEvidence,deriveAdminCommandCenter} from './command-center.js';
+import {buildBusinessReport} from './business-report.js';
 import {deriveAdminOperationsTriage} from './operation-triage.js';
 import {deriveAdminAuditTimeline} from './audit-experience.js';
 import {readIberfitExperiencePreferences} from '../ui/preferences.js';
@@ -342,7 +343,7 @@ export function createAdminRouteViewModel(base,shellVm,state){const role=String(
       tasks:Object.freeze(operations.open.slice(0,12).map((item)=>item.task)),
       operationTriage:operations,
       audit:Object.freeze(clone(adminCollection(state,'auditEvents').slice(0,12))),
-      commandCenter:deriveAdminCommandCenter({clients,coaches,tasks})});
+      commandCenter:deriveAdminCommandCenter({clients,coaches,tasks,operationTriage:operations})});
   }
   if(area==='admin-usuarios'){
     const users=Object.freeze(clone(adminCollection(state,'organizationUsers')));
@@ -404,7 +405,7 @@ export function createAdminRouteViewModel(base,shellVm,state){const role=String(
   }
   if(area==='admin-comunicacion')return Object.freeze({...common,kind:'admin-comunicacion',templates:Object.freeze(clone(adminCollection(state,'notificationTemplates'))),deliveries:Object.freeze(clone(adminCollection(state,'notificationDeliveries'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.MESSAGE_MANAGE_TEMPLATES)});
   if(area==='admin-automatizaciones')return Object.freeze({...common,kind:'admin-automatizaciones',rules:Object.freeze(clone(adminCollection(state,'automationRules'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.AUTOMATION_MANAGE)});
-  if(area==='admin-analitica')return Object.freeze({...common,kind:'admin-analitica',clients:clientRows(state),appointments:Object.freeze(clone(state.collections?.appointments||[]))});
+  if(area==='admin-analitica'){const clients=clientRows(state);return Object.freeze({...common,kind:'admin-analitica',clients,appointments:Object.freeze(clone(state.collections?.appointments||[])),businessReport:buildBusinessReport(state,clients)});}
   if(area==='admin-auditoria'){
     const events=Object.freeze(clone(adminCollection(state,'auditEvents')));
     const auditTimeline=deriveAdminAuditTimeline({

@@ -1,5 +1,6 @@
+import {recoveryObservations,measuredNumber} from './iri-report-measurements.js';
 function esc(value){return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
-function finite(value){return (typeof value==='number'||(typeof value==='string'&&value.trim()!==''))&&Number.isFinite(Number(value));}
+function finite(value){return measuredNumber(value)!==null;}
 function clamp(value,min=0,max=100){if(!finite(value))return null;const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):null;}
 function fmt(value,digits=0){return finite(value)?Number(value).toLocaleString('es-ES',{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';}
 
@@ -64,16 +65,15 @@ export function renderStrengthPatterns(strength={}){
   return `<section class="iri-strength-patterns" aria-label="Resultados de fuerza por patrones">${strengthItem(1,strength?.lowerBody?.skipped?'Tren inferior · no realizado':lowerLabel,lower,' rep',strength?.lowerBody?.skipped?strength?.lowerBody?.skipReason:'Capacidad de trabajo del tren inferior')}${strengthItem(2,push?.skipped?'Empuje · no realizado':'Empuje',push?.skipped?null:push.repetitions,' rep',push?.skipped?push.skipReason:strengthVariantLabel(push.variant))}${strengthItem(3,trx?.skipped?'Tracción · TRX · no realizada':'Tracción · TRX',trx?.skipped?null:trx.repetitions,' rep',trx?.skipped?trx.skipReason:(finite(trx.handleHeightCm)?'Asas a '+fmt(trx.handleHeightCm)+' cm del suelo':''))}${strengthItem(4,core?.skipped?'Estabilidad de tronco · no realizada':'Estabilidad de tronco',core?.skipped?null:core.frontPlankSeconds,' s',core?.skipped?core.skipReason:strengthQualityLabel(core.quality))}</section>`;
 }
 export function renderEffortCurve(cardio={}){
-  const series=[['Reposo',cardio.restingHr],['Final',cardio.finalHr],['1 min',cardio.oneMinuteHr],['2 min',cardio.twoMinuteHr]].filter(([,value])=>finite(value));
-  if(series.length<2)return '<div class="iri-effort-empty">Datos insuficientes para representar la recuperación.</div>';
-  const values=series.map(([,value])=>Number(value));
-  const min=Math.max(30,Math.floor(Math.min(...values)/10)*10-10),max=Math.min(240,Math.ceil(Math.max(...values)/10)*10+10);
-  const pts=series.map(([,value],index)=>({x:40+index*(340/Math.max(1,series.length-1)),y:24+(max-Number(value))*(126/Math.max(1,max-min)),value:Number(value)}));
-  let path=`M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-  for(let i=1;i<pts.length;i+=1){const prev=pts[i-1],cur=pts[i],mx=(prev.x+cur.x)/2;path+=` C ${mx.toFixed(1)} ${prev.y.toFixed(1)}, ${mx.toFixed(1)} ${cur.y.toFixed(1)}, ${cur.x.toFixed(1)} ${cur.y.toFixed(1)}`;}
-  return `<figure class="iri-effort-curve"><svg viewBox="0 0 420 190" role="img" aria-label="Curva de frecuencia cardiaca y recuperación"><line x1="40" y1="150" x2="380" y2="150" class="iri-effort-axis"/><path d="${path}" class="iri-effort-path"/>${pts.map((point,index)=>`<g><circle cx="${point.x}" cy="${point.y}" r="4.5"/><text x="${point.x}" y="${point.y-12}" text-anchor="middle" class="iri-effort-value">${point.value}</text><text x="${point.x}" y="173" text-anchor="middle" class="iri-effort-label">${esc(series[index][0])}</text></g>`).join('')}</svg></figure>`;
+ const g=recoveryObservations(cardio);
+ if(!g.points.length)return '<div class="iri-effort-empty">Datos insuficientes para representar la recuperación.</div>';
+ const x=i=>48+i*108,y=v=>24+(g.max-v)*112/Math.max(1,g.max-g.min);
+ const lines=[g.min,g.max].map(v=>'<line x1="48" y1="'+y(v)+'" x2="372" y2="'+y(v)+'" class="iri-effort-axis"/><text x="36" y="'+(y(v)+3)+'" text-anchor="end" class="iri-effort-label">'+v+'</text>').join('');
+ const segments=g.segments.map(([a,b])=>'<path d="M '+x(a.index)+' '+y(a.value)+' L '+x(b.index)+' '+y(b.value)+'" class="iri-effort-path"/>').join('');
+ const points=g.points.map(p=>'<g><circle cx="'+x(p.index)+'" cy="'+y(p.value)+'" r="4.5"/><text x="'+x(p.index)+'" y="'+(y(p.value)-10)+'" text-anchor="middle" class="iri-effort-value">'+p.value+'</text></g>').join('');
+ const labels=['Reposo','Final','1 min','2 min'].map((label,i)=>'<text x="'+x(i)+'" y="156" text-anchor="middle" class="iri-effort-label">'+label+'</text>').join('');
+ return '<figure class="iri-effort-curve"><svg viewBox="0 0 420 174" role="img" aria-label="'+esc('Frecuencia cardiaca en lpm: '+g.points.map(p=>p.label+' '+p.value).join('; '))+'">'+lines+segments+points+labels+'</svg><p class="iri-recovery-note">Frecuencia cardiaca (lpm). Se muestran únicamente mediciones registradas; reposo y esfuerzo son fases distintas.</p></figure>';
 }
-
 
 const PHOTO_VIEW_LABELS=Object.freeze({front:'Frontal',back:'Posterior',left:'Lateral izquierda',right:'Lateral derecha'});
 

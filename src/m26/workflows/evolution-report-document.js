@@ -1,18 +1,19 @@
 /* M44 private print preview. PDF bytes are produced by the browser's print-to-PDF flow,
  * never represented as a server-issued or published report by this module. */
+import {readDatedTrends,trendGeometry,readTrainingCalendar,calendarDescription,WELLBEING_BUNDLE_LABEL,wellbeingBundleDescription} from './report-trend-contract.js';
 const TYPES=Object.freeze({
   'post-session':'Informe post-sesión',
   weekly:'Resumen semanal',
   monthly:'Informe mensual',
   quarterly:'Informe trimestral',
-  'year-in-iberfit':'Balance anual',
+  'year-in-iberfit':'Tu año en IBERFIT',
 });
 const EDITORIAL=Object.freeze({
   'post-session':['Tu sesión en perspectiva','Resultados registrados y contexto para preparar el siguiente entrenamiento.'],
   weekly:['Tu semana de entrenamiento','La actividad confirmada, lo que conviene revisar y cómo dar continuidad al proceso.'],
   monthly:['Un mes de seguimiento','Los registros del periodo, sus comparaciones y las decisiones que merecen una revisión profesional.'],
   quarterly:['El ciclo en perspectiva','Continuidad, evidencia comparable y prioridades para la siguiente etapa.'],
-  'year-in-iberfit':['Un año de recorrido','El historial confirmado y los aprendizajes que orientan el próximo ciclo.'],
+  'year-in-iberfit':['Tu recorrido, tus resultados','El entrenamiento realizado, los cambios observados y las prioridades de la siguiente etapa.'],
 });
 const TRUSTED_SOURCES=Object.freeze({
   sessionExecutions:'Sesiones IBERFIT confirmadas',
@@ -21,6 +22,7 @@ const TRUSTED_SOURCES=Object.freeze({
   appointments:'Citas verificadas',
   'appointments+sessionExecutions':'Citas verificadas y sesiones IBERFIT confirmadas',
   checkins:'Registros de bienestar',
+  trainingCycles:'Planificación publicada IBERFIT',
   'canonical-store':'Historial canónico IBERFIT',
   wearableDailySummaries:'Datos de dispositivo, solo contexto',
 });
@@ -98,13 +100,97 @@ function evidenceList(rows,offset=0){
       (item.quality?' · Calidad declarada: '+esc(clean(item.quality,60)):'')+'</small></div></li>';
   }).join('');
 }
+function eliteTrendGraphic(series){
+  const g=trendGeometry(series,{width:570,height:106}),x=48,y=16;
+  const fmt=n=>new Intl.NumberFormat('es-CL',{maximumFractionDigits:2}).format(n);
+  const grid=[0,.5,1].map(r=>'<line x1="'+x+'" y1="'+(y+106*r)+'" x2="'+(x+570)+'" y2="'+(y+106*r)+'" stroke="#d0d6ca"/><text x="42" y="'+(y+106*r+3)+'" text-anchor="end">'+esc(fmt(g.max*(1-r)))+'</text>').join('');
+  const paths=g.segments.map(([a,b])=>'<line x1="'+(x+a.x)+'" y1="'+(y+a.y)+'" x2="'+(x+b.x)+'" y2="'+(y+b.y)+'" stroke="#234638" stroke-width="2.5" stroke-dasharray="4 2"/>').join('');
+  const points=g.coords.map((p,i)=>'<circle cx="'+(x+p.x)+'" cy="'+(y+p.y)+'" r="3.3" fill="'+(i===g.coords.length-1?'#ad813c':'#234638')+'"><title>'+esc(p.date+': '+fmt(p.value)+' '+series.unit)+'</title></circle>').join('');
+  const a=series.points[0],b=series.points.at(-1);
+  return '<figure class="m44-elite-trend"><figcaption>'+esc(series.label)+' <small>'+esc(series.unit)+'</small></figcaption><div class="m44-elite-endpoints"><b>'+esc(fmt(a.value))+'</b><span>Primera medición · '+esc(a.date)+'</span><b>'+esc(fmt(b.value))+'</b><span>Última medición · '+esc(b.date)+'</span></div><svg viewBox="0 0 640 146" role="img" aria-label="'+esc(series.label+': '+series.points.map(p=>p.date+' '+p.value).join('; '))+'">'+grid+paths+points+'<text x="48" y="140">'+esc(new Date(series.from).toISOString().slice(0,10))+'</text><text x="618" y="140" text-anchor="end">'+esc(new Date(series.to).toISOString().slice(0,10))+'</text></svg><p>'+series.points.length+' de '+series.total+' días registrados · medias diarias. Las líneas discontinuas orientan la lectura; no representan mediciones entre puntos. Huecos superiores a '+g.gapDays+' días no se unen.</p></figure>';
+}
+function calendarGraphic(c){
+ const step=11.1,x=28,y=22;
+ const cells=c.cells.map(p=>'<rect x="'+(x+p.week*step).toFixed(1)+'" y="'+(y+p.weekday*step).toFixed(1)+'" width="9.1" height="9.1" rx="1.1" fill="'+(p.active?'#234638':'#e1e6da')+'"><title>'+esc(p.date)+(p.active?' · entrenamiento confirmado':' · sin sesión confirmada')+'</title></rect>').join('');
+ const monthLabels=c.months.map(m=>'<text x="'+(x+m.week*step).toFixed(1)+'" y="13">'+esc(m.month.slice(5))+'</text>').join('');
+ const labels=['L','M','X','J','V','S','D'].map((v,i)=>'<text x="15" y="'+(y+i*step+7).toFixed(1)+'" text-anchor="end">'+v+'</text>').join('');
+ return '<figure class="m44-training-calendar"><figcaption>Tu calendario de entrenamiento</figcaption><div class="m44-calendar-totals"><strong>'+c.count+' días</strong><span>'+c.weeks+' semanas con registros · '+c.longest+' consecutivas</span></div><svg viewBox="0 0 640 107" role="img" aria-label="'+esc(calendarDescription(c))+'">'+monthLabels+labels+cells+'</svg><p>Verde: día con al menos una sesión confirmada. Claro: sin sesión confirmada; no demuestra inactividad.</p><table class="m44-calendar-months"><caption>Días confirmados por mes (meses parciales incluidos)</caption><tbody>'+Array.from({length:Math.ceil(c.months.length/4)},(_,i)=>'<tr>'+c.months.slice(i*4,i*4+4).map(m=>'<td><small>'+esc(m.month)+'</small><b>'+m.active+' / '+m.days+'</b></td>').join('')+'</tr>').join('')+'</tbody></table></figure>';
+}
+function privateTechnicalPages(detail){
+  if(!detail)return [];
+  const fmt=v=>v==null?'—':esc(typeof v==='number'?v.toLocaleString('es-CL',{maximumFractionDigits:2}):v);
+  const counts=[['Sesiones confirmadas',detail.sessions],['Ejercicios identificados',detail.exercises],['Series con alguna medición',detail.observedRows],['Sesiones sin series medibles',detail.emptySessions],['Filas explícitamente excluidas',detail.omittedRows]];
+  const names={load:'Carga con unidad',reps:'Repeticiones',seconds:'Duración',distance:'Distancia',rpe:'RPE',rir:'RIR'};
+  const metrics=counts.map(([k,v])=>'<tr><th scope="row">'+esc(k)+'</th><td>'+fmt(v)+'</td></tr>').join('');
+  const coverage=Object.entries(names).map(([key,label])=>'<tr><th scope="row">'+esc(label)+'</th><td>'+fmt(detail.coverage[key])+'</td><td>'+fmt(detail.observedRows)+'</td></tr>').join('');
+  const result=[{title:detail.role==='admin'?'Control interno del expediente':'Cobertura técnica del entrenamiento',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">Consulta de registros disponibles en este expediente y ventana. No es una certificación de integridad del historial remoto ni una nueva publicación.</p><table class="m44-tech-table"><caption>Inventario de evidencia</caption><tbody>'+metrics+'</tbody></table><table class="m44-tech-table"><caption>Cobertura de mediciones por serie</caption><thead><tr><th>Variable</th><th>Registradas</th><th>Series medibles</th></tr></thead><tbody>'+coverage+'</tbody></table><p class="m44-subtle-note">Se muestran '+fmt(detail.details.length)+' de '+fmt(detail.observedRows)+' series medibles. '+(detail.limited?'Detalle limitado a las 360 series más recientes; el recuento cubre todas las series disponibles de la ventana. Consulta el historial para el resto.':'Detalle completo de las series medibles disponibles en esta consulta.')+' Ausente no equivale a cero.</p>'}];
+  const lineage=detail.lineage?.coverage;
+  if(lineage){const rows=[['Ejecuciones confirmadas',lineage.executions],['Con prescripción original vinculada',lineage.originalPrescriptions],['Con vínculo explícito al ciclo vigente',lineage.cycleLinks],['Con referencia a cita',lineage.appointmentReferences],['Con referencia a ocurrencia',lineage.occurrenceReferences],['Ejecuciones contradictorias excluidas',lineage.conflictingExecutions??0],['Diagnóstico inicial disponible',lineage.baselineAvailable?'Sí':'No acreditado'],['Vínculo explícito diagnóstico–ciclo',lineage.baselineCycleLinked?'Sí':'No acreditado']].map(([k,v])=>'<tr><th scope="row">'+fmt(k)+'</th><td>'+fmt(v)+'</td></tr>').join('');result.push({title:'Trazabilidad del proceso de entrenamiento',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table"><caption>Relaciones documentadas en la ventana</caption><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">'+fmt(detail.lineage.limitations)+'</p>'});}
+  const goal=detail.objective;
+  if(goal)result.push({title:'Objetivo vigente y contexto de planificación',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><div class="m44-cycle-objective"><span>OBJETIVO PUBLICADO</span><h3>'+fmt(goal.goal)+'</h3><p>'+fmt(goal.cycleName)+' · '+fmt(goal.start)+' — '+fmt(goal.end)+(goal.weeklyFrequency!==null?' · '+fmt(goal.weeklyFrequency)+' sesiones por semana acordadas':'')+'</p></div><p class="m44-evidence-context">Los registros de ejecución del informe se deben contrastar con el objetivo y su criterio de evaluación. No se deduce cumplimiento de la intención por el transcurso del tiempo, frecuencia o carga.</p>'});
+  const frequency=goal?.frequencyReview;
+  if(frequency){for(let i=0;i<frequency.weeks.length;i+=12){const rows=frequency.weeks.slice(i,i+12).map(w=>'<tr><td>'+fmt(w.start)+' — '+fmt(w.end)+'</td><td>'+fmt(w.target)+'</td><td>'+fmt(w.count)+'</td><td>'+fmt(w.linkedCount??0)+'</td><td>'+fmt(w.linkedCriterionConfirmed?'Frecuencia del ciclo acreditada':'No acreditada')+'</td></tr>').join('');result.push({title:'Revisión de la frecuencia acordada',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table"><caption>'+fmt(frequency.linkedMet??0)+' de '+fmt(frequency.total)+' semanas completas con frecuencia del ciclo acreditada</caption><thead><tr><th>Semana</th><th>Meta vigente</th><th>Sesiones disponibles</th><th>Vinculadas al ciclo</th><th>Revisión del ciclo</th></tr></thead><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">Solo se atribuyen al ciclo las ejecuciones confirmadas con prescripción original y vínculo explícito. La comparación utiliza la frecuencia vigente; no reconstruye metas históricas. Falta de evidencia no equivale a incumplimiento ni acredita el logro deportivo.</p>'});}}
+  const sports=detail.sportSummary??[];
+  if(sports.length){const rows=sports.map(s=>{const aquatic=s.sport==='swimming',unit=aquatic?' m':' km',dist=m=>fmt(aquatic?m:m/1000)+unit;const names={running:'Carrera',swimming:'Natación',cycling:'Ciclismo',walking:'Caminata',rowing:'Remo',ski:'Ergómetro de esquí',elliptical:'Elíptica'};return '<tr><th scope="row">'+fmt(names[s.sport]??'Disciplina registrada')+'</th><td>'+fmt(s.sessions)+'</td><td>'+dist(s.metres)+'</td><td>'+fmt(s.pairedRows)+' / '+fmt(s.rows)+'</td><td>'+dist(s.pairedMetres)+'</td><td>'+fmt(s.pairedSeconds)+' s</td></tr>';}).join('');result.push({title:'Resistencia · carga externa registrada',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table"><caption>Distancia por disciplina y cobertura del tiempo</caption><thead><tr><th>Disciplina</th><th>Sesiones</th><th>Distancia</th><th>Con tiempo</th><th>Distancia pareada</th><th>Tiempo pareado</th></tr></thead><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">Tiempo y distancia pareados proceden de los mismos registros. No se suman resúmenes de sesión con sus series ni se equiparan intervalos, terrenos, estilos o protocolos.</p>'});}
+  const sportMeasurements=detail.sportMeasurements??[];
+  if(sportMeasurements.length){const names={running:'Carrera',swimming:'Natación',cycling:'Ciclismo',walking:'Caminata',rowing:'Remo',ski:'Ergómetro de esquí',elliptical:'Elíptica'};for(let i=0;i<sportMeasurements.length;i+=12){const rows=sportMeasurements.slice(i,i+12).map(m=>'<tr><td>'+fmt(names[m.sport]??'Disciplina registrada')+'</td><td>'+fmt(m.label)+'</td><td>'+fmt(m.min)+(m.min!==m.max?'–'+fmt(m.max):'')+' '+fmt(m.unit)+'</td><td>'+fmt(m.count)+'</td></tr>').join('');result.push({title:'Mediciones de resistencia registradas',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table"><thead><tr><th>Disciplina</th><th>Variable</th><th>Rango registrado</th><th>Registros</th></tr></thead><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">Mediciones disponibles, no metas prescritas. Los rangos no prueban cambios fisiológicos ni se promedian entre disciplinas.</p>'});}}
+  const endurance=detail.sportComparisons??[];
+  for(let i=0;i<endurance.length;i+=2){
+    const charts=endurance.slice(i,i+2).map(c=>{
+      const distance=c.sport==='swimming'?fmt(c.metres)+' m':fmt(c.metres/1000)+' km';
+      const duration=s=>Math.floor(Math.round(s)/60)+':'+String(Math.round(s)%60).padStart(2,'0');
+      const points=c.points.map(p=>({date:p.date,time:Date.parse(p.date+'T00:00:00Z'),value:p.seconds}));
+      const series={label:c.exercise+' · '+distance+' · tiempo registrado',unit:'s',points,total:c.days,from:Date.parse(detail.periodStart+'T00:00:00Z'),to:Date.parse(detail.periodEnd+'T00:00:00Z')};
+      const context=(c.kind==='intervals'?'Intervalos completados: '+fmt(c.intervals):'Trabajo continuo prescrito')+(c.pool?' · Piscina prescrita: '+fmt(c.pool)+' m':'')+' · Serie '+fmt(c.setNumber)+' de '+fmt(c.sets)+' · descanso prescrito '+fmt(c.rest)+' s';
+      return eliteTrendGraphic(series)+'<p class="m44-subtle-note">'+fmt(duration(c.first.seconds))+' → '+fmt(duration(c.last.seconds))+' (min:s), '+fmt(c.observations)+' registros en '+fmt(c.days)+' días. '+context+'.</p>';
+    }).join('');
+    result.push({title:'Resistencia · distancia y prescripción comparables',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">'+fmt(endurance.length)+' de '+fmt(detail.sportComparisonTotal)+' grupos elegibles. Medias diarias de tiempo registrado; no certifica terreno, pausas, estilo ni rendimiento fisiológico equivalente.</p>'+charts});
+  }
+  const prescribed=detail.prescribedStrengthComparisons??[],records=detail.historicalStrengthRecords??[];
+  for(let i=0;i<prescribed.length;i+=10){const rows=prescribed.slice(i,i+10).map(c=>'<tr><td>'+fmt(c.exercise)+'<small>Serie '+fmt(c.setNumber)+' · '+fmt(c.reps)+' rep.</small></td><td>'+fmt(c.first.kg)+' kg<small>'+fmt(c.first.date)+'</small></td><td>'+fmt(c.last.kg)+' kg<small>'+fmt(c.last.date)+'</small></td><td>'+fmt(c.dates)+'</td></tr>').join('');result.push({title:'Fuerza · prescripción original equivalente',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table m44-exercise-inventory"><thead><tr><th>Ejercicio</th><th>Primer día</th><th>Último día</th><th>Días</th></tr></thead><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">Misma prescripción original y serie, no certifica variante, equipo o técnica reales.</p>'});}
+  for(let i=0;i<records.length;i+=10){const rows=records.slice(i,i+10).map(r=>'<tr><td>'+fmt(r.exercise)+'<small>Serie '+fmt(r.setNumber)+' · '+fmt(r.reps)+' rep.</small></td><td>'+fmt(r.previousKg)+' kg<small>'+fmt(r.priorDays)+' días previos</small></td><td>'+fmt(r.kg)+' kg</td><td>'+fmt(r.date)+'</td></tr>').join('');result.push({title:'Nuevos máximos frente al historial disponible',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table m44-exercise-inventory"><caption>'+fmt(records.length)+' de '+fmt(detail.historicalStrengthRecordTotal)+' grupos con nuevo máximo</caption><thead><tr><th>Ejercicio</th><th>Máximo previo</th><th>Nuevo máximo</th><th>Fecha</th></tr></thead><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">Se exigen al menos dos días previos comparables y protocolo registrado. No certifica la cobertura completa del historial ni un récord absoluto.</p>'});}
+  const overview=detail.exerciseSummary??[],comparisons=detail.loadComparisons??[];
+  for(let i=0;i<overview.length;i+=12){
+    const rows=overview.slice(i,i+12).map(r=>'<tr><td>'+fmt(r.exercise)+'<small>'+fmt(r.first)+' — '+fmt(r.last)+'</small></td><td>'+fmt(r.exposures)+'</td><td>'+fmt(r.rows)+'</td><td>'+fmt(r.loadRows)+'</td><td>'+fmt(r.rpeRows)+'</td><td>'+fmt(r.rirRows)+'</td></tr>').join('');
+    result.push({title:'Inventario por ejercicio',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><table class="m44-tech-table m44-exercise-inventory"><caption>'+fmt(overview.length)+' de '+fmt(detail.exerciseSummaryTotal)+' ejercicios identificados · cobertura por variable</caption><thead><tr><th>Ejercicio / fechas</th><th>Sesiones</th><th>Series</th><th>Carga</th><th>RPE</th><th>RIR</th></tr></thead><tbody>'+rows+'</tbody></table><p class="m44-subtle-note">Los recuentos incluyen todas las series medibles de cada ejercicio, aunque el anexo de series tenga un límite de impresión. No se agregan cargas de protocolos diferentes.</p>'});
+  }
+  for(let i=0;i<comparisons.length;i+=2){
+    const cards=comparisons.slice(i,i+2).map(c=>{
+      const p=c.points,lo=Date.parse(p[0].date+'T00:00:00Z'),hi=Date.parse(p.at(-1).date+'T00:00:00Z'),maximum=Math.max(1,c.bestKg);
+      const xy=p.map(x=>({x:34+(Date.parse(x.date+'T00:00:00Z')-lo)/(hi-lo)*550,y:100-x.kg/maximum*82}));
+      const dots=xy.map((v,j)=>'<circle cx="'+v.x+'" cy="'+v.y+'" r="3.2" fill="#234638"><title>'+fmt(p[j].date)+': '+fmt(p[j].kg)+' kg</title></circle>').join('');
+      const segments=xy.slice(1).map((v,j)=>{const gap=(Date.parse(p[j+1].date)-Date.parse(p[j].date))/86400000;return gap>45?'':'<line x1="'+xy[j].x+'" y1="'+xy[j].y+'" x2="'+v.x+'" y2="'+v.y+'" stroke="#234638" stroke-width="2" stroke-dasharray="4 3"/>';}).join('');
+      const effort=q=>'RPE '+fmt(q.rpe)+' / RIR '+fmt(q.rir);
+      return '<section class="m44-exercise-analysis"><h3>'+fmt(c.exercise)+' · '+fmt(c.reps)+' rep.</h3><p class="m44-subtle-note">Variante: '+fmt(c.protocol[0])+' · equipo: '+fmt(c.protocol[1])+' · base: '+fmt(c.protocol[2])+' · lado: '+fmt(c.protocol[3])+'</p><div class="m44-tech-compare"><div><small>Primera · '+fmt(c.first.date)+'</small><b>'+fmt(c.first.kg)+' kg</b><span>'+effort(c.first)+'</span></div><div><small>Última · '+fmt(c.last.date)+'</small><b>'+fmt(c.last.kg)+' kg</b><span>'+effort(c.last)+'</span></div><div><small>Variación de carga</small><b>'+fmt(c.change)+' kg</b><span>'+fmt(c.percent)+(c.percent===null?'':' %')+' · máximo '+fmt(c.bestKg)+' kg</span></div></div><svg viewBox="0 0 610 120" role="img" aria-label="'+fmt(p.map(x=>x.date+': '+x.kg+' kg').join('; '))+'"><line x1="34" y1="100" x2="584" y2="100" stroke="#bfc9bf"/><line x1="34" y1="18" x2="584" y2="18" stroke="#bfc9bf"/><text x="28" y="21" text-anchor="end">'+fmt(maximum)+'</text><text x="28" y="103" text-anchor="end">0</text>'+segments+dots+'<text x="34" y="116">'+fmt(p[0].date)+'</text><text x="584" y="116" text-anchor="end">'+fmt(p.at(-1).date)+'</text></svg><p class="m44-subtle-note">'+fmt(p.length)+' de '+fmt(c.dates)+' días observados. Máxima carga registrada a igual número de repeticiones y contexto explícito. No es una estimación de 1RM ni un juicio de rendimiento.</p><p class="m44-subtle-note">'+fmt(c.milestoneCount??0)+' nuevos máximos del periodo desde el primer registro comparable'+(c.milestones?.length?': '+c.milestones.slice(-2).map(m=>fmt(m.date)+' · '+fmt(m.kg)+' kg').join('; '):'')+'. No equivale a un récord histórico.</p></section>';
+    }).join('');
+    result.push({title:'Comparaciones de carga por ejercicio',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">'+fmt(comparisons.length)+' de '+fmt(detail.loadComparisonTotal)+' grupos elegibles. Las fechas sin datos no se estiman y los huecos superiores a 45 días no se unen.</p>'+cards});
+  }
+  const effortComparisons=detail.effortComparisons??[];
+  for(let i=0;i<effortComparisons.length;i+=2){
+    const charts=effortComparisons.slice(i,i+2).map(c=>{
+      const points=c.points.map(p=>({...p,time:Date.parse(p.date+'T00:00:00Z')}));
+      const label=c.exercise+' · '+fmt(c.kg)+' kg · '+fmt(c.reps)+' rep. · serie '+fmt(c.setNumber)+' · '+c.metric.toUpperCase();
+      const series={label,unit:'/10',points,total:c.days,from:Date.parse(detail.periodStart+'T00:00:00Z'),to:Date.parse(detail.periodEnd+'T00:00:00Z')};
+      return eliteTrendGraphic(series)+'<p class="m44-subtle-note">'+fmt(c.series)+' series con medición válida en '+fmt(c.days)+' días. Variante: '+fmt(c.protocol[0])+' · equipo: '+fmt(c.protocol[1])+' · base: '+fmt(c.protocol[2])+' · lado: '+fmt(c.protocol[3])+'. Misma carga, repeticiones y posición de serie; no controla por sí solo descanso, técnica ni fatiga previa.</p>';
+    }).join('');
+    result.push({title:'Esfuerzo a carga equivalente',inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><p class="m44-evidence-context">'+fmt(effortComparisons.length)+' de '+fmt(detail.effortComparisonTotal)+' grupos elegibles. RPE y RIR se analizan por separado; no se infiere una mejora de fuerza.</p>'+charts});
+  }
+  if(!effortComparisons.length)result[0].inner+='<p class="m44-subtle-note">Esfuerzo comparable: se requieren al menos tres fechas con mediciones válidas y misma carga, repeticiones, posición de serie y contexto de ejercicio.</p>';
+  if(!comparisons.length)result[0].inner+='<p class="m44-subtle-note">Comparación de carga: no hay dos días con el mismo ejercicio, repeticiones y contexto explícito completo. Se conservan los registros descriptivos.</p>';
+  const perPage=12;
+  for(let i=0;i<detail.details.length;i+=perPage){
+    const rows=detail.details.slice(i,i+perPage).map(r=>'<tr><td>'+fmt(r.date)+'<small>'+fmt(r.session)+'</small></td><td>'+fmt(r.exercise)+'<small>Serie '+fmt(r.set)+'</small></td><td>'+fmt(r.load)+'</td><td>'+fmt(r.reps)+'</td><td>'+fmt(r.seconds)+'</td><td>'+fmt(r.distance)+'</td><td>'+fmt(r.rpe)+'</td><td>'+fmt(r.rir)+'</td></tr>').join('');
+    result.push({title:'Detalle de ejecución · '+(i+1)+'–'+Math.min(i+perPage,detail.details.length),inner:'<p class="m44-internal-label">USO INTERNO IBERFIT · NO ENVIAR AL CLIENTE</p><div class="m44-tech-scroll"><table class="m44-tech-table m44-tech-sets"><caption>Series observadas · orden de sesión más reciente</caption><thead><tr><th>Fecha / sesión</th><th>Ejercicio / serie</th><th>Carga</th><th>Rep.</th><th>s</th><th>Dist.</th><th>RPE</th><th>RIR</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="m44-subtle-note">Unidades y valores registrados. No se han estimado datos ausentes ni equiparado variantes, implementos o protocolos.</p>'});
+  }
+  return result;
+}
 function footer(page,total){
   return '<footer class="m44-foot"><span><b>IBERFIT</b> · Diagnóstico, planificación, control y seguimiento</span><span>'+page+' / '+total+'</span></footer>';
 }
 function page(index,total,eyebrow,title,inner){
   return '<section class="m44-sheet m44-interior" aria-label="Página '+index+' de '+total+'"><header class="m44-page-head"><span class="m44-page-index">'+String(index-1).padStart(2,'0')+'</span><div><p class="m44-kicker">'+esc(eyebrow)+'</p><h2>'+esc(title)+'</h2></div></header><main class="m44-page-content">'+inner+'</main>'+footer(index,total)+'</section>';
 }
-export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44wip-1',publicationStatus='draft'}={}){
+export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-5',publicationStatus='draft',audience='internal',technicalDetail=null}={}){
   if(!report||report.ready!==true||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
     throw new Error('M44_REPORT_PREVIEW_EVIDENCE_REQUIRED');
   if(!report.periodStart||!report.periodEnd||dateLabel(report.periodStart)==='Fecha pendiente'||dateLabel(report.periodEnd)==='Fecha pendiente'||report.periodStart>report.periodEnd)
@@ -117,6 +203,9 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   const title=clean(report.title,140)||TYPES[report.id];
   if(!['draft','published'].includes(publicationStatus))throw new Error('M44_REPORT_DOCUMENT_STATUS_INVALID');
   const published=publicationStatus==='published';
+  if(!['client','internal'].includes(audience))throw Error('M44_REPORT_AUDIENCE_INVALID');
+  const clientView=published||audience==='client';
+  const technicalPages=!clientView&&technicalDetail&&['coach','admin'].includes(technicalDetail.role)&&technicalDetail.periodStart===report.periodStart&&technicalDetail.periodEnd===report.periodEnd?privateTechnicalPages(technicalDetail):[];
   // An evidence sheet must accommodate actual explanation lengths. Six rows
   // of 500 characters do not fit A4 even if the source count is valid.
   // Use a conservative per-page reading budget; never scale text down or
@@ -126,9 +215,11 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     Math.ceil(clean(item.text,500).length/75)+
     Math.ceil(clean(item.label,120).length/65)+
     Math.ceil(clean(item.source,120).length/80);
+  const calendar=report.id==='year-in-iberfit'?readTrainingCalendar(lines,report.periodStart,report.periodEnd,report.activitySeries??[]):null;
+  const displayLines=lines.map(row=>row.label==='Calendario de entrenamiento'?{...row,text:calendar?calendarDescription(calendar):'Registro diario no interpretable; requiere revisión.'}:row.label===WELLBEING_BUNDLE_LABEL?{...row,text:wellbeingBundleDescription(lines,report.periodStart,report.periodEnd)}:row);
   const evidenceChunks=[];
   let currentChunk=[],budgetUsed=0;
-  for(const item of lines){
+  for(const item of displayLines){
     const cost=evidenceCost(item);
     if(currentChunk.length&&(currentChunk.length>=maxRows||budgetUsed+cost>evidenceBudget)){
       evidenceChunks.push(currentChunk);
@@ -144,33 +235,55 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   // visible in the PDF, never merely truncated by overflow:hidden.
   const summaryText=clean(report.summary,2500);
   const summaryChunks=summaryText.length<=750?[report.summary]:chunkEditorial(summaryText,590,950);
-  const coachText=published?'':clean(report.coachComment,2500);
+  const coachText=clientView?'':clean(report.coachComment,2500);
   const longDecision=clean(report.conclusions,2500).length+coachText.length+
     clean(report.recommendations,2500).length>900;
   const decisionSections=[];
   if(longDecision){
     for(const text of chunkEditorial(report.conclusions,960))decisionSections.push({kind:'conclusions',text});
-    if(!published&&coachText)
+    if(!clientView&&coachText)
       for(const text of chunkEditorial(coachText,900))decisionSections.push({kind:'coach',text});
     for(const text of chunkEditorial(report.recommendations,960))decisionSections.push({kind:'next',text});
   }
-  const total=1+summaryChunks.length+evidenceChunks.length+(showActivity?1:0)+
-    (longDecision?decisionSections.length:1);
+  const trends=readDatedTrends(lines,report.periodStart,report.periodEnd);
+  const trendPages=Math.ceil(trends.length/2);
+  const total=1+summaryChunks.length+evidenceChunks.length+(showActivity?1:0)+(calendar?1:0)+trendPages+
+    (longDecision?decisionSections.length:1)+technicalPages.length;
   const pages=[];
+  const decisionEnd=total-technicalPages.length;
+  const summaryMetrics=[];
+  const countEvidence=(labels,source)=>lines.find(item=>labels.includes(item.label)&&item.source===source&&/^\d+$/u.test(item.text));
+  const sessionCount=countEvidence(['Sesiones confirmadas','Sesiones ejecutadas','Sesiones del último año'],'sessionExecutions');
+  const trainingDays=countEvidence(['Días con entrenamiento confirmado'],'sessionExecutions');
+  const booked=lines.find(item=>item.label==='Constancia'&&item.source==='appointments+sessionExecutions')?.text.match(/^(\d+) de (\d+) citas programadas cumplidas/u);
+  const checkins=lines.find(item=>item.label==='Bienestar'&&item.source==='checkins')?.text.match(/^(\d+) registros? en el periodo/u);
+  const fmt=n=>new Intl.NumberFormat('es-CL',{maximumFractionDigits:1}).format(n);
+  if(sessionCount)summaryMetrics.push([fmt(Number(sessionCount.text)),'Sesiones confirmadas']);
+  if(booked&&Number(booked[2])>0&&Number(booked[1])<=Number(booked[2]))summaryMetrics.push([fmt(100*Number(booked[1])/Number(booked[2]))+'%','Citas cumplidas']);
+  else if(trainingDays)summaryMetrics.push([fmt(Number(trainingDays.text)),'Días con entrenamiento']);
+  if(checkins)summaryMetrics.push([fmt(Number(checkins[1])),'Registros de bienestar']);
+  if(summaryMetrics.length<3&&trainingDays&&!summaryMetrics.some(m=>m[1]==='Días con entrenamiento'))summaryMetrics.push([fmt(Number(trainingDays.text)),'Días con entrenamiento']);
+  const volume=lines.find(item=>item.label==='Volumen comparable'&&item.source==='sessionExecutions')?.text.match(/\((\d+) y (\d+) sesiones; medias (\d+(?:\.\d+)?) y (\d+(?:\.\d+)?) kg·rep\)/u);
+  const comparable=volume?volume.slice(1).map(Number):null;
+  const volumeGraphic=comparable&&comparable.every(Number.isFinite)&&comparable[0]>0&&comparable[1]>0&&Math.max(comparable[2],comparable[3])>0?
+    '<figure class="m44-volume-compare"><figcaption>Trabajo de fuerza comparable</figcaption>'+[0,1].map(i=>'<div class="m44-volume-row"><span>'+ (i?'Grupo reciente':'Grupo anterior')+'<small>'+comparable[i]+' sesiones</small></span><svg class="m44-volume-track" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="10" class="m44-volume-bg"/><rect width="'+(100*comparable[i+2]/Math.max(comparable[2],comparable[3])).toFixed(2)+'" height="10" class="m44-volume-fill"/></svg><b>'+esc(fmt(comparable[i+2]))+' kg·rep</b></div>').join('')+'<p>Media de carga × repeticiones; más trabajo no equivale a mejor rendimiento.</p></figure>':'';
+  const goalRow=lines.find(r=>r.label==='Objetivo del ciclo vigente'&&r.source==='trainingCycles');
+  const goalGraphic=goalRow?'<section class="m44-cycle-objective"><span>TU OBJETIVO ACORDADO</span><p>'+esc(goalRow.text)+'</p></section>':'';
+  const summaryBand=summaryMetrics.length?'<div class="m44-summary-metrics">'+summaryMetrics.map(([v,label])=>'<div><strong>'+esc(v)+'</strong><span>'+esc(label)+'</span></div>').join('')+'</div>':'';
   pages.push('<section class="m44-sheet m44-cover" aria-label="Portada del informe">'+
     '<div class="m44-cover-accent" aria-hidden="true"></div>'+
     '<div class="m44-brand"><img src="/public/isotipo-iberfit.png" alt="" width="66" height="66"><div><strong>IBERFIT</strong><small>ENTRENAMIENTO PERSONAL CON CRITERIO</small></div></div>'+
-    '<p class="m44-cover-category">EVOLUCIÓN · SEGUIMIENTO PERSONALIZADO</p>'+
+    '<p class="m44-cover-category">'+(clientView?'EVOLUCIÓN · TU SEGUIMIENTO':'EVOLUCIÓN · DOCUMENTO DE TRABAJO INTERNO')+'</p>'+
     '<h1>'+esc(TYPES[report.id])+'<span>'+esc(EDITORIAL[report.id][0])+'</span></h1>'+
     '<p class="m44-cover-description">'+esc(EDITORIAL[report.id][1])+'</p>'+
     '<div class="m44-cover-rule" aria-hidden="true"></div>'+
     '<div class="m44-cover-meta"><div><span>Preparado para</span><strong>'+esc(name)+'</strong></div><div><span>Periodo analizado</span><strong>'+esc(dateLabel(report.periodStart))+' — '+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Revisión profesional</span><strong>'+esc(coach)+'</strong></div></div>'+
-    '<div class="m44-cover-bottom"><span>'+(published?'CONSULTA DE INFORME PUBLICADO EN PLATAFORMA':'BORRADOR PRIVADO · VISTA PREVIA SIN PUBLICAR')+'</span><span>IBERFIT · INFORME DE EVOLUCIÓN</span></div></section>');
+    '<div class="m44-cover-bottom"><span>'+(published?'CONSULTA DE INFORME PUBLICADO EN PLATAFORMA':clientView?'BORRADOR PRIVADO · VERSIÓN CLIENTE SIN PUBLICAR':'BORRADOR PRIVADO · USO INTERNO · NO ENVIAR AL CLIENTE')+'</span><span>IBERFIT · INFORME DE EVOLUCIÓN</span></div></section>');
   pages.push(page(2,total,'01 · LA LECTURA','Qué hemos hecho',
-    '<p class="m44-section-lead">'+esc(title===TYPES[report.id]?'El periodo en contexto':title)+'</p>'+
+    '<p class="m44-section-lead">'+esc(title===TYPES[report.id]?'El periodo en contexto':title)+'</p>'+summaryBand+
     '<div class="m44-prose m44-report-summary">'+paragraphs(summaryChunks[0],2500)+'</div>'+
     '<div class="m44-period-line"><div><span>Desde</span><strong>'+esc(dateLabel(report.periodStart))+'</strong></div><div><span>Hasta</span><strong>'+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Tipo de seguimiento</span><strong>'+esc(TYPES[report.id])+'</strong></div></div>'+
-    '<div class="m44-reading-rule"><span>Cómo interpretar estos resultados</span><p>Los hechos describen lo que está confirmado; las conclusiones y próximos pasos corresponden a la revisión del coach. Un cambio de carga, volumen o frecuencia no implica por sí mismo una mejora funcional.</p></div>'));
+    volumeGraphic+goalGraphic+'<div class="m44-reading-rule"><span>Cómo interpretar estos resultados</span><p>Los hechos describen lo que está confirmado; las conclusiones y próximos pasos corresponden a la revisión del coach. Un cambio de carga, volumen o frecuencia no implica por sí mismo una mejora funcional.</p></div>'));
   for(let i=1;i<summaryChunks.length;i++){
     pages.push(page(2+i,total,'01 · LA LECTURA','El periodo en detalle',
       '<p class="m44-section-lead">La lectura, continuación '+i+'</p>'+
@@ -184,7 +297,11 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
       activityGraphic(activitySeries)+activityTable(activitySeries)+
       '<p class="m44-subtle-note">Total representado: '+sum+' sesiones confirmadas. Los periodos sin registros se muestran como cero sesiones <em>confirmadas</em>, no como inactividad demostrada.</p>'));
   }
-  const firstEvidencePage=2+summaryChunks.length+(showActivity?1:0);
+  const calendarStart=2+summaryChunks.length+(showActivity?1:0);
+  if(calendar)pages.push(page(calendarStart,total,'CONTINUIDAD','Un año, día a día',calendarGraphic(calendar)));
+  const trendStart=calendarStart+(calendar?1:0);
+  for(let i=0;i<trendPages;i++)pages.push(page(trendStart+i,total,'TENDENCIAS','Evolución registrada',trends.slice(i*2,i*2+2).map(eliteTrendGraphic).join('')));
+  const firstEvidencePage=trendStart+trendPages;
   let evidenceOffset=0;
   for(let i=0;i<evidenceChunks.length;i++){
     const chunk=evidenceChunks[i];
@@ -205,9 +322,9 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     ' La evidencia de diagnóstico IRI inicial se mantiene separada de la evolución.</p>'+
     '<p>Los datos de dispositivos, si se utilizan, deben mostrar procedencia, frescura y calidad y nunca sustituir una sesión confirmada.</p></div>';
   if(!longDecision){
-    pages.push(page(total,total,showActivity?'04 · CRITERIO PROFESIONAL':'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
+    pages.push(page(decisionEnd,total,showActivity?'04 · CRITERIO PROFESIONAL':'03 · CRITERIO PROFESIONAL','Decidir el siguiente paso',
     '<div class="m44-decision"><span>INTERPRETACIÓN PROFESIONAL</span><div class="m44-prose">'+paragraphs(report.conclusions,2500)+'</div></div>'+
-    (published?'':'<div class="m44-coach-voice"><span>NOTA PRIVADA DEL COACH</span><div class="m44-prose">'+paragraphs(report.coachComment,2500)+'</div><strong>'+esc(coach)+'</strong></div>')+
+    (clientView?'':'<div class="m44-coach-voice"><span>NOTA PRIVADA DEL COACH</span><div class="m44-prose">'+paragraphs(report.coachComment,2500)+'</div><strong>'+esc(coach)+'</strong></div>')+
     '<div class="m44-next"><span>PRÓXIMO PASO PROPUESTO</span><div class="m44-prose">'+paragraphs(report.recommendations,2500)+'</div></div>'+
     '<div class="m44-method"><h3>Transparencia del informe</h3><p>Fuente principal: '+esc(TRUSTED_SOURCES[report.sourceType]||'Evidencia canónica IBERFIT')+'. Ventana: '+esc(dateLabel(report.periodStart))+' a '+esc(dateLabel(report.periodEnd))+'. '+(published?'Esta copia de lectura procede del informe visible en la plataforma. No constituye por sí sola un artefacto PDF firmado o archivado.':'Este documento es una previsualización; no confirma aprobación, publicación ni entrega.')+' La evidencia de diagnóstico IRI inicial se mantiene separada de la evolución.</p><p>Los datos de dispositivos, si se utilizan, deben mostrar procedencia, frescura y calidad y nunca sustituir una sesión confirmada.</p></div>'));
   }else{
@@ -216,7 +333,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
       const section=decisionSections[i];
       const last=i===decisionSections.length-1;
       const heading=section.kind==='conclusions'?'La interpretación':
-        section.kind==='coach'?'La mirada del Coach':'El siguiente paso';
+        section.kind==='coach'?'La mirada del entrenador':'El siguiente paso';
       const eyebrow=section.kind==='conclusions'?'CRITERIO PROFESIONAL':
         section.kind==='coach'?'NOTA PROFESIONAL PRIVADA':'PROPUESTA DE CONTINUIDAD';
       const body=section.kind==='coach'?
@@ -227,7 +344,8 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
         body+(last?method:'')));
     }
   }
-  return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>Vista previa IBERFIT · '+esc(name)+'</title><link rel="stylesheet" href="'+esc(stylesheetHref)+'" data-m44-report-css></head><body><nav class="m44-toolbar" aria-label="Acciones de la vista previa"><span data-m44-print-status>Verificando diseño A4…</span><button type="button" data-m44-print disabled>Imprimir o guardar como PDF</button><button type="button" data-m44-close>Cerrar</button></nav>'+pages.join('')+'</body></html>';
+  for(let i=0;i<technicalPages.length;i++){const p=technicalPages[i];pages.push(page(decisionEnd+i+1,total,'ANEXO TÉCNICO PRIVADO',p.title,p.inner));}
+  return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>Vista previa IBERFIT · '+esc(name)+'</title><link rel="stylesheet" href="'+esc(stylesheetHref)+'" data-m44-report-css></head><body class="'+(clientView?'m44-audience-client':'m44-audience-internal')+'"><nav class="m44-toolbar" aria-label="Acciones de la vista previa"><span data-m44-print-status>Verificando diseño A4…</span><button type="button" data-m44-print disabled>Imprimir o guardar como PDF</button><button type="button" data-m44-close>Cerrar</button></nav>'+pages.join('')+'</body></html>';
 }
 function pageOverflow(doc){
   return [...doc.querySelectorAll('.m44-sheet')].some((page)=>{
@@ -271,10 +389,10 @@ async function verifyA4Layout(doc,popup,scope){
     return geometries&&!pageOverflow(target);
   }finally{frame.remove();}
 }
-export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',scope=globalThis}={}){
+export function openEvolutionReportPreview({report,clientName,coachName,publicationStatus='draft',audience='internal',technicalDetail=null,scope=globalThis}={}){
   const origin=String(scope.location?.origin||'');
   if(!/^https?:\/\/[^/]+$/i.test(origin))throw new Error('M44_REPORT_PREVIEW_ORIGIN_REQUIRED');
-  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,stylesheetHref:origin+'/m26/evolution-report.css?v=m44wip-1'});
+  const html=buildEvolutionReportHtml({report,clientName,coachName,publicationStatus,audience,technicalDetail,stylesheetHref:origin+'/m26/evolution-report.css?v=m44-elite-5'});
   const popup=scope.open?.('about:blank','_blank');
   if(!popup?.document)throw new Error('M44_REPORT_PREVIEW_POPUP_BLOCKED');
   try{

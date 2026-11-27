@@ -214,3 +214,16 @@ test('M44: an appointment without a session identity retains a valid explicit li
   assert.equal(evidence.completedSessions,1);
   assert.equal(evidence.adherence,1);
 });
+
+
+test('GX adherence reconciles changed appointment date before applying the reporting window',()=>{
+ const old=appointment('move','confirmada',{revision:1}),moved={...old,revision:2,startAt:'2026-11-15T10:00:00Z'};
+ for(const rows of [[old,moved],[moved,old]])assert.equal(progress(rows).plannedSessions,0);
+ const conflict={...old,startAt:'2026-10-14T10:00:00Z'};
+ assert.equal(progress([old,conflict]).adherenceEvidence.conflictingAppointments,1);
+ assert.equal(progress([old,conflict]).plannedSessions,0);
+ const unknown=progress([old,appointment('coach','ausencia_coach'),appointment('missed','ausencia_cliente')]);
+ assert.equal(unknown.adherenceEvidence.unresolvedAppointments,1);
+ assert.equal(unknown.adherenceEvidence.coachAbsenceAppointments,1);
+ assert.equal(unknown.adherenceEvidence.missedAppointments,1);
+});

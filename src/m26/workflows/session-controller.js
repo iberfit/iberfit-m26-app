@@ -349,7 +349,7 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'repeat-previous-set': {
-      repeatPreviousSet(execution,session,{restSeconds:payload.restSeconds??60,rpe:payload.rpe,rir:payload.rir,actor});
+      repeatPreviousSet(execution,session,{restSeconds:payload.restSeconds??60,rpe:payload.rpe,rir:payload.rir,actor,variantId:payload.variantId,equipmentId:payload.equipmentId,loadBasis:payload.loadBasis,side:payload.side,loadUnit:payload.loadUnit});
       return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'correct-set': {

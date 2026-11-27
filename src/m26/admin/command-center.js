@@ -1,10 +1,11 @@
 import {trainingServiceStatusFrom} from '../domain/training-service.js';
-import {isOperationalTaskOpen} from './operation-triage.js';
+import {deriveAdminOperationsTriage} from './operation-triage.js';
+import {evidenceNumber} from '../domain/evidence-signal.js';
 const KIND_RANK=Object.freeze({critical:0,warning:1,process:2,info:3,clear:4});
 
 function arr(value){return Array.isArray(value)?value:[];}
 function text(value,fallback=''){const clean=String(value??'').trim();return clean||fallback;}
-function number(value){if(typeof value!=='number'&&typeof value!=='string')return null;if(typeof value==='string'&&!value.trim())return null;const n=Number(value);return Number.isFinite(n)&&n>=0?n:null;}
+function number(value){return evidenceNumber(value,{min:0});}
 export function coachCapacityEvidence(coach={}){
   const capacityHours=number(coach?.capacityHours);
   const assignedHours=number(coach?.assignedHours);
@@ -12,12 +13,10 @@ export function coachCapacityEvidence(coach={}){
   const loadRatio=raw!==null&&Number.isFinite(raw)&&Number.isFinite(raw*100)?raw:null;
   return Object.freeze({capacityHours,assignedHours,loadRatio,loadPercent:loadRatio===null?null:Math.round(loadRatio*100)});
 }
-function openTask(task={}){return isOperationalTaskOpen(task);}
-function taskPriority(task={}){const p=text(task.priority,'normal').toLowerCase();return p==='critical'?0:p==='high'?1:2;}
 function stageKind(stage){if(stage==='onboarding'||stage==='evaluation')return 'warning';if(stage==='planning'||stage==='scheduling')return 'process';return 'clear';}
 function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(stage==='evaluation')return 'IRI pendiente';if(stage==='planning')return 'Planificación pendiente';if(stage==='scheduling')return 'Próxima cita pendiente';return 'Seguimiento activo';}
 
-export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
+export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[],operationTriage=null}={}){
   const sourceClients=arr(clients);
   const serviceStatus=(client)=>trainingServiceStatusFrom(client);
   const peopleWithoutTraining=sourceClients.filter((client)=>serviceStatus(client)==='none'||serviceStatus(client)==='ended');
@@ -76,10 +75,9 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     return br-ar||a.coachName.localeCompare(b.coachName,'es',{sensitivity:'base'});
   });
 
-  const openTasks=arr(tasks).filter(openTask);
-  const criticalTasks=openTasks
-    .filter((task)=>['critical','high'].includes(text(task.priority).toLowerCase()))
-    .sort((a,b)=>taskPriority(a)-taskPriority(b));
+  const operations=operationTriage||deriveAdminOperationsTriage({tasks});
+  const openTasks=operations.open.map(item=>item.task);
+  const criticalTasks=operations.open.filter(item=>item.priorityRank<=1).map(item=>item.task);
 
   const countStage=(stage)=>normalizedClients.filter((client)=>client.stage===stage).length;
   const summary=Object.freeze({

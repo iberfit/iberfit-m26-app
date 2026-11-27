@@ -108,7 +108,7 @@ test('U63 authenticated Client only, scoped records, no new fetches or altered s
  const home=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
  assert.match(vm,/buildClientDayContext/u);
  assert.match(vm,/recordsForClient\(state,'wearableDailySummaries',clientId\)/u);
- assert.match(home,/renderClientDayContext\(vm\.clientDayContext\)/u);
+ assert.match(home,/renderClientDayContext\(vm\.clientDayContext,\{heroArea:primary\.area\}\)/u);
  assert.match(home,/data-workflow-action="start-published-session"/u);
  assert.doesNotMatch(readFileSync(new URL('../src/m26/experience/client-day-context.js',import.meta.url),'utf8'),
   /fetch\(|setInterval\(|rpc\(|localStorage/u);
@@ -127,4 +127,25 @@ test('U63 a same-day checkin without valid values does not imply a prior dated c
  const vm=build({progress:{...progress,latestCheckin:{energy:'?',stress:99}}});
  assert.equal(vm.wellbeing.status,'missing');
  assert.match(renderClientDayContext(vm),/Registro del 04\/11\/2026 sin valores comparables/u);
+});
+
+
+test('GX08 actual confirmed workouts take precedence over unmatched appointment activity',()=>{
+ const vm=build({progress:{...progress,days:28,completedSessions:5,confirmedWorkoutExecutions:3}});
+ assert.equal(vm.training.completed28,3);assert.equal(vm.training.countSource,'confirmed-execution');
+ assert.match(renderClientDayContext(vm),/Sesiones confirmadas · 28 días<\/dt><dd>3<\/dd>/u);
+ assert.match(renderClientDayContext(build()),/Actividad registrada · 28 días/u);
+ assert.equal(build({progress:{...progress,days:90}}).training.completed28,null);
+});
+test('GX19 metric values retain actual authorized source and never imply physical watch',()=>{
+ const vm=build({wearables:{dailyRecords:[record('2026-11-04',{steps:8000,sleepMinutes:440}),record('2026-11-04',{steps:8000,activeMinutes:43},'apple_health')]}});
+ assert.deepEqual(vm.movement.provenance.steps,['Health Connect','Salud de Apple (HealthKit)']);
+ assert.deepEqual(vm.movement.provenance.sleepMinutes,['Health Connect']);
+ assert.deepEqual(vm.movement.provenance.activeMinutes,['Salud de Apple (HealthKit)']);
+ assert.doesNotMatch(renderClientDayContext(vm),/Apple Watch/u);
+ assert.match(renderClientDayContext(vm),/Health Connect · Salud de Apple/u);
+});
+test('GX08 same civil day future check-in and execution cannot be presented as recorded',()=>{
+ const vm=build({progress:{...progress,latestCheckinAt:'2026-11-04T23:00:00Z',lastExecutionAt:'2026-11-04T23:00:00Z'}});
+ assert.equal(vm.wellbeing.status,'missing');assert.equal(vm.wellbeing.date,null);assert.equal(vm.training.lastDate,null);
 });

@@ -89,3 +89,28 @@ test('worker principal mantiene JS y navegación ligados a una única release mi
   assert.match(sw,/async function releaseNavigationResponse\(request\)/u);
   assert.doesNotMatch(sw,/isReleasePinnedPath[\s\S]{0,500}event\?\.waitUntil\?\.\(cache\.put\(request/u);
 });
+
+test('GX evidence and goal modules belong to the same pinned PWA release',()=>{
+  const line=legacySw.match(/^const APP_SHELL=\/\* RC58_GENERATED_APP_SHELL \*\/(.*);$/mu);
+  assert.ok(line,'APP_SHELL generado');
+  const entries=JSON.parse(line[1]);
+  const shell=new Set(entries);
+  assert.equal(shell.size,entries.length,'sin duplicados');
+  const required=[
+    '/src/m26/domain/professional-followup.js',
+    '/src/m26/planning/goal-measurement.js',
+    '/src/m26/planning/goal-review.js',
+    '/src/m26/workflows/professional-followup-controller.js',
+    '/src/m26/workflows/professional-followup-ui.js',
+    '/src/m26/workflows/report-evidence-lineage.js',
+    '/src/m26/workflows/report-reassessment-evidence.js',
+  ];
+  for(const entry of required){
+    assert.ok(shell.has(entry),`Falta módulo estático: ${entry}`);
+    assert.ok(fs.existsSync(entry.slice(1)),`Falta fuente: ${entry}`);
+  }
+  for(const path of ['/m26/runtime-config.js','/m26/runtime-config.example.js','/m26/sw.js','/m26/iberfit-sw.js']){
+    assert.equal(shell.has(path),false,`No precachear ${path}`);
+  }
+  assert.ok(entries.every(path=>!/^\/(?:auth\/v1|rest\/v1|rpc|functions|api)\//u.test(path)));
+});

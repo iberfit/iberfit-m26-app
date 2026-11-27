@@ -1,4 +1,5 @@
 import {confirmedScheduledCompletion} from '../engagement/progress-continuity.js';
+import {evidenceNumber,currentWearableEvidence} from '../domain/evidence-signal.js';
 
 const PRIORITY=Object.freeze({
   critical:0,
@@ -14,11 +15,7 @@ const CONFIDENCE=Object.freeze({
 });
 
 function measured(value,min=-Infinity,max=Infinity){
-  // Boolean, blank, arrays and objects cannot become numeric evidence.
-  if(typeof value!=='number'&&typeof value!=='string')return null;
-  if(typeof value==='string'&&!value.trim())return null;
-  const n=Number(value);
-  return Number.isFinite(n)&&n>=min&&n<=max?n:null;
+  return evidenceNumber(value,{min,max});
 }
 function validCount(value){
   const n=measured(value,0);
@@ -146,13 +143,10 @@ export function buildIberfitDecisionBrief({
   }
 
   const wearable=safeSummary?.wearable||{};
-  const wearableDecision=wearable?.decision||{};
-  const wearableDays=validCount(wearableDecision.currentEvidenceDays)??0;
-  const wearableAvailableDays=validCount(wearable.daysWithData)??0;
-  const providers=Array.isArray(wearableDecision.providers)?wearableDecision.providers:[];
-  const wearableEligible=wearableDecision.eligible===true&&wearableDays>0
-    &&wearableDays<=wearableAvailableDays&&providers.length===1
-    &&typeof providers[0]==='string'&&providers[0].trim().length>0;
+  const wearableSignal=currentWearableEvidence(wearable);
+  const wearableDays=wearableSignal.days;
+  const wearableAvailableDays=wearableSignal.availableDays;
+  const wearableEligible=wearableSignal.eligible;
 
   if(wearableEligible){
     signals.push(
@@ -194,12 +188,14 @@ export function buildIberfitDecisionBrief({
     );
   }
 
-  const planned=plannedCount??0;
+  const planned=plannedCount;
 
   const nextStep=
     String(topAlert?.action||'').trim()||
     (
-      planned===0
+      planned===null
+        ?'Confirmar si existe planificación y verificar los datos antes de decidir el siguiente paso.'
+        :planned===0
         ?'Revisar la planificación y confirmar el siguiente objetivo operativo.'
         :'Revisar la última ejecución, el bienestar y la planificación antes de modificar la carga.'
     );

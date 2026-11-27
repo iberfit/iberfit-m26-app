@@ -135,3 +135,19 @@ test('Command Center preview displays only open operational tasks and retains it
   assert.match(block,/outline:3px solid var\(--iberfit-color-focus\)/);
   assert.doesNotMatch(block,/position:fixed|white-space:nowrap|overflow:hidden/u);
 });
+
+
+test('GX37 Admin tasks reconcile latest revision consistently across overview and incident queue',()=>{
+ const old={id:'same',status:'open',priority:'critical',revision:1,title:'Incidencia'},closed={...old,revision:2,status:'resolved'};
+ const conflict={id:'conflict',status:'open',priority:'high',revision:3,title:'Revisión A'};
+ const rows=[old,closed,closed,conflict,{...conflict,title:'Revisión B'},{id:'bad',status:'open',revision:'0x2'}];
+ const result=deriveAdminOperationsTriage({tasks:rows,now});
+ assert.equal(result.summary.open,0);assert.equal(result.summary.history,1);assert.equal(result.unverifiedCount,2);
+ const cmd=deriveAdminCommandCenter({tasks:rows});assert.equal(cmd.summary.openTasks,0);assert.equal(cmd.summary.criticalTasks,0);
+ const html=renderAdminRoute({admin:{available:true},kind:'admin-operaciones',tasks:rows,operationTriage:result,canManage:true});
+ assert.match(html,/Incidencias pendientes de verificación/);assert.doesNotMatch(html,/data-admin-form="task-resolve"/);
+});
+test('GX37 impossible timestamp cannot create a deadline',()=>{
+ const result=deriveAdminOperationsTriage({tasks:[{id:'bad',status:'open',priority:'critical',dueAt:'2026-02-30T12:00:00Z'}],now});
+ assert.equal(result.open[0].dueLabel,null);assert.equal(result.open[0].overdue,false);
+});

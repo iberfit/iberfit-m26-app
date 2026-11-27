@@ -1,18 +1,15 @@
 import {buildAdherenceWindows,reusableConfirmedSummary,confirmedScheduledCompletion} from './progress-continuity.js';
 import {computeProgressSummary} from './progress-engine.js';
-import {sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
+import {buildDatedTrendEvidence} from '../workflows/report-trend-contract.js';
+import {reportCivilDate} from '../domain/civil-date.js';
+import {evidenceNumber,currentWearableEvidence} from '../domain/evidence-signal.js';
 import {
   assessExercisePerformance,
   buildExercisePerformanceTrend,
   listExercisePerformanceMemories,
 } from './exercise-performance-engine.js';
 
-function finite(value){
-  if(typeof value!=='number'&&typeof value!=='string')return null;
-  if(typeof value==='string'&&!value.trim())return null;
-  const number=Number(value);
-  return Number.isFinite(number)?number:null;
-}
+function finite(value){return evidenceNumber(value);}
 function count(value){
   const number=finite(value);
   return number!==null&&Number.isSafeInteger(number)&&number>=0?number:null;
@@ -71,21 +68,41 @@ function trendEvidence(memories=[],{loadDirectionForExercise=null}={}){
 
 // Report evidence is computed only for the declared civil period. Reuse the
 // same canonical progress and exercise comparators as the interactive hub.
-export function buildPeriodProgressEvidence(state,clientId,{now,days,executions=[]}={}){
+export function buildPeriodProgressEvidence(state,clientId,{now=new Date(),days}={}){
   const summary=computeProgressSummary(state,clientId,{now,days,civilPeriod:true,reportEvidenceOnly:true});
   if(!summary)return Object.freeze([]);
-  const scoped={...state,collections:{...state.collections,sessionExecutions:executions.map(record=>{
-    const completion=sessionExecutionCompletionDate(record);
-    return {...record,completedAt:completion,...(record.body&&typeof record.body==='object'?{body:{...record.body,completedAt:completion}}:{})};
-  })}};
-  const strength=trendEvidence(listExercisePerformanceMemories(scoped,clientId,{limit:50,historyLimit:12}));
+  // Reconcile the full canonical owner history before restricting the period.
+  // A caller-provided subset cannot hide a newer revision or a conflict.
+  const strength=trendEvidence(listExercisePerformanceMemories(state,clientId,{
+    limit:50,historyLimit:12,now,from:summary.startAt.slice(0,10),civilPeriod:true,
+  }));
   const scheduled=confirmedScheduledCompletion(summary);
   const rows=[];
   if(scheduled)rows.push({id:'consistency',label:'Constancia',evidence:`${scheduled.completed} de ${scheduled.planned} citas programadas cumplidas en ${days} días`,source:'appointments+sessionExecutions',quality:summary.dataQuality});
   if(strength.comparable)rows.push({id:'strength',label:'Fuerza',evidence:`${strength.improving} de ${strength.comparable} ejercicios comparables con evolución favorable confirmada en el periodo`,source:'sessionExecutions',quality:strength.comparable>=3?'alta':'media'});
-  if(Number.isFinite(summary.volumeDelta))rows.push({id:'volume',label:'Volumen comparable',evidence:`Variación descriptiva ${summary.volumeDelta>0?'+':''}${summary.volumeDelta}% entre grupos cronológicos de sesiones comparables del mismo periodo; no equivale a una mejora automática`,source:'sessionExecutions',quality:summary.dataQuality});
-  if(summary.checkins>0)rows.push({id:'wellbeing',label:'Bienestar',evidence:`${summary.checkins} registro${summary.checkins===1?'':'s'} en el periodo; último registro ${summary.latestCheckinAt||'confirmado'}`,source:'checkins',quality:summary.checkins>=8?'alta':summary.checkins>=3?'media':'limitada'});
-  return Object.freeze(rows.map(row=>Object.freeze({...row,status:'available'})));
+  if(summary.volumeEvidence?.comparableSessions>=2){
+    const v=summary.volumeEvidence;
+    const variation=Number.isFinite(summary.volumeDelta)?`Variación descriptiva ${summary.volumeDelta>0?'+':''}${summary.volumeDelta}%`:'Variación porcentual no calculable desde una referencia de cero';
+    rows.push({id:'volume',label:'Volumen comparable',evidence:`${variation} entre grupos cronológicos de sesiones comparables del mismo periodo (${v.olderSessions} y ${v.recentSessions} sesiones; medias ${v.olderMean} y ${v.recentMean} kg·rep); no equivale a una mejora automática`,source:'sessionExecutions',quality:v.comparableSessions>=3?'media':'limitada'});
+  }
+  if(summary.checkins>0)rows.push({id:'wellbeing',label:'Bienestar',evidence:`${summary.checkins} registro${summary.checkins===1?'':'s'} en el periodo; último registro ${summary.latestCheckinAt?String(summary.latestCheckinAt).slice(0,10).split('-').reverse().join('/'):'confirmado'}`,source:'checkins',quality:summary.checkins>=8?'alta':summary.checkins>=3?'media':'limitada'});
+  // Keep each wellbeing dimension separate. Means describe the submitted
+  // records, not a validated composite score or clinical evaluation.
+  if(summary.checkins>0){
+    const labels={energy:'Energía',sleep:'Sueño',stress:'Estrés',pain:'Dolor',fatigue:'Fatiga',motivation:'Motivación'};
+    const means=Object.entries(labels).filter(([key])=>Number.isFinite(summary.checkinAverage?.[key]))
+      .map(([key,label])=>label+' '+summary.checkinAverage[key]+'/10');
+    if(means.length){
+      const index=rows.findIndex(row=>row.id==='wellbeing');
+      rows[index]={...rows[index],evidence:rows[index].evidence+'. Medias de los valores registrados (pueden tener distinta cobertura): '+means.join(' · ')+'.'};
+    }
+  }
+  const start=summary.startAt.slice(0,10),end=reportCivilDate(now);
+  const trends=[buildDatedTrendEvidence('Volumen comparable',summary.reportVolumeReadings,start,end)];
+  for(const [key,label] of Object.entries({energy:'Energía',sleep:'Sueño',stress:'Estrés',pain:'Dolor',fatigue:'Fatiga',motivation:'Motivación'})){
+    trends.push(buildDatedTrendEvidence(label,(summary.reportCheckinReadings??[]).map(row=>({date:row.date,value:row[key]})),start,end));
+  }
+  return Object.freeze(rows.map(row=>Object.freeze({...row,status:'available',trends:Object.freeze(trends.filter(Boolean))})));
 }
 
 export function buildProgressHub(
@@ -94,7 +111,7 @@ export function buildProgressHub(
   {now=new Date(),loadDirectionForExercise=null,summaries={}}={}
 ){
   if(!clientId)return null;
-  const summary28=reusableConfirmedSummary(summaries?.[28],clientId,28)
+  const summary28=reusableConfirmedSummary(summaries?.[28],clientId,28,{now})
     ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary28)return null;
   const windows=buildAdherenceWindows(state,clientId,{
@@ -103,19 +120,17 @@ export function buildProgressHub(
     summaries:{...summaries,28:summary28},
   });
   const byDays=new Map(windows.map((window)=>[window.days,window]));
-  const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12});
+  const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12,now,from:new Date(new Date(now).getTime()-28*86400000)});
   const strength=trendEvidence(memories,{loadDirectionForExercise});
   const scheduled28=confirmedScheduledCompletion(summary28);
   const adherence28=scheduled28?.adherence??null;
   const adherence90=byDays.get(90)?.adherence??null;
   const wearableDecision=summary28?.wearable?.decision||{};
-  const wearableDays=count(wearableDecision.currentEvidenceDays)??0;
+  const wearableSignal=currentWearableEvidence(summary28?.wearable);
+  const wearableDays=wearableSignal.days;
   const wearableHistoricalDays=count(wearableDecision.historicalContextDays)??0;
-  const wearableAvailableDays=count(summary28?.wearable?.daysWithData)??0;
-  const providers=Array.isArray(wearableDecision.providers)?wearableDecision.providers:[];
-  const wearableEligible=wearableDecision.eligible===true&&wearableDays>0
-    &&wearableDays<=wearableAvailableDays&&providers.length===1
-    &&typeof providers[0]==='string'&&providers[0].trim().length>0;
+  const wearableAvailableDays=wearableSignal.availableDays;
+  const wearableEligible=wearableSignal.eligible;
   const checkins=count(summary28.checkins)??0;
   const iriCoverage=finite(summary28.iriCurrent);
 
@@ -147,20 +162,23 @@ export function buildProgressHub(
       value:strength.comparable||null,
       unit:'ejercicios comparables',
       evidence:strength.comparable?`${strength.improving} con evolución favorable confirmada`:'Se necesitan exposiciones repetidas y semántica comparable del ejercicio',
-      context:`${memories.length} ejercicios con historial · ${strength.confirmedExposures} exposiciones confirmadas · ${strength.descriptiveComparable} tendencia${strength.descriptiveComparable===1?'':'s'} descriptiva${strength.descriptiveComparable===1?'':'s'}`,
+      context:`Ventana de 28 días · ${memories.length} ejercicios con historial · ${strength.confirmedExposures} exposiciones confirmadas · ${strength.descriptiveComparable} tendencia${strength.descriptiveComparable===1?'':'s'} descriptiva${strength.descriptiveComparable===1?'':'s'}`,
       source:'sessionExecutions',
       quality:strength.comparable>=3?'alta':strength.comparable>=1?'media':'limitada',
     }),
     Object.freeze({
       id:'volume',
       label:'Volumen',
-      status:Number.isFinite(summary28.volumeDelta)?(summary28.volumeDelta>5?'strong':summary28.volumeDelta>=-5?'building':'review'):'insufficient',
+      // Volume is descriptive. Increasing or decreasing it may be intentional.
+      status:Number.isFinite(summary28.volume)?'building':'insufficient',
       value:Number.isFinite(summary28.volume)?summary28.volume:null,
-      unit:'kg·rep medio',
-      evidence:Number.isFinite(summary28.volumeDelta)?`Cambio reciente ${summary28.volumeDelta>0?'+':''}${summary28.volumeDelta}% frente al periodo anterior`:'Sin suficiente volumen comparable',
-      context:'Solo carga × repeticiones en kg; la tendencia exige ejercicios, variantes y series comparables',
+      unit:'kg·rep medio registrado',
+      evidence:Number.isFinite(summary28.volumeDelta)?`Cambio reciente ${summary28.volumeDelta>0?'+':''}${summary28.volumeDelta}% entre grupos cronológicos de sesiones comparables de la ventana de 28 días (${summary28.volumeEvidence?.comparableSessions??'número no disponible'} sesiones)`
+        :summary28.volumeEvidence?.comparableSessions>=2?'Volumen comparable; no se puede calcular un porcentaje desde una referencia de cero.'
+        :Number.isFinite(summary28.volume)?'Trabajo registrado; sin suficiente volumen comparable':'Sin suficiente volumen comparable',
+      context:'Solo carga × repeticiones en kg; exige ejercicios, variantes y series comparables. Más volumen no equivale a mejor rendimiento.'+(summary28.volumeEvidence?.partialSessions?` Incluye ${summary28.volumeEvidence.partialSessions} sesión(es) con registro parcial.`:''),
       source:'sessionExecutions',
-      quality:summary28.dataQuality,
+      quality:summary28.volumeEvidence?.comparableSessions>=3?'media':'limitada',
     }),
     Object.freeze({
       id:'wellbeing',

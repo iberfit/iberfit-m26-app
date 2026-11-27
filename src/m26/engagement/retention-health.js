@@ -5,21 +5,16 @@ import {computeProgressSummary,progressWindow} from './progress-engine.js';
 import {buildProgressHub} from './progress-hub.js';
 import {confirmedScheduledCompletion,reusableConfirmedSummary} from './progress-continuity.js';
 import {buildCrmRenewalSummary} from './crm-renewals.js';
+import {reconcileAdherenceAppointments} from './confirmed-adherence.js';
+import {evidenceNumber,currentWearableEvidence} from '../domain/evidence-signal.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
-function finite(value){
-  if(typeof value!=='number'&&typeof value!=='string')return null;
-  if(typeof value==='string'&&!value.trim())return null;
-  const number=Number(value);
-  return Number.isFinite(number)?number:null;
-}
+function finite(value){return evidenceNumber(value);}
 function count(value){
   const n=finite(value);
   return n!==null&&Number.isSafeInteger(n)&&n>=0?n:null;
 }
 function percent(value){return Number.isFinite(value)?Math.round(value*100):null;}
-function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
-function rawClientId(record){const body=bodyOf(record);return String(record?.clientId??record?.client_id??record?.clienteId??record?.cliente_id??body?.clientId??body?.client_id??body?.clienteId??body?.cliente_id??'').trim();}
 function within(value,start,end){const date=parseDateValue(value);return Boolean(date&&date.getTime()>=start.getTime()&&date.getTime()<=end.getTime());}
 function factor(id,label,status,evidence,source,quality='media',detail=null){return Object.freeze({id,label,status,evidence,detail,source,quality});}
 
@@ -29,7 +24,10 @@ function adherenceFactor(summary){
     return factor('adherence','Adherencia','insufficient','Se necesitan al menos 3 sesiones planificadas comparables en 28 días.','appointments+sessionExecutions','limitada');
   }
   const {planned,completed,adherence}=scheduled;
-  const status=completed===0||adherence<0.4?'red':adherence<0.7?'yellow':'green';
+  const evidence=summary?.adherenceEvidence;
+  const uncertain=(count(evidence?.unresolvedAppointments)??0)+(count(evidence?.coachAbsenceAppointments)??0)+(count(evidence?.conflictingAppointments)??0);
+  const rawStatus=completed===0||adherence<0.4?'red':adherence<0.7?'yellow':'green';
+  const status=uncertain&&rawStatus==='red'&&(completed+uncertain)/planned>=0.4?'yellow':rawStatus;
   return factor(
     'adherence',
     'Adherencia',
@@ -37,17 +35,17 @@ function adherenceFactor(summary){
     `${completed} de ${planned} sesiones confirmadas · ${percent(adherence)}%`,
     'appointments+sessionExecutions',
     summary?.dataQuality||'media',
-    status==='green'?'Continuidad dentro del rango de seguimiento.':'La señal describe continuidad observada; no explica por sí sola la causa.',
+    uncertain?'Existen citas sin cierre, ausencias del Coach o registros contradictorios. Revisar antes de atribuir la falta de continuidad al cliente.':status==='green'?'Continuidad dentro del rango de seguimiento.':'La señal describe continuidad observada; no explica por sí sola la causa.',
   );
 }
 
 function cancellationFactor(state,clientId,{now}){
   const {start,end}=progressWindow({now,days:28});
   const resolved=[];
-  for(const raw of arr(state?.collections?.appointments)){
-    if(rawClientId(raw)!==clientId)continue;
+  const evidence=reconcileAdherenceAppointments(state?.collections?.appointments,{clientId,
+    include:row=>{const appointment=normalizeAppointmentRecord(row);return Boolean(appointment.startAt&&within(appointment.startAt,start,end));}});
+  for(const raw of evidence.rows){
     const appointment=normalizeAppointmentRecord(raw);
-    if(!appointment.startAt||!within(appointment.startAt,start,end))continue;
     if(['realizada','cancelada','ausencia_cliente'].includes(appointment.status))resolved.push(appointment);
   }
   if(!resolved.length){
@@ -96,11 +94,9 @@ function activityFactor(summary){
   const wearable=summary?.wearable||{};
   const available=count(wearable.daysWithData)??0;
   const decision=wearable.decision||{};
-  const days=count(decision.currentEvidenceDays)??0;
-  const providers=Array.isArray(decision.providers)?decision.providers:[];
-  const supported=decision.eligible===true&&days>=2&&days<=available
-    &&providers.length===1&&typeof providers[0]==='string'
-    &&providers[0].trim().length>0;
+  const evidence=currentWearableEvidence(wearable);
+  const days=evidence.days;
+  const supported=evidence.eligible&&days>=2;
   if(!supported){
     return factor('activity','Actividad','insufficient',
       available
@@ -206,7 +202,7 @@ function actionFor(band,factors){
 
 export function buildRetentionHealth(state,clientId,{now=new Date(),summary:providedSummary=null}={}){
   if(!clientId)return null;
-  const summary=reusableConfirmedSummary(providedSummary,clientId,28)
+  const summary=reusableConfirmedSummary(providedSummary,clientId,28,{now})
     ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary)return null;
   // Same synchronous render and owner: each window is computed once and

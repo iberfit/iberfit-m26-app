@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {M44_IMMUTABLE_CPD_ARCHIVES} from './helpers/sonar-immutable-recovery-paths.mjs';
 
 const variants=[
   ['QA','qa-migrations/20261109155000_u90_bootstrap_scoped_visibility_qa.sql',
@@ -115,7 +116,8 @@ test('UNIVERSAL U91 SonarCloud duplication exemptions are exact immutable SQL ar
    'supabase/qa-migrations/20261118015500_p0_free_completed_session_scalar_fast_v1.sql',
    'supabase/qa-rollbacks/20261118015500_p0_free_completed_session_scalar_fast_v1.rollback.sql',
  ]);
- assert.equal(patterns.length,21);
+ for(const archive of M44_IMMUTABLE_CPD_ARCHIVES)newRecoveryExact.add(archive);
+ assert.equal(patterns.length,21+M44_IMMUTABLE_CPD_ARCHIVES.length);
  assert.equal(new Set(patterns).size,patterns.length);
  for(const entry of newRecoveryExact)assert.ok(patterns.includes(entry),entry);
  const historic=patterns.filter(entry=>!p0Exact.has(entry)&&!newRecoveryExact.has(entry));

@@ -1,6 +1,6 @@
 import { freezeExecutionClock,resumeExecutionClock } from './session-timer.js';
 import { createM26Id } from '../platform/id.js';
-import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile} from '../exercises/measurement-profiles.js';
+import {EXERCISE_METRIC_KEYS,exerciseMeasurementProfile,exerciseAlternativeCompatibility} from '../exercises/measurement-profiles.js';
 function clone(v){return structuredClone(v);}
 function now(){return new Date().toISOString();}
 function uid(){return createM26Id();}
@@ -125,12 +125,19 @@ function serializedSportTargets(source={}){
 function exerciseResultProfile(step){
   return exerciseMeasurementProfile({id:step?.exerciseId,name_es:step?.exercise?.name_es||step?.exercise?.name,measurementProfile:step?.prescription?.measurementProfile||step?.exercise?.measurementProfile});
 }
+function explicitSessionCycle(session){
+ const values=[session,session?.body].filter(r=>r&&typeof r==='object'&&!Array.isArray(r)).flatMap(r=>['cycleId','cycle_id','trainingCycleId','training_cycle_id'].map(k=>r[k])).filter(v=>v!=null&&v!=='');
+ if(!values.length||values.some(v=>typeof v!=='string'||!/^[-A-Za-z0-9._:]{1,160}$/u.test(v)||v!==values[0]))return null;
+ return values[0];
+}
 function createPlanSnapshot(session,queue){
+ const cycleId=explicitSessionCycle(session);
   const rawRevision=Number(session?.revision??session?.version??0);
   const sessionRevision=Number.isInteger(rawRevision)&&rawRevision>=0?rawRevision:0;
   return {
     schemaVersion:1,
     sessionId:String(session.id),
+    ...(cycleId?{cycleId}:{}),
     sessionRevision,
     title:String(session.title||session.name||'').trim().slice(0,120)||null,
     blocks:clone(session.blocks||[]),
@@ -321,7 +328,7 @@ export function suggestedSetDraftValues(execution,session){
   return planned?{source:'planned',values:planned}:null;
 }
 export function hasNextExecutionStep(execution){return Boolean(nextUnresolvedPosition(execution));}
-export function repeatPreviousSet(execution,session,{restSeconds=null,rpe=null,rir=null,actor=null}={}){
+export function repeatPreviousSet(execution,session,{restSeconds=null,rpe=null,rir=null,actor=null,variantId=null,equipmentId=null,loadBasis=null,side=null,loadUnit=null}={}){
   requireCoachActor(actor);
   if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
   const values=previousSetDraftValues(execution);
@@ -340,7 +347,7 @@ export function repeatPreviousSet(execution,session,{restSeconds=null,rpe=null,r
     ...('distanceKm' in values?{distanceKm:values.distanceKm}:{}),
     ...('distanceM' in values?{distanceM:values.distanceM}:{}),
     ...('intervalsCompleted' in values?{intervalsCompleted:values.intervalsCompleted}:{}),
-    rpe:observedRpe,rir,actor});
+    rpe:observedRpe,rir,actor,variantId,equipmentId,loadBasis,side,loadUnit});
   if(hasNextExecutionStep(execution))beginRest(execution,rest,{actor});
   event(execution,'SET_REPEATED_FROM_PREVIOUS',{sourceSetNumber,targetSetNumber,restSeconds:rest},actor);
   return execution;
@@ -360,7 +367,7 @@ export function updateActiveSetDraft(execution,session,input={}){
   if(execution?.status!=='active')return null;
   const identity=activeSetIdentity(execution,session);if(!identity)return null;
   if(executionResultForStep(execution,identity)){if(sameActiveSet(execution?.activeSetDraft,identity))delete execution.activeSetDraft;return null;}
-  execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000),...(exerciseResultProfile(currentStep(execution,session)).cardio?{durationMinutes:draftValue(input.durationMinutes,32),distanceKm:draftValue(input.distanceKm,32),distanceM:draftValue(input.distanceM,32),paceMinPerKm:draftValue(input.paceMinPerKm,16),pacePer100M:draftValue(input.pacePer100M,16),avgHeartRateBpm:draftValue(input.avgHeartRateBpm,16),cadenceRpm:draftValue(input.cadenceRpm,16),powerWatts:draftValue(input.powerWatts,16),elevationGainM:draftValue(input.elevationGainM,16),intervalsCompleted:draftValue(input.intervalsCompleted,16)}:{}),...(exerciseResultProfile(currentStep(execution,session)).kind==='carry'?{distanceM:draftValue(input.distanceM,32)}:{})},updatedAt:now()};
+  execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000),...(exerciseResultProfile(currentStep(execution,session)).kind==='strength'?Object.fromEntries([['variantId',80],['equipmentId',80],['loadBasis',32],['side',32],['loadUnit',8]].filter(([key])=>Object.hasOwn(input,key)).map(([key,limit])=>[key,draftValue(input[key],limit)])):{}),...(exerciseResultProfile(currentStep(execution,session)).cardio?{durationMinutes:draftValue(input.durationMinutes,32),distanceKm:draftValue(input.distanceKm,32),distanceM:draftValue(input.distanceM,32),paceMinPerKm:draftValue(input.paceMinPerKm,16),pacePer100M:draftValue(input.pacePer100M,16),avgHeartRateBpm:draftValue(input.avgHeartRateBpm,16),cadenceRpm:draftValue(input.cadenceRpm,16),powerWatts:draftValue(input.powerWatts,16),elevationGainM:draftValue(input.elevationGainM,16),intervalsCompleted:draftValue(input.intervalsCompleted,16)}:{}),...(exerciseResultProfile(currentStep(execution,session)).kind==='carry'?{distanceM:draftValue(input.distanceM,32)}:{})},updatedAt:now()};
   return clone(execution.activeSetDraft);
 }
 export function clearActiveSetDraft(execution){if(execution)delete execution.activeSetDraft;return execution;}
@@ -459,6 +466,22 @@ function measuredNumber(value,min,max,code,integer=false){
  if(!Number.isFinite(n)||n<min||n>max||(integer&&!Number.isInteger(n)))throw new Error(code);
  return n;
 }
+// Optional actual context. Never copy the planned exercise or previous set.
+const ACTUAL_LOAD_BASES=new Set(['total','per-hand','per-side','per-implement','assistance','bodyweight']);
+const ACTUAL_SIDES=new Set(['bilateral','left','right','alternating']);
+function observedContextText(value){
+ if(typeof value!=='string')return null;
+ const text=value.trim().replace(/\s+/gu,' ');
+ return text&&text.length<=80&&!/[<>\u0000-\u001f\u007f]/u.test(value)?text:null;
+}
+function observedStrengthContext(input,profile){
+ if(profile.kind!=='strength')return {};
+ const variantId=observedContextText(input.variantId),equipmentId=observedContextText(input.equipmentId);
+ const loadBasis=ACTUAL_LOAD_BASES.has(input.loadBasis)?input.loadBasis:null;
+ const side=ACTUAL_SIDES.has(input.side)?input.side:null;
+ const loadUnit=typeof input.load==='string'||typeof input.load==='number'?String(input.load).trim()&&['kg','lb'].includes(input.loadUnit)?input.loadUnit:null:null;
+ return {...(variantId?{variantId}:{}),...(equipmentId?{equipmentId}:{}),...(loadBasis?{loadBasis}:{}),...(side?{side}:{}),...(loadUnit?{loadUnit}:{})};
+}
 function validatedSetResult(step,input={},previous=null){
   const load=input.load==null?null:String(input.load).trim().slice(0,80);
   const rpe=measuredNumber(input.rpe,1,10,'M26_EXECUTION_RPE_INVALID');
@@ -496,6 +519,7 @@ function validatedSetResult(step,input={},previous=null){
     exerciseId:step.exerciseId,
     setNumber:step.setNumber,
     reps,seconds,load,rpe,rir,
+    ...observedStrengthContext(input,profile),
     ...((profile.cardio||profile.kind==='carry')?{distanceKm,distanceM,avgSpeedKmh,avgHeartRateBpm,paceMinPerKm:paceMinPerKm||null,...(profile.sport==='swimming'?{pacePer100M:pacePer100M||null}:{}),cadenceRpm,powerWatts,elevationGainM,intervalsCompleted}:{}),
     notes:String(input.notes||'').trim().slice(0,1000),
     completedAt:previous?.completedAt||now(),
@@ -663,6 +687,9 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
   const itemIndex=execution.queue.findIndex((x,i)=>i>=execution.index&&x.exerciseId===fromExerciseId);
   if(itemIndex<0)throw new Error('M26_EXECUTION_SUBSTITUTE_TARGET_MISSING');
   const item=execution.queue[itemIndex];
+  const from=catalog.get?.(fromExerciseId),to=catalog.get?.(toExerciseId);
+  if(from&&to&&!exerciseAlternativeCompatibility({...from,measurementProfile:item.prescription?.measurementProfile||from.measurementProfile},to))
+    throw new Error('M26_EXECUTION_SUBSTITUTE_PRESCRIPTION_INCOMPATIBLE');
   if(itemIndex===execution.index){
     const scope=currentExerciseSubstitutionScope(execution);
     if(scope==='locked')throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');

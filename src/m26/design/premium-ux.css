@@ -1398,6 +1398,24 @@ body {
     width:max-content;
     max-width:100%;
   }
+  /* Keep rest adjustment and correction targets clear of the sticky Coach
+     controls on narrow screens, including when focused by keyboard. */
+  html:has(.m26-session-live-v3[data-session-role="coach"][data-session-live-state="rest"]){
+    scroll-behavior:auto;
+  }
+  .m26-session-live-v3[data-session-role="coach"] .m26-session-rest-focus-v3
+    :is([data-session-action="rest-minus"],[data-session-action="rest-plus"],
+    [data-session-rest-correction]>summary,[data-session-observed-context]>summary){
+    scroll-margin-block-start:calc(var(--m26-session-sticky-top,.4rem) + 9rem);
+    scroll-margin-block-end:1rem;
+  }
+  .m26-session-live-v3[data-session-role="coach"] [data-session-rest-correction]>summary{
+    display:list-item;
+    min-height:44px;
+    box-sizing:border-box;
+    padding-block:.65rem;
+    cursor:pointer;
+  }
   /* The sticky Coach controls must not cover a just-revealed primary action
      during touch/keyboard/Playwright scroll-into-view on narrow screens. */
   .m26-session-live-v3 :is([data-session-action="next"],
@@ -2294,3 +2312,20 @@ body {
     color:CanvasText;
   }
 }
+
+/* SIGNATURE_U57_GUIDED_EXECUTION_END */
+
+/* GX07: keep the denominator explanation on its own row and the history
+   continuation reachable on touch without adding another overlay. */
+.m26-action-outcome-metrics>.m26-action-outcome-metric-note{grid-column:1/-1;margin:0;line-height:1.5}
+.m26-action-outcome-more{min-height:44px;width:100%;justify-content:center}
+.m26-action-outcome-more[hidden]{display:none!important}
+
+/* GX08/GX19: source labels remain subordinate to measured values. */
+.m26-client-day-metric .m26-client-day-source{font-size:.69rem;font-weight:400;line-height:1.45;overflow-wrap:anywhere;color:var(--iberfit-color-text-secondary,#d6d9d1);margin-top:.15rem}
+
+/* GX25: future weeks are not measured zeroes; retain CSP-safe chart heights. */
+.m28-week.is-future .m28-week-bar{background:none;border-top:2px dashed var(--iberfit-color-text-secondary,#a7b2aa);opacity:.8}
+.m28-week.is-current small{color:var(--iberfit-role-accent,#c8a65d);font-weight:700}
+.m28-frequency{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:baseline;font-size:.84rem;color:var(--iberfit-color-text-secondary)}
+.m28-frequency span{flex-basis:100%}

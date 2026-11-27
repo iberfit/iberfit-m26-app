@@ -2,6 +2,7 @@ import { confirmedSessionExecutionsForClient,sessionExecutionCompletionDate } fr
 import { computeProgressSummary,deriveAdherenceAlerts } from '../engagement/index.js';
 import {reusableConfirmedSummary} from '../engagement/progress-continuity.js';
 import {reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
+import {observedSet,observedLoadKg} from '../domain/evidence-signal.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
@@ -24,13 +25,6 @@ function numeric(value,min=-Infinity,max=Infinity){
   const n=Number(raw);
   return Number.isFinite(n)&&n>=min&&n<=max?n:null;
 }
-function load(value){
-  if(typeof value==='number')return numeric(value,0,1500);
-  if(typeof value!=='string')return null;
-  // Do not interpret a range, resistance band, assisted load or pounds as kg.
-  const match=value.trim().match(/^(\d+(?:[.,]\d+)?)\s*(?:kg)?$/iu);
-  return match?numeric(match[1],0,1500):null;
-}
 function metric(row,min,max,...keys){return numeric(first(row,...keys),min,max);}
 function latestExecutions(state,clientId,now,limit=8){
   const today=reportCivilDate(now);
@@ -45,7 +39,7 @@ function latestExecutions(state,clientId,now,limit=8){
     .slice(0,limit);
 }
 function exposureFor(execution,id,exerciseRows){
-  const loads=exerciseRows.map((row)=>load(first(row,'loadKg','load_kg','load','weightKg','weight_kg'))).filter((value)=>value!==null);
+  const loads=exerciseRows.map(row=>observedLoadKg(row,{max:1500})).filter((value)=>value!==null);
   const rpes=exerciseRows.map((row)=>metric(row,1,10,'rpe','RPE')).filter((value)=>value!==null);
   const rirs=exerciseRows.map((row)=>metric(row,0,10,'rir','RIR')).filter((value)=>value!==null);
   const reps=exerciseRows.map((row)=>metric(row,0,10000,'reps','repetitions')).filter((value)=>value!==null);
@@ -67,6 +61,7 @@ export function extractSessionHistory(executions=[]){
   for(const execution of executions.map(unwrap)){
     const grouped=new Map();
     for(const row of setRows(execution)){
+      if(!observedSet(row))continue;
       const id=exerciseId(row);
       if(!id)continue;
       if(!grouped.has(id))grouped.set(id,[]);
@@ -120,7 +115,7 @@ export function buildAdaptiveSessionContext(state,clientId,{now=new Date(),summa
   if(!clientId)throw new Error('M26_ADAPTIVE_CLIENT_REQUIRED');
   // Never reuse a different Client's, stale-window or unconfirmed projection.
   // Without valid same-owner 28d evidence, recompute from canonical state.
-  const reused=reusableConfirmedSummary(providedSummary,clientId,28);
+  const reused=reusableConfirmedSummary(providedSummary,clientId,28,{now});
   const summary=reused??computeProgressSummary(state,clientId,{now,days:28});
   const alerts=reused&&Array.isArray(providedAlerts)
     ?providedAlerts

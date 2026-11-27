@@ -44,6 +44,49 @@ function canonicalJson(value){
   }
   return value;
 }
+// U44 verification is deliberately against raw frozen blocks, not against
+// the sports player's normalized prescription (which adds defaults).
+// This protects start and recovery without rebuilding the training plan.
+export function assertFrozenOccurrencePrescription(snapshot){
+  const fail=()=>{throw new Error('U47_PRESCRIPTION_DRIFT');};
+  const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+  const own=(v,k)=>Object.prototype.hasOwnProperty.call(v,k);
+  const scalarId=v=>typeof v==='string'&&v.trim()===v&&v.length>0&&v.length<=160&&!/[\u0000-\u001f\u007f]/u.test(v);
+  const same=(a,b)=>{
+    if(a===b)return true;
+    if(Array.isArray(a)||Array.isArray(b))return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((v,i)=>same(v,b[i]));
+    if(!object(a)||!object(b))return false;
+    const keys=Object.keys(a);return keys.length===Object.keys(b).length&&keys.every(k=>own(b,k)&&same(a[k],b[k]));
+  };
+  const count=v=>{if(v==null)return 1;if((typeof v!=='number'&&typeof v!=='string')||!/^\d{1,3}$/u.test(String(v)))fail();const n=Number(v);if(!Number.isInteger(n)||n<1||n>100)fail();return n;};
+  if(!object(snapshot)||!Array.isArray(snapshot.blocks)||snapshot.blocks.length<1||snapshot.blocks.length>300||!Array.isArray(snapshot.queue)||snapshot.queue.length<1||snapshot.queue.length>500)fail();
+  const blockIds=new Set();let i=0;
+  const verify=expected=>{if(i>=snapshot.queue.length||!same(snapshot.queue[i],expected))fail();i++;};
+  for(const block of snapshot.blocks){
+    if(!object(block)||!scalarId(block.id)||blockIds.has(block.id))fail();
+    blockIds.add(block.id);
+    if(block.type==='exercise'){
+      if(!scalarId(block.exerciseId))fail();
+      const {id,type,exerciseId,sets,...prescription}=block;
+      verify({blockId:id,exerciseId,sets:count(sets),prescription});
+    }else{
+      if(!['biserie','triserie','circuito','amrap','tabata'].includes(block.type)||!Array.isArray(block.exerciseIds)||block.exerciseIds.length<1||block.exerciseIds.length>50)fail();
+      const members=new Set();const sets=count(block.rounds);
+      if(block.prescriptions!=null&&!object(block.prescriptions))fail();
+      for(const [groupOrder,exerciseId] of block.exerciseIds.entries()){
+        // A repeated exercise within one block aliases its result storage key.
+        // The same exercise in DIFFERENT blocks remains supported.
+        if(!scalarId(exerciseId)||members.has(exerciseId))fail();members.add(exerciseId);
+        const prescription=block.prescriptions&&own(block.prescriptions,exerciseId)?block.prescriptions[exerciseId]:{};
+        if(!object(prescription))fail();
+        verify({blockId:block.id,exerciseId,sets,groupType:block.type,groupOrder,groupSize:block.exerciseIds.length,prescription});
+      }
+    }
+  }
+  if(i!==snapshot.queue.length)fail();
+  return true;
+}
+
 function verifyQueue(reference,prepared){
   if(!Array.isArray(reference)||reference.length<1||reference.length>500
     ||reference.length!==prepared.length)fail('QUEUE_DRIFT');
@@ -95,9 +138,12 @@ export function createOccurrenceWorkoutDraft({
     fail('PRIVATE_SNAPSHOT_REQUIRED');
   // Clone to avoid caller mutation of a plan while a workout is under way.
   const session={id:sessionId,clientId,
+    ...(typeof prescriptionSnapshot.title==='string'?{title:prescriptionSnapshot.title}:{}),
+    ...(typeof prescriptionSnapshot.cycleId==='string'&&UUID.test(prescriptionSnapshot.cycleId)?{cycleId:prescriptionSnapshot.cycleId}:{}),
     blocks:structuredClone(prescriptionSnapshot.blocks)};
   const execution=createExecution({session,clientId,executionId:id});
   verifyQueue(prescriptionSnapshot.queue,execution.queue);
+  assertFrozenOccurrencePrescription(prescriptionSnapshot);
   return {
     kind:'iberfit.occurrence-workout-draft.v1',
     clientId,occurrenceId,sessionId,localDate,

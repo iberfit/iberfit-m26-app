@@ -78,7 +78,12 @@ test('M44 byte delivery re-authorizes every request, hashes stored bytes, never 
  assert.match(t,/async function downloadVerified/);
  assert.match(t,/callRpc<Access>\(user,'iberfit_m44_authorize_evolution_report_pdf_v1'/);
  assert.match(t,/if\(!row\?\.ok\|\|row\.withdrawn/);
- assert.match(t,/await digest\(bytes\)!==row\.artifactSha256/);
+ const download=t.slice(t.indexOf('async function downloadVerified'),t.indexOf('Deno.serve'));
+ assert.match(download,/const identity=authorizedArtifactIdentity\(row,id\)/);
+ assert.match(download,/bytes.length!==identity.size/);
+ assert.match(download,/await digest\(bytes\)!==identity.sha256/);
+ assert.match(download,/verifyFreshArtifactAuthorization\(identity,await callRpc<Access>\(user,'iberfit_m44_authorize_evolution_report_pdf_v1'/);
+ assert.ok(download.indexOf('verifyFreshArtifactAuthorization')<download.indexOf('return {bytes'));
  assert.match(t,/action==='download'/);
  assert.match(t,/Content-Disposition/);
  assert.doesNotMatch(t,/createSignedUrl\(/);
