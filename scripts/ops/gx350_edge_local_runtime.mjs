@@ -1,12 +1,13 @@
 // Local runtime rehearsal using the exact recovered and candidate modules.
 // No Deno hosted deployment, real credentials, external service or DB access.
-// The VM linker supplies inert external packages; actual local modules load.
-import vm from 'node:vm';
+// Native Node module loader with an exact package allowlist and inert external packages.
 import assert from 'node:assert/strict';
-import {stripTypeScriptTypes} from 'node:module';
-import {readFileSync} from 'node:fs';
-import {posix} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {registerHooks} from 'node:module';
+import {readFileSync,writeFileSync,mkdirSync,mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import '../offline_network_guard.mjs';
+import {join,dirname} from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {gitBlob,validateScope} from './gx350_edge_scope.mjs';
 import {repositoryReader,rehearseEdgePackages} from './gx350_edge_stage_rehearsal.mjs';
 const manifest=validateScope(JSON.parse(readFileSync(new URL('./gx350_edge_scope.json',import.meta.url),'utf8')));
@@ -25,44 +26,59 @@ function buildPackage(f,kind){
 async function instantiate(files,project){
  let handler,authCalls=0,providerCalls=0;
  const forbidden=()=>{providerCalls++;return safe();};
- const context=vm.createContext({
-  URL,Response,Request,Headers,TextEncoder,TextDecoder,crypto:globalThis.crypto,
-  console:Object.freeze({log(){},warn(){},error(){}}),
-  fetch:forbidden,
-  Deno:Object.freeze({env:Object.freeze({get(name){
+ // Inputs are only immutable Git objects validated by buildPackage and the
+ // package closure check. This is a test subprocess, not a sandbox for untrusted JS.
+ const dir=mkdtempSync(join(tmpdir(),'iberfit-gx350-edge-'));
+ const originalDeno=globalThis.Deno,originalFetch=globalThis.fetch;
+ const previousMocks=globalThis.__gx350LocalMocks;
+ const stubs=new Map([
+  ['npm:@supabase/supabase-js@2.112.4','export const createClient=globalThis.__gx350LocalMocks.createClient;'],
+  ['npm:pdf-lib@1.17.1','export const {PDFDocument,StandardFonts,rgb}=globalThis.__gx350LocalMocks;'],
+  ['npm:@pdf-lib/fontkit@1.1.1','export default Object.freeze({});']
+ ]);
+ const allowed=new Set();
+ let hooks;
+ const cleanup=()=>{
+  hooks?.deregister();
+  if(originalDeno===undefined)delete globalThis.Deno;else globalThis.Deno=originalDeno;
+  globalThis.fetch=originalFetch;
+  if(previousMocks===undefined)delete globalThis.__gx350LocalMocks;else globalThis.__gx350LocalMocks=previousMocks;
+  rmSync(dir,{recursive:true,force:true});
+ };
+ try{
+  globalThis.fetch=forbidden;
+  globalThis.Deno=Object.freeze({env:Object.freeze({get(name){
    if(name==='SUPABASE_URL')return 'https://'+project+'.supabase.co';
    if(name==='SUPABASE_ANON_KEY'||name==='SUPABASE_SERVICE_ROLE_KEY')return 'synthetic-unusable';
    return undefined;
-  }}),serve(fn){assert.equal(handler,undefined);handler=fn;}}),
- },{codeGeneration:{strings:false,wasm:false}});
- const modules=new Map();
- function external(name){
-  let exports;
-  if(name==='npm:@supabase/supabase-js@2.112.4')exports={createClient:()=>({
-   auth:{getUser:async()=>{authCalls++;return {data:{user:null},error:{message:'SYNTHETIC_INVALID_JWT'}};},
-    admin:{listUsers:forbidden,inviteUserByEmail:forbidden},resetPasswordForEmail:forbidden},
-   rpc:forbidden,from:forbidden,storage:{from:forbidden}
-  })};
-  else if(name==='npm:pdf-lib@1.17.1')exports={PDFDocument:{create:forbidden,load:forbidden},StandardFonts:{},rgb:(red,green,blue)=>{assert.ok([red,green,blue].every(n=>Number.isFinite(n)&&n>=0&&n<=1));return Object.freeze({type:'RGB',red,green,blue});}};
-  else if(name==='npm:@pdf-lib/fontkit@1.1.1')exports={default:Object.freeze({})};
-  else throw Error('GX350_EDGE_UNKNOWN_EXTERNAL');
-  return new vm.SyntheticModule(Object.keys(exports),function(){for(const [k,v] of Object.entries(exports))this.setExport(k,v);},{context,identifier:name});
- }
- function module(name){
-  if(modules.has(name))return modules.get(name);
-  let mod;
-  if(name.startsWith('npm:'))mod=external(name);
-  else{
-   assert.ok(files.has(name),'missing local module');
-   const raw=files.get(name);
-   const source=name.endsWith('.ts')?stripTypeScriptTypes(raw,{mode:'strip'}):raw;
-   mod=new vm.SourceTextModule(source,{context,identifier:name,importModuleDynamically:forbidden});
+  }}),serve(fn){assert.equal(handler,undefined);handler=fn;}});
+  globalThis.__gx350LocalMocks=Object.freeze({
+   createClient:()=>({auth:{getUser:async()=>{authCalls++;return {data:{user:null},error:{message:'SYNTHETIC_INVALID_JWT'}};},
+   admin:{listUsers:forbidden,inviteUserByEmail:forbidden},resetPasswordForEmail:forbidden},rpc:forbidden,from:forbidden,storage:{from:forbidden}}),
+   PDFDocument:{create:forbidden,load:forbidden},StandardFonts:{},rgb:(red,green,blue)=>{
+    assert.ok([red,green,blue].every(n=>Number.isFinite(n)&&n>=0&&n<=1));return Object.freeze({type:'RGB',red,green,blue});
+   }
+  });
+  writeFileSync(join(dir,'package.json'),'{"type":"module"}',{flag:'wx'});
+  for(const [name,source] of files){
+   const file=join(dir,name);mkdirSync(dirname(file),{recursive:true});
+   writeFileSync(file,source,{flag:'wx'});allowed.add(pathToFileURL(file).href);
   }
-  modules.set(name,mod);return mod;
- }
- const entry=module('index.ts');
- await entry.link((specifier,ref)=>module(specifier.startsWith('.')?posix.normalize(posix.join(posix.dirname(ref.identifier),specifier)):specifier));
- await entry.evaluate({timeout:5000});
+  const replacements=new Map();
+  let index=0;
+  for(const [name,source] of stubs){
+   const file=join(dir,'stub-'+index+++'.mjs');
+   writeFileSync(file,source,{flag:'wx'});const url=pathToFileURL(file).href;
+   replacements.set(name,url);allowed.add(url);
+  }
+  hooks=registerHooks({resolve(specifier,context,nextResolve){
+   if(replacements.has(specifier))return {url:replacements.get(specifier),shortCircuit:true};
+   const result=nextResolve(specifier,context);
+   if(!allowed.has(result.url))throw Error('GX350_EDGE_IMPORT_BOUNDARY');
+   return result;
+  }});
+  await import(pathToFileURL(join(dir,'index.ts')).href);
+ }catch(error){cleanup();throw error;}
  assert.equal(typeof handler,'function');
  return {async call(method,origin,body,token){
   const headers={Origin:origin,'Content-Type':'application/json'};
@@ -73,18 +89,19 @@ async function instantiate(files,project){
   const data=raw?JSON.parse(raw):null;
   assert.ok(!/signedUrl|sourceSnapshot|artifactSha256|gx333CommandHash/.test(raw));
   return {status:response.status,cors:response.headers.get('access-control-allow-origin'),ok:data?.ok??null};
- },counts:()=>({authCalls,providerCalls})};
+ },counts:()=>({authCalls,providerCalls}),cleanup};
 }
 await rehearseEdgePackages(manifest,read);
 let checks=0,instances=0;
 for(const f of manifest.functions){
  const body=f.slug.includes('invite')?{command:{type:'ADMIN_CLIENTE_REENVIAR_INVITACION',operationId:'gx350-synthetic',entityId:uuid,payload:{clientId:uuid}}}:
   f.slug.includes('evolution')?{action:'latest',reportId:uuid}:{action:'health'};
- // Prove old -> new -> old using identical source bytes, in fresh VMs.
+ // Prove old -> new -> old using identical source bytes, in fresh native module trees.
  for(const [project,origin] of [[manifest.productionProject,PROD],[manifest.qaProject,QA]]){
   let baseline;
   for(const kind of ['prod','candidate','prod']){
    const runtime=await instantiate(buildPackage(f,kind),project);instances++;
+   try{
    const observed=[];
    for(const [method,o,token,status] of [['POST',origin,null,401],['POST',BAD,null,403],['GET',origin,null,405],['OPTIONS',origin,null,204],['POST',origin,'Bearer synthetic-invalid',401]]){
     const result=await runtime.call(method,o,body,token);
@@ -95,6 +112,7 @@ for(const f of manifest.functions){
    }
    assert.deepEqual(runtime.counts(),{authCalls:1,providerCalls:0});
    if(baseline)assert.deepEqual(observed,baseline);else baseline=observed;
+   }finally{runtime.cleanup();}
   }
  }
 }

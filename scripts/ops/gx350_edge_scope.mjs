@@ -1,6 +1,5 @@
 // Read-only contract: never deploys or contacts Supabase. Distinguishes
 // repository source identity, remote source inventory, and rollback runtime.
-import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath,pathToFileURL} from 'node:url';
@@ -14,7 +13,11 @@ const fail=reason=>{throw Error('GX350_EDGE_'+reason);};
 const safePath=p=>typeof p==='string'&&p.length<300&&p.split('/').every(x=>x!=='.'&&x!=='..'&&/^[a-zA-Z0-9_.-]+$/u.test(x));
 export function gitBlob(bytes){
  if(!Buffer.isBuffer(bytes)&&typeof bytes!=='string')fail('SOURCE_BYTES_INVALID');
- const b=Buffer.from(bytes);return createHash('sha1').update('blob '+b.length+'\0').update(b).digest('hex');
+ // Git object identity, not a cryptographic signature. Use Git's own collision-aware object hashing.
+ const git=process.platform==='win32'?'C:/Program Files/Git/cmd/git.exe':'/usr/bin/git';
+ const id=execFileSync(git,['hash-object','--stdin','--no-filters'],{input:Buffer.from(bytes),encoding:'utf8',maxBuffer:1024}).trim();
+ if(!HASH.test(id))fail('GIT_OBJECT_ID_INVALID');
+ return id;
 }
 export function validateScope(m){
  if(!m||m.schema!=='iberfit.gx350.edge-scope.v1'||m.candidate!==EXPECTED_SHA||

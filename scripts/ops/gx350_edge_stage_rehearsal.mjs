@@ -7,6 +7,38 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {gitBlob,validateScope} from './gx350_edge_scope.mjs';
 const EXTERNALS=new Set(['npm:@supabase/supabase-js@2.112.4','npm:pdf-lib@1.17.1','npm:@pdf-lib/fontkit@1.1.1']);
 const fail=code=>{throw Error('GX350_EDGE_STAGE_'+code);};
+// Bounded scan of the static import grammar used by the pinned source.
+// Never scan across arbitrary source text or use a backtracking multiline regex.
+function moduleSpecifiers(source){
+ const result=[],lines=source.split('\n');
+ for(let i=0;i<lines.length;i++){
+  let line=lines[i].trim();
+  const importing=line.startsWith('import ')||line.startsWith('import{')||line.startsWith('import\t');
+  const reexport=line.startsWith('export *')||line.startsWith('export {');
+  if(!importing&&!reexport)continue;
+  let complete=false;
+  for(let n=0;n<64;n++){
+   if(line.length>4096)fail('IMPORT_DECLARATION_TOO_LONG');
+   const statement=line.endsWith(';')?line.slice(0,-1).trimEnd():line;
+   const quote=statement.at(-1);
+   if(quote==="'"||quote==='"'){
+    const first=statement.lastIndexOf(quote,statement.length-2);
+    if(first<0)fail('IMPORT_SYNTAX');
+    const prefix=statement.slice(0,first).trimEnd();
+    if(prefix==='import'||prefix.endsWith(' from')||prefix.endsWith('}from')){
+     const specifier=statement.slice(first+1,-1);
+     if(!specifier||specifier.includes('\\')||specifier.includes('\n'))fail('IMPORT_SYNTAX');
+     result.push(specifier);complete=true;break;
+    }
+   }
+   if(reexport&&line.includes('}')&&!line.includes(' from')&&(line.endsWith('}')||line.endsWith('};'))){complete=true;break;}
+   if(i+1>=lines.length||line.endsWith(';'))break;
+   line+=' '+lines[++i].trim();
+  }
+  if(!complete)fail('IMPORT_SYNTAX');
+ }
+ return result;
+}
 export function verifyModuleGraph(files){
  if(!(files instanceof Map)||!files.has('index.ts'))fail('ENTRYPOINT');
  const reached=new Set(),external=new Set();
@@ -17,8 +49,7 @@ export function verifyModuleGraph(files){
   reached.add(name);
   const source=bytes.toString('utf8');
   if(/\bimport\s*\(/u.test(source))fail('DYNAMIC_IMPORT_UNREVIEWED');
-  for(const match of source.matchAll(/^\s*(?:import\s+(?:[\s\S]*?\s+from\s+)?|export\s+(?:\*|\{[^}]*\})\s+from\s+)['"]([^'"\r\n]+)['"]/gmu)){
-   const specifier=match[1];
+  for(const specifier of moduleSpecifiers(source)){
    if(specifier.startsWith('.')){
     const target=posix.normalize(posix.join(posix.dirname(name),specifier));
     if(target==='..'||target.startsWith('../')||!files.has(target))fail('LOCAL_IMPORT_ESCAPE_OR_MISSING');

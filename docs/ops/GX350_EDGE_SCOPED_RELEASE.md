@@ -14,4 +14,6 @@ La lectura real PROD confirma 0 objetivos medibles, 0 seguimientos GX, 0 recibos
 
 
 ### Ejecución local del código recuperado
-`node --experimental-vm-modules scripts/ops/gx350_edge_local_runtime.mjs` carga los módulos reales y ejecuta anterior → candidato → anterior en VMs independientes, con orígenes PROD/QA sintéticos, sin red ni credenciales. Prueba cinco límites HTTP/autorización por instancia (18 instancias, 90 verificaciones esperadas). Dependencias npm externas se sustituyen por dobles que rechazan cualquier acceso a proveedor o DB; no acredita el gateway JWT alojado, emisión real de PDF ni redeploy efectivo. CI debe confirmar el resultado antes de usar esta evidencia.
+`node scripts/ops/gx350_edge_local_runtime.mjs` carga los módulos reales y ejecuta anterior → candidato → anterior en árboles de módulos nativos independientes, con orígenes PROD/QA sintéticos, sin red ni credenciales. Prueba cinco límites HTTP/autorización por instancia (18 instancias, 90 verificaciones esperadas). Dependencias npm externas se sustituyen por dobles que rechazan cualquier acceso a proveedor o DB; no acredita el gateway JWT alojado, emisión real de PDF ni redeploy efectivo. CI debe confirmar el resultado antes de usar esta evidencia.
+
+Sonar: sustitución de VM evaluable por importación nativa de fuentes Git fijadas con lista de resolución cerrada, doble de paquetes y guardia de red; uso de `git hash-object` para identidad Git (no firma criptográfica) y escaneo estático acotado. No se suprimen observaciones ni se modifica código de aplicación. Nueva CI requerida.

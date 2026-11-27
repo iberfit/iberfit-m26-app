@@ -27,3 +27,8 @@ test('multiline import and nested reexport resolve only within package',()=>{
  assert.deepEqual(verifyModuleGraph(x),{modules:3,externalDependencies:1});
 });
 test('reject any altered recovered bytes',()=>assert.throws(()=>rehearseEdgePackages(m,()=>Buffer.from('drift')),/SOURCE_DRIFT/));
+
+test('reject malformed or oversized static import without scanning the remaining source',()=>{
+ assert.throws(()=>verifyModuleGraph(files({'index.ts':"import {"+'x'.repeat(5000)})),/IMPORT_DECLARATION_TOO_LONG/);
+ assert.throws(()=>verifyModuleGraph(files({'index.ts':"import {x} from './missing.js';"})),/LOCAL_IMPORT_ESCAPE_OR_MISSING/);
+});
