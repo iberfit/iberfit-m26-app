@@ -86,3 +86,16 @@ export function observedLoadKg(row,{max=10000}={}){
   if(Math.max(...measured)-Math.min(...measured)>0.01)return null;
   return measured[0];
 }
+
+// Presentation of observed load basis only. Never derive it from prescription.
+// An unknown or contradictory alias must remain explicitly unspecified.
+export function observedLoadBasisLabel(row){
+  const unspecified='base por implemento no especificada';
+  if(!observedSet(row))return unspecified;
+  const labels=new Map([['total','carga externa total'],['per-hand','por mano'],['per-side','por lado'],['per-implement','por implemento'],['assistance','asistencia'],['bodyweight','peso corporal'],['per_dumbbell','por mancuerna'],['per-dumbbell','por mancuerna'],['por_mancuerna','por mancuerna']]);
+  const aliases=['loadBasis','load_basis','loadMode','load_mode'].map(k=>row[k]).filter(v=>v!==undefined&&v!==null&&v!=='');
+  const legacy=typeof row.loadUnit==='string'&&['per_dumbbell','per-dumbbell','por_mancuerna'].includes(row.loadUnit.trim().toLowerCase())?row.loadUnit:null;
+  if(legacy!==null)aliases.push(legacy);
+  const observed=aliases.map(v=>typeof v==='string'?labels.get(v.trim().toLowerCase()):undefined);
+  return observed.length&&observed.every(v=>v&&v===observed[0])?observed[0]:unspecified;
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createEvidenceSignal,observedLoadKg} from '../src/m26/domain/evidence-signal.js';
+import {createEvidenceSignal,observedLoadKg,observedLoadBasisLabel} from '../src/m26/domain/evidence-signal.js';
 
 const now=new Date('2026-11-27T15:00:00Z');
 const signal={id:'signal-1',subjectId:'client-1',kind:'strength',sourceType:'sessionExecutions',sourceIds:['execution-1'],periodStart:'2026-11-20',periodEnd:'2026-11-27',value:0,unit:'kg',method:'Registro directo',provenance:'Ejecución confirmada',sampleSize:1,quality:'medida',confidence:'limitada',interpretationBoundary:'No acredita mejora',decisionUse:'Revisar',methodologyVersion:'v1'};
@@ -44,5 +44,19 @@ test('preserva la base histórica por mancuerna sin inferir la unidad de masa',(
     assert.equal(observedLoadKg({load:20,loadUnit}),null);
     assert.equal(observedLoadKg({loadKg:20,loadUnit,weightUnit:'lb'}),null);
     assert.equal(observedLoadKg({loadKg:20,weightUnit:loadUnit}),null);
+  }
+});
+
+test('la base de carga observada distingue asistencia, peso corporal y carga externa',()=>{
+  for(const [loadBasis,label] of [['total','carga externa total'],['per-hand','por mano'],['per-side','por lado'],['per-implement','por implemento'],['assistance','asistencia'],['bodyweight','peso corporal']]){
+    assert.equal(observedLoadBasisLabel({loadBasis}),label);
+    assert.equal(observedLoadBasisLabel({load_basis:loadBasis,loadMode:loadBasis}),label);
+  }
+  assert.equal(observedLoadBasisLabel({loadUnit:'per_dumbbell'}),'por mancuerna');
+  assert.equal(observedLoadBasisLabel({loadBasis:'per-dumbbell',loadUnit:'por_mancuerna'}),'por mancuerna');
+});
+test('no elige una base de carga favorable si es ambigua o contradictoria',()=>{
+  for(const row of [{},{loadBasis:'total',load_mode:'assistance'},{loadBasis:'total',loadUnit:'per_dumbbell'},{loadBasis:'total',loadMode:'otra'},{loadBasis:'total',skipped:true},{loadBasis:[]},{loadUnit:'kg'}]){
+    assert.equal(observedLoadBasisLabel(row),'base por implemento no especificada');
   }
 });

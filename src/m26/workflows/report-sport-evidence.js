@@ -1,7 +1,7 @@
 // Life & Performance 360: conservative, owner-scoped workout evidence.
 import {exerciseMeasurementProfile,EXERCISE_METRIC_FIELDS} from '../exercises/measurement-profiles.js';
 import {reportCivilDate} from '../domain/civil-date.js';
-import {observedSet,observedLoadKg,evidenceNumber} from '../domain/evidence-signal.js';
+import {observedSet,observedLoadKg,evidenceNumber,observedLoadBasisLabel} from '../domain/evidence-signal.js';
 import {sessionExecutionId,sessionExecutionClientId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed,sessionExecutionCompletionDate,readOriginalExecutionPrescription} from '../domain/session-execution-truth.js';
 // Only canonical confirmed session executions may call this projector.
 const clean=(x,max=100)=>String(x??'').trim().replace(/\s+/g,' ').slice(0,max);
@@ -45,16 +45,15 @@ function exerciseRows(record){
     const reps=finite(val(row,'reps','repetitions'),0,500);
     const kg=observedLoadKg(row,{max:1500});
     const rpe=finite(row.rpe,1,10);
-    if(reps===null&&kg===null&&rpe===null)continue;
+    const rir=finite(row.rir,0,10);
+    if(reps===null&&kg===null&&rpe===null&&rir===null)continue;
     const name=clean(val(row,'exerciseName','name')||'Ejercicio registrado',65);
-    const basis=clean(val(row,'loadBasis','loadUnit'),40).toLowerCase();
-    const weightBasis=['per_dumbbell','per-dumbbell','por_mancuerna'].includes(basis)
-      ?'por mancuerna'
-      :'base por implemento no especificada';
+    const weightBasis=observedLoadBasisLabel(row);
     const parts=[];
     if(reps!==null)parts.push(reps+' rep');
     if(kg!==null)parts.push(kg+' kg ('+weightBasis+')');
     if(rpe!==null)parts.push('RPE '+rpe+'/10');
+    if(rir!==null)parts.push('RIR '+rir);
     records.push(item(name,parts.join(' · ')));
     if(records.length>=4)break; // bounded PDF evidence, no automatic aggregation
   }
@@ -144,10 +143,12 @@ function verifiedSetEvidence(source,snapshot){
       const reps=finite(row.reps,0,500);
       const kg=measuredLoad(row);
       const rpe=finite(row.rpe,1,10);
+      const rir=finite(row.rir,0,10);
       const pieces=[];
       if(reps!==null)pieces.push(reps+' rep');
-      if(kg!==null)pieces.push(kg+' kg (base por implemento no especificada)');
+      if(kg!==null)pieces.push(kg+' kg ('+observedLoadBasisLabel(row)+')');
       if(rpe!==null)pieces.push('RPE '+rpe+'/10');
+      if(rir!==null)pieces.push('RIR '+rir);
       if(pieces.length)result.push(item(name+set,pieces.join(' · ')));
     }
     if(result.length>=8)break;
