@@ -23,6 +23,7 @@ BEGIN
  cmd:=jsonb_build_object('type','ADMIN_CLIENTE_CREAR','operationId',op,'entityId',f->>'org','organizationId',f->>'org','baseRevision',0,'payload',jsonb_build_object('name','GX333 synthetic person','email',email,'phone','5550100','birthDate','1985-01-01','sexForNorms','female','modality','Online','frequency','3 sesiones por semana','objective','Mejora de fuerza y salud','entryIntent','training','initialAssessmentMode','deferred','accessMode','internal','coachUserId',f->>'coach','weeklyFrequency',3,'sessionDurationMinutes',45,'profile',jsonb_build_object('email',email,'birthDate','1985-01-01','sexForNorms','female','modality','online')));
  r:=public.iberfit_admin_execute_v14(cmd);
  IF r->>'kind' IS DISTINCT FROM 'ack' OR r->>'trainingServiceStatus' IS DISTINCT FROM 'active' OR r ? 'gx333CommandHash' THEN RAISE EXCEPTION 'GX333_CREATE_FAILED %',r->>'kind'; END IF;
+ IF r->>'iriCreated' IS DISTINCT FROM 'false' OR r ? 'iri_id' THEN RAISE EXCEPTION 'GX350_DEFERRED_IRI_RECEIPT_INVALID'; END IF;
  PERFORM set_config('gx333.command',cmd::text,true);PERFORM set_config('gx333.client',r->>'clientId',true);
 END $first$;
 RESET ROLE;
@@ -49,6 +50,7 @@ RESET ROLE;
 DO $verify$
 DECLARE f jsonb:=current_setting('gx333.fixture')::jsonb; c uuid:=current_setting('gx333.client')::uuid; previous jsonb:=current_setting('gx333.counts')::jsonb; actual jsonb;
 BEGIN
+ IF EXISTS(SELECT 1 FROM public.iri_assessments WHERE client_id=c) OR EXISTS(SELECT 1 FROM public.domain_entities_v26 WHERE client_id=c AND entity_type='iri') THEN RAISE EXCEPTION 'GX350_DEFERRED_IRI_RESIDUAL'; END IF;
  actual:=jsonb_build_object('services',(SELECT count(*) FROM public.iberfit_training_service_events_v1 WHERE person_id=c),'assignments',(SELECT count(*) FROM public.iberfit_coach_client_assignments WHERE client_id=c::text),'conversation',(SELECT coalesce(sum(revision),0) FROM public.iberfit_conversation_threads WHERE client_id=c::text),'audit',(SELECT count(*) FROM public.iberfit_admin_audit_events WHERE entity_id=c::text));
  IF actual IS DISTINCT FROM previous THEN RAISE EXCEPTION 'GX333_REPLAY_SIDE_EFFECT';END IF;
  IF private.iberfit_training_service_status_at_v1((f->>'org')::uuid,c,now()) IS DISTINCT FROM 'ended' THEN RAISE EXCEPTION 'GX333_REACTIVATED';END IF;

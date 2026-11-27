@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readTemplate,renderScopedReadback} from '../scripts/ops/gx350_onboarding_readback.mjs';
+import {readTemplate,renderScopedReadback,readDeferredIriTemplate,renderDeferredIri} from '../scripts/ops/gx350_onboarding_readback.mjs';
 const template=readTemplate();
 test('scoped readback preserves assurance, role scope, and all three readback predicates',()=>{
   const body=template.split('$gx_to$')[1];
@@ -31,4 +31,18 @@ test('tampering and invalid direction fail closed before any SQL is emitted',()=
   assert.throws(()=>renderScopedReadback(template+'\n'),/HASH_MISMATCH/);
   assert.throws(()=>renderScopedReadback(template,{mode:'unsafe'}),/RENDER_INVALID/);
   assert.throws(()=>renderScopedReadback(template,{dryRun:'false'}),/RENDER_INVALID/);
+});
+
+test('deferred IRI cleanup receives only the precise new-client identifier, fails closed, and preserves old receipts',()=>{
+  const source=readDeferredIriTemplate();
+  const install=renderDeferredIri(source);
+  const undo=renderDeferredIri(source,{mode:'rollback'});
+  assert.match(source,/v_created->>'reused'='false'/);
+  assert.match(source,/v_created->>'iri_id'/);
+  assert.match(source,/GX350_DEFERRED_IRI_CLEANUP_UNCONFIRMED/);
+  assert.match(source,/not v_had_iri/);
+  assert.match(source,/GX350_IRI_INTERNAL_ACL_DRIFT/);
+  assert.match(source,/prior_meta IS DISTINCT FROM revised_meta/);
+  assert.equal(install.replace("direction constant text:='install'","direction constant text:='rollback'"),undo);
+  assert.throws(()=>renderDeferredIri(source+'\n'),/HASH_MISMATCH/);
 });
