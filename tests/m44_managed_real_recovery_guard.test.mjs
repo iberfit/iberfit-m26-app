@@ -39,7 +39,7 @@ test('M44 real ciphertext provenance, strict digest and no plaintext artifact up
  assert.match(code,/rmSync\(directory,\{force:true,recursive:true/);
 });
 test('Public Data API, Auth email/phone and signup are isolated before any real restore',()=>{
- const main=code.slice(code.indexOf('async function historicalManagedReplay()'),code.indexOf('async function main()'));
+ const main=code.slice(code.indexOf('export async function historicalManagedReplay()'),code.indexOf('main().catch('));
  assert.ok(main.indexOf('await isolate()')<main.indexOf('await seal()'));
  assert.ok(main.indexOf('await seal()')<main.indexOf('await restoreData(conn)'));
  for(const item of [
@@ -206,8 +206,11 @@ test('Managed PostgREST must repeatedly deny an originally public synthetic view
 });
 
 test('Current protected workflow can only verify archive, never swap or import',()=>{
- const main=code.slice(code.indexOf('async function main()'));
+ const main=code.slice(code.indexOf('async function main()'),code.indexOf('export async function historicalManagedReplay()'));
  assert.match(workflow,/M44_MANAGED_EXECUTION_MODE: PREFLIGHT_ONLY/);
+ const job=workflow.slice(workflow.indexOf('  managed-recovery:'),workflow.indexOf('  restore-free-slots:'));
+ assert.doesNotMatch(job,/SUPABASE_ACCESS_TOKEN:/);
+ assert.match(main,/process\.env\.SUPABASE_ACCESS_TOKEN\|\|/);
  assert.match(workflow,/always\(\) && false/);
  assert.ok(main.indexOf('await verifyBackup()')<main.indexOf('await downloadArchive()'));
  assert.ok(main.indexOf('await downloadArchive()')<main.indexOf("M44_MANAGED_ARCHIVE_PREFLIGHT_OK"));

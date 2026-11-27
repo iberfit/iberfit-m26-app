@@ -64,7 +64,8 @@ jobs:
       cancel-in-progress: false
     env:
       GITHUB_TOKEN: ${{ github.token }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # Preflight needs only GitHub read access and the archive passphrase.
+      # Deliberately do not inject the Supabase management token.
       IBERFIT_BACKUP_PASSPHRASE: ${{ secrets.IBERFIT_BACKUP_PASSPHRASE }}
       M44_USER_AUTHORIZATION: REAL_DATA_CLONE_ONLY_20261121
       M44_MANAGED_EXECUTION_MODE: PREFLIGHT_ONLY

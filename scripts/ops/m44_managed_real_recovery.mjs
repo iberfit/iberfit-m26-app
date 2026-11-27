@@ -513,18 +513,6 @@ async function cleanup(){
  }catch{console.error('M44_MANAGED_QA_RESTORE_FAILED');process.exitCode=1;}
  if(directory)rmSync(directory,{force:true,recursive:true,maxRetries:2});
 }
-// Historical real restore implementation retained for later review; not called
-// by main or the protected preflight workflow. Never replay onto populated target.
-async function historicalManagedReplay(){
- await isolate();
- await seal();
- const conn=await databaseConnection();
- await prepareM44ManagedExtensions();
- await restoreData(conn);
- await restorePrivateStorage();
- if(!sealed||!clonedData)fail('RESTORE_NOT_ISOLATED');
- console.log('M44_MANAGED_REAL_SNAPSHOT_SQL_READBACK_SUCCESS:hosted_full_platform_NOT_certified');
-}
 async function main(){
  if(process.env.GITHUB_ACTIONS!=='true'||
     process.env.GITHUB_REPOSITORY!==REPO||
@@ -533,10 +521,12 @@ async function main(){
     process.env.GITHUB_EVENT_NAME!=='push'||
     !['1','2','3'].includes(process.env.GITHUB_RUN_ATTEMPT||'')||
     !/^[0-9a-f]{40}$/.test(process.env.GITHUB_SHA||'')||
-    !process.env.SUPABASE_ACCESS_TOKEN||
+    process.env.SUPABASE_ACCESS_TOKEN||
     !process.env.GITHUB_TOKEN||
     String(process.env.IBERFIT_BACKUP_PASSPHRASE||'').length<32)
   fail('PROTECTED_ONE_TIME_CONTEXT_REQUIRED');
+ if(process.env.M44_MANAGED_EXECUTION_MODE!=='PREFLIGHT_ONLY')
+  fail('MANAGED_REPLAY_DISABLED_PENDING_ISOLATION_REVIEW');
  directory=mkdtempSync(join(tmpdir(),'iberfit-m44-managed-'));
  chmodSync(directory,0o700);
  try{
@@ -546,14 +536,22 @@ async function main(){
   // Existing managed sandbox contains earlier recovery evidence. Never
   // overwrite it, or pause QA, merely because a new archive is available.
   // No supported path from this workflow into a real-data import yet.
-  if(process.env.M44_MANAGED_EXECUTION_MODE==='PREFLIGHT_ONLY'){
-   console.log('M44_MANAGED_ARCHIVE_PREFLIGHT_OK:remote_writes=0:platform_recovery_NOT_certified');
-   return;
-  }
-  fail('MANAGED_REPLAY_DISABLED_PENDING_ISOLATION_REVIEW');
+  console.log('M44_MANAGED_ARCHIVE_PREFLIGHT_OK:remote_writes=0:platform_recovery_NOT_certified');
  }finally{
   await cleanup();
  }
+}
+// Historical real restore implementation retained for later review; not called
+// by main or the protected preflight workflow. Never replay onto populated target.
+export async function historicalManagedReplay(){
+ await isolate();
+ await seal();
+ const conn=await databaseConnection();
+ await prepareM44ManagedExtensions();
+ await restoreData(conn);
+ await restorePrivateStorage();
+ if(!sealed||!clonedData)fail('RESTORE_NOT_ISOLATED');
+ console.log('M44_MANAGED_REAL_SNAPSHOT_SQL_READBACK_SUCCESS:hosted_full_platform_NOT_certified');
 }
 main().catch(error=>{
  const message=String(error?.message||'');
