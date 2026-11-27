@@ -39,6 +39,11 @@ const BACKEND_PATHS=Object.freeze([
   "supabase/release-procedures/gx_report_proof_v1.sql"
 ]);
 const OPS_PATHS=new Set([
+  "scripts/ops/gx350_prod_activation.mjs",
+  ".github/workflows/gx350-prod-activation.yml",
+  "tests/gx350_prod_activation.test.mjs",
+  ".github/workflows/production-promote.yml",
+  ".github/workflows/m44-encrypted-disaster-recovery.yml",
   ".github/workflows/gx350-smtp-custody-readonly.yml",
   ".github/workflows/gx350-edge-hosted-rehearsal.yml",
   "scripts/ops/gx350_edge_hosted_rehearsal.mjs",
