@@ -37,7 +37,7 @@ jobs:
           const fs=require('fs'),m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
           const bad=x=>{throw Error(x)};
           if(m.schema!=='iberfit.web.public-production.v1'||m.repository!=='iberfit/iberfitweb'||m.domain!=='https://iberfit.cl')bad('MANIFEST_IDENTITY');
-          if(!/^6\.43\.(25|26|27|30)$/.test(m.version||''))bad('UNSUPPORTED_VERSION:'+m.version);
+          if(!/^6\.43\.(25|26|27|30|31)$/.test(m.version||''))bad('UNSUPPORTED_VERSION:'+m.version);
           if(!/^[0-9a-f]{40}$/.test(m.sha||'')||!/^[0-9a-f-]{36}$/.test(m.deploymentId||''))bad('MANIFEST_CURRENT');
           if(!m.safeRollback||!/^[0-9a-f]{40}$/.test(m.safeRollback.sha||'')||!/^[0-9a-f-]{36}$/.test(m.safeRollback.deploymentId||''))bad('MANIFEST_ROLLBACK');
           for(const k of ['qaRunId','previewRunId','productionRunId'])if(!Number.isInteger(m[k])||m[k]<=0)bad('MANIFEST_RUN_'+k);
@@ -61,8 +61,8 @@ jobs:
           grep -q "script-src-attr 'none'" /tmp/headers
           ! grep -q 'unsafe-inline' /tmp/headers
 
-          if [ "$VERSION" = '6.43.30' ] || [ "$VERSION" = '6.43.27' ] || [ "$VERSION" = '6.43.26' ]; then
-            if [ "$VERSION" = '6.43.30' ]; then
+          if [ "$VERSION" = '6.43.31' ] || [ "$VERSION" = '6.43.30' ] || [ "$VERSION" = '6.43.27' ] || [ "$VERSION" = '6.43.26' ]; then
+            if [ "$VERSION" = '6.43.31' ] || [ "$VERSION" = '6.43.30' ]; then
               CHECKPOINT=''
             elif [ "$VERSION" = '6.43.27' ]; then
               CHECKPOINT='checkpoint/v64327-sitemap-accuracy-production-2026-10-06'
@@ -90,7 +90,7 @@ jobs:
             grep -q 'No inferimos tus hábitos, tus actividades ni tus lugares preferidos por vivir en Ñuñoa.' /tmp/nunoa.html
           fi
 
-          if [ "$VERSION" = '6.43.27' ] || [ "$VERSION" = '6.43.30' ]; then
+          if [ "$VERSION" = '6.43.27' ] || [ "$VERSION" = '6.43.30' ] || [ "$VERSION" = '6.43.31' ]; then
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/sitemap.xml?state=${GITHUB_RUN_ID}" -o /tmp/sitemap-live.xml
             curl -fsSL --retry 6 --retry-all-errors "https://raw.githubusercontent.com/iberfit/iberfitweb/${SHA}/candidate/v628/sitemap.xml" -o /tmp/sitemap-certified.xml
             cmp -s /tmp/sitemap-live.xml /tmp/sitemap-certified.xml
@@ -111,7 +111,7 @@ jobs:
           print('LIVE_SITEMAP_PER_PAGE_LASTMOD_OK',len(pages))
           PY
           fi
-          if [ "$VERSION" = '6.43.30' ]; then
+          if [ "$VERSION" = '6.43.31' ] || [ "$VERSION" = '6.43.30' ]; then
             curl -fsS -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/commits/${SHA}" -o /tmp/checkpoint.json
             PROD_RUN="$(node -p "require('./.iberfit/web-public-production.json').productionRunId")"
             curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfit-m26-app/actions/runs/${PROD_RUN}" -o /tmp/production-run.json
@@ -120,10 +120,10 @@ jobs:
           fi
           node <<'NODE'
           const fs=require('fs'),m=require(process.cwd()+'/.iberfit/web-public-production.json'),b=require('/tmp/checkpoint.json');
-          if(m.version==='6.43.30'){
+          if(['6.43.30','6.43.31'].includes(m.version)){
             if(b.sha!==m.sha)throw Error('CHECKPOINT_DRIFT:'+b.sha);
             const run=require('/tmp/production-run.json');
-            if(run.id!==m.productionRunId||run.conclusion!=='success'||run.head_branch!=='infra/web-iberfit-worker'||!run.path?.includes('deploy-web-iberfit-v64330-geo-aeo.yml'))throw Error('PRODUCTION_RUN_UNVERIFIED');
+            if(run.id!==m.productionRunId||run.conclusion!=='success'||run.head_branch!=='infra/web-iberfit-worker'||!run.path?.includes(m.version==='6.43.31'?'deploy-web-iberfit-v64331-acquisition.yml':'deploy-web-iberfit-v64330-geo-aeo.yml'))throw Error('PRODUCTION_RUN_UNVERIFIED');
           }else if(b.commit?.sha!==m.sha)throw Error('CHECKPOINT_DRIFT:'+b.commit?.sha);
           console.log('WEB_PUBLIC_PRODUCTION_STATE_OK',m.version,m.sha,m.deploymentId);
           NODE
