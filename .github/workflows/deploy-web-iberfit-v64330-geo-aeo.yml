@@ -23,7 +23,7 @@ env:
   QA_RUN_NAME: 'Web GEO AEO certification and package'
   EXPECTED_CURRENT_SHA: 'feec0f32f0aef856dfa3b73cd89c8b49624da6a2'
   EXPECTED_CURRENT_VERSION: '6.43.29'
-  EXPECTED_ROLLBACK_DEPLOYMENT_PREFIX: 'c925cc69'
+  EXPECTED_ROLLBACK_DEPLOYMENT_PREFIX: 'bf8496b2'
   ROLLBACK_SHA: 'feec0f32f0aef856dfa3b73cd89c8b49624da6a2'
   ROLLBACK_VERSION: '6.43.29'
   PRODUCTION_TOUCHED: '0'
@@ -232,24 +232,27 @@ jobs:
           cat > /tmp/iberfit_cf_compare.py <<'PY'
           import re, sys
           from pathlib import Path
-          anchor = re.compile(rb'<a href="/cdn-cgi/l/email-protection#([0-9a-fA-F]+)"><span class="__cf_email__" data-cfemail="([0-9a-fA-F]+)">\[email&#160;protected\]</span></a>')
+          # Preserve all original attributes and text; only normalize Cloudflare's
+          # encoded public address, including its standalone text representation.
+          href = re.compile(rb'href="/cdn-cgi/l/email-protection#([0-9a-fA-F]+)"')
+          span = re.compile(rb'<span class="__cf_email__" data-cfemail="([0-9a-fA-F]+)">\[email&#160;protected\]</span>')
+          standalone = re.compile(rb'<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="([0-9a-fA-F]+)">\[email&#160;protected\]</a>')
           script = re.compile(rb'<script data-cfasync="false" src="/cdn-cgi/scripts/[0-9a-fA-F]{8}/cloudflare-static/email-decode\.min\.js"></script>')
-          plain = b'<a href="mailto:iberfit.cl@gmail.com">iberfit.cl@gmail.com</a>'
+          address = b'iberfit.cl@gmail.com'
           def decode(hexval):
               v = bytes.fromhex(hexval.decode('ascii'))
-              if len(v) < 2:
-                  raise ValueError('empty Cloudflare address')
-              return bytes(x ^ v[0] for x in v[1:])
+              if len(v) < 2 or bytes(x ^ v[0] for x in v[1:]) != address:
+                  raise ValueError('unexpected encoded email')
+              return address
           def verify(expected, actual):
               if expected == actual:
                   return 'EXACT'
-              matches = list(anchor.finditer(actual))
-              if not matches or len(matches) != expected.count(plain) or len(list(script.finditer(actual))) != 1:
-                  raise ValueError('unexpected transformation shape')
-              for m in matches:
-                  if decode(m[1]) != b'iberfit.cl@gmail.com' or decode(m[2]) != b'iberfit.cl@gmail.com':
-                      raise ValueError('email target changed')
-              normalized = script.sub(b'', anchor.sub(plain, actual))
+              if len(list(script.finditer(actual))) != 1:
+                  raise ValueError('unexpected decoder count')
+              normalized = standalone.sub(lambda m: decode(m[1]), actual)
+              normalized = href.sub(lambda m: b'href="mailto:'+decode(m[1])+b'"', normalized)
+              normalized = span.sub(lambda m: decode(m[1]), normalized)
+              normalized = script.sub(b'', normalized)
               if normalized != expected:
                   raise ValueError('non-Cloudflare content discrepancy')
               return 'CF_EMAIL_ONLY'
@@ -259,6 +262,23 @@ jobs:
               except ValueError as e:
                   print(str(e),file=sys.stderr)
                   sys.exit(1)
+          PY
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,'/tmp')
+          from iberfit_cf_compare import verify
+          addr=b'iberfit.cl@gmail.com'
+          def enc(k): return bytes([k]+[b^k for b in addr]).hex().encode()
+          script=b'<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>'
+          plain=b'<p>Contact '+addr+b'.</p><a class="text-link" href="mailto:'+addr+b'">'+addr+b'</a>'
+          actual=b'<p>Contact <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="'+enc(42)+b'">[email&#160;protected]</a>.</p><a class="text-link" href="/cdn-cgi/l/email-protection#'+enc(17)+b'"><span class="__cf_email__" data-cfemail="'+enc(22)+b'">[email&#160;protected]</span></a>'+script
+          assert verify(plain,actual)=='CF_EMAIL_ONLY'
+          assert verify(plain,plain)=='EXACT'
+          for bad in (actual.replace(b'Contact',b'Changed'),actual.replace(b'text-link',b'evil'),actual.replace(enc(42),b'0102'),actual+script,actual+b'<script>alert(1)</script>'):
+              try: verify(plain,bad)
+              except ValueError: pass
+              else: raise AssertionError('rejected transformation passed')
+          print('CF_EMAIL_NORMALIZER_POSITIVE_AND_NEGATIVE_OK')
           PY
           verify_bytes() {
             local route="$1" expected="$2" out="$3" a
@@ -412,5 +432,6 @@ jobs:
             /tmp/v64330-production/metrics.json
             /tmp/analytics-preview.js
             /tmp/analytics-live.js
+            /tmp/live-*.html
           if-no-files-found: warn
           retention-days: 30
