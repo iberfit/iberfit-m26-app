@@ -9,7 +9,7 @@ export function createEvidenceSignal(input,{now=new Date()}={}){
   const text=(x,max)=>typeof x==='string'&&x.trim()&&x.length<=max&&!/[\u0000-\u001f\u007f]/u.test(x)?x.trim():null;
   const signalId=id(input?.id),subjectId=id(input?.subjectId),sourceType=id(input?.sourceType),kind=id(input?.kind);
   const sourceIds=Array.isArray(input?.sourceIds)?input.sourceIds:[];
-  if(!signalId||!subjectId||!sourceType||!kind||!sourceIds.length||sourceIds.length>2000||sourceIds.some(x=>!id(x))||new Set(sourceIds).size!==sourceIds.length)return null;
+  if(!signalId||!subjectId||!sourceType||!kind||!sourceIds.length||sourceIds.length>2000||Array.from(sourceIds).some(x=>!id(x))||new Set(sourceIds).size!==sourceIds.length)return null;
   const start=parseCivilDate(input.periodStart)?.iso,end=parseCivilDate(input.periodEnd)?.iso,cutoff=reportCivilDate(now);
   if(!start||!end||!cutoff||start>end||end>cutoff)return null;
   const measuredAt=input.measuredAt??null;
@@ -66,10 +66,10 @@ export function observedLoadKg(row,{max=10000}={}){
   if(!observedSet(row))return null;
   const values=keys=>keys.map(k=>row[k]).filter(v=>v!==undefined&&v!==null&&v!=='');
   if(values(['loadLb','load_lb','weightLb','weight_lb']).length)return null;
-  const units=values(['loadUnit','load_unit','weightUnit','weight_unit','unit']).map(v=>String(v).trim().toLowerCase());
+  const units=values(['loadUnit','load_unit','weightUnit','weight_unit','unit']).map(v=>typeof v==='string'?v.trim().toLowerCase():null);
   const kgNames=new Set(['kg','kgs','kilogram','kilograms','kilogramo','kilogramos']);
-  const lbNames=new Set(['lb','lbs','pound','pounds','libra','libras']);
-  if(units.some(u=>lbNames.has(u))||new Set(units.map(u=>kgNames.has(u)?'kg':u)).size>1)return null;
+  // A typed kg field cannot override an incompatible explicit unit.
+  if(units.some(u=>!kgNames.has(u)))return null;
   const kgUnit=units.length>0&&units.every(u=>kgNames.has(u));
   const parse=v=>evidenceNumber(typeof v==='string'?v.replace(',','.'):v,{min:0,max});
   const typed=values(['loadKg','load_kg','weightKg','weight_kg','kg']).map(parse);
