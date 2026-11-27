@@ -66,10 +66,13 @@ export function observedLoadKg(row,{max=10000}={}){
   if(!observedSet(row))return null;
   const values=keys=>keys.map(k=>row[k]).filter(v=>v!==undefined&&v!==null&&v!=='');
   if(values(['loadLb','load_lb','weightLb','weight_lb']).length)return null;
-  const units=values(['loadUnit','load_unit','weightUnit','weight_unit','unit']).map(v=>typeof v==='string'?v.trim().toLowerCase():null);
+  const unitKeys=['loadUnit','load_unit','weightUnit','weight_unit','unit'].filter(k=>row[k]!==undefined&&row[k]!==null&&row[k]!=='');
+  const units=unitKeys.map(k=>typeof row[k]==='string'?row[k].trim().toLowerCase():null);
   const kgNames=new Set(['kg','kgs','kilogram','kilograms','kilogramo','kilogramos']);
-  // A typed kg field cannot override an incompatible explicit unit.
-  if(units.some(u=>!kgNames.has(u)))return null;
+  // Historical reports used loadUnit for a dumbbell basis, not a mass unit.
+  // Preserve only those documented values when kg is independently explicit.
+  const legacyBasis=unitKeys.length===1&&unitKeys[0]==='loadUnit'&&['per_dumbbell','per-dumbbell','por_mancuerna'].includes(units[0]);
+  if(!legacyBasis&&units.some(u=>!kgNames.has(u)))return null;
   const kgUnit=units.length>0&&units.every(u=>kgNames.has(u));
   const parse=v=>evidenceNumber(typeof v==='string'?v.replace(',','.'):v,{min:0,max});
   const typed=values(['loadKg','load_kg','weightKg','weight_kg','kg']).map(parse);

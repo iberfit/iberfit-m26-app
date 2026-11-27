@@ -36,3 +36,13 @@ test('conserva referencias válidas, inmutabilidad y valor cero',()=>{
   assert.ok(result);assert.equal(result.value,0);assert.ok(Object.isFrozen(result.sourceIds));
   sourceIds.push('execution-3');assert.deepEqual(result.sourceIds,['execution-1','execution-2']);
 });
+
+test('preserva la base histórica por mancuerna sin inferir la unidad de masa',()=>{
+  for(const loadUnit of ['per_dumbbell','per-dumbbell','por_mancuerna']){
+    assert.equal(observedLoadKg({loadKg:20,loadUnit}),20);
+    assert.equal(observedLoadKg({load:'20 kg',loadUnit}),20);
+    assert.equal(observedLoadKg({load:20,loadUnit}),null);
+    assert.equal(observedLoadKg({loadKg:20,loadUnit,weightUnit:'lb'}),null);
+    assert.equal(observedLoadKg({loadKg:20,weightUnit:loadUnit}),null);
+  }
+});
