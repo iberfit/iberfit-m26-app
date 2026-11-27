@@ -42,6 +42,10 @@ test('provider package prefix never substitutes for exact candidate bytes or com
  const f={slug:'example-edge',candidate:[{name:'index.ts',blob:'ce013625030ba8dba906f756967f9e9ca394464a'},{name:'vendor/dep.js',blob:'ce013625030ba8dba906f756967f9e9ca394464a'}]};
  const good=[{name:'example-edge/index.ts',bytes:Buffer.from('hello\n')},{name:'example-edge/vendor/dep.js',bytes:Buffer.from('hello\n')}];
  assert.equal(verifyCandidateFiles(f,good),2);
+ const entry='/tmp/provider/source/index.ts';
+ const absolute=good.map(x=>({...x,name:'file:///tmp/provider/source/'+x.name.slice('example-edge/'.length)}));
+ assert.equal(verifyCandidateFiles(f,absolute,entry),2);
+ assert.throws(()=>verifyCandidateFiles(f,absolute,'/tmp/other/source/index.ts'),/FILE_PATH/);
  assert.throws(()=>verifyCandidateFiles(f,[good[0]]),/FILE_COUNT/);
  assert.throws(()=>verifyCandidateFiles(f,[good[0],good[0]]),/SOURCE_DRIFT/);
  assert.throws(()=>verifyCandidateFiles(f,[good[0],{...good[1],bytes:Buffer.from('wrong')}]),/SOURCE_DRIFT/);

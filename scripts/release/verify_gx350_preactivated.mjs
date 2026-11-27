@@ -165,12 +165,13 @@ export function verifyGx350Edges(raw){
   if(mapExpected?(e.import_map!==true||map!==root+'/deno.json'):(e.import_map===true||Boolean(map)))fail('LIVE_EDGE_IMPORT_MAP:'+f.slug);
   return Object.freeze({slug:f.slug,id:e.id,version:e.version,digest:e.ezbr_sha256,jwt:e.verify_jwt,entry,map});
  }
- export function verifyCandidateFiles(f,files){
+ export function verifyCandidateFiles(f,files,entry=''){
   if(!Array.isArray(files)||files.length!==f.candidate.length)fail('LIVE_EDGE_FILE_COUNT:'+f.slug);
   // Only one consistent package root; never strip arbitrary suffixes.
-  const prefixes=['',''+f.slug+'/','supabase/functions/'+f.slug+'/'];
+  const root=entry.endsWith('/index.ts')?entry.slice(0,-'index.ts'.length):'';
+  const prefixes=['',f.slug+'/','supabase/functions/'+f.slug+'/',...(root?[root,'file://'+root]:[])];
   const prefix=prefixes.find(pre=>files.every(x=>typeof x.name==='string'&&x.name.startsWith(pre)&&f.candidate.some(y=>x.name===pre+y.name)));
-  if(prefix===undefined)fail('LIVE_EDGE_FILE_PATH:'+f.slug);
+  if(prefix===undefined){console.log('GX350_EDGE_PATH_DIAGNOSTIC:'+f.slug+':'+JSON.stringify(files.map(x=>String(x.name).slice(0,300))));fail('LIVE_EDGE_FILE_PATH:'+f.slug);}
   const names=new Set();
   for(const x of files){
    const name=x.name.slice(prefix.length),expected=f.candidate.find(y=>y.name===name);
@@ -201,7 +202,7 @@ export function verifyGx350Edges(raw){
   if(!f)fail('LIVE_EDGE_SLUG');
   const before=exactMeta(raw,f);
   if(project===LIVE_SCOPE.productionProject&&before.version<f.prodVersion)fail('LIVE_EDGE_VERSION');
-  const count=verifyCandidateFiles(f,await getBodyFiles(project,f,token));
+  const count=verifyCandidateFiles(f,await getBodyFiles(project,f,token),before.entry);
   const after=exactMeta(await listLive(project,token),f);
   if(JSON.stringify(before)!==JSON.stringify(after))fail('LIVE_EDGE_CHANGED_DURING_READBACK:'+slug);
   return Object.freeze({...after,files:count});

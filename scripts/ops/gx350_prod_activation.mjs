@@ -1,4 +1,5 @@
 // GX350 backend activation, independent of Pages. No generic production writer.
+// Validate absolute provider file paths against the observed entrypoint root.
 // Exact functional source, exact release marker, exact QA gates, fresh backup,
 // live pre/post catalog attestation. Never changes Hosted Auth, Vault or secrets.
 // An interrupted/partially used activation is a forward-fix incident, not a blind rollback.
