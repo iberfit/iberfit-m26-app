@@ -11,7 +11,7 @@ import {composeGxBackendRelease,readGxBackendRelease,unwrapReleaseSql} from './g
 import {renderScopedReadback,renderDeferredIri,readTemplate,readDeferredIriTemplate} from './gx350_onboarding_readback.mjs';
 import {gitBlob,validateScope} from './gx350_edge_scope.mjs';
 import {repositoryReader,rehearseEdgePackages} from './gx350_edge_stage_rehearsal.mjs';
-import {GX350_CANDIDATE,GX350_PREVIOUS_LIVE,gx350SourceScope,CATALOG_SQL,RLS_SQL,verifyGx350Catalog,verifyGx350Edges} from '../release/verify_gx350_preactivated.mjs';
+import {GX350_CANDIDATE,GX350_PREVIOUS_LIVE,gx350SourceScope,CATALOG_SQL,RLS_SQL,verifyGx350Catalog,verifyGx350Edges,verifyGx350CandidateEdge,verifyGx350ProdEdges} from '../release/verify_gx350_preactivated.mjs';
 import {SQL as M1_SQL,certifyAlreadyActiveBackend} from '../release/verify_backend_preactivated.mjs';
 import {verifySourceQaGates} from '../release/verify_source_qa_gates.mjs';
 import {evaluateM44OffsiteRecovery} from '../data-safety/check_m44_offsite_recovery_readiness.mjs';
@@ -73,6 +73,16 @@ export function classifyEdgeState(raw,f){
  if(e.ezbr_sha256===f.qaBundle)return 'candidate';
  fail('EDGE_STATE_UNKNOWN');
 }
+async function reconcileEdgeState(raw,f){
+ let state;
+ try{state=classifyEdgeState(raw,f);}
+ catch(e){if(e.message!=='GX350_ACTIVATION_EDGE_STATE_UNKNOWN')throw e;state='candidate';}
+ if(state==='candidate'){
+  const proof=await verifyGx350CandidateEdge(PROD,raw,f.slug,process.env.SUPABASE_ACCESS_TOKEN);
+  console.log('GX350_ACTIVATION_EDGE_SOURCE_VERIFIED:'+f.slug+':'+proof.digest+':files='+proof.files);
+ }
+ return state;
+}
 function verifyPriorEdges(raw){
  for(const f of manifest.functions)if(classifyEdgeState(raw,f)!=='prior')fail('PRIOR_EDGE_DRIFT');
 }
@@ -106,6 +116,7 @@ async function readbackPrior(){
 async function readbackQA(){
  const [a,b,e]=await Promise.all([sql(QA,CATALOG_SQL),sql(QA,RLS_SQL),list(QA)]);
  verifyGx350Catalog(a,b);verifyGx350Edges(e);
+ for(const f of manifest.functions)await verifyGx350CandidateEdge(QA,e,f.slug,process.env.SUPABASE_ACCESS_TOKEN);
 }
 async function backupProof(source){
  const raw=await gh('/actions/runs?head_sha='+source+'&per_page=100');
@@ -146,7 +157,7 @@ function marker(){
 async function deploy(f){
  // Never overwrite an unknown live bundle. A candidate already installed by
  // the same scoped rollout is probed, not redeployed.
- let state=classifyEdgeState(await list(PROD),f);
+ let state=await reconcileEdgeState(await list(PROD),f);
  if(state==='candidate'){await probeEdge(f);return;}
  const dir=mkdtempSync(join(tmpdir(),'iberfit-gx350-prod-'));
  try{
@@ -160,7 +171,7 @@ async function deploy(f){
    // A transport error may have occurred after commit. Reconcile from live
    // metadata before retrying; do not turn an unknown digest into a retry.
    try{execFileSync(join(dirname(process.execPath),'npx'),['--yes','supabase@2.117.0','functions','deploy',f.slug,'--workdir',dir,'--project-ref',PROD,'--use-api','--yes',...(f.verifyJwt?[]:['--no-verify-jwt'])],{stdio:'pipe',timeout:180000,maxBuffer:1024*1024});}catch{}
-   state=classifyEdgeState(await list(PROD),f);
+   state=await reconcileEdgeState(await list(PROD),f);
    if(state==='candidate')break;
    if(attempt===0)await wait(2000);
   }
@@ -179,7 +190,10 @@ async function verifyHostedEvidence(){
  if(run.head_sha!=='f09aa6d5f22eb91e4dde10981bcb2997f24ec09b'||run.name!=='GX350 isolated QA hosted Edge rollback'||run.status!=='completed'||run.conclusion!=='success')fail('HOSTED_ROLLBACK_EVIDENCE');
 }
 async function preflight(){
- await checkLive();await readbackQA();await readbackPrior();await verifyHostedEvidence();
+ await checkLive();await readbackQA();await verifyHostedEvidence();
+ const state=await catalogState();
+ if(state==='prior')await readbackPrior();
+ else{const edges=await list(PROD);for(const f of manifest.functions)await reconcileEdgeState(edges,f);console.log('GX350_ACTIVATION_READONLY_PARTIAL_STATE_VERIFIED');}
  rehearseEdgePackages(manifest,read);buildAtomicSql({dryRun:true});buildAtomicSql();
  console.log('GX350_ACTIVATION_READONLY_PREFLIGHT_OK');
 }
@@ -206,13 +220,14 @@ async function activate(){
   // Resume after an interrupted exact-marker cut, never after schema drift.
   // Every edge must still be either the pinned prior or exact candidate.
   const liveEdges=await list(PROD);
-  for(const f of manifest.functions)classifyEdgeState(liveEdges,f);
+  for(const f of manifest.functions)await reconcileEdgeState(liveEdges,f);
   console.log('GX350_ACTIVATION_SQL_ALREADY_EXACT');
  }
  // From here, never auto-drop data or roll back a potentially used service.
  for(const f of manifest.functions){await checkLive();await checkCanary(source);await deploy(f);}
  const [m,e]=await Promise.all([sql(PROD,M1_SQL),list(PROD)]);
- certifyAlreadyActiveBackend(m,e,{gx350:true});await checkLive();await checkCanary(source);
+ const prodProof=await verifyGx350ProdEdges(e,process.env.SUPABASE_ACCESS_TOKEN);
+ certifyAlreadyActiveBackend(m,e,{gx350:true,prodProof});await checkLive();await checkCanary(source);
  console.log('GX350_ACTIVATION_PROD_BACKEND_CERTIFIED:sql=49:edge=3:hosted_auth_writes=0');
 }
 async function waitPages(){

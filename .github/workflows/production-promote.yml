@@ -1,3 +1,4 @@
+# GX350 forward-only source attestation after partial activation.
 # GX350 Canary manifest identity correction: renew the exact release gates.
 # IBERFIT M1/M44 final source attestation 2026-11-22: retrigger unchanged, protected Canary CI, QA, WebAuthn, Device and release gates on exact source SHA. No permission, step, SQL or deployment policy change.
 # M1/M44 2026-11-22 final QA date-only correction: protected exact-SHA Canary source reattestation; no workflow execution semantics, permissions, SQL or release authorization changed.
