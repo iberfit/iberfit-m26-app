@@ -169,7 +169,9 @@ export function verifyGx350Edges(raw){
   if(!Array.isArray(files)||files.length!==f.candidate.length)fail('LIVE_EDGE_FILE_COUNT:'+f.slug);
   // Only one consistent package root; never strip arbitrary suffixes.
   const root=entry.endsWith('/index.ts')?entry.slice(0,-'index.ts'.length):'';
-  const prefixes=['',f.slug+'/','supabase/functions/'+f.slug+'/',...(root?[root,'file://'+root]:[])];
+  const segments=root.split('/').filter(Boolean);
+  const relativeRoots=segments.map((_,i)=>segments.slice(i).join('/')+'/');
+  const prefixes=['',f.slug+'/','supabase/functions/'+f.slug+'/',...relativeRoots,...(root?[root,'file://'+root]:[])];
   const prefix=prefixes.find(pre=>files.every(x=>typeof x.name==='string'&&x.name.startsWith(pre)&&f.candidate.some(y=>x.name===pre+y.name)));
   if(prefix===undefined){console.log('GX350_EDGE_PATH_DIAGNOSTIC:'+f.slug+':'+JSON.stringify(files.map(x=>String(x.name).slice(0,300))));fail('LIVE_EDGE_FILE_PATH:'+f.slug);}
   const names=new Set();

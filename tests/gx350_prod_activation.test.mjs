@@ -45,6 +45,9 @@ test('provider package prefix never substitutes for exact candidate bytes or com
  const entry='/tmp/provider/source/index.ts';
  const absolute=good.map(x=>({...x,name:'file:///tmp/provider/source/'+x.name.slice('example-edge/'.length)}));
  assert.equal(verifyCandidateFiles(f,absolute,entry),2);
+ const relative=absolute.map(x=>({...x,name:x.name.slice('file:///tmp/provider/'.length)}));
+ assert.equal(verifyCandidateFiles(f,relative,entry),2);
+ assert.throws(()=>verifyCandidateFiles(f,relative,'/tmp/provider/foreign/index.ts'),/FILE_PATH/);
  assert.throws(()=>verifyCandidateFiles(f,absolute,'/tmp/other/source/index.ts'),/FILE_PATH/);
  assert.throws(()=>verifyCandidateFiles(f,[good[0]]),/FILE_COUNT/);
  assert.throws(()=>verifyCandidateFiles(f,[good[0],good[0]]),/SOURCE_DRIFT/);
