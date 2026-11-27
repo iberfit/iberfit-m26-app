@@ -40,6 +40,8 @@ const BACKEND_PATHS=Object.freeze([
 ]);
 const OPS_PATHS=new Set([
   ".github/workflows/gx350-smtp-custody-readonly.yml",
+  ".github/workflows/gx350-edge-hosted-rehearsal.yml",
+  "scripts/ops/gx350_edge_hosted_rehearsal.mjs",
   "docs/ops/GX350_EDGE_SCOPED_RELEASE.md",
   "docs/ops/GX350_M44_MANAGED_RECOVERY_PREFLIGHT.md",
   "scripts/ops/gx350_edge_local_runtime.mjs",
