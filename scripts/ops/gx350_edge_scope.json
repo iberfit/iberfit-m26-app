@@ -1,0 +1,250 @@
+{
+  "schema": "iberfit.gx350.edge-scope.v1",
+  "candidate": "9076875af47d78284273e495dbd7fb227dbb5865",
+  "previousLiveSource": "50ba022115091478a86900be6f0b0e4c816044ef",
+  "productionProject": "pjhmrhejsoofmouedavw",
+  "qaProject": "gjztkdwfmunnzhtvxrsu",
+  "observedDate": "2026-11-27",
+  "functions": [
+    {
+      "slug": "iberfit-admin-client-invite-v1",
+      "verifyJwt": false,
+      "prodVersion": 10,
+      "prodBundle": "c847ac0732966de086e82a4b4a5570719a18a9159b75a141305b3e136efc0e5d",
+      "qaVersion": 38,
+      "qaBundle": "9a5507bea364778cbd18a63963e4c44decfa4ee370b42c5088d4098cbc88efda",
+      "importMap": null,
+      "prod": [
+        {
+          "name": "index.ts",
+          "blob": "9124e4e5c46419f4cc339fed05f6be34ac67524b",
+          "sourcePath": "scripts/ops/m44_legacy_edge_source/iberfit-admin-client-invite-v1-prod-20261119/index.ts",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "index.ts",
+          "blob": "dbc7c321e86cfda994e6e485721e9e209455d371",
+          "sourcePath": "supabase/functions/iberfit-admin-client-invite-v1/index.ts",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        }
+      ]
+    },
+    {
+      "slug": "iberfit-evolution-report-emission-v1",
+      "verifyJwt": true,
+      "prodVersion": 2,
+      "prodBundle": "07e2e3b0d4ceff9c303bc45fbb49308a0dffb1bf747374f217edac28dfab7605",
+      "qaVersion": 31,
+      "qaBundle": "5a3b2bbe5ce5203b4e6654526badd6cd17ea6a0b837e42373be1891a55ac7ae5",
+      "importMap": {
+        "name": "deno.json",
+        "sourceRef": "50ba022115091478a86900be6f0b0e4c816044ef",
+        "sourcePath": "supabase/functions/iberfit-evolution-report-emission-v1/deno.json",
+        "blob": "6055b7288147936b40556fe7241d81fba7d9260b",
+        "liveBytesVerified": false
+      },
+      "prod": [
+        {
+          "name": "index.ts",
+          "blob": "d0487ad9800f219b0c241a5d85e0e734ba1ecf9d",
+          "sourcePath": "scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/index.ts",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "pdf-renderer.js",
+          "blob": "d240795f24154e3f67c2d9740a364f83baf0f8c3",
+          "sourcePath": "scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/pdf-renderer.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "storage-recovery.js",
+          "blob": "71bd779a0186c6b30af1b2723a1309c16d8a3309",
+          "sourcePath": "scripts/ops/m44_legacy_edge_source/iberfit-evolution-report-emission-v1-prod-20261115/storage-recovery.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "artifact-authorization.js",
+          "blob": "709ae2444369d06370193ee4da7af255725d6c4f",
+          "sourcePath": "supabase/functions/iberfit-evolution-report-emission-v1/artifact-authorization.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "deno.json",
+          "blob": "6055b7288147936b40556fe7241d81fba7d9260b",
+          "sourcePath": "supabase/functions/iberfit-evolution-report-emission-v1/deno.json",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "index.ts",
+          "blob": "5edf3c28033a15cfb673b6a2eb5b082c96bc44af",
+          "sourcePath": "supabase/functions/iberfit-evolution-report-emission-v1/index.ts",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "pdf-renderer.js",
+          "blob": "973e98ef269253d2fe0e61c626d78cc8c05ef214",
+          "sourcePath": "supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "report-trend-contract.js",
+          "blob": "127fab3206b52c8dc6e44cc3c20712266c6a014a",
+          "sourcePath": "src/m26/workflows/report-trend-contract.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "storage-recovery.js",
+          "blob": "71bd779a0186c6b30af1b2723a1309c16d8a3309",
+          "sourcePath": "supabase/functions/iberfit-evolution-report-emission-v1/storage-recovery.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        }
+      ]
+    },
+    {
+      "slug": "iberfit-iri-report-emission-v1",
+      "verifyJwt": false,
+      "prodVersion": 4,
+      "prodBundle": "f32f3327dc52a2f1a3c8dfb3c89fcae51e5f9ad24730b2f2fc9bfc42771c5a1c",
+      "qaVersion": 140,
+      "qaBundle": "bb639dad35e37120704f3529a2a5ac0722818c62ee124e995e310af29ef18df1",
+      "importMap": null,
+      "prod": [
+        {
+          "name": "index.ts",
+          "blob": "088e8a8aa1a0c5b0c67d337e14182c6ebaad728c",
+          "sourcePath": "scripts/ops/m44_legacy_edge_source/iberfit-iri-report-emission-v1-prod-20261115/index.ts",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/norms/evidence-registry.js",
+          "blob": "68caeb241d9934767fb2519213ca50d75a74d05f",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/norms/evidence-registry.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/norms/iri-scoring.js",
+          "blob": "7978ebc96837dad2811f5d4f6cc07b8761af52d5",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/norms/iri-scoring.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/norms/norms-engine.js",
+          "blob": "ef77a2f329b91e87ed5d96af1ff798566fc81a72",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/norms/norms-engine.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-client-area-ratings.js",
+          "blob": "909eb9b09fa4de0939019720edbe51c3f1515747",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-client-area-ratings.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-evidence-engine.js",
+          "blob": "3d0956876cc39a3c1802128ee89f415b6a5de2f3",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-evidence-engine.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-first-session.js",
+          "blob": "c717e092d51eef2ee36e23b3d851abf7f4ab2e92",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-first-session.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-photogrammetry-v2.js",
+          "blob": "de6499e47ae4ae8b549a8032a65a1f80bb2ea01c",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-photogrammetry-v2.js",
+          "sourceRef": "50ba022115091478a86900be6f0b0e4c816044ef"
+        },
+        {
+          "name": "vendor/workflows/iri-photogrammetry.js",
+          "blob": "695a0fea068bcff4d0aa3c5bad0ef84cd60e4694",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-photogrammetry.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-protocol-catalog.js",
+          "blob": "a93cb9c84192bc3ad2972d86e1a547de9b7425ce",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-protocol-catalog.js",
+          "sourceRef": "50ba022115091478a86900be6f0b0e4c816044ef"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "index.ts",
+          "blob": "7fcbfb42ec0dd5637a988a5d84140f5f9ecd6bdf",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/index.ts",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/norms/evidence-registry.js",
+          "blob": "68caeb241d9934767fb2519213ca50d75a74d05f",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/norms/evidence-registry.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/norms/iri-scoring.js",
+          "blob": "7978ebc96837dad2811f5d4f6cc07b8761af52d5",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/norms/iri-scoring.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/norms/norms-engine.js",
+          "blob": "ef77a2f329b91e87ed5d96af1ff798566fc81a72",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/norms/norms-engine.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-client-area-ratings.js",
+          "blob": "909eb9b09fa4de0939019720edbe51c3f1515747",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-client-area-ratings.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-evidence-engine.js",
+          "blob": "3d0956876cc39a3c1802128ee89f415b6a5de2f3",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-evidence-engine.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-first-session.js",
+          "blob": "c717e092d51eef2ee36e23b3d851abf7f4ab2e92",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-first-session.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-photogrammetry-v2.js",
+          "blob": "28680f2d563e5aa66063088121bd8c33eda38a74",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-photogrammetry-v2.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-photogrammetry.js",
+          "blob": "695a0fea068bcff4d0aa3c5bad0ef84cd60e4694",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-photogrammetry.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-protocol-catalog.js",
+          "blob": "cff463f67e3af41092a57116c07b2cfb08875223",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-protocol-catalog.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        },
+        {
+          "name": "vendor/workflows/iri-report-measurements.js",
+          "blob": "46537794907b269e30fd867d2f6cd2dfac4c762e",
+          "sourcePath": "supabase/functions/iberfit-iri-report-emission-v1/vendor/workflows/iri-report-measurements.js",
+          "sourceRef": "9076875af47d78284273e495dbd7fb227dbb5865"
+        }
+      ]
+    }
+  ],
+  "productionAuthorized": false,
+  "rollbackRuntimeCertified": false,
+  "fullPlatformRecoveryCertified": false
+}
