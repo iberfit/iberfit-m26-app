@@ -1,0 +1,436 @@
+name: WEB IBERFIT V6.43.31 Commercial Acquisition certified Pages release
+
+on:
+  push:
+    branches: [infra/web-iberfit-worker]
+    paths: ['.github/workflows/deploy-web-iberfit-v64331-acquisition.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-pages-provision
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  WEB_SHA: '026a9c4b53a22a7186a82133761e60bb5bd5d83c'
+  WEB_VERSION: '6.43.31'
+  QA_SOURCE_SHA: '026a9c4b53a22a7186a82133761e60bb5bd5d83c'
+  QA_RUN_ID: '45926101500'
+  QA_RUN_NAME: 'Web GEO AEO certification and package'
+  EXPECTED_CURRENT_SHA: '01ecf69798904651f706b2379dccc20ee0e21e9d'
+  EXPECTED_CURRENT_VERSION: '6.43.30'
+  EXPECTED_ROLLBACK_DEPLOYMENT_ID: '4d60b349-7cb2-481d-b953-8e59328f1621'
+  ROLLBACK_SHA: '01ecf69798904651f706b2379dccc20ee0e21e9d'
+  ROLLBACK_VERSION: '6.43.30'
+  PRODUCTION_TOUCHED: '0'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  preview_and_promote:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+
+      - name: Verify exact live baseline and certified product identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'infra/web-iberfit-worker'
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 41
+          test "$(curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/VERSION?preflight=64331-preview' | tr -d '\r\n ')" = "$EXPECTED_CURRENT_VERSION"
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project-before.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
+          node <<'NODE'
+          const p=require('/tmp/project-before.json'),x=require('/tmp/deployments-before.json');
+          if(!p.success||!x.success||p.result?.name!=='web-iberfit'||p.result?.production_branch!=='production'||!(p.result.domains||[]).includes('iberfit.cl')||(p.result.domains||[]).includes('app.iberfit.cl'))throw Error('PROJECT_OR_DOMAIN_MISMATCH');
+          const d=(x.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!d?.id||d.id!==process.env.EXPECTED_ROLLBACK_DEPLOYMENT_ID||d.latest_stage?.status!=='success')throw Error('ROLLBACK_BASELINE_DRIFT:'+d?.id);
+          if((d?.deployment_trigger?.metadata?.commit_hash||'')!==process.env.EXPECTED_CURRENT_SHA)throw Error('PRODUCTION_DRIFT_SHA');
+          require('fs').appendFileSync(process.env.GITHUB_ENV,'EXPECTED_CURRENT_DEPLOYMENT_ID='+d.id+'\n');
+          console.log('ROLLBACK_BASELINE_VERIFIED:'+d.id);
+          NODE
+          for attempt in $(seq 1 60); do
+            curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa.json
+            if node -e 'const q=require("/tmp/qa.json");process.exit(q.status==="completed"?0:1)'; then break; fi
+            sleep 10
+          done
+          node <<'NODE'
+          const q=require('/tmp/qa.json');
+          if(q.head_sha!==process.env.QA_SOURCE_SHA||q.status!=='completed'||q.conclusion!=='success'||q.name!==process.env.QA_RUN_NAME)throw Error('QA_MISMATCH');
+          NODE
+          # The exact candidate's successful release QA includes the bilingual contract.
+          # Re-execute it independently below against the detached candidate.
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch origin "$WEB_SHA"
+          git -C /tmp/iberfitweb checkout --detach "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "$WEB_SHA"
+          test "$(tr -d '\r\n ' < /tmp/iberfitweb/candidate/v628/VERSION)" = "$WEB_VERSION"
+          test "$(find /tmp/iberfitweb/candidate/v628 -type f -name '*.html' | wc -l | tr -d ' ')" = '33'
+          cd /tmp/iberfitweb
+          node .github/scripts/qa_bilingual_architecture.cjs
+          python3 scripts/certify_geo_aeo_360.py --version "$WEB_VERSION" --out /tmp/geo-aeo-certified
+          python3 .github/scripts/qa_v64330_commercial_authority.py
+          python3 .github/scripts/qa_v64331_acquisition_scope.py
+
+      - name: Deploy immutable Pages preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="v64331-acquisition-${GITHUB_RUN_ID}"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch "$branch" --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.43.31 commercial acquisition preview' | tee /tmp/wrangler-preview.log
+          PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-preview.log | tail -1)"
+          [[ "$PREVIEW_URL" =~ ^https://[A-Za-z0-9-]+\.web-iberfit\.pages\.dev$ ]]
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+
+      - name: Verify real preview routes CSP and local policy contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Git-history dating was certified in the product QA with full history.
+          # The deployment clone is intentionally shallow; verify immutable bytes instead.
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/sitemap.xml?cb=$GITHUB_RUN_ID" -o /tmp/preview-sitemap.xml
+          cmp -s /tmp/preview-sitemap.xml /tmp/iberfitweb/candidate/v628/sitemap.xml
+          echo 'PREVIEW_SITEMAP_BYTE_PARITY_OK'
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/llms.txt?cb=$GITHUB_RUN_ID" -o /tmp/preview-llms.txt
+          cmp -s /tmp/preview-llms.txt /tmp/iberfitweb/candidate/v628/llms.txt
+          for route in online en/online; do
+            curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/${route}/?cb=$GITHUB_RUN_ID" -o /tmp/online-preview.html
+            cmp -s /tmp/online-preview.html "/tmp/iberfitweb/candidate/v628/${route}/index.html"
+          done
+          test "$(curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=$GITHUB_RUN_ID" | tr -d '\r\n ')" = "$WEB_VERSION"
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/assets/analytics-config.js?cb=$GITHUB_RUN_ID" -o /tmp/analytics-preview.js
+          cmp /tmp/analytics-preview.js /tmp/iberfitweb/candidate/v628/assets/analytics-config.js
+          git -C /tmp/iberfitweb diff --name-only "$EXPECTED_CURRENT_SHA" "$WEB_SHA" -- candidate/v628 > /tmp/changed-product.txt
+          printf '%s\n' candidate/v628/CHANGELOG.md candidate/v628/VERSION candidate/v628/assets/analytics-config.js | LC_ALL=C sort > /tmp/expected-product.txt
+          LC_ALL=C sort /tmp/changed-product.txt > /tmp/actual-product.txt
+          cmp /tmp/expected-product.txt /tmp/actual-product.txt
+          while IFS= read -r f; do
+            [[ "$f" == */index.html ]] || continue
+            route="/${f#candidate/v628/}"; route="${route%index.html}"
+            curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}${route}?cb=$GITHUB_RUN_ID" -o /tmp/changed-preview.html
+            cmp /tmp/changed-preview.html "/tmp/iberfitweb/$f"
+          done < /tmp/changed-product.txt
+          for pair in \
+            'entrenador-personal-las-condes|No inferimos cómo te mueves' \
+            'entrenador-personal-vitacura|No deducimos tus hábitos' \
+            'entrenamiento-personal-providencia|No suponemos que caminas' \
+            'entrenador-personal-lo-barnechea|No asumimos montaña'; do
+            route="${pair%%|*}"; phrase="${pair#*|}"
+            file="/tmp/$(echo "$route"|tr '/' '-').html"
+            curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/${route}/?cb=$GITHUB_RUN_ID" -o "$file"
+            grep -q "$phrase" "$file"
+            grep -q 'La comuna define la cobertura; tu contexto define el plan.' "$file"
+          done
+          for pair in \
+            'en/personal-trainer-las-condes|We do not infer how you move' \
+            'en/personal-trainer-vitacura|We do not infer your habits or preferences' \
+            'en/personal-training-providencia|We do not assume you walk' \
+            'en/personal-trainer-lo-barnechea|We do not assume mountain activity'; do
+            route="${pair%%|*}"; phrase="${pair#*|}"
+            file="/tmp/$(echo "$route"|tr '/' '-').html"
+            curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/${route}/?cb=$GITHUB_RUN_ID" -o "$file"
+            grep -q "$phrase" "$file"
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,subprocess
+          r=Path('/tmp/iberfitweb/candidate/v628');base=os.environ['PREVIEW_URL'].rstrip('/');htmls=sorted(r.rglob('*.html'));assert len(htmls)==33
+          for p in htmls:
+              rel=p.relative_to(r).as_posix();route='/' if rel=='index.html' else ('/404.html' if rel=='404.html' else '/'+rel.removesuffix('index.html'))
+              subprocess.run(['curl','-fsSL','--retry','4','--retry-all-errors','-o','/dev/null',base+route],check=True)
+          print('PREVIEW_ROUTES_OK',len(htmls))
+          PY
+          curl -fsSI --retry 8 --retry-all-errors "${PREVIEW_URL}/?cb=$GITHUB_RUN_ID" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/preview-headers
+          grep -q '^content-security-policy:' /tmp/preview-headers
+          grep -q "script-src-attr 'none'" /tmp/preview-headers
+          ! grep -q 'unsafe-inline' /tmp/preview-headers
+          grep -q '^x-robots-tag:.*noindex' /tmp/preview-headers
+
+      - name: Browser regression and V6.43.29 QA on real preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb
+          npm install --no-save --package-lock=false playwright@1.56.1 >/dev/null 2>&1
+          npx playwright install chromium >/dev/null
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64321-preview node .github/scripts/qa_v64321_browser.mjs
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64322-preview node .github/scripts/qa_v64322_browser.mjs
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64323-preview node .github/scripts/qa_v64323_browser.mjs
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64325-preview node .github/scripts/qa_v64325_browser.mjs
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64327-preview node .github/scripts/qa_v64326_browser.mjs
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64330-preview node .github/scripts/qa_v64330_commercial_browser.mjs
+
+      - name: Record preview deployment identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs'),x=require('/tmp/deployments-after.json');
+          const d=(x.result||[]).filter(v=>v.environment==='preview'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA).sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!d?.id||d.latest_stage?.status!=='success')throw Error('PREVIEW_NOT_FOUND_OR_FAILED');
+          fs.appendFileSync(process.env.GITHUB_ENV,'PREVIEW_DEPLOYMENT_ID='+d.id+'\n');
+          const e={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaRun:Number(process.env.QA_RUN_ID),previewUrl:process.env.PREVIEW_URL,previewDeploymentId:d.id,verifiedAt:new Date().toISOString()};
+          fs.writeFileSync('/tmp/V64331_PREVIEW_EVIDENCE.json',JSON.stringify(e,null,2));console.log(JSON.stringify(e,null,2));
+          NODE
+
+      - name: Recheck production lease immediately before promotion
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(curl -fsSL --retry 4 'https://iberfit.cl/VERSION?preflight=64331-production' | tr -d '\r\n ')" = "$EXPECTED_CURRENT_VERSION"
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project-lease.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-lease.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments/${PREVIEW_DEPLOYMENT_ID}" -o /tmp/preview-lease.json
+          node <<'NODE'
+          const p=require('/tmp/project-lease.json'),x=require('/tmp/deployments-lease.json'),q=require('/tmp/preview-lease.json');
+          if(!p.success||!x.success||p.result?.name!=='web-iberfit'||p.result?.production_branch!=='production'||!(p.result.domains||[]).includes('iberfit.cl')||(p.result.domains||[]).includes('app.iberfit.cl'))throw Error('PROJECT_DRIFT');
+          const d=(x.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(d?.id!==process.env.EXPECTED_CURRENT_DEPLOYMENT_ID||(d?.deployment_trigger?.metadata?.commit_hash||'')!==process.env.EXPECTED_CURRENT_SHA)throw Error('PRODUCTION_LEASE_CHANGED');
+          if(!q.success||q.result?.id!==process.env.PREVIEW_DEPLOYMENT_ID||q.result?.environment!=='preview'||q.result?.deployment_trigger?.metadata?.commit_hash!==process.env.WEB_SHA||q.result?.latest_stage?.status!=='success')throw Error('PREVIEW_LEASE_INVALID');
+          NODE
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "$WEB_SHA"
+          git -C /tmp/iberfitweb diff --exit-code -- candidate/v628
+
+      - name: Deploy exact certified candidate to production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'PRODUCTION_TOUCHED=1' >> "$GITHUB_ENV"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch production --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.43.31 commercial acquisition production' | tee /tmp/wrangler-production.log
+          PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-production.log | tail -1)"
+          test -n "$PRODUCTION_URL"
+          echo "PRODUCTION_URL=$PRODUCTION_URL" >> "$GITHUB_ENV"
+          echo 'PRODUCTION_TOUCHED=1' >> "$GITHUB_ENV"
+
+      - name: Verify live routes CSP and global local-policy contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          # All changed documents must converge on the exact certified bytes.
+          # A successful HTTP response alone does not guarantee an edge has propagated.
+          cat > /tmp/iberfit_cf_compare.py <<'PY'
+          import re, sys
+          from pathlib import Path
+          # Preserve all original attributes and text; only normalize Cloudflare's
+          # encoded public address, including its standalone text representation.
+          href = re.compile(rb'href="/cdn-cgi/l/email-protection#([0-9a-fA-F]+)"')
+          span = re.compile(rb'<span class="__cf_email__" data-cfemail="([0-9a-fA-F]+)">\[email&#160;protected\]</span>')
+          standalone = re.compile(rb'<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="([0-9a-fA-F]+)">\[email&#160;protected\]</a>')
+          script = re.compile(rb'<script data-cfasync="false" src="/cdn-cgi/scripts/[0-9a-fA-F]{8}/cloudflare-static/email-decode\.min\.js"></script>')
+          address = b'iberfit.cl@gmail.com'
+          def decode(hexval):
+              v = bytes.fromhex(hexval.decode('ascii'))
+              if len(v) < 2 or bytes(x ^ v[0] for x in v[1:]) != address:
+                  raise ValueError('unexpected encoded email')
+              return address
+          def verify(expected, actual):
+              if expected == actual:
+                  return 'EXACT'
+              if len(list(script.finditer(actual))) != 1:
+                  raise ValueError('unexpected decoder count')
+              normalized = standalone.sub(lambda m: decode(m[1]), actual)
+              normalized = href.sub(lambda m: b'href="mailto:'+decode(m[1])+b'"', normalized)
+              normalized = span.sub(lambda m: decode(m[1]), normalized)
+              normalized = script.sub(b'', normalized)
+              if normalized != expected:
+                  raise ValueError('non-Cloudflare content discrepancy')
+              return 'CF_EMAIL_ONLY'
+          if __name__ == '__main__':
+              try:
+                  print(verify(Path(sys.argv[1]).read_bytes(), Path(sys.argv[2]).read_bytes()))
+              except ValueError as e:
+                  print(str(e),file=sys.stderr)
+                  sys.exit(1)
+          PY
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,'/tmp')
+          from iberfit_cf_compare import verify
+          addr=b'iberfit.cl@gmail.com'
+          def enc(k): return bytes([k]+[b^k for b in addr]).hex().encode()
+          script=b'<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>'
+          plain=b'<p>Contact '+addr+b'.</p><a class="text-link" href="mailto:'+addr+b'">'+addr+b'</a>'
+          actual=b'<p>Contact <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="'+enc(42)+b'">[email&#160;protected]</a>.</p><a class="text-link" href="/cdn-cgi/l/email-protection#'+enc(17)+b'"><span class="__cf_email__" data-cfemail="'+enc(22)+b'">[email&#160;protected]</span></a>'+script
+          assert verify(plain,actual)=='CF_EMAIL_ONLY'
+          assert verify(plain,plain)=='EXACT'
+          for bad in (actual.replace(b'Contact',b'Changed'),actual.replace(b'text-link',b'evil'),actual.replace(enc(42),b'0102'),actual+script,actual+b'<script>alert(1)</script>'):
+              try: verify(plain,bad)
+              except ValueError: pass
+              else: raise AssertionError('rejected transformation passed')
+          print('CF_EMAIL_NORMALIZER_POSITIVE_AND_NEGATIVE_OK')
+          PY
+          verify_bytes() {
+            local route="$1" expected="$2" out="$3" a
+            for a in $(seq 1 25); do
+              if curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' -H 'Accept-Encoding: identity' \
+                "https://iberfit.cl${route}?live=${GITHUB_RUN_ID}-${a}" -o "$out"; then
+                if cmp -s "$out" "$expected"; then
+                  echo "LIVE_BYTE_PARITY_OK $route $(sha256sum "$out" | cut -d' ' -f1)"
+                  return 0
+                fi
+                if [[ "$expected" == *.html ]] && python3 /tmp/iberfit_cf_compare.py "$expected" "$out"; then
+                  echo "LIVE_HTML_PARITY_OK $route (only verified Cloudflare email protection permitted)"
+                  return 0
+                fi
+                echo "LIVE_BYTE_PENDING $route attempt=$a actual=$(sha256sum "$out" | cut -d' ' -f1) expected=$(sha256sum "$expected" | cut -d' ' -f1)"
+              else
+                echo "LIVE_HTTP_PENDING $route attempt=$a"
+              fi
+              sleep 4
+            done
+            echo "::error::LIVE_BYTE_PARITY_FAILED $route"
+            return 1
+          }
+          root=/tmp/iberfitweb/candidate/v628
+          verify_bytes /VERSION "$root/VERSION" /tmp/live-version
+          verify_bytes /sitemap.xml "$root/sitemap.xml" /tmp/sitemap-live.xml
+          verify_bytes /llms.txt "$root/llms.txt" /tmp/llms-live.txt
+          verify_bytes /assets/analytics-config.js "$root/assets/analytics-config.js" /tmp/analytics-live.js
+          verify_bytes /online/ "$root/online/index.html" /tmp/online-live-es.html
+          verify_bytes /en/online/ "$root/en/online/index.html" /tmp/online-live-en.html
+          # All other changed HTML files must satisfy the same exact-content contract.
+          while IFS= read -r f; do
+            [[ "$f" == candidate/v628/online/index.html || "$f" == candidate/v628/en/online/index.html ]] && continue
+            route="/${f#candidate/v628/}"; route="${route%index.html}"
+            verify_bytes "$route" "/tmp/iberfitweb/$f" "/tmp/live-$(echo "$route" | tr / _).html"
+          done < <(git -C /tmp/iberfitweb diff --name-only "$EXPECTED_CURRENT_SHA" "$WEB_SHA" -- candidate/v628 | grep '/index\.html$' || true)
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          r=Path('/tmp/iberfitweb/candidate/v628');htmls=sorted(r.rglob('*.html'));assert len(htmls)==33
+          for p in htmls:
+              rel=p.relative_to(r).as_posix();route='/' if rel=='index.html' else ('/404.html' if rel=='404.html' else '/'+rel.removesuffix('index.html'))
+              subprocess.run(['curl','-fsSL','--retry','5','--retry-all-errors','-o','/dev/null','https://iberfit.cl'+route],check=True)
+          print('LIVE_ROUTES_OK',len(htmls))
+          PY
+          curl -fsSI --retry 8 --retry-all-errors "https://iberfit.cl/?live=$GITHUB_RUN_ID" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/live-headers
+          grep -q '^content-security-policy:' /tmp/live-headers
+          grep -q "script-src-attr 'none'" /tmp/live-headers
+          ! grep -q 'unsafe-inline' /tmp/live-headers
+          ! grep -q '^x-robots-tag:.*noindex' /tmp/live-headers
+          for pair in \
+            'entrenador-personal-las-condes|No inferimos cómo te mueves' \
+            'entrenador-personal-vitacura|No deducimos tus hábitos' \
+            'entrenamiento-personal-providencia|No suponemos que caminas' \
+            'entrenador-personal-lo-barnechea|No asumimos montaña'; do
+            route="${pair%%|*}"; phrase="${pair#*|}"; file="/tmp/$(echo "$route"|tr '/' '-').html"
+            curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/${route}/?live=$GITHUB_RUN_ID" -o "$file"
+            grep -q "$phrase" "$file"
+            grep -q 'La comuna define la cobertura; tu contexto define el plan.' "$file"
+          done
+          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/personal-trainer-nunoa/?live=$GITHUB_RUN_ID" -o /tmp/nunoa.html
+          grep -q 'No inferimos tus hábitos, tus actividades ni tus lugares preferidos por vivir en Ñuñoa.' /tmp/nunoa.html
+          ! grep -qi 'vida de barrio' /tmp/nunoa.html
+
+      - name: Browser regression and V6.43.29 QA on live production
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb
+          npm install --no-save --package-lock=false playwright@1.56.1 >/dev/null 2>&1
+          npx playwright install chromium >/dev/null
+          BASE_URL='https://iberfit.cl' QA_OUT=/tmp/v64321-production node .github/scripts/qa_v64321_browser.mjs
+          BASE_URL='https://iberfit.cl' QA_OUT=/tmp/v64322-production node .github/scripts/qa_v64322_browser.mjs
+          BASE_URL='https://iberfit.cl' QA_OUT=/tmp/v64323-production node .github/scripts/qa_v64323_browser.mjs
+          BASE_URL='https://iberfit.cl' QA_OUT=/tmp/v64325-production node .github/scripts/qa_v64325_browser.mjs
+          BASE_URL='https://iberfit.cl' QA_OUT=/tmp/v64327-production node .github/scripts/qa_v64326_browser.mjs
+          BASE_URL='https://iberfit.cl' QA_OUT=/tmp/v64330-production node .github/scripts/qa_v64330_commercial_browser.mjs
+
+      - name: Record exact production deployment identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project-after.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs'),p=require('/tmp/project-after.json'),x=require('/tmp/deployments-after.json');
+          const d=(x.result||[]).filter(v=>v.environment==='production'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA).sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!d||d.latest_stage?.status!=='success')throw Error('FINAL_PRODUCTION_NOT_FOUND');
+          if(!(p.result?.latest_deployment?.aliases||[]).includes('https://iberfit.cl'))throw Error('ALIAS_MISSING');
+          const e={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaRun:Number(process.env.QA_RUN_ID),previewRun:Number(process.env.GITHUB_RUN_ID),previewDeploymentId:process.env.PREVIEW_DEPLOYMENT_ID,previewUrl:process.env.PREVIEW_URL,productionUrl:process.env.PRODUCTION_URL,productionDeploymentId:d.id,rollbackVersion:process.env.ROLLBACK_VERSION,rollbackSha:process.env.ROLLBACK_SHA,rollbackDeploymentId:process.env.EXPECTED_CURRENT_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};
+          fs.writeFileSync('/tmp/V64331_PRODUCTION_EVIDENCE.json',JSON.stringify(e,null,2));console.log(JSON.stringify(e,null,2));
+          NODE
+
+      - name: Roll back to verified V6.43.30 if post-deploy verification fails
+        if: failure() && env.PRODUCTION_TOUCHED == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/rollback-lease.json
+          node <<'NODE'
+          const x=require('/tmp/rollback-lease.json');
+          if(!x.success)throw Error('ROLLBACK_LEASE_LOOKUP_FAILED');
+          const d=(x.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(d?.id===process.env.EXPECTED_CURRENT_DEPLOYMENT_ID){console.log('BASELINE_STILL_CURRENT');process.exit(0)}
+          if(d?.deployment_trigger?.metadata?.commit_hash!==process.env.WEB_SHA)throw Error('ROLLBACK_LEASE_CHANGED_DO_NOT_OVERWRITE');
+          NODE
+          if [ "$(curl -fsSL --retry 3 'https://iberfit.cl/VERSION?rollback-lease=64330' | tr -d '\r\n ' || true)" = "$ROLLBACK_VERSION" ] && node -e 'const x=require("/tmp/rollback-lease.json");const d=(x.result||[]).filter(v=>v.environment==="production").sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];process.exit(d?.id===process.env.EXPECTED_CURRENT_DEPLOYMENT_ID?0:1)'; then echo 'ROLLBACK_NOT_NEEDED'; exit 0; fi
+          rm -rf /tmp/rollback
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/rollback
+          git -C /tmp/rollback fetch --depth=1 origin "$ROLLBACK_SHA"
+          git -C /tmp/rollback checkout --detach "$ROLLBACK_SHA"
+          test "$(tr -d '\r\n ' < /tmp/rollback/candidate/v628/VERSION)" = "$ROLLBACK_VERSION"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/rollback/candidate/v628 --project-name "$CF_PROJECT" --branch production --commit-hash "$ROLLBACK_SHA" --commit-message 'ROLLBACK WEB IBERFIT to V6.43.30' | tee /tmp/wrangler-rollback.log
+          for a in $(seq 1 30); do v="$(curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/VERSION?rollback=$a" | tr -d '\r\n ' || true)"; [ "$v" = "$ROLLBACK_VERSION" ] && exit 0; sleep 3; done
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-v64331-acquisition-deployment-evidence
+          path: |
+            /tmp/V64331_PREVIEW_EVIDENCE.json
+            /tmp/V64331_PRODUCTION_EVIDENCE.json
+            /tmp/wrangler-preview.log
+            /tmp/wrangler-production.log
+            /tmp/wrangler-rollback.log
+            /tmp/preview-headers
+            /tmp/live-headers
+            /tmp/live-version
+            /tmp/sitemap-live.xml
+            /tmp/llms-live.txt
+            /tmp/online-live-es.html
+            /tmp/online-live-en.html
+            /tmp/geo-aeo-certified/SHA256.json
+            /tmp/v64321-preview/metrics.json
+            /tmp/v64322-preview/metrics.json
+            /tmp/v64323-preview/metrics.json
+            /tmp/v64325-preview/metrics.json
+            /tmp/v64327-preview/metrics.json
+            /tmp/v64321-production/metrics.json
+            /tmp/v64322-production/metrics.json
+            /tmp/v64323-production/metrics.json
+            /tmp/v64325-production/metrics.json
+            /tmp/v64327-production/metrics.json
+            /tmp/v64330-preview/metrics.json
+            /tmp/v64330-production/metrics.json
+            /tmp/analytics-preview.js
+            /tmp/analytics-live.js
+            /tmp/live-*.html
+          if-no-files-found: warn
+          retention-days: 30
