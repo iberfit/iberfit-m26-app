@@ -43,7 +43,7 @@ async function instantiate(files,project){
     admin:{listUsers:forbidden,inviteUserByEmail:forbidden},resetPasswordForEmail:forbidden},
    rpc:forbidden,from:forbidden,storage:{from:forbidden}
   })};
-  else if(name==='npm:pdf-lib@1.17.1')exports={PDFDocument:{create:forbidden,load:forbidden},StandardFonts:{},rgb:forbidden};
+  else if(name==='npm:pdf-lib@1.17.1')exports={PDFDocument:{create:forbidden,load:forbidden},StandardFonts:{},rgb:(red,green,blue)=>{assert.ok([red,green,blue].every(n=>Number.isFinite(n)&&n>=0&&n<=1));return Object.freeze({type:'RGB',red,green,blue});}};
   else if(name==='npm:@pdf-lib/fontkit@1.1.1')exports={default:Object.freeze({})};
   else throw Error('GX350_EDGE_UNKNOWN_EXTERNAL');
   return new vm.SyntheticModule(Object.keys(exports),function(){for(const [k,v] of Object.entries(exports))this.setExport(k,v);},{context,identifier:name});
