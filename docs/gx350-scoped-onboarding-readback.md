@@ -6,3 +6,7 @@ Both environments had the same affected helper MD5 `833239e847db56f90de23c6b407e
 
 QA transactional install/rollback dry-run submitted; independent readback found original hash. This is NOT functional acceptance. Recheck dry-run response and run real authenticated Admin and Coach onboarding including negative scope checks, replay, IRI and deferred IRI paths, on the corrected candidate before production. Preserve the original nine-step GX package as historical evidence; this supplemental procedure requires explicit protected release integration and renewed structural certification. Do not claim production eligibility or bypass M44. The V3 client must reconcile the exact failed operation with the remote database before resuming; never delete or expose the encrypted passkey.
 
+
+## Canonical source and validation
+
+One immutable SQL template contains both directions. Render with `node scripts/ops/gx350_onboarding_readback.mjs install --check` or `rollback --check`; omit `--check` to emit the corresponding transaction, or use `--dry-run` for an uncommitted rehearsal. The renderer pins the template SHA-256 and rejects tampering and unknown directions. The original GX nine-stage release remains unchanged; this is an explicitly separate supplement. QA verified install/rollback with the canonical template and read back the exact original definition; no live changes were retained by that rehearsal. The source remains a proposed correction pending actual functional acceptance.

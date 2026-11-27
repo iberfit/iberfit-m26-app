@@ -4,6 +4,11 @@ DO $gx350_readback$
 DECLARE
   target constant regprocedure:='public.iberfit_create_client_draft_v12_pre_v65e(jsonb)'::regprocedure;
   d text:=pg_get_functiondef(target);
+  direction constant text:='__GX350_READBACK_DIRECTION__';
+  from_hash text;
+  to_hash text;
+  from_block text;
+  to_block text;
   a constant text:=$gx_from$  select public.iberfit_bootstrap_v26() into v_snapshot;
   v_clients:=coalesce(v_snapshot#>'{data,clients}','[]'::jsonb);
   v_profiles:=coalesce(v_snapshot#>'{data,clientProfiles}','[]'::jsonb);
@@ -65,7 +70,15 @@ DECLARE
   before_metadata jsonb;
   after_metadata jsonb;
 BEGIN
-  if md5(d)<>'833239e847db56f90de23c6b407e1384' then raise exception 'GX350_READBACK_BASE_DRIFT'; end if;
+  if direction='install' then
+    from_hash:='833239e847db56f90de23c6b407e1384'; to_hash:='5eca7c696f69e01a25d1d56f053974ce';
+    from_block:=a; to_block:=b;
+  elsif direction='rollback' then
+    from_hash:='5eca7c696f69e01a25d1d56f053974ce'; to_hash:='833239e847db56f90de23c6b407e1384';
+    from_block:=b; to_block:=a;
+  else raise exception 'GX350_READBACK_DIRECTION_INVALID'; end if;
+  if md5(d)<>from_hash then raise exception 'GX350_READBACK_BASE_DRIFT'; end if;
+  if direction='install' then
   if md5(pg_get_functiondef('public.iberfit_can_access_client_v26(uuid)'::regprocedure))<>'c6e7dc2917170e35f7ec23dc31d8f964'
     or md5(pg_get_functiondef('public.iberfit_current_role_v26()'::regprocedure))<>'aa12f60d12892506c8e08b0717aa8ee2'
     or md5(pg_get_functiondef('public.iberfit_require_privileged_assurance_v65d()'::regprocedure))<>'a36686e9f9537c174cf5f118f51df50f' then
@@ -83,15 +96,16 @@ BEGIN
       and md5(pg_get_functiondef('public.iberfit_bootstrap_v26_pre_v65e()'::regprocedure))='7416e0d52d6fa069cf467e95420d4034'
       and md5(pg_get_functiondef('public.iberfit_bootstrap_v26_rc29()'::regprocedure))='a5c997a2c263357a99caacd90524291c')
   ),false) then raise exception 'GX350_READBACK_BOOTSTRAP_CHAIN_DRIFT'; end if;
-  if (length(d)-length(replace(d,a,'')))/length(a)<>1 then raise exception 'GX350_READBACK_ANCHOR_DRIFT'; end if;
+  end if;
+  if (length(d)-length(replace(d,from_block,'')))/length(from_block)<>1 then raise exception 'GX350_READBACK_ANCHOR_DRIFT'; end if;
   select jsonb_build_object('oid',oid,'owner',proowner,'acl',proacl,'security',prosecdef,'config',proconfig,'volatility',provolatile)
     into before_metadata from pg_proc where oid=target;
-  d:=replace(d,a,b);
-  if md5(d)<>'5eca7c696f69e01a25d1d56f053974ce' then raise exception 'GX350_READBACK_TARGET_HASH_MISMATCH'; end if;
+  d:=replace(d,from_block,to_block);
+  if md5(d)<>to_hash then raise exception 'GX350_READBACK_TARGET_HASH_MISMATCH'; end if;
   execute d;
   select jsonb_build_object('oid',oid,'owner',proowner,'acl',proacl,'security',prosecdef,'config',proconfig,'volatility',provolatile)
     into after_metadata from pg_proc where oid=target;
-  if md5(pg_get_functiondef(target))<>'5eca7c696f69e01a25d1d56f053974ce' or before_metadata is distinct from after_metadata then
+  if md5(pg_get_functiondef(target))<>to_hash or before_metadata is distinct from after_metadata then
     raise exception 'GX350_READBACK_CATALOG_MISMATCH';
   end if;
 END $gx350_readback$;

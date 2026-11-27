@@ -1,24 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-const install=readFileSync(new URL('../supabase/release-procedures/gx_onboarding_scoped_readback_v1.sql',import.meta.url),'utf8');
-const rollback=readFileSync(new URL('../supabase/release-procedures/gx_onboarding_scoped_readback_v1.rollback.sql',import.meta.url),'utf8');
-test('scoped readback supplements exact GX release without new grants or timeout changes',()=>{
-  assert.match(install,/833239e847db56f90de23c6b407e1384/);
-  assert.match(install,/5eca7c696f69e01a25d1d56f053974ce/);
-  assert.match(rollback,/5eca7c696f69e01a25d1d56f053974ce/);
-  assert.match(rollback,/833239e847db56f90de23c6b407e1384/);
-  const newBlock=install.split('$gx_to$')[1];
-  assert.ok(newBlock);
-  assert.match(newBlock,/perform public\.iberfit_require_privileged_assurance_v65d\(\)/);
-  assert.match(newBlock,/iberfit_current_role_v26\(\) in \('admin','coach'\)/);
-  assert.match(newBlock,/iberfit_can_access_client_v26\(v_candidate\)/);
-  assert.match(newBlock,/p\.client_id=v_candidate/);
-  assert.match(newBlock,/i\.client_id=v_candidate/);
-  assert.match(newBlock,/into v_visible/);
-  assert.match(newBlock,/into v_profile_visible/);
-  assert.match(newBlock,/into v_iri_available/);
-  assert.doesNotMatch(newBlock,/iberfit_bootstrap_v26\(|\bGRANT\b|statement_timeout/i);
-  assert.match(install,/before_metadata is distinct from after_metadata/);
-  assert.match(rollback,/before_metadata is distinct from after_metadata/);
+import {readTemplate,renderScopedReadback} from '../scripts/ops/gx350_onboarding_readback.mjs';
+const template=readTemplate();
+test('scoped readback preserves assurance, role scope, and all three readback predicates',()=>{
+  const body=template.split('$gx_to$')[1];
+  assert.ok(body);
+  assert.match(body,/perform public\.iberfit_require_privileged_assurance_v65d\(\)/);
+  assert.match(body,/iberfit_current_role_v26\(\) in \('admin','coach'\)/);
+  assert.match(body,/iberfit_can_access_client_v26\(v_candidate\)/);
+  for(const predicate of [/p\.client_id=v_candidate/,/i\.client_id=v_candidate/,/into v_visible/,/into v_profile_visible/,/into v_iri_available/])assert.match(body,predicate);
+  assert.doesNotMatch(body,/iberfit_bootstrap_v26\(|\bGRANT\b|statement_timeout/i);
+  assert.match(template,/before_metadata is distinct from after_metadata/);
+  assert.match(template,/833239e847db56f90de23c6b407e1384/);
+  assert.match(template,/5eca7c696f69e01a25d1d56f053974ce/);
+});
+test('one pinned template renders two inverse transaction directions and an uncommitted dry run',()=>{
+  const install=renderScopedReadback(template);
+  const rollback=renderScopedReadback(template,{mode:'rollback'});
+  assert.match(install,/direction constant text:='install'/);
+  assert.match(rollback,/direction constant text:='rollback'/);
+  assert.equal(install.replace("direction constant text:='install'","direction constant text:='rollback'"),rollback);
+  for(const sql of [install,rollback]){
+    assert.match(sql,/^BEGIN;\n/);
+    assert.match(sql,/COMMIT;\n$/);
+    assert.doesNotMatch(sql,/__GX350_READBACK_DIRECTION__/);
+  }
+  assert.match(renderScopedReadback(template,{dryRun:true}),/ROLLBACK;\n$/);
+});
+test('tampering and invalid direction fail closed before any SQL is emitted',()=>{
+  assert.throws(()=>renderScopedReadback(template+'\n'),/HASH_MISMATCH/);
+  assert.throws(()=>renderScopedReadback(template,{mode:'unsafe'}),/RENDER_INVALID/);
+  assert.throws(()=>renderScopedReadback(template,{dryRun:'false'}),/RENDER_INVALID/);
 });
