@@ -65,12 +65,25 @@ const sql=(ref,query)=>mg(ref,'/database/query/read-only','POST',{query});
 const list=ref=>mg(ref,'/functions');
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function edgeRows(raw){const a=Array.isArray(raw)?raw:raw?.functions;if(!Array.isArray(a))fail('EDGE_SHAPE');return a;}
+export function classifyEdgeState(raw,f){
+ const a=edgeRows(raw).filter(x=>x.slug===f.slug);
+ const e=a[0];
+ if(a.length!==1||!e||e.status!=='ACTIVE'||e.verify_jwt!==f.verifyJwt||!Number.isSafeInteger(e.version)||e.version<f.prodVersion)fail('EDGE_STATE_DRIFT');
+ if(e.ezbr_sha256===f.prodBundle)return 'prior';
+ if(e.ezbr_sha256===f.qaBundle)return 'candidate';
+ fail('EDGE_STATE_UNKNOWN');
+}
 function verifyPriorEdges(raw){
- const a=edgeRows(raw);
- for(const f of manifest.functions){
-  const m=a.filter(x=>x.slug===f.slug);
-  if(m.length!==1||m[0].status!=='ACTIVE'||m[0].verify_jwt!==f.verifyJwt||m[0].ezbr_sha256!==f.prodBundle||m[0].version<f.prodVersion)fail('PRIOR_EDGE_DRIFT');
- }
+ for(const f of manifest.functions)if(classifyEdgeState(raw,f)!=='prior')fail('PRIOR_EDGE_DRIFT');
+}
+export function classifyCatalogState(a,b){
+ try{verifyPriorCatalog(a,b);return 'prior';}catch{}
+ try{verifyGx350Catalog(a,b);return 'candidate';}catch{}
+ fail('SQL_STATE_UNKNOWN');
+}
+async function catalogState(){
+ const [a,b]=await Promise.all([sql(PROD,CATALOG_SQL),sql(PROD,RLS_SQL)]);
+ return classifyCatalogState(a,b);
 }
 async function checkLive(){
  const v=await json('https://app.iberfit.cl/m26/version.json?gx350='+Date.now());
@@ -127,6 +140,10 @@ function marker(){
  return source;
 }
 async function deploy(f){
+ // Never overwrite an unknown live bundle. A candidate already installed by
+ // the same scoped rollout is probed, not redeployed.
+ let state=classifyEdgeState(await list(PROD),f);
+ if(state==='candidate'){await probeEdge(f);return;}
  const dir=mkdtempSync(join(tmpdir(),'iberfit-gx350-prod-'));
  try{
   const target=join(dir,'supabase','functions',f.slug);mkdirSync(target,{recursive:true});
@@ -135,13 +152,22 @@ async function deploy(f){
    const bytes=read(x.sourceRef,x.sourcePath);if(gitBlob(bytes)!==x.blob)fail('EDGE_SOURCE_DRIFT');
    const path=join(target,x.name);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,bytes,{flag:'wx'});
   }
-  try{execFileSync(join(dirname(process.execPath),'npx'),['--yes','supabase@2.117.0','functions','deploy',f.slug,'--workdir',dir,'--project-ref',PROD,'--use-api','--yes',...(f.verifyJwt?[]:['--no-verify-jwt'])],{stdio:'pipe',timeout:180000,maxBuffer:1024*1024});}catch{fail('EDGE_DEPLOY_FAILED');}
-  const e=edgeRows(await list(PROD)).find(x=>x.slug===f.slug);
-  if(!e||e.status!=='ACTIVE'||e.ezbr_sha256!==f.qaBundle||e.verify_jwt!==f.verifyJwt)fail('EDGE_POST_DEPLOY_DRIFT');
-  const res=await fetch('https://'+PROD+'.supabase.co/functions/v1/'+f.slug,{method:'POST',redirect:'error',headers:{Origin:'https://app.iberfit.cl','Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(30000)});
-  await res.body?.cancel();if(res.status!==401)fail('EDGE_UNAUTH_DENIAL');
-  console.log('GX350_ACTIVATION_EDGE_VERIFIED:'+f.slug);
+  for(let attempt=0;attempt<2;attempt++){
+   // A transport error may have occurred after commit. Reconcile from live
+   // metadata before retrying; do not turn an unknown digest into a retry.
+   try{execFileSync(join(dirname(process.execPath),'npx'),['--yes','supabase@2.117.0','functions','deploy',f.slug,'--workdir',dir,'--project-ref',PROD,'--use-api','--yes',...(f.verifyJwt?[]:['--no-verify-jwt'])],{stdio:'pipe',timeout:180000,maxBuffer:1024*1024});}catch{}
+   state=classifyEdgeState(await list(PROD),f);
+   if(state==='candidate')break;
+   if(attempt===0)await wait(2000);
+  }
+  if(state!=='candidate')fail('EDGE_DEPLOY_NOT_CONFIRMED');
+  await probeEdge(f);
  }finally{rmSync(dir,{recursive:true,force:true});}
+}
+async function probeEdge(f){
+ const res=await fetch('https://'+PROD+'.supabase.co/functions/v1/'+f.slug,{method:'POST',redirect:'error',headers:{Origin:'https://app.iberfit.cl','Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(30000)});
+ await res.body?.cancel();if(res.status!==401)fail('EDGE_UNAUTH_DENIAL');
+ console.log('GX350_ACTIVATION_EDGE_VERIFIED:'+f.slug);
 }
 async function verifyHostedEvidence(){
  // Bind this independently certified QA run to the immutable functional candidate.
@@ -154,18 +180,33 @@ async function preflight(){
  console.log('GX350_ACTIVATION_READONLY_PREFLIGHT_OK');
 }
 async function activate(){
- const source=marker();await waitExact(source);await preflight();
+ const source=marker();await waitExact(source);
+ await checkLive();await readbackQA();await verifyHostedEvidence();
+ rehearseEdgePackages(manifest,read);buildAtomicSql({dryRun:true});buildAtomicSql();
  await checkCanary(source);await backupProof(source);
- // Check both directions on live schema with no committed writes. The exact
- // SQL install transaction rechecks baseline under its own DDL locks.
- await mg(PROD,'/database/query','POST',{query:buildAtomicSql({dryRun:true})});
- await readbackPrior();await checkLive();await checkCanary(source);await backupProof(source);
- console.log('GX350_ACTIVATION_DRYRUN_ROLLBACK_OK');
- await mg(PROD,'/database/query','POST',{query:buildAtomicSql()});
- console.log('GX350_ACTIVATION_SQL_COMMITTED');
+ const state=await catalogState();
+ if(state==='prior'){
+  await readbackPrior();
+  // Check both directions on live schema with no committed writes. The exact
+  // SQL install transaction rechecks baseline under its own DDL locks.
+  await mg(PROD,'/database/query','POST',{query:buildAtomicSql({dryRun:true})});
+  await readbackPrior();await checkLive();await checkCanary(source);await backupProof(source);
+  console.log('GX350_ACTIVATION_DRYRUN_ROLLBACK_OK');
+  let error=null;
+  try{await mg(PROD,'/database/query','POST',{query:buildAtomicSql()});}catch(e){error=e;}
+  // Do not blindly retry a transaction after transport failure. Read back
+  // exact committed catalog, then resume only if it is the known candidate.
+  if(await catalogState()!=='candidate'){if(error)throw error;fail('SQL_COMMIT_UNVERIFIED');}
+  console.log('GX350_ACTIVATION_SQL_COMMITTED');
+ }else{
+  // Resume after an interrupted exact-marker cut, never after schema drift.
+  // Every edge must still be either the pinned prior or exact candidate.
+  const liveEdges=await list(PROD);
+  for(const f of manifest.functions)classifyEdgeState(liveEdges,f);
+  console.log('GX350_ACTIVATION_SQL_ALREADY_EXACT');
+ }
  // From here, never auto-drop data or roll back a potentially used service.
- const [a,b]=await Promise.all([sql(PROD,CATALOG_SQL),sql(PROD,RLS_SQL)]);verifyGx350Catalog(a,b);
- for(const f of manifest.functions)await deploy(f);
+ for(const f of manifest.functions){await checkLive();await checkCanary(source);await deploy(f);}
  const [m,e]=await Promise.all([sql(PROD,M1_SQL),list(PROD)]);
  certifyAlreadyActiveBackend(m,e,{gx350:true});await checkLive();await checkCanary(source);
  console.log('GX350_ACTIVATION_PROD_BACKEND_CERTIFIED:sql=49:edge=3:hosted_auth_writes=0');
@@ -187,11 +228,12 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   if(process.env.GITHUB_REPOSITORY!==REPO||!process.env.GH_ACTIONS_TOKEN)fail('REPO_CONTEXT');
   const arg=process.argv[2];
   if(arg==='--wait-pages'){await waitPages();}
-  else {
-   if(!process.env.SUPABASE_ACCESS_TOKEN)fail('MANAGEMENT_TOKEN');
-   if(arg==='--preflight'&&process.env.GITHUB_REF==='refs/heads/ops/gx350-m44-managed-recovery-preflight')await preflight();
-   else if(arg==='--activate'&&process.env.GITHUB_EVENT_NAME==='push'&&process.env.GITHUB_REF?.startsWith('refs/heads/release/prod-'))await activate();
-   else fail('OPERATION_CONTEXT');
-  }
+  else if(arg==='--activate'&&process.env.GITHUB_EVENT_NAME==='push'&&process.env.GITHUB_REF?.startsWith('refs/heads/release/prod-')){
+   const markerData=JSON.parse(readFileSync(new URL('../../.iberfit/production-release.json',import.meta.url),'utf8'));
+   if(markerData.gx350BackendActivation!==true)console.log('GX350_ACTIVATION_NOT_REQUESTED');
+   else{if(!process.env.SUPABASE_ACCESS_TOKEN)fail('MANAGEMENT_TOKEN');await activate();}
+  }else if(arg==='--preflight'&&process.env.GITHUB_REF==='refs/heads/ops/gx350-m44-managed-recovery-preflight'){
+   if(!process.env.SUPABASE_ACCESS_TOKEN)fail('MANAGEMENT_TOKEN');await preflight();
+  }else fail('OPERATION_CONTEXT');
  }catch(e){const msg=String(e?.message||'');console.error(/^(GX350_|M44_|CUTOVER_|SIGNATURE_)/u.test(msg)?msg:'GX350_ACTIVATION_FAILED');process.exitCode=1;}
 }

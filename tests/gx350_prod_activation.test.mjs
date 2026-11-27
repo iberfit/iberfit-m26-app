@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildAtomicSql,validateMarker} from '../scripts/ops/gx350_prod_activation.mjs';
+import {buildAtomicSql,validateMarker,classifyEdgeState,classifyCatalogState} from '../scripts/ops/gx350_prod_activation.mjs';
 import {GX350_CANDIDATE,GX350_PREVIOUS_LIVE} from '../scripts/release/verify_gx350_preactivated.mjs';
 test('atomic GX350 install and dry run preserve one transaction and catalog assertions',()=>{
  for(const dryRun of [true,false]){
@@ -17,4 +17,15 @@ test('marker rejects non-GX release, wrong previous SHA, branch, diff or parent'
  assert.equal(validateMarker(m,b,h,p,paths),p);
  for(const patch of [{gx350BackendActivation:false},{expectedPreviousLiveSha:h},{sourceSha:h},{frontendOnly:false},{datedTrainingMode:'closed'}])assert.throws(()=>validateMarker({...m,...patch},b,h,p,paths),/MARKER_INVALID/);
  assert.throws(()=>validateMarker(m,b,h,p,[...paths,'src/m26/app.js']),/MARKER_INVALID/);
+});
+
+test('resume accepts only the exact prior or candidate bundle and JWT policy',()=>{
+ const f={slug:'iberfit-iri-report-emission-v1',prodVersion:4,prodBundle:'a'.repeat(64),qaBundle:'b'.repeat(64),verifyJwt:false};
+ const e={slug:f.slug,status:'ACTIVE',version:5,verify_jwt:false,ezbr_sha256:f.prodBundle};
+ assert.equal(classifyEdgeState([e],f),'prior');
+ assert.equal(classifyEdgeState([{...e,ezbr_sha256:f.qaBundle}],f),'candidate');
+ assert.throws(()=>classifyEdgeState([{...e,ezbr_sha256:'c'.repeat(64)}],f),/EDGE_STATE_UNKNOWN/);
+ assert.throws(()=>classifyEdgeState([{...e,verify_jwt:true}],f),/EDGE_STATE_DRIFT/);
+ assert.throws(()=>classifyEdgeState([e,e],f),/EDGE_STATE_DRIFT/);
+ assert.throws(()=>classifyCatalogState([],[]),/SQL_STATE_UNKNOWN/);
 });
