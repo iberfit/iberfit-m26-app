@@ -57,6 +57,50 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
   }
   return Object.freeze(rows.sort((a,b)=>b.start-a.start).map(({label,detail})=>Object.freeze({label,detail})));
 }
+// V48 page contract: keyset pagination, no raw source keys or device IDs.
+// Keep the legacy seven-day summary bounded at ten; a history page is separate.
+const HISTORY_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const HISTORY_UTC=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/u;
+export const CONNECTED360_ACTIVITY_PAGE_SIZE=20;
+function activityCursor(value){
+  if(!value||typeof value!=='object'||Array.isArray(value)
+    ||typeof value.id!=='string'||!HISTORY_UUID.test(value.id)
+    ||typeof value.startedAt!=='string'||!HISTORY_UTC.test(value.startedAt)
+    ||observedInstant(value.startedAt)===null)
+    throw new Error('M26_V48_ACTIVITY_CURSOR_INVALID');
+  return Object.freeze({id:value.id,startedAt:value.startedAt});
+}
+export function connected360ActivityPageParams(cursor=null){
+  const c=cursor===null?null:activityCursor(cursor);
+  return {p_before_started_at:c?.startedAt??null,p_before_id:c?.id??null};
+}
+function strictlyEarlier(a,b){
+  return a.startedAt<b.startedAt||(a.startedAt===b.startedAt&&a.id<b.id);
+}
+export function connected360ActivityPage(p,{cursor=null,now=new Date()}={}){
+  const fail=()=>{throw new Error('M26_V48_ACTIVITY_PAGE_INVALID');};
+  if(p?.ok!==true||p.schema!=='iberfit.connected360.activity-page.v1'
+    ||p.provider!=='health_connect'||!Array.isArray(p.exerciseEvidence)
+    ||p.exerciseEvidence.length>CONNECTED360_ACTIVITY_PAGE_SIZE
+    ||!Object.hasOwn(p,'nextCursor')||!Number.isFinite(now?.getTime?.()))fail();
+  let previous=cursor===null?null:activityCursor(cursor);
+  const rows=[],seen=new Set();
+  for(const row of p.exerciseEvidence){
+    const key=activityCursor(row);
+    if(seen.has(key.id)||(previous&&!strictlyEarlier(key,previous)))fail();
+    const formatted=connected360WorkoutHistory({ok:true,provider:'health_connect',exerciseEvidence:[row]},{now});
+    if(formatted.length!==1)fail();
+    seen.add(key.id);previous=key;rows.push(formatted[0]);
+  }
+  let nextCursor=null;
+  if(p.nextCursor!==null){
+    const next=activityCursor(p.nextCursor);
+    if(rows.length!==CONNECTED360_ACTIVITY_PAGE_SIZE||!previous
+      ||next.id!==previous.id||next.startedAt!==previous.startedAt)fail();
+    nextCursor=next;
+  }
+  return Object.freeze({rows:Object.freeze(rows),nextCursor});
+}
 // Describe only the bounded list received from the server, not the user's
 // total activity. Do not sum durations or distances across potential overlaps.
 export function connected360WorkoutMix(rows){
