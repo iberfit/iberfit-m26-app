@@ -1,7 +1,7 @@
 import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
 import {verifyAppleExerciseStatus,appleExerciseConsentParams,verifyAppleExerciseConsentReceipt,appleExerciseImportParams,verifyAppleExerciseImportReceipt} from './wearables/v53-apple-authorization-contract.js';
 import {CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT} from './wearables/measurement-capability-contract.js';
-import {connected360AppleActivityPage,connected360ActivityPage,connected360ActivityPageParams} from './wearables/v46-production-summary.js';
+import {connected360AppleOwnerTrends,connected360AppleOwnerTrendParams,connected360AppleActivityPage,connected360ActivityPage,connected360ActivityPageParams} from './wearables/v46-production-summary.js';
 import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,verifyConnected360AppleCoachExerciseDays,verifyConnected360AppleCoachRecipients,verifyConnected360AppleCoachConsentReceipt} from './wearables/v49-coach-activity-contract.js';
 import {verifyInvitationReceipt} from './workflows/coach-invitation-outcome.js';
 import {createQaInFlightReadGate} from './domain/qa-inflight-read-gate.js';
@@ -1783,6 +1783,14 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   }
   // V56 requires the explicit Apple certification harness. These are not
   // exposed through production flags or the legacy Health Connect interface.
+  async function connected360AppleCandidateOwnerTrends(token,clientId,days,{signal}={}){
+    assertAppleExerciseCandidate(token);
+    connected360CoachActivityParams(clientId);
+    const params=connected360AppleOwnerTrendParams(days);
+    const raw=await request('/rest/v1/rpc/m26_wearable_v57_apple_owner_trends_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    if(signal?.aborted)throw Error('M26_REQUEST_CANCELLED');
+    return connected360AppleOwnerTrends(appleCandidateResponse(raw),{clientId,days});
+  }
   async function connected360AppleCandidateCoachRecipients(token,clientId,{signal}={}){
     assertAppleExerciseCandidate(token);
     connected360CoachActivityParams(clientId);
@@ -2349,6 +2357,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     connected360AppleCandidateAvailable,
     connected360AppleCandidateStatus,
     connected360AppleCandidateHistory,
+    connected360AppleCandidateOwnerTrends,
     connected360AppleCandidateCoachRecipients,
     setConnected360AppleCandidateCoachConsent,
     connected360AppleCandidateCoachExerciseDays,

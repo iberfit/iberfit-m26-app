@@ -343,12 +343,12 @@ export function connected360AppleActivityPage(p,{cursor=null,now=new Date()}={})
   const k=activityCursor(row),start=observedInstant(row.startedAt),end=observedInstant(row.endedAt);
   const elapsed=(end-start)/1000,active=row.activeSeconds,distance=row.distanceMeters;
   if(seen.has(k.id)||(previous&&!strictlyEarlier(k,previous))||start===null||end===null
-  ||elapsed<=0||elapsed>86400||end>now.getTime()||typeof active!=='number'||!Number.isFinite(active)||active<=0||active>elapsed+1
+  ||elapsed<=0||elapsed>86400||end>now.getTime()||(active!==null&&(typeof active!=='number'||!Number.isFinite(active)||active<=0||active>elapsed+1))
   ||(distance!==null&&(typeof distance!=='number'||!Number.isFinite(distance)||distance<0||distance>500000)))fail();
   const unit=row.sport==='swimming'?100:row.sport==='running'?1000:null;
-  const pace=unit&&distance>=100?Math.round(active*unit/distance):null;
+  const pace=unit&&active!==null&&distance!==null&&distance>=100?Math.round(active*unit/distance):null;
   const validPace=Number.isSafeInteger(pace)&&pace>=(unit===100?15:60)&&pace<=(unit===100?1200:3600)?pace:null;
-  const details=['Duración activa '+observedDuration(active*1000),'Duración total '+observedDuration(end-start),
+  const details=[active===null?null:'Duración activa '+observedDuration(active*1000),'Duración total '+observedDuration(end-start),
    distance===null?null:decimal.format(distance>=1000?distance/1000:distance)+(distance>=1000?' km':' m'),
    validPace===null?null:'Ritmo activo estimado '+formatPace(validPace)+(unit===100?' min/100 m':' min/km')].filter(Boolean);
   rows.push(Object.freeze({source:'imported',provider:'apple_health',orderAt:start,label:WORKOUT_SPORTS[row.sport],authorizationState:row.authorizationState,
@@ -360,9 +360,52 @@ export function connected360AppleActivityPage(p,{cursor=null,now=new Date()}={})
  }
  let nextCursor=null;
  if(p.nextCursor!==null){
+  if(!exact(p.nextCursor,['id','startedAt']))fail();
   const next=activityCursor(p.nextCursor);
   if(rows.length!==CONNECTED360_ACTIVITY_PAGE_SIZE||!previous||next.id!==previous.id||next.startedAt!==previous.startedAt)fail();
   nextCursor=next;
  }
  return Object.freeze({rows:Object.freeze(rows),nextCursor});
+}
+
+const APPLE_TREND_WINDOWS=new Set([7,28,90,365]);
+const APPLE_TREND_SPORTS=new Set(['running','cycling','walking','strength','hiit','swimming','other']);
+export function connected360AppleOwnerTrendParams(days){
+ if(!APPLE_TREND_WINDOWS.has(days))throw Error('M26_V57_PERIOD_INVALID');
+ return {p_days:days};
+}
+// Owner only. The server returns observed dates, not session counts,
+// activity totals, coverage claims, adherence or recovery diagnoses.
+export function connected360AppleOwnerTrends(value,{clientId,days,now=new Date()}={}){
+ const fail=()=>{throw Error('M26_V57_APPLE_TRENDS_INVALID');};
+ const exact=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));
+ if(!APPLE_TREND_WINDOWS.has(days)||!HISTORY_UUID.test(clientId||'')||!Number.isFinite(now?.getTime?.())
+ ||!exact(value,['ok','schema','provider','clientId','windowDays','coverage','periods'])||value.ok!==true
+ ||value.schema!=='iberfit.connected360.apple-owner-trends.v1'||value.provider!=='apple_health'
+ ||value.clientId!==clientId||value.windowDays!==days||value.coverage!=='observed-only'
+ ||!Array.isArray(value.periods)||value.periods.length!==2)fail();
+ const shift=(day,n)=>{const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
+ const end=shift(localWorkoutDay(now.getTime()),-1);
+ const keys=['observedDays','currentOnlyDays','retainedOnlyDays','mixedDays'];
+ function counts(row,limit){
+  if(keys.some(k=>!Number.isInteger(row[k])||row[k]<0||row[k]>limit)
+  ||row.currentOnlyDays+row.retainedOnlyDays+row.mixedDays!==row.observedDays)fail();
+  return Object.fromEntries(keys.map(k=>[k,row[k]]));
+ }
+ const periods=value.periods.map((period,index)=>{
+  const last=shift(end,-index*days),first=shift(last,1-days),kind=index?'previous':'recent';
+  if(!exact(period,['kind','periodStart','periodEnd',...keys,'disciplines'])||period.kind!==kind
+  ||period.periodStart!==first||period.periodEnd!==last||!Array.isArray(period.disciplines)||period.disciplines.length>APPLE_TREND_SPORTS.size)fail();
+  const totals=counts(period,days),seen=new Set();
+  const disciplines=period.disciplines.map(d=>{
+   if(!exact(d,['sport',...keys])||!APPLE_TREND_SPORTS.has(d.sport)||seen.has(d.sport)||!d.observedDays)fail();
+   seen.add(d.sport);const measures=counts(d,totals.observedDays);
+   if(measures.currentOnlyDays+measures.mixedDays>totals.currentOnlyDays+totals.mixedDays
+   ||measures.retainedOnlyDays+measures.mixedDays>totals.retainedOnlyDays+totals.mixedDays)fail();
+   return Object.freeze({sport:d.sport,...measures});
+  });
+  if(disciplines.reduce((sum,d)=>sum+d.observedDays,0)<totals.observedDays)fail();
+  return Object.freeze({kind,periodStart:first,periodEnd:last,...totals,disciplines:Object.freeze(disciplines)});
+ });
+ return Object.freeze({provider:'apple_health',windowDays:days,coverage:'observed-only',periods:Object.freeze(periods),automaticPlanChange:false});
 }

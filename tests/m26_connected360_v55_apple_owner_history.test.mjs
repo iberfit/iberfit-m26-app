@@ -38,3 +38,11 @@ test('candidate owner SQL reuses privacy fence, has no professional access or da
  assert.doesNotMatch(s,/\bINSERT INTO\b|\bDELETE FROM\b|\bUPDATE public\b|heart_rate|source_record_key|CREATE TABLE/u);
  assert.doesNotMatch(r,/\bDELETE FROM\b|DROP TABLE|TRUNCATE/u);
 });
+
+test('Apple history preserves missing active duration without fabricating active pace or rejecting other rows',()=>{
+ const a=connected360AppleActivityPage({...page,exerciseEvidence:[{...row,activeSeconds:null}]},{now}).rows[0];
+ assert.equal(a.measurements.activeSeconds,null);assert.equal(a.measurements.activePaceSecondsPer100m,null);
+ assert.equal(a.measurements.elapsedSeconds,3600);
+ assert.ok(!a.dayDetail.includes('Duración activa'));assert.ok(!a.dayDetail.includes('Ritmo activo'));
+ for(const activeSeconds of [0,-1,'3000',undefined])assert.throws(()=>connected360AppleActivityPage({...page,exerciseEvidence:[{...row,activeSeconds}]},{now}));
+});
