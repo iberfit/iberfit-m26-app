@@ -90,3 +90,5 @@ Capacidad `swimmingEnabled===true` exigida antes de pedir includeSwimming al hos
 
 ### V52 SQL candidato de natación Android
 Reutiliza escritor y capacidad V46 con hashes exactos; campo boolean independiente swimming_enabled=false en release control, guard de ACL/RLS y V50/V51; enum ampliado, sin nuevo escritor ni tabla. Solo permiso ejercicio existente; no se habilita gate. La versión antigua que envía other conserva clasificación swimming para misma clave y proveedor (sin fusionar fuentes). Rollback exige gate false y ausencia de filas swimming Android, preserva Apple y restaura hashes originales. 10/10 pruebas SQL de expresión SELECT y 2/2 estáticas aisladas; no se ha ejecutado DDL ni escritura. Falta ensayo del procedimiento exacto con rollback y certificación física; V48/V49/cliente deben desplegarse conjuntamente. No PROD.
+
+V52 CI bd44c468: Android/Apple Native QA y Android Release Startup Smoke success; CI y Continuous Audit fallan por literal Natación ausente en diccionario. Corregido en diccionario wearable y test exacto EN/FR/PT. No eximir scanner ni rebajar controles. Pendiente nueva CI.
