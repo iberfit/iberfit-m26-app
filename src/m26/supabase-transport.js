@@ -1,5 +1,6 @@
 import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
 import {CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT} from './wearables/measurement-capability-contract.js';
+import {connected360ActivityPage,connected360ActivityPageParams} from './wearables/v46-production-summary.js';
 import {verifyInvitationReceipt} from './workflows/coach-invitation-outcome.js';
 import {createQaInFlightReadGate} from './domain/qa-inflight-read-gate.js';
 import {compactQaCanonicalExecutionSummaries} from './domain/qa-canonical-summary-transport.js';
@@ -126,6 +127,7 @@ const CONNECTED360_RPC=Object.freeze({
   prodAuthorize:'m26_wearable_v47_authorize_prod_v1',
   prodImport:'m26_wearable_v46_import_prod_v1',
   prodSummary:'m26_wearable_v46_my_summary_prod_v1',
+  prodActivityPage:'m26_wearable_v48_my_activity_page_prod_v1',
   prodDailyImport:'m26_wearable_v47_import_daily_prod_v1',
   prodDailySummary:'m26_wearable_v47_my_daily_prod_v1',
 });
@@ -1766,6 +1768,17 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     const daily=await connected360DailyProduction(token);
     return Object.freeze({...r,dailyHealth:daily.dailyHealth});
   }
+  // Only an explicit user history action calls this RPC; recent summary and
+  // automatic synchronization retain their previous request budget.
+  async function connected360ProductionActivityPage(token,cursor=null){
+    assertConnected360Production();
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=connected360ActivityPageParams(cursor);
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodActivityPage,{
+      method:'POST',token,body:JSON.stringify(params),
+    });
+    return connected360ActivityPage(Array.isArray(raw)?raw[0]:raw,{cursor});
+  }
   async function connected360ProductionCapabilities(token){
     assertConnected360Production();
     if(!token)throw new Error('M26_AUTH_REQUIRED');
@@ -2233,6 +2246,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     connected360ProductionCapabilities,
     connected360ProductionAuthorizationStatus,
     connected360ProductionSummary,
+    connected360ProductionActivityPage,
     connected360DailyProduction,
     authorizeConnected360Production,
     importConnected360Production,
