@@ -61,3 +61,18 @@ test('production requests a larger bounded batch without changing the QA default
   assert.match(native,/\.read\(includeHeartRate = "generalHeartRate" in allowed, maxWorkouts = maxWorkouts\)/u);
   assert.match(native,/request.optInt\("days", -1\) != 7/u);
 });
+
+test('native workout pagination uses fixed intervals and keeps system tokens out of WebView responses',()=>{
+  const native=readFileSync(new URL(base+'src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt',import.meta.url),'utf8');
+  assert.match(android,/val end=continuation\?\.end/u);
+  assert.match(android,/val start=continuation\?\.start/u);
+  assert.match(android,/pageToken=continuation\?\.pageToken/u);
+  assert.match(android,/pageSize=if\(historyDays == null\) PAGE_SIZE else maxWorkouts/u);
+  assert.match(android,/page.records.size <= maxWorkouts/u);
+  assert.match(native,/historyLease.allowed != allowed/u);
+  assert.match(native,/WorkoutHistoryLease/u);
+  assert.match(native,/UUID.randomUUID\(\).toString\(\)/u);
+  assert.match(native,/put\("nextCursor", nextHandle/u);
+  assert.doesNotMatch(native,/put\("pageToken"/u);
+  assert.match(native,/workoutHistoryLeases.clear\(\)/u);
+});

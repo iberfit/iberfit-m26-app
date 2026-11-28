@@ -324,3 +324,106 @@ test('Android Release handoff never touches uninitialized Bluetooth-only lifecyc
   assert.match(kotlin,/if \(::dataLayer\.isInitialized\) dataLayer\.stopListening\(\)/u);
   assert.doesNotMatch(kotlin,/^\s+discovery\.stopScan\(\)\s*\n\s+dataLayer\.stopListening\(\)/mu);
 });
+
+test('incremental workout sweep resumes only after confirmed batch, retries failure and returns to recent window',async()=>{
+  const cursors=['11111111-aaaa-4aaa-8aaa-111111111111','22222222-bbbb-4bbb-8bbb-222222222222'];
+  const reads=[],writes=[];
+  let fail=true,revocationCursor=0,scope=['exerciseSessions'];
+  const data=key=>({schema:'iberfit.connected360.v46.ingest.v1',heartRateDaily:[],exerciseEvidence:[
+    {observationKey:key.repeat(64),sport:'running',startedAt:'2026-10-12T10:00:00Z',
+      endedAt:'2026-10-12T10:30:00Z',acquiredAt:observed},
+  ]});
+  const api=createConnected360ProductionSync({
+    transport:{connected360ProductionCapabilities:async()=>({serverEnabled:true}),
+      connected360ProductionAuthorizationStatus:async()=>({authorized:true,grantId:GRANT,revocationCursor,scopes:scope}),
+      importConnected360Production:async(_token,_grant,rows)=>{
+        writes.push(rows.exerciseEvidence[0].observationKey);
+        if(fail&&rows.exerciseEvidence[0].observationKey==='b'.repeat(64)){
+          fail=false;throw Error('network');
+        }
+        return {ok:true,persisted:true,inserted:1,updated:0,unchanged:0};
+      }},
+    native:{readLocal:async options=>{
+      reads.push({...options});
+      const cursor=options.workoutCursor;
+      return {provider:'health_connect',ownerId:OWNER,clientId:CLIENT,persisted:false,metrics:scope,
+        envelope:data(cursor===cursors[0]?'b':cursor===cursors[1]?'c':'a'),
+        workoutPage:{days:options.workoutHistoryDays,nextCursor:cursor===cursors[0]?cursors[1]:cursor===cursors[1]?null:cursors[0]}};
+    },invalidate(){}},
+    getIdentity:()=>({role:'client',ownerId:OWNER,clientId:CLIENT}),
+    getToken:async()=> 'synthetic-token-for-test',now:()=>clock,isOnline:()=>true,
+  });
+  assert.equal((await api.sync()).workoutHistoryPending,true);
+  api.invalidate(); // ordinary foreground transition does not discard acknowledged progress
+  await assert.rejects(api.sync(),/network/u);
+  assert.equal((await api.sync()).workoutHistoryPending,true);
+  assert.equal((await api.sync()).workoutHistoryPending,false);
+  await api.sync();
+  assert.deepEqual(reads.map(r=>[r.workoutHistoryDays,r.workoutCursor??null]),
+    [[30,null],[30,cursors[0]],[30,cursors[0]],[30,cursors[1]],[7,null]]);
+  revocationCursor++;
+  await api.sync();
+  assert.deepEqual([reads.at(-1).workoutHistoryDays,reads.at(-1).workoutCursor??null],[30,null]);
+  api.destroy();
+});
+test('empty page and partial receipt cannot silently lose an exercise continuation',async()=>{
+  const cursor='11111111-aaaa-4aaa-8aaa-111111111111';
+  const reads=[];let invalidReceipt=true;
+  const api=createConnected360ProductionSync({
+    transport:{connected360ProductionCapabilities:async()=>({serverEnabled:true}),
+      connected360ProductionAuthorizationStatus:async()=>({authorized:true,grantId:GRANT,revocationCursor:0,scopes:['exerciseSessions']}),
+      importConnected360Production:async()=>({ok:true,persisted:true,inserted:invalidReceipt?0:1,updated:0,unchanged:0})},
+    native:{readLocal:async options=>{
+      reads.push(options);
+      return {provider:'health_connect',ownerId:OWNER,clientId:CLIENT,persisted:false,metrics:['exerciseSessions'],
+        envelope:{schema:'iberfit.connected360.v46.ingest.v1',heartRateDaily:[],
+          exerciseEvidence:options.workoutCursor?[{observationKey:'a'.repeat(64)}]:[]},
+        workoutPage:{days:options.workoutHistoryDays,nextCursor:options.workoutCursor?null:cursor}};
+    },invalidate(){}},
+    getIdentity:()=>({role:'client',ownerId:OWNER,clientId:CLIENT}),
+    getToken:async()=> 'synthetic-token-for-test',now:()=>clock,isOnline:()=>true,
+  });
+  assert.equal((await api.sync()).workoutHistoryPending,true);
+  await assert.rejects(api.sync(),/HISTORY_ACK_INVALID/u);
+  invalidReceipt=false;
+  assert.equal((await api.sync()).workoutHistoryPending,false);
+  assert.deepEqual(reads.map(r=>r.workoutCursor??null),[null,cursor,cursor]);
+  api.destroy();
+});
+
+test('native history extension accepts legacy initial replies but rejects mismatched or missing continuation metadata',async()=>{
+  const cursor='11111111-aaaa-4aaa-8aaa-111111111111';
+  let page,listener,requests=[],id=0;
+  const scope={location:{origin:'https://app.iberfit.cl'},
+    crypto:{randomUUID:()=>('abcd1234-1234-4234-8234-'+String(++id).padStart(12,'0'))},
+    setTimeout,clearTimeout,
+    IBERFIT_CONNECTED360_NATIVE:{
+      addEventListener(_event,fn){listener=fn;},removeEventListener(){listener=null;},
+      postMessage(raw){
+        const request=JSON.parse(raw);requests.push(request);
+        if(request.action!=='health.readV46')return;
+        listener({data:JSON.stringify({schema:'iberfit.connected360.native.v46.local.v1',
+          requestId:request.requestId,provider:'health_connect',persisted:false,automatic:false,
+          grantedMetrics:['exerciseSessions'],envelope:{schema:'iberfit.connected360.v46.ingest.v1',
+            heartRateDaily:[],exerciseEvidence:[]},...(page===undefined?{}:{workoutPage:page})})});
+      }
+    }};
+  const channel=createConnected360V46ProdNativeChannel({scope,
+    getIdentity:()=>({role:'client',ownerId:OWNER,clientId:CLIENT}),
+    getToken:async()=> 'synthetic-token-for-test',now:()=>clock});
+  const first={metrics:['exerciseSessions'],workoutHistoryDays:30};
+  assert.equal((await channel.readLocal(first)).workoutPage,undefined);
+  page={days:30,nextCursor:cursor};
+  assert.equal((await channel.readLocal(first)).workoutPage.nextCursor,cursor);
+  assert.equal(requests.at(-1).workoutHistoryDays,30);
+  await assert.rejects(channel.readLocal({...first,workoutCursor:cursor}),/RESPONSE_INVALID/u);
+  page={days:7,nextCursor:null};
+  await assert.rejects(channel.readLocal({...first,workoutCursor:cursor}),/RESPONSE_INVALID/u);
+  page=undefined;
+  await assert.rejects(channel.readLocal({...first,workoutCursor:cursor}),/CURSOR_INVALID/u);
+  page={days:30,nextCursor:null};
+  assert.equal((await channel.readLocal({...first,workoutCursor:cursor})).workoutPage.nextCursor,null);
+  assert.equal(requests.at(-1).workoutCursor,cursor);
+  await assert.rejects(channel.readLocal({metrics:['steps'],workoutHistoryDays:30}),/HISTORY_REQUEST_INVALID/u);
+  channel.destroy();
+});

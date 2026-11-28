@@ -15,6 +15,7 @@ const DATA_SCHEMA='iberfit.connected360.v46.ingest.v1';
 const METRICS=new Set(CONNECTED360_PRODUCTION_SCOPES);
 const SPORTS=new Set(['running','interval_running','hiit','cycling','walking','strength','other']);
 const HASH=/^[0-9a-f]{64}$/u;
+const WORKOUT_CURSOR=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const DAY=/^\d{4}-\d{2}-\d{2}$/u;
 const MAX_RESPONSE=32000;
 const MAX_AGE=20*60*1000;
@@ -138,11 +139,14 @@ export function createConnected360V46ProdNativeChannel({
       throw new Error('M26_V46_PROD_SESSION_CHANGED');
     return Object.freeze({ownerId,clientId});
   }
-  async function readLocal({metrics=['generalHeartRate','exerciseSessions']}={}){
+  async function readLocal({metrics=['generalHeartRate','exerciseSessions'],workoutHistoryDays=null,workoutCursor=null}={}){
     if(reading)throw new Error('M26_V46_PROD_BUSY');
     const requested=Array.isArray(metrics)?[...new Set(metrics)]:[];
     if(!requested.length||requested.length>METRICS.size||requested.some(x=>!METRICS.has(x)))
       throw new Error('M26_V46_PROD_METRICS_INVALID');
+    if((workoutHistoryDays!==null&&(![7,30].includes(workoutHistoryDays)||!requested.includes('exerciseSessions')))
+      ||(workoutCursor!==null&&(workoutHistoryDays===null||typeof workoutCursor!=='string'||!WORKOUT_CURSOR.test(workoutCursor))))
+      throw new Error('M26_V46_PROD_HISTORY_REQUEST_INVALID');
     const owner=await identity();
     if(reading)throw new Error('M26_V46_PROD_BUSY');
     reading=true;
@@ -180,9 +184,20 @@ export function createConnected360V46ProdNativeChannel({
             ||value.grantedMetrics.some(x=>!requested.includes(x))){
             finish(new Error('M26_V46_PROD_RESPONSE_INVALID'));return;
           }
-          try{finish(null,{metrics:[...value.grantedMetrics],envelope:cleanEnvelope(
-            value.envelope,value.grantedMetrics,now(),{maxWorkouts:requested.includes('exerciseSessions')?CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT:10}
-          )});}catch(e){finish(e);}
+          try{
+            const envelope=cleanEnvelope(value.envelope,value.grantedMetrics,now(),
+              {maxWorkouts:requested.includes('exerciseSessions')?CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT:10});
+            let workoutPage=null;
+            if(value.workoutPage!==undefined){
+              const page=value.workoutPage;
+              if(!page||typeof page!=='object'||Array.isArray(page)||!keys(page,['days','nextCursor'])
+                ||workoutHistoryDays===null||page.days!==workoutHistoryDays||!value.grantedMetrics.includes('exerciseSessions')
+                ||!Object.hasOwn(page,'nextCursor')||(page.nextCursor!==null&&
+                  (typeof page.nextCursor!=='string'||!WORKOUT_CURSOR.test(page.nextCursor)||page.nextCursor===workoutCursor)))fail();
+              workoutPage=Object.freeze({days:page.days,nextCursor:page.nextCursor});
+            }else if(workoutCursor!==null)throw new Error('M26_HEALTH_V46_CURSOR_INVALID');
+            finish(null,{metrics:[...value.grantedMetrics],envelope,...(workoutPage?{workoutPage}:{})});
+          }catch(e){finish(e);}
         };
         rejectPending=()=>finish(new Error('M26_V46_PROD_INVALIDATED'));
         handle=scope.setTimeout?.(()=>finish(new Error('M26_V46_PROD_TIMEOUT')),timeoutMs);
@@ -190,7 +205,8 @@ export function createConnected360V46ProdNativeChannel({
         channel.addEventListener('message',onMessage);
         try{channel.postMessage(JSON.stringify({schema:REQUEST_SCHEMA,requestId,
           action:'health.readV46',days:7,metrics:requested,
-          ...(requested.includes('exerciseSessions')?{maxWorkouts:CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT}:{})}));}
+          ...(requested.includes('exerciseSessions')?{maxWorkouts:CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT}:{}),
+          ...(workoutHistoryDays!==null?{workoutHistoryDays}:{}),...(workoutCursor!==null?{workoutCursor}:{})}));}
         catch{finish(new Error('M26_V46_PROD_CHANNEL_UNAVAILABLE'));}
       });
       const latest=await identity();

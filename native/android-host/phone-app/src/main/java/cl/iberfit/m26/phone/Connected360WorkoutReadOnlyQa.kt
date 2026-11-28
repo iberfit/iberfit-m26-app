@@ -13,6 +13,7 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import cl.iberfit.healthconnect.dayWindow
 import java.security.MessageDigest
 import java.time.Duration
+import java.time.Instant
 import java.time.ZonedDateTime
 
 /**
@@ -37,10 +38,12 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
         val observationKey: String? = null,
         val sport: String = "other",
     )
+    data class HistoryPage(val start: Instant, val end: Instant, val pageToken: String)
     data class ReadResult(
         val workouts: List<LocalWorkout>,
         val truncated: Boolean,
         val scopesGranted: Set<String>,
+        val nextPage: HistoryPage? = null,
     )
 
     companion object {
@@ -112,7 +115,14 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
         }
     }
 
-    suspend fun read(includeHeartRate: Boolean = true, maxWorkouts: Int = MAX_WORKOUTS): ReadResult {
+    suspend fun read(
+        includeHeartRate: Boolean = true,
+        maxWorkouts: Int = MAX_WORKOUTS,
+        historyDays: Int? = null,
+        continuation: HistoryPage? = null,
+    ): ReadResult {
+        require(historyDays == null || historyDays in setOf(7, 30))
+        require(continuation == null || historyDays != null)
         require(maxWorkouts in 1..PRODUCTION_MAX_WORKOUTS) { "M26_HEALTH_WORKOUT_BATCH_INVALID" }
         val granted = client.permissionController.getGrantedPermissions()
         check(requiredPermission in granted) { "M26_HEALTH_EXERCISE_PERMISSION_REQUIRED" }
@@ -121,8 +131,18 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
         val grantedScopes = permissions.filterValues { it in granted }.keys.toSet()
         val scopes = if (includeHeartRate) grantedScopes else grantedScopes - "heartRate"
         val clock=ZonedDateTime.now()
-        val end=clock.toInstant()
-        val start=dayWindow(clock.toLocalDate().minusDays((DAYS-1).toLong()),clock.zone).first
+        val end=continuation?.end ?: clock.toInstant()
+        val start=continuation?.start ?: if(historyDays != null)
+            end.minus(Duration.ofDays(historyDays.toLong()))
+        else dayWindow(clock.toLocalDate().minusDays((DAYS-1).toLong()),clock.zone).first
+        require(start.isBefore(end) && !end.isAfter(clock.toInstant()))
+        // Continuation always reuses the same interval and system page token.
+        // A paginated page must fit the ingestion batch; never discard a tail
+        // and advance a cursor beyond records that were not considered.
+        if(historyDays != null) {
+            require(Duration.between(start,end) == Duration.ofDays(historyDays.toLong()))
+            require(Duration.between(start,clock.toInstant()) < Duration.ofDays(31))
+        }
         val page=client.readRecords(
             ReadRecordsRequest(
                 recordType=ExerciseSessionRecord::class,
@@ -130,13 +150,16 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
                 // Health Connect defaults to ascending start time; taking one
                 // page in that order can permanently hide the newest activities.
                 ascendingOrder=false,
-                pageSize=PAGE_SIZE,
+                pageSize=if(historyDays == null) PAGE_SIZE else maxWorkouts,
+                pageToken=continuation?.pageToken,
             )
         )
+        if(historyDays != null) check(page.records.size <= maxWorkouts) { "M26_HEALTH_WORKOUT_PAGE_OVERFLOW" }
         val exercises=page.records
             .filter { it.endTime.isAfter(it.startTime) && !it.endTime.isAfter(end) &&
                 Duration.between(it.startTime,it.endTime) <= Duration.ofHours(24) &&
-                opaqueRecordKey(it.metadata.id) != null }
+                opaqueRecordKey(it.metadata.id) != null &&
+                (historyDays == null || !it.startTime.isBefore(start)) }
             .sortedByDescending { it.endTime }
         val truncated=!page.pageToken.isNullOrEmpty()||exercises.size>maxWorkouts
         val found=mutableListOf<LocalWorkout>()
@@ -178,6 +201,10 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
                 sport=sport(exercise.exerciseType),
             )
         }
-        return ReadResult(found,truncated,scopes)
+        val nextPage=if(historyDays != null) page.pageToken?.takeIf { it.isNotEmpty() }?.let {
+            check(it != continuation?.pageToken) { "M26_HEALTH_V46_CURSOR_INVALID" }
+            HistoryPage(start,end,it)
+        } else null
+        return ReadResult(found,truncated,scopes,nextPage)
     }
 }

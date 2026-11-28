@@ -19,6 +19,8 @@ export function createConnected360ProductionSync({
     ||typeof getIdentity!=='function'||typeof getToken!=='function')
     throw new Error('M26_V46_PROD_DEPENDENCIES_MISSING');
   let dead=false,inflight=null,generation=0,lastSuccess=null;
+  let workoutSweep=null;
+  function resetWorkoutSweep(){workoutSweep=null;}
   function owner(){
     if(dead)throw new Error('M26_V46_PROD_DISPOSED');
     const a=getIdentity()||{};
@@ -76,19 +78,34 @@ export function createConnected360ProductionSync({
       const token=await getTokenFor(expected,version,signal);
       const flags=await transport.connected360ProductionCapabilities(token);
       assertCurrent(expected,version,signal);
-      if(flags.serverEnabled!==true)return Object.freeze({skipped:'release-disabled'});
+      if(flags.serverEnabled!==true){resetWorkoutSweep();return Object.freeze({skipped:'release-disabled'});}
       const status=await transport.connected360ProductionAuthorizationStatus(token);
       assertCurrent(expected,version,signal);
       const scopes=V46_PROD_SCOPES.filter(x=>status?.scopes?.includes(x));
       if(status?.authorized!==true||!UUID.test(String(status.grantId||''))
-        ||!scopes.length)return Object.freeze({skipped:'consent-required'});
-      const read=await native.readLocal({metrics:scopes});
+        ||!scopes.length){resetWorkoutSweep();return Object.freeze({skipped:'consent-required'});}
+      const exerciseAuthorized=scopes.includes('exerciseSessions');
+      const sweepKey=JSON.stringify([expected.ownerId,expected.clientId,status.grantId,status.revocationCursor,scopes]);
+      if(!exerciseAuthorized||workoutSweep?.key!==sweepKey)resetWorkoutSweep();
+      if(exerciseAuthorized&&!workoutSweep)workoutSweep={key:sweepKey,days:30,cursor:null,failures:0};
+      const sweep=workoutSweep;
+      let read;
+      try{
+        read=await native.readLocal({metrics:scopes,...(sweep?{workoutHistoryDays:sweep.days,
+          ...(sweep.cursor?{workoutCursor:sweep.cursor}:{})}:{})});
+      }catch(error){
+        if(!signal?.aborted&&version===generation&&sweep&&workoutSweep===sweep){
+          if(error?.message==='M26_HEALTH_V46_CURSOR_INVALID'||(sweep.cursor&&++sweep.failures>=2))
+            resetWorkoutSweep();
+        }
+        throw error;
+      }
       assertCurrent(expected,version,signal);
       if(read.ownerId!==expected.ownerId||read.clientId!==expected.clientId
         ||read.provider!=='health_connect'||read.persisted!==false)
         throw new Error('M26_V46_PROD_NATIVE_OWNER_MISMATCH');
       const granted=read.metrics.filter(x=>scopes.includes(x));
-      if(!granted.length)return Object.freeze({skipped:'android-permission-required'});
+      if(!granted.length){resetWorkoutSweep();return Object.freeze({skipped:'android-permission-required'});}
       // Never store pulse fields under an exercise-only scope even if the
       // phone still carries an old OS heart rate permission.
       const pulseEnabled=granted.includes('generalHeartRate');
@@ -103,7 +120,14 @@ export function createConnected360ProductionSync({
         }):[],
       };
       const dailyHealth=read.envelope.dailyHealth||[];
-      if(!rows.heartRateDaily.length&&!rows.exerciseEvidence.length&&!dailyHealth.length)
+      const page=exEnabled&&sweep?read.workoutPage:null;
+      if(!exEnabled)resetWorkoutSweep();
+      if(page&&(![7,30].includes(page.days)||page.days!==sweep.days||
+        !Object.hasOwn(page,'nextCursor')||(page.nextCursor!==null&&
+          (typeof page.nextCursor!=='string'||!UUID.test(page.nextCursor)||page.nextCursor===sweep.cursor))))
+        throw new Error('M26_V46_PROD_HISTORY_RESPONSE_INVALID');
+      if(sweep?.cursor&&exEnabled&&!page){resetWorkoutSweep();throw new Error('M26_HEALTH_V46_CURSOR_INVALID');}
+      if(!rows.heartRateDaily.length&&!rows.exerciseEvidence.length&&!dailyHealth.length&&!page)
         return Object.freeze({skipped:'no-recent-observations'});
       const fresh=await transport.connected360ProductionAuthorizationStatus(
         await getTokenFor(expected,version,signal)
@@ -115,10 +139,16 @@ export function createConnected360ProductionSync({
         throw new Error('M26_V46_PROD_CONSENT_REVOKED');
       const results=[];
       if(rows.heartRateDaily.length||rows.exerciseEvidence.length){
-        results.push(await transport.importConnected360Production(
+        const receipt=await transport.importConnected360Production(
           await getTokenFor(expected,version,signal),status.grantId,rows
-        ));
+        );
         assertCurrent(expected,version,signal);
+        // A native continuation is never advanced by a missing/partial ACK.
+        if(page&&(receipt?.ok!==true||receipt.persisted!==true||
+          ![receipt.inserted,receipt.updated,receipt.unchanged].every(n=>Number.isSafeInteger(n)&&n>=0)||
+          receipt.inserted+receipt.updated+receipt.unchanged!==rows.heartRateDaily.length+rows.exerciseEvidence.length))
+          throw new Error('M26_V46_PROD_HISTORY_ACK_INVALID');
+        results.push(receipt);
       }
       if(dailyHealth.length){
         if(typeof transport.importConnected360DailyProduction!=='function')
@@ -128,9 +158,16 @@ export function createConnected360ProductionSync({
         ));
         assertCurrent(expected,version,signal);
       }
+      // Empty pages can advance after the fresh grant check without a write.
+      // For nonempty pages, the existing transport already verifies all ACKs.
+      assertCurrent(expected,version,signal);
+      if(page&&workoutSweep===sweep)workoutSweep={key:sweepKey,
+        days:page.nextCursor===null?7:sweep.days,cursor:page.nextCursor,failures:0};
+      if(!results.length)return Object.freeze({skipped:'no-recent-observations',workoutHistoryPending:Boolean(page?.nextCursor)});
       lastSuccess=now();
       await refreshState({reason:'connected360-prod-foreground'});
-      return Object.freeze({ok:true,automatic:true,
+      assertCurrent(expected,version,signal);
+      return Object.freeze({ok:true,automatic:true,workoutHistoryPending:Boolean(page?.nextCursor),
         inserted:results.reduce((n,r)=>n+r.inserted,0),
         updated:results.reduce((n,r)=>n+r.updated,0),
         unchanged:results.reduce((n,r)=>n+r.unchanged,0),
@@ -145,7 +182,7 @@ export function createConnected360ProductionSync({
     inflight=null;
     native.invalidate?.();
   }
-  function destroy(){if(dead)return;dead=true;invalidate();native.destroy?.();}
+  function destroy(){if(dead)return;dead=true;resetWorkoutSweep();invalidate();native.destroy?.();}
   return Object.freeze({availability,authorize,sync,invalidate,destroy,
     get lastSuccess(){return lastSuccess;}});
 }

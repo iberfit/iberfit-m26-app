@@ -1007,10 +1007,14 @@ export function createWearableController({
             const wrap=root.querySelector?.('[data-prod-connected360]');
             if(wrap?.isConnected){
               const status=wrap.querySelector?.('[data-prod-connected360-status]');
-              if(status)status.textContent='Sincronización automática completada. '+
-                'Actualizando las mediciones disponibles…';
+              if(status)status.textContent=result.workoutHistoryPending===true
+                ?'Actividades guardadas. La recuperación del historial continuará al volver a sincronizar.'
+                :'Sincronización automática completada. '+'Actualizando las mediciones disponibles…';
               void refreshProductionSummary(wrap,{supersede:true});
             }
+          }else if(result?.workoutHistoryPending===true){
+            const note=root.querySelector?.('[data-prod-connected360-status]');
+            if(note)note.textContent='Actividades guardadas. La recuperación del historial continuará al volver a sincronizar.';
           }
         }
       }catch(error){
@@ -1507,7 +1511,7 @@ export function createWearableController({
           ['sleepMinutes','Compartir mi duración de sueño'],
           ['restingHeartRate','Compartir mi frecuencia cardíaca en reposo'],
           ['generalHeartRate','Compartir mi frecuencia cardíaca general (no FC en reposo)'],
-          ['exerciseSessions','Compartir mis actividades y entrenamientos observados'],
+          ['exerciseSessions','Compartir mis actividades y entrenamientos observados (lectura inicial de hasta 30 días)'],
         ]){
           const label=document.createElement('label');
           label.className='m26-wearable-qa-consent';
