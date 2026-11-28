@@ -407,3 +407,15 @@ test('activity continuity is local read-only context, not an adherence or diagno
   assert.match(controller,/Los registros disponibles no permiten determinar si descansaste ni si necesitas cambiar el entrenamiento\./u);
   assert.match(controller,/context\.dataset\.prodConnected360Continuity='true'/u);
 });
+
+test('sport coverage counts unique observed civil days, never number of workouts or total load',()=>{
+  const now=new Date('2026-11-28T18:00:00Z');
+  const row=(sport,day,hour)=>({sport,startedAt:'2026-11-'+day+'T'+hour+':00:00Z',endedAt:'2026-11-'+day+'T'+hour+':30:00Z'});
+  const rows=connected360WorkoutHistory({...empty(),exerciseEvidence:[
+    row('running',28,12),row('running',28,13),row('running',27,12),row('cycling',27,12),
+  ]},{now});
+  const mix=connected360WorkoutMix(rows);
+  assert.deepEqual(mix.map(r=>[r.label,r.observedDays]),[['Carrera',2],['Ciclismo',1]]);
+  assert.ok(mix.every(r=>!Object.hasOwn(r,'totalLoad')&&!Object.hasOwn(r,'totalDistance')));
+  assert.equal(connected360WorkoutMix([{label:'Carrera',detail:'Registro'}])[0].observedDays,null);
+});
