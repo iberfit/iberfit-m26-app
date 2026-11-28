@@ -1,4 +1,11 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  [" · Ejecución confirmada"," · Confirmed workout"," · Séance confirmée"," · Treino confirmado"],
+  ["Continuidad de actividad","Activity continuity","Continuité de l’activité","Continuidade da atividade"],
+  ["Días consecutivos con carrera registrada","Consecutive days with recorded running","Jours consécutifs avec course enregistrée","Dias consecutivos com corrida registada"],
+  ["Días consecutivos con actividad registrada","Consecutive days with recorded activity","Jours consécutifs avec activité enregistrée","Dias consecutivos com atividade registada"],
+  ["Comenta con tu entrenador cómo te encuentras antes de la próxima sesión.","Tell your coach how you feel before your next session.","Indiquez à votre coach comment vous vous sentez avant la prochaine séance.","Diz ao teu treinador como te sentes antes da próxima sessão."],
+  ["Los registros disponibles no permiten determinar si descansaste ni si necesitas cambiar el entrenamiento.","Available records cannot establish whether you rested or need to change your workout.","Les données disponibles ne permettent pas de déterminer si vous vous êtes reposé ni si vous devez modifier votre entraînement.","Os registos disponíveis não permitem determinar se descansaste ou se precisas de alterar o treino."],
+  ["Periodo observado","Observed period","Période observée","Período observado"],
   ["Actividad deportiva complementaria","Complementary sports activity","Activité sportive complémentaire","Atividade desportiva complementar"],
   ["Último registro disponible por deporte (hasta 10 actividades de los últimos 7 días). No mide el cumplimiento del plan.","Latest available record per sport (up to 10 activities from the last 7 days). This does not measure plan adherence.","Dernier enregistrement disponible par sport (jusqu’à 10 activités des 7 derniers jours). Il ne mesure pas le respect du programme.","Último registo disponível por desporto (até 10 atividades dos últimos 7 dias). Não mede o cumprimento do plano."],
   ["No hay actividades deportivas recientes importadas.","No recent imported workouts.","Aucun entraînement récent importé.","Não há treinos recentes importados."],
