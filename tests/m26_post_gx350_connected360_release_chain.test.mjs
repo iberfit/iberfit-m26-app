@@ -7,7 +7,7 @@ const source=fs.readFileSync(path,'utf8');
 const workflow=fs.readFileSync('.github/workflows/m26-c-connected360-isolated-pg17.yml','utf8');
 test('provider release chain harness only permits disposable local PG17',()=>{
  assert.equal(spawnSync('bash',['-n',path]).status,0);
- const disposableDbCredential='synthetic-local-only';
+ const disposableDbCredential=Array.from({length:64},()=> 'a').join('');
  const env={PATH:process.env.PATH,IBERFIT_PG17_SYNTHETIC_ONLY:'YES',PGHOST:'127.0.0.1',PGPORT:'5432',PGUSER:'postgres',PGDATABASE:'postgres',PGPASSWORD:disposableDbCredential};
  for(const key of Object.keys(env).filter(k=>k!=='PATH')){
   const result=spawnSync('bash',[path],{env:{...env,[key]:'invalid'},encoding:'utf8',timeout:5000});
@@ -27,4 +27,19 @@ test('provider chain runs every unmodified candidate in order and retains the tw
  assert.match(workflow,/isolated-pg17-roles-and-rollback:/u);
  assert.match(workflow,/isolated-pg17-document-consent:/u);
  assert.doesNotMatch(workflow,/secrets\./u);
+});
+
+test('disposable PG17 CI uses per-run random credentials, loopback and cleanup',()=>{
+ const launcher='scripts/data-safety/run_disposable_pg17_ci.sh';
+ const body=fs.readFileSync(launcher,'utf8');
+ assert.equal(spawnSync('bash',['-n',launcher]).status,0);
+ assert.match(body,/openssl rand -hex 32/u);
+ assert.match(body,/add-mask/u);
+ assert.match(body,/-p 127\.0\.0\.1:5432:5432/u);
+ assert.match(body,/trap 'docker rm -f "\$container_id"/u);
+ assert.equal((workflow.match(/run_disposable_pg17_ci\.sh scripts\/data-safety\//gu)||[]).length,3);
+ assert.doesNotMatch(workflow,/synthetic-local-only/u);
+ const result=spawnSync('bash',[launcher,path],{env:{PATH:process.env.PATH},encoding:'utf8',timeout:5000});
+ assert.equal(result.status,65);
+ assert.match(result.stderr,/DISPOSABLE_PG17_CI_ONLY/u);
 });

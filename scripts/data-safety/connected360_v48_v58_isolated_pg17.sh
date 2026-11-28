@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 if [[ "${IBERFIT_PG17_SYNTHETIC_ONLY:-}" != YES || "${PGHOST:-}" != 127.0.0.1 ||
       "${PGPORT:-}" != 5432 || "${PGUSER:-}" != postgres ||
-      "${PGDATABASE:-}" != postgres || "${PGPASSWORD:-}" != synthetic-local-only ]]; then
+      "${PGDATABASE:-}" != postgres || ! "${PGPASSWORD:-}" =~ ^[a-f0-9]{64}$ ]]; then
   echo 'CONNECTED360_CHAIN_ISOLATED_PG17_ONLY' >&2
   exit 65
 fi

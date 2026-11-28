@@ -63,7 +63,9 @@ UPDATE m26_wearable_exercise_evidence_v46 SET sport='cycling' WHERE provider='ap
 SELECT gx_test.assert(NOT private.gx_document_publication_current_v1(report_id,client_id,body),'corrected activity invalidated') FROM gx_test.scenarios WHERE provider='apple_health';
 ROLLBACK;
 BEGIN;
-UPDATE client_assignments SET active=false;
+UPDATE client_assignments SET active=false
+WHERE client_id='30000000-0000-4000-8000-000000000001'
+  AND coach_user_id='10000000-0000-4000-8000-000000000002' AND active=true;
 SELECT gx_test.assert(bool_and(NOT private.gx_document_publication_current_v1(report_id,client_id,body)),'assignment retired') FROM gx_test.scenarios;
 ROLLBACK;
 BEGIN;

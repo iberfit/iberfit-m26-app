@@ -217,8 +217,8 @@ export function connected360MultiProviderCoachActivityView(payloads,{clientId,no
  const merged={days:ordered.map(([date,sports])=>({date,sports:[...sports.keys()]}))};
  const context=continuityFromVerified(merged,confirmedRows,now);
  const activity=context.activity;
- return Object.freeze({coverage:'partial',providers:Object.freeze([...providers].sort()),
-  days:Object.freeze(ordered.map(([date,sports])=>Object.freeze({date,sports:Object.freeze([...sports.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([sport,sources])=>Object.freeze({sport,label:labels[sport],providers:Object.freeze([...sources].sort())})))}))),
+ return Object.freeze({coverage:'partial',providers:Object.freeze([...providers].sort((a,b)=>a.localeCompare(b))),
+  days:Object.freeze(ordered.map(([date,sports])=>Object.freeze({date,sports:Object.freeze([...sports.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([sport,sources])=>Object.freeze({sport,label:labels[sport],providers:Object.freeze([...sources].sort((a,b)=>a.localeCompare(b)))})))}))),
   cue:activity?.source==='coach_authorized_activity'?Object.freeze({days:activity.days,discipline:activity.discipline,periodStart:activity.periodStart,periodEnd:activity.periodEnd}):null,
   continuityCues:context.continuityCues,disciplineCues:context.disciplineCues,automaticPlanChange:false});
 }

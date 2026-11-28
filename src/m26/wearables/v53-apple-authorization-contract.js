@@ -35,9 +35,9 @@ export function verifyAppleExerciseConsentReceipt(v,params){
 const workoutSports=new Set(['running','cycling','walking','strength','hiit','swimming','other']);
 const key=/^[0-9a-f]{64}$/u;
 function instant(v){
- if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{3})?Z$/u.test(v))return NaN;
+ if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{3})?Z$/u.test(v))return Number.NaN;
  const n=Date.parse(v);
- return Number.isFinite(n)&&new Date(n).toISOString()===(v.length===20?v.slice(0,-1)+'.000Z':v)?n:NaN;
+ return Number.isFinite(n)&&new Date(n).toISOString()===(v.length===20?v.slice(0,-1)+'.000Z':v)?n:Number.NaN;
 }
 const importFail=()=>{throw Error('M26_V54_APPLE_IMPORT_CONTRACT_INVALID');};
 export function appleExerciseImportParams(status,payload,{at=Date.now()}={}){

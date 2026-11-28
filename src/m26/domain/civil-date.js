@@ -126,7 +126,7 @@ export function formatIberfitDate(
 // describe only the evidence supplied by the authorized caller.
 export function observedCivilDayRuns(dates){
   if(!Array.isArray(dates))return Object.freeze([]);
-  const valid=[...new Set(dates.filter(value=>typeof value==='string'&&parseCivilDate(value)?.iso===value))].sort();
+  const valid=[...new Set(dates.filter(value=>typeof value==='string'&&parseCivilDate(value)?.iso===value))].sort((a,b)=>a.localeCompare(b));
   const runs=[];
   let current=null,previous=null;
   for(const day of valid){

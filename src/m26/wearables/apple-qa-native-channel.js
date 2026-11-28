@@ -85,9 +85,9 @@ const workoutFail=()=>{throw Error('M26_APPLE_QA_RESPONSE_INVALID');};
 // Native ISO formatter uses UTC and optional fractional seconds; reject
 // coercive date parsing (e.g. 31 February) rather than relabel observations.
 function workoutInstant(value){
-  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(value))return NaN;
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(value))return Number.NaN;
   const at=Date.parse(value);
-  if(!Number.isFinite(at)||new Date(at).toISOString()!==(value.length===20?value.slice(0,-1)+'.000Z':value))return NaN;
+  if(!Number.isFinite(at)||new Date(at).toISOString()!==(value.length===20?value.slice(0,-1)+'.000Z':value))return Number.NaN;
   return at;
 }
 export function normalizeAppleQaWorkouts(value,{at=Date.now(),days=30}={}){

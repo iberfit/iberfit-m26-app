@@ -273,11 +273,11 @@ export function reconcileConnected360ExercisePeriod(rows,{ownerId,clientId,perio
   for(const group of components){
     for(const row of group.rows){days.add(row.day);sportEntry(row.sport).observedDays.add(row.day);}
     if(group.rows.length>1){
-      const groupSports=[...new Set(group.rows.map(x=>x.sport))].sort();
-      const groupDays=[...new Set(group.rows.map(x=>x.day))].sort();
+      const groupSports=[...new Set(group.rows.map(x=>x.sport))].sort((a,b)=>a.localeCompare(b));
+      const groupDays=[...new Set(group.rows.map(x=>x.day))].sort((a,b)=>a.localeCompare(b));
       for(const sport of groupSports)sportEntry(sport).ambiguous+=1;
       conflicts.push(Object.freeze({days:Object.freeze(groupDays),sports:Object.freeze(groupSports),
-        providers:Object.freeze([...new Set(group.rows.map(x=>x.provider))].sort()),
+        providers:Object.freeze([...new Set(group.rows.map(x=>x.provider))].sort((a,b)=>a.localeCompare(b))),
         reason:'overlapping_observations'}));
       continue;
     }

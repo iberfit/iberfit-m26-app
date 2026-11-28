@@ -13,6 +13,7 @@ on:
       - 'supabase/release-procedures/gx_connected360_document_*.sql'
       - 'qa/sql/connected360-document/**'
       - 'scripts/data-safety/gx_document_consent_isolated_pg17.sh'
+      - 'scripts/data-safety/run_disposable_pg17_ci.sh'
       - '.github/workflows/m26-c-connected360-isolated-pg17.yml'
   push:
     branches: ['canary/rc74-4']
@@ -28,6 +29,7 @@ on:
       - 'supabase/release-procedures/gx_connected360_document_*.sql'
       - 'qa/sql/connected360-document/**'
       - 'scripts/data-safety/gx_document_consent_isolated_pg17.sh'
+      - 'scripts/data-safety/run_disposable_pg17_ci.sh'
       - '.github/workflows/m26-c-connected360-isolated-pg17.yml'
 permissions:
   contents: read
@@ -38,78 +40,24 @@ jobs:
   isolated-pg17-roles-and-rollback:
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: synthetic-local-only
-          POSTGRES_DB: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd="pg_isready -U postgres" --health-interval=5s
-          --health-timeout=5s --health-retries=12
     steps:
       - uses: actions/checkout@v4
       - name: Validate exact V47 SQL, roles, owner scope and rollback against synthetic PG17
         shell: bash
-        env:
-          IBERFIT_PG17_SYNTHETIC_ONLY: 'YES'
-          PGPASSWORD: synthetic-local-only
-          PGHOST: 127.0.0.1
-          PGPORT: '5432'
-          PGUSER: postgres
-          PGDATABASE: postgres
-        run: bash scripts/data-safety/m26_c_v47_isolated_pg17.sh
+        run: bash scripts/data-safety/run_disposable_pg17_ci.sh scripts/data-safety/m26_c_v47_isolated_pg17.sh
   isolated-pg17-document-consent:
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: synthetic-local-only
-          POSTGRES_DB: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd="pg_isready -U postgres" --health-interval=5s
-          --health-timeout=5s --health-retries=12
     steps:
       - uses: actions/checkout@v4
       - name: Install exact candidate SQL and exercise document consent and concurrent withdrawal
         shell: bash
-        env:
-          IBERFIT_PG17_SYNTHETIC_ONLY: 'YES'
-          PGPASSWORD: synthetic-local-only
-          PGHOST: 127.0.0.1
-          PGPORT: '5432'
-          PGUSER: postgres
-          PGDATABASE: postgres
-        run: bash scripts/data-safety/gx_document_consent_isolated_pg17.sh
+        run: bash scripts/data-safety/run_disposable_pg17_ci.sh scripts/data-safety/gx_document_consent_isolated_pg17.sh
   isolated-pg17-provider-release-chain:
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: synthetic-local-only
-          POSTGRES_DB: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd="pg_isready -U postgres" --health-interval=5s
-          --health-timeout=5s --health-retries=12
     steps:
       - uses: actions/checkout@v4
       - name: Install historical V46/V47 and exact V48–V58 release chain
         shell: bash
-        env:
-          IBERFIT_PG17_SYNTHETIC_ONLY: 'YES'
-          PGPASSWORD: synthetic-local-only
-          PGHOST: 127.0.0.1
-          PGPORT: '5432'
-          PGUSER: postgres
-          PGDATABASE: postgres
-        run: bash scripts/data-safety/connected360_v48_v58_isolated_pg17.sh
+        run: bash scripts/data-safety/run_disposable_pg17_ci.sh scripts/data-safety/connected360_v48_v58_isolated_pg17.sh
