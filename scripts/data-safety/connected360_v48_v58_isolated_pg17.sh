@@ -41,6 +41,13 @@ echo 'CONNECTED360_V48_EXACT_ROLLBACK_REINSTALL_SUCCESS'
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v49_coach_activity_consent_v1.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v50_provider_selective_cleanup_v1.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v51_exercise_storage_v1.sql
+# Certify both directions before V52, including private guard and complete rollback.
+psql_synthetic -c "SELECT gx_test.assert(NOT has_function_privilege('authenticated','private.m26_v51_assert_storage_prerequisites()','EXECUTE') AND NOT has_function_privilege('service_role','private.m26_v51_assert_storage_prerequisites()','EXECUTE'),'V51 guard inaccessible');"
+psql_synthetic -f /repo/supabase/release-procedures/connected360_v51_exercise_storage_v1.rollback.sql
+psql_synthetic -c "SELECT gx_test.assert(to_regprocedure('private.m26_v51_assert_storage_prerequisites()') IS NULL AND NOT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid='public.m26_wearable_exercise_evidence_v46'::regclass AND attname='active_seconds' AND NOT attisdropped),'V51 exact storage rollback');"
+v51_install=/repo/supabase/release-procedures/connected360_v51_exercise_storage_v1.sql
+psql_synthetic -f "$v51_install"
+echo 'CONNECTED360_V51_ROLLBACK_REINSTALL_SUCCESS'
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v52_android_swimming_v1.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v53_apple_exercise_authorization_v1.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v54_apple_exercise_import_v1.sql

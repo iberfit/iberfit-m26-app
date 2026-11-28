@@ -13,10 +13,17 @@ test('V51 keeps one protected table and existing source uniqueness; no new write
   assert.match(sql,/provider='apple_health' AND sport='swimming'/u);
   assert.match(sql,/active_seconds IS NULL OR/u);
   assert.match(sql,/heart_rate_avg IS NULL AND heart_rate_min IS NULL AND heart_rate_max IS NULL/u);
-  assert.doesNotMatch(sql,/CREATE TABLE|CREATE FUNCTION|GRANT |INSERT INTO|UPDATE public\.|DELETE FROM|CREATE INDEX/u);
+  assert.doesNotMatch(sql,/CREATE TABLE|GRANT |INSERT INTO|UPDATE public\.|DELETE FROM|CREATE INDEX/u);
+  assert.equal((sql.match(/CREATE FUNCTION /gu)||[]).length,1);
+  assert.match(sql,/CREATE FUNCTION private\.m26_v51_assert_storage_prerequisites\(\) RETURNS void/u);
+  assert.match(sql,/SECURITY INVOKER SET search_path TO ''/u);
+  assert.match(sql,/REVOKE ALL ON FUNCTION private\.m26_v51_assert_storage_prerequisites\(\) FROM PUBLIC,anon,authenticated,service_role/u);
 });
 test('V51 rollback is fenced and refuses any information loss',()=>{
   assert.match(rollback,/ACCESS EXCLUSIVE MODE/u);
+  assert.match(rollback,/md5\(p\.prosrc\) IS DISTINCT FROM '896c0c14d899c8652b60659ac55d9cb3'/u);
+  assert.match(rollback,/PERFORM private\.m26_v51_assert_storage_prerequisites\(\);/u);
+  assert.match(rollback,/DROP FUNCTION private\.m26_v51_assert_storage_prerequisites\(\);/u);
   assert.match(rollback,/provider <> 'health_connect' OR sport NOT IN/u);
   assert.match(rollback,/OR active_seconds IS NOT NULL/u);
   assert.match(rollback,/M26_V51_ROLLBACK_WRITER_PRESENT/u);

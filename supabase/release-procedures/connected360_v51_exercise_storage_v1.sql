@@ -3,7 +3,10 @@
 BEGIN;
 SET LOCAL lock_timeout='3s';
 LOCK TABLE public.m26_wearable_exercise_evidence_v46 IN ACCESS EXCLUSIVE MODE;
-DO $guard$
+-- A single private catalog guard is reused on install and rollback.
+-- Invoker only; no API role can call it and it neither reads exercise rows nor writes.
+CREATE FUNCTION private.m26_v51_assert_storage_prerequisites() RETURNS void
+LANGUAGE plpgsql SECURITY INVOKER SET search_path TO '' AS $guard_body$
 BEGIN
   IF md5(pg_get_functiondef('public.m26_wearable_v46_cleanup_prod_v1()'::regprocedure)) <> '5f8d8f5e93d9a09bc66d2af8f1a88bad' THEN
     RAISE EXCEPTION 'M26_V51_V50_REQUIRED';
@@ -29,6 +32,12 @@ BEGIN
         AND pg_get_indexdef(i.indexrelid)='CREATE UNIQUE INDEX m26_v46_workout_owner_source_uq ON public.m26_wearable_exercise_evidence_v46 USING btree (owner_user_id, client_id, provider, source_record_key)') THEN
     RAISE EXCEPTION 'M26_V51_SOURCE_INDEX_DRIFT';
   END IF;
+END;
+$guard_body$;
+REVOKE ALL ON FUNCTION private.m26_v51_assert_storage_prerequisites() FROM PUBLIC,anon,authenticated,service_role;
+DO $guard$
+BEGIN
+  PERFORM private.m26_v51_assert_storage_prerequisites();
   IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public.m26_wearable_exercise_evidence_v46'::regclass
       AND conname='m26_wearable_exercise_evidence_v46_provider_check' AND convalidated AND pg_get_constraintdef(oid)='CHECK ((provider = ''health_connect''::text))')
      OR NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public.m26_wearable_exercise_evidence_v46'::regclass

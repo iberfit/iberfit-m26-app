@@ -5,30 +5,13 @@ SET LOCAL lock_timeout='3s';
 LOCK TABLE public.m26_wearable_exercise_evidence_v46 IN ACCESS EXCLUSIVE MODE;
 DO $guard$
 BEGIN
-  IF md5(pg_get_functiondef('public.m26_wearable_v46_cleanup_prod_v1()'::regprocedure)) <> '5f8d8f5e93d9a09bc66d2af8f1a88bad' THEN
-    RAISE EXCEPTION 'M26_V51_V50_REQUIRED';
-  END IF;
-  IF to_regprocedure('public.m26_wearable_v48_my_activity_page_prod_v1(timestamptz,uuid)') IS NULL
-    OR to_regprocedure('public.m26_wearable_v49_coach_exercise_days_v1(uuid)') IS NULL
-    OR strpos(pg_get_functiondef('public.m26_wearable_v46_my_summary_prod_v1()'::regprocedure),
-      'AND provider=''health_connect'' AND link_status=''unlinked''')=0 THEN
-    RAISE EXCEPTION 'M26_V51_PROVIDER_SCOPED_READERS_REQUIRED';
-  END IF;
-  IF NOT EXISTS(SELECT 1 FROM pg_class WHERE oid='public.m26_wearable_exercise_evidence_v46'::regclass AND relrowsecurity AND relforcerowsecurity)
-    OR EXISTS(SELECT 1 FROM unnest(ARRAY['anon','authenticated']) r(role_name)
-      CROSS JOIN unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) a(action)
-      WHERE has_table_privilege(r.role_name,'public.m26_wearable_exercise_evidence_v46',a.action))
-    OR EXISTS(SELECT 1 FROM information_schema.column_privileges WHERE table_schema='public'
-      AND table_name='m26_wearable_exercise_evidence_v46' AND grantee IN ('anon','authenticated','PUBLIC')) THEN
-    RAISE EXCEPTION 'M26_V51_STORAGE_ACL_DRIFT';
-  END IF;
-  IF NOT EXISTS(SELECT 1 FROM pg_index i
-      WHERE i.indexrelid=to_regclass('public.m26_v46_workout_owner_source_uq')
-        AND i.indrelid='public.m26_wearable_exercise_evidence_v46'::regclass AND i.indisunique AND i.indisvalid AND i.indisready
-        AND i.indpred IS NULL AND i.indexprs IS NULL
-        AND pg_get_indexdef(i.indexrelid)='CREATE UNIQUE INDEX m26_v46_workout_owner_source_uq ON public.m26_wearable_exercise_evidence_v46 USING btree (owner_user_id, client_id, provider, source_record_key)') THEN
-    RAISE EXCEPTION 'M26_V51_SOURCE_INDEX_DRIFT';
-  END IF;
+  -- Refuse a missing, replaced or exposed guard rather than bypassing it.
+  IF to_regprocedure('private.m26_v51_assert_storage_prerequisites()') IS NULL THEN RAISE EXCEPTION 'M26_V51_ROLLBACK_GUARD_REQUIRED'; END IF;
+  IF EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='private.m26_v51_assert_storage_prerequisites()'::regprocedure AND (md5(p.prosrc) IS DISTINCT FROM '896c0c14d899c8652b60659ac55d9cb3' OR p.prosecdef OR p.proconfig IS DISTINCT FROM ARRAY['search_path=""']::text[]))
+    OR EXISTS(SELECT 1 FROM unnest(ARRAY['anon','authenticated','service_role']) r(role_name) WHERE has_function_privilege(r.role_name,'private.m26_v51_assert_storage_prerequisites()','EXECUTE'))
+    OR EXISTS(SELECT 1 FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE p.oid='private.m26_v51_assert_storage_prerequisites()'::regprocedure AND a.grantee=0 AND a.privilege_type='EXECUTE')
+    THEN RAISE EXCEPTION 'M26_V51_ROLLBACK_GUARD_DRIFT'; END IF;
+  PERFORM private.m26_v51_assert_storage_prerequisites();
   IF EXISTS(SELECT 1 FROM public.m26_wearable_exercise_evidence_v46 WHERE provider <> 'health_connect' OR sport NOT IN ('running','interval_running','hiit','cycling','walking','strength','other') OR active_seconds IS NOT NULL) THEN
     RAISE EXCEPTION 'M26_V51_ROLLBACK_REQUIRES_DATA_PRESERVATION';
   END IF;
@@ -44,4 +27,5 @@ ALTER TABLE public.m26_wearable_exercise_evidence_v46
   DROP COLUMN active_seconds,
   ADD CONSTRAINT m26_wearable_exercise_evidence_v46_provider_check CHECK (provider='health_connect'),
   ADD CONSTRAINT m26_wearable_exercise_evidence_v46_sport_check CHECK (sport IN ('running','interval_running','hiit','cycling','walking','strength','other'));
+DROP FUNCTION private.m26_v51_assert_storage_prerequisites();
 COMMIT;
