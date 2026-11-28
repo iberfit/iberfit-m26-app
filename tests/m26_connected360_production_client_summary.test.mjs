@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix} from '../src/m26/wearables/v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360ActivityPage,connected360ActivityPageParams} from '../src/m26/wearables/v46-production-summary.js';
 
 const empty=()=>({ok:true,provider:'health_connect',heartRateDaily:[],exerciseEvidence:[]});
 
@@ -231,4 +231,54 @@ test('running pace uses elapsed time and valid distance, never claims active pac
     {distanceMeters:100000},{distanceMeters:100}])
     assert.doesNotMatch(display(patch),/Ritmo total estimado/u);
   assert.doesNotMatch(display({}),/Ritmo activo|en movimiento/u);
+});
+
+const pageNow=new Date('2026-10-13T12:00:00Z');
+const pageRow=(n,startedAt='2026-10-12T10:00:00.000000Z')=>({
+  id:'00000000-0000-4000-8000-'+String(n).padStart(12,'0'),
+  sport:'running',startedAt,endedAt:'2026-10-12T10:30:00.000000Z',
+  distanceMeters:5000,avgBpm:148,heartRateSamples:120,linkedToTraining:false,
+});
+const pageDto=(exerciseEvidence,nextCursor=null)=>({
+  ok:true,schema:'iberfit.connected360.activity-page.v1',provider:'health_connect',exerciseEvidence,nextCursor,
+});
+test('activity page accepts stable equal-timestamp keys, bounded 20 items and measured fields',()=>{
+  const items=Array.from({length:20},(_,i)=>pageRow(30-i));
+  const last=items.at(-1),cursor={id:last.id,startedAt:last.startedAt};
+  const first=connected360ActivityPage(pageDto(items,cursor),{now:pageNow});
+  assert.equal(first.rows.length,20);
+  assert.deepEqual(first.nextCursor,cursor);
+  assert.match(first.rows[0].detail,/FC media 148 lpm/u);
+  assert.ok(Object.isFrozen(first)&&Object.isFrozen(first.rows)&&Object.isFrozen(first.nextCursor));
+  assert.ok(!Object.hasOwn(first.rows[0],'id'));
+  const next=connected360ActivityPage(pageDto([pageRow(10)]),{cursor,now:pageNow});
+  assert.equal(next.rows.length,1);assert.equal(next.nextCursor,null);
+  assert.deepEqual(connected360ActivityPageParams(cursor),{p_before_started_at:cursor.startedAt,p_before_id:cursor.id});
+  assert.deepEqual(connected360ActivityPageParams(),{p_before_started_at:null,p_before_id:null});
+});
+test('activity page rejects oversized, duplicate, replayed, malformed and out-of-order evidence',()=>{
+  const a=pageRow(2),b=pageRow(1),cursor={id:a.id,startedAt:a.startedAt};
+  const invalid=[
+    pageDto(Array.from({length:21},(_,i)=>pageRow(22-i))),
+    pageDto([b,a]),pageDto([a,a]),pageDto([{...a,sport:'unknown'}]),
+    pageDto([{...a,linkedToTraining:true}]),pageDto([{...a,id:'opaque-source-secret'}]),
+    pageDto([a],cursor),{...pageDto([]),provider:'apple_health'},
+    {...pageDto([]),schema:'unknown'}, {...pageDto([]),nextCursor:undefined},
+  ];
+  for(const dto of invalid)assert.throws(()=>connected360ActivityPage(dto,{now:pageNow}),/M26_V48_ACTIVITY_/u);
+  assert.throws(()=>connected360ActivityPage(pageDto([a]),{cursor,now:pageNow}),/M26_V48_ACTIVITY_/u);
+  assert.throws(()=>connected360ActivityPageParams({id:a.id,startedAt:'2026-02-30T10:00:00.000000Z'}),/M26_V48_ACTIVITY_/u);
+  assert.equal(connected360ActivityPage(pageDto([]),{cursor,now:pageNow}).rows.length,0);
+});
+test('activity page preserves submillisecond order without coercing cursor timestamps',()=>{
+  const a=pageRow(1,'2026-10-12T10:00:00.000002Z'),b=pageRow(2,'2026-10-12T10:00:00.000001Z');
+  assert.equal(connected360ActivityPage(pageDto([a,b]),{now:pageNow}).rows.length,2);
+  assert.throws(()=>connected360ActivityPage(pageDto([b,a]),{now:pageNow}),/M26_V48_ACTIVITY_/u);
+});
+test('full activity UI is explicit, capability-gated and fenced on owner changes',()=>{
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  assert.match(controller,/response\.activityHistoryAvailable===true/u);
+  assert.match(controller,/async function renderActivityPage/u);
+  assert.match(controller,/const page=await transport\.connected360ProductionActivityPage\(token,cursor\);\s*if\(!stillCurrent\(\)\|\|!history\.isConnected\)return/u);
+  assert.match(controller,/button\.isConnected/u);
 });
