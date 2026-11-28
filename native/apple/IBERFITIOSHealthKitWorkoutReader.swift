@@ -205,38 +205,42 @@ import HealthKit
 public final class IBERFITIOSHealthKitWorkoutReader: @unchecked Sendable {
     public init() {}
     public enum ReaderError: Error {
-        case unavailable, approvalRequired, invalidWindow, invalidated, timedOut, noResult
+        case unavailable, approvalRequired, invalidWindow, invalidated, timedOut, noResult, incompleteSnapshot
     }
     private let store = HKHealthStore()
     private let lock = NSLock()
     private var generation: UInt64 = 0
     private var approvedAt: TimeInterval?
     private var heartRateApproved = false
+    private var candidateApproved = false
     private func begin() -> UInt64 {
         lock.lock(); defer { lock.unlock() }
         generation &+= 1
         approvedAt = nil
         heartRateApproved = false
+        candidateApproved = false
         return generation
     }
     private func current(_ lease: UInt64) -> Bool {
         lock.lock(); defer { lock.unlock() }
         return generation == lease
     }
-    private func approve(_ lease: UInt64, includeHeartRate: Bool) -> Bool {
+    private func approve(_ lease: UInt64, includeHeartRate: Bool, candidate: Bool) -> Bool {
         lock.lock(); defer { lock.unlock() }
         guard generation == lease else { return false }
         approvedAt = ProcessInfo.processInfo.systemUptime
         heartRateApproved = includeHeartRate
+        candidateApproved = candidate
         return true
     }
-    private func consume() -> (generation: UInt64, includeHeartRate: Bool)? {
+    private func consume(candidate: Bool) -> (generation: UInt64, includeHeartRate: Bool)? {
         lock.lock(); defer { lock.unlock() }
-        guard let at = approvedAt else { return nil }
+        guard let at = approvedAt, candidateApproved == candidate else { return nil }
         approvedAt = nil
         let age = ProcessInfo.processInfo.systemUptime - at
         let includeHeartRate = heartRateApproved
         heartRateApproved = false
+        candidateApproved = false
         guard age >= 0 && age <= 120 else { return nil }
         return (generation, includeHeartRate)
     }
@@ -246,11 +250,23 @@ public final class IBERFITIOSHealthKitWorkoutReader: @unchecked Sendable {
         generation &+= 1
         approvedAt = nil
         heartRateApproved = false
+        candidateApproved = false
         return true
     }
     public func invalidate() { _ = begin() }
 
     public func requestExplicitWorkoutAccess(includeHeartRate: Bool = false, completion: @escaping @Sendable (Result<Void, Error>) -> Void) {
+        requestWorkoutAccess(includeHeartRate: includeHeartRate, candidate: false, completion: completion)
+    }
+
+    // Independent native approval for the candidate acquisition. Preview
+    // approval can never authorize this purpose, even with OS permission.
+    public func requestExplicitCandidateWorkoutAccess(completion: @escaping @Sendable (Result<Void, Error>) -> Void) {
+        requestWorkoutAccess(includeHeartRate: false, candidate: true, completion: completion)
+    }
+
+    private func requestWorkoutAccess(includeHeartRate: Bool, candidate: Bool,
+                                      completion: @escaping @Sendable (Result<Void, Error>) -> Void) {
         let lease = begin()
         guard HKHealthStore.isHealthDataAvailable() else {
             completion(.failure(ReaderError.unavailable)); return
@@ -266,7 +282,7 @@ public final class IBERFITIOSHealthKitWorkoutReader: @unchecked Sendable {
             }
             if let error { completion(.failure(error)); return }
             guard success else { completion(.failure(ReaderError.unavailable)); return }
-            completion(self.approve(lease, includeHeartRate: includeHeartRate) ? .success(()) : .failure(ReaderError.invalidated))
+            completion(self.approve(lease, includeHeartRate: includeHeartRate, candidate: candidate) ? .success(()) : .failure(ReaderError.invalidated))
         }
     }
 
@@ -275,39 +291,81 @@ public final class IBERFITIOSHealthKitWorkoutReader: @unchecked Sendable {
         guard (1...30).contains(days), now.timeIntervalSince1970.isFinite else {
             completion(.failure(ReaderError.invalidWindow)); return
         }
-        guard let approval = consume() else { completion(.failure(ReaderError.approvalRequired)); return }
+        guard let approval = consume(candidate: false) else { completion(.failure(ReaderError.approvalRequired)); return }
+        queryWorkouts(days: days, now: now, limit: 61, approval: approval,
+            project: { rows, count in
+                .success(IBERFITLocalWorkoutPreview(workouts: rows, returnedCount: count))
+            }, completion: completion)
+    }
+
+    #if canImport(CryptoKit)
+    // Candidate only. No WebKit handler, user IDs, server calls or implicit
+    // authorization. The future host owns and invalidates the returned pager.
+    // Request one extra HKWorkout to detect a truncated acquisition exactly.
+    public func readCandidateOnce(days: Int, now: Date = Date(),
+                                  completion: @escaping @Sendable (Result<IBERFITAppleWorkoutCandidatePager, Error>) -> Void) {
+        guard [7, 30].contains(days), now.timeIntervalSince1970.isFinite else {
+            completion(.failure(ReaderError.invalidWindow)); return
+        }
+        guard let approval = consume(candidate: true), !approval.includeHeartRate else {
+            completion(.failure(ReaderError.approvalRequired)); return
+        }
+        queryWorkouts(days: days, now: now, limit: IBERFITAppleWorkoutCandidatePager.maximumRows + 1,
+            approval: approval, project: { rows, count in
+                guard let pager = IBERFITAppleWorkoutCandidatePager(workouts: rows, returnedCount: count,
+                    days: days, acquiredAt: now) else {
+                    return .failure(ReaderError.incompleteSnapshot)
+                }
+                return .success(pager)
+            }, completion: completion)
+    }
+    #endif
+
+    private func queryWorkouts<Value: Sendable>(days: Int, now: Date, limit: Int,
+                approval: (generation: UInt64, includeHeartRate: Bool),
+                project: @escaping @Sendable ([IBERFITLocalWorkout], Int) -> Result<Value, Error>,
+                completion: @escaping @Sendable (Result<Value, Error>) -> Void) {
         let lease = approval.generation
         let includeHeartRate = approval.includeHeartRate
         let from = now.addingTimeInterval(-Double(days)*86_400)
         let predicate = HKQuery.predicateForSamples(withStart: from, end: now,
                                                     options: [.strictStartDate,.strictEndDate])
-        let reply = IBERFITHealthKitSingleReply<IBERFITLocalWorkoutPreview>(completion)
+        let reply = IBERFITHealthKitSingleReply<Value>(completion)
         let query = HKSampleQuery(sampleType: HKObjectType.workoutType(),
-            predicate: predicate, limit: 61,
+            predicate: predicate, limit: limit,
             sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]) {
                 [weak self] _, samples, error in
-                guard let self, self.retire(lease) else {
+                guard let self, self.current(lease) else {
                     reply.finish(.failure(ReaderError.invalidated)); return
                 }
-                if let error { reply.finish(.failure(error)); return }
-                guard let workouts = samples as? [HKWorkout] else {
-                    reply.finish(.failure(ReaderError.noResult)); return
+                let result: Result<Value, Error>
+                if let error {
+                    result = .failure(error)
+                } else if let workouts = samples as? [HKWorkout] {
+                    let rows = workouts.compactMap { workout -> IBERFITLocalWorkout? in
+                        let (sport, distanceType) = Self.sportAndDistance(workout.workoutActivityType)
+                        let distance = distanceType.flatMap { HKObjectType.quantityType(forIdentifier: $0) }
+                            .flatMap { workout.statistics(for: $0)?.sumQuantity()?.doubleValue(for: .meter()) }
+                        // Associated workout statistic only, and never for
+                        // the separate candidate acquisition purpose.
+                        let averageHeartRate = includeHeartRate
+                            ? HKObjectType.quantityType(forIdentifier: .heartRate).flatMap {
+                                workout.statistics(for: $0)?.averageQuantity()?.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+                            } : nil
+                        return IBERFITLocalWorkout(id: workout.uuid, sport: sport,
+                            start: workout.startDate, end: workout.endDate, activeSeconds: workout.duration,
+                            distanceMeters: distance, averageHeartRate: averageHeartRate, from: from, until: now)
+                    }
+                    result = project(rows, workouts.count)
+                } else {
+                    result = .failure(ReaderError.noResult)
                 }
-                let rows = workouts.compactMap { workout -> IBERFITLocalWorkout? in
-                    let (sport, distanceType) = Self.sportAndDistance(workout.workoutActivityType)
-                    let distance = distanceType.flatMap { HKObjectType.quantityType(forIdentifier: $0) }
-                        .flatMap { workout.statistics(for: $0)?.sumQuantity()?.doubleValue(for: .meter()) }
-                    // Use only the workout's own associated statistic; no
-                    // separate pulse query and no mixing with daily/resting HR.
-                    let averageHeartRate = includeHeartRate
-                        ? HKObjectType.quantityType(forIdentifier: .heartRate).flatMap {
-                            workout.statistics(for: $0)?.averageQuantity()?.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
-                        } : nil
-                    return IBERFITLocalWorkout(id: workout.uuid, sport: sport,
-                        start: workout.startDate, end: workout.endDate, activeSeconds: workout.duration,
-                        distanceMeters: distance, averageHeartRate: averageHeartRate, from: from, until: now)
+                // Retire only after projection, so timeout/invalidation
+                // during mapping cannot deliver the stale snapshot.
+                guard self.retire(lease) else {
+                    reply.finish(.failure(ReaderError.invalidated)); return
                 }
-                reply.finish(.success(IBERFITLocalWorkoutPreview(workouts: rows, returnedCount: workouts.count)))
+                reply.finish(result)
             }
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 18) { [weak self] in
             guard let self, self.retire(lease) else { return }

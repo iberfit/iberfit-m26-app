@@ -10,3 +10,17 @@ test('Apple candidate import uses explicit workout consent, exact owner and repl
  assert.match(rollback,/SET apple_exercise_enabled=false/u);
  assert.doesNotMatch(rollback,/DELETE FROM|TRUNCATE|DROP TABLE/u);
 });
+
+test('Apple candidate acquisition requires separate native approval and bounded complete snapshot',()=>{
+ const reader=readFileSync(new URL('../native/apple/IBERFITIOSHealthKitWorkoutReader.swift',import.meta.url),'utf8');
+ const host=readFileSync(new URL('../native/apple/QAApp/IBERFITCanaryClientQAView.swift',import.meta.url),'utf8');
+ assert.match(reader,/requestWorkoutAccess\(includeHeartRate: false, candidate: true/u);
+ assert.match(reader,/candidateApproved == candidate/u);
+ assert.match(reader,/consume\(candidate: false\)/u);
+ assert.match(reader,/consume\(candidate: true\), !approval.includeHeartRate/u);
+ assert.match(reader,/IBERFITAppleWorkoutCandidatePager.maximumRows \+ 1/u);
+ assert.match(reader,/returnedCount == workouts.count/u);
+ assert.match(reader,/project\(rows, workouts.count\)[^]*?guard self.retire\(lease\)/u);
+ assert.match(reader,/ReaderError.incompleteSnapshot/u);
+ assert.doesNotMatch(host,/readCandidateOnce|requestExplicitCandidateWorkoutAccess/u);
+});
