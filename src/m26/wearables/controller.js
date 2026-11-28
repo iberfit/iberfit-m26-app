@@ -1690,7 +1690,7 @@ export function createWearableController({
       ?getCoachActivityScope():null;
     if(coachActivityPanel&&(!host||host!==coachActivityPanel.host
       ||!sameConnected360CoachScope(scope,coachActivityPanel.scope))){
-      coachActivityPanel.clear();coachActivityPanel=null;
+      coachActivityPanel.retire();coachActivityPanel=null;
     }
     if(!host||!scope||scope.actorId!==String(ownerId)||coachActivityPanel)return;
     const document=host.ownerDocument;
@@ -1705,6 +1705,7 @@ export function createWearableController({
       epoch+=1;if(timer!==null){clearTimeout(timer);timer=null;}
       body.replaceChildren();status.textContent='';action.disabled=false;
     };
+    const retire=()=>{clear();host.hidden=true;host.replaceChildren();};
     const active=()=>mounted&&!productionHistoryRetired&&host.isConnected&&isOnline()
       &&document.visibilityState!=='hidden'&&sameConnected360CoachScope(scope,getCoachActivityScope());
     action.addEventListener('click',async()=>{
@@ -1733,9 +1734,11 @@ export function createWearableController({
         timer=setTimeout(()=>{if(request===epoch)clear();},30000);
       }catch{
         if(stillCurrent())status.textContent='No se pudo consultar actividad autorizada. Comprueba el acceso e inténtalo nuevamente.';
-      }finally{if(stillCurrent())action.disabled=false;}
+      }finally{
+        if(request===epoch){if(active())action.disabled=false;else clear();}
+      }
     });
-    coachActivityPanel={host,scope,clear};
+    coachActivityPanel={host,scope,clear,retire};
     host.replaceChildren(title,note,action,status,body);host.hidden=false;
   }
   function enhanceControls(){
@@ -2453,6 +2456,7 @@ export function createWearableController({
       if(!mounted)return;
       nativeIdentityEpoch+=1;
       clearProductionHistorySurface();
+      coachActivityPanel?.retire();coachActivityPanel=null;
       nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       mounted=false;
@@ -2519,6 +2523,7 @@ export function createWearableController({
       productionHistoryRetired=true;
       nativeIdentityEpoch+=1;
       clearProductionHistorySurface();
+      coachActivityPanel?.retire();coachActivityPanel=null;
       nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       qaReadEpoch+=1;

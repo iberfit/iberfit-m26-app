@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,connected360RecipientDecision,sameConnected360CoachScope,connected360CoachActivityView} from '../src/m26/wearables/v49-coach-activity-contract.js';
@@ -78,4 +79,16 @@ test('Coach demand-only view binds scope to the same actor, client, route and se
   assert.deepEqual(view.cue,{days:5,discipline:'running'});
   assert.equal(connected360CoachActivityView(valid(),{clientId,now,continuity:{source:'confirmed_iberfit_execution',days:5,automaticPlanChange:false}}).cue,null);
   assert.throws(()=>connected360CoachActivityView(valid(),{clientId:coachId,now}),/M26_V49/);
+});
+
+test('professional activity panel remains gated, demand-only and retired with the route lifecycle',()=>{
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const application=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  const route=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  assert.match(application,/runtimeConfig\?\.connected360CoachActivityCertified!==true/u);
+  assert.match(application,/ensurePrivilegedActionAssurance\(\{transport,token,userId:scope.actorId[\s\S]*?connected360ProductionCoachExerciseDays\(token,scope.clientId\);check\(\)/u);
+  assert.match(controller,/const retire=\(\)=>\{clear\(\);host.hidden=true;host.replaceChildren\(\);\}/u);
+  assert.match(controller,/coachActivityPanel\?\.retire\(\);coachActivityPanel=null/u);
+  assert.match(controller,/timer=setTimeout\(\(\)=>\{if\(request===epoch\)clear\(\);\},30000\)/u);
+  assert.match(route,/data-connected360-coach-activity hidden/u);
 });
