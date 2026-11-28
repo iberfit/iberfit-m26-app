@@ -2,7 +2,7 @@ import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/p
 import {verifyAppleExerciseStatus,appleExerciseConsentParams,verifyAppleExerciseConsentReceipt,appleExerciseImportParams,verifyAppleExerciseImportReceipt} from './wearables/v53-apple-authorization-contract.js';
 import {CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT} from './wearables/measurement-capability-contract.js';
 import {connected360AppleOwnerTrends,connected360AppleOwnerTrendParams,connected360AppleActivityPage,connected360ActivityPage,connected360ActivityPageParams} from './wearables/v46-production-summary.js';
-import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,verifyConnected360AppleCoachExerciseDays,verifyConnected360AppleCoachRecipients,verifyConnected360AppleCoachConsentReceipt} from './wearables/v49-coach-activity-contract.js';
+import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,verifyConnected360AppleCoachExerciseDays,verifyConnected360AppleCoachRecipients,verifyConnected360AppleCoachConsentReceipt,verifyConnected360AppleCoachTrendRecipients,verifyConnected360AppleCoachTrendConsentReceipt,verifyConnected360AppleCoachTrends} from './wearables/v49-coach-activity-contract.js';
 import {verifyInvitationReceipt} from './workflows/coach-invitation-outcome.js';
 import {createQaInFlightReadGate} from './domain/qa-inflight-read-gate.js';
 import {compactQaCanonicalExecutionSummaries} from './domain/qa-canonical-summary-transport.js';
@@ -1813,6 +1813,28 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     if(signal?.aborted)throw Error('M26_REQUEST_CANCELLED');
     return verifyConnected360AppleCoachExerciseDays(appleCandidateResponse(raw),{clientId});
   }
+  async function connected360AppleCandidateCoachTrendRecipients(token,clientId,{signal}={}){
+    assertAppleExerciseCandidate(token);
+    connected360CoachActivityParams(clientId);
+    const raw=await request('/rest/v1/rpc/m26_wearable_v58_my_apple_coach_trend_recipients_v1',{method:'POST',token,body:'{}',signal});
+    if(signal?.aborted)throw Error('M26_REQUEST_CANCELLED');
+    return verifyConnected360AppleCoachTrendRecipients(appleCandidateResponse(raw),{clientId});
+  }
+  async function setConnected360AppleCandidateCoachTrendConsent(token,decision,{confirmed=false,signal}={}){
+    assertAppleExerciseCandidate(token);
+    if(confirmed!==true)throw Error('M26_V58_EXPLICIT_CONSENT_REQUIRED');
+    const params=connected360CoachConsentParams(decision);
+    const raw=await request('/rest/v1/rpc/m26_wearable_v58_set_apple_coach_trend_consent_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    if(signal?.aborted)throw Error('M26_REQUEST_CANCELLED');
+    return verifyConnected360AppleCoachTrendConsentReceipt(appleCandidateResponse(raw),params);
+  }
+  async function connected360AppleCandidateCoachTrends(token,clientId,days,{signal}={}){
+    assertAppleExerciseCandidate(token);
+    const params={...connected360CoachActivityParams(clientId),...connected360AppleOwnerTrendParams(days)};
+    const raw=await request('/rest/v1/rpc/m26_wearable_v58_apple_coach_trends_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    if(signal?.aborted)throw Error('M26_REQUEST_CANCELLED');
+    return verifyConnected360AppleCoachTrends(appleCandidateResponse(raw),{clientId,days});
+  }
   async function connected360DailyProduction(token){
     assertConnected360Production();
     if(!token)throw new Error('M26_AUTH_REQUIRED');
@@ -2361,6 +2383,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     connected360AppleCandidateCoachRecipients,
     setConnected360AppleCandidateCoachConsent,
     connected360AppleCandidateCoachExerciseDays,
+    connected360AppleCandidateCoachTrendRecipients,
+    setConnected360AppleCandidateCoachTrendConsent,
+    connected360AppleCandidateCoachTrends,
     authorizeConnected360AppleCandidate,
     importConnected360AppleCandidate,
     connected360ProductionCapabilities,

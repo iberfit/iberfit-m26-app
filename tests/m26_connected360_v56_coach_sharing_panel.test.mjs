@@ -71,3 +71,15 @@ test('Apple longitudinal panel does not expose a failed or retired result and al
  action.click();await flush();x.expire();view.retire();assert.equal(x.calls[1].signal.aborted,true);
  x.calls[1].resolve(x.result(28));await flush();assert.equal(x.root.children.length,0);
 });
+
+test('longitudinal consent panel is a separate explicit decision and never calls the weekly writer',async()=>{
+ const doc={createElement:tag=>new Node(doc,tag)},root=new Node(doc,'root'),calls=[];
+ const transport={connected360AppleCandidateAvailable:()=>true,connected360AppleCandidateCoachRecipients:()=>{throw Error('weekly read');},setConnected360AppleCandidateCoachConsent:()=>{throw Error('weekly write');},
+ connected360AppleCandidateCoachTrendRecipients:async()=>({ok:true,schema:'iberfit.connected360.apple-coach-trend-recipients.v1',provider:'apple_health',clientId,purpose:'coaching-apple-trends-v1',recipients:[{coachId,assignmentId,displayName:'Coach prueba',eligible:true,recorded:false,effective:false,revision:0}]}),
+ setConnected360AppleCandidateCoachTrendConsent:async(token,decision,opts)=>calls.push({decision,opts})};
+ const view=mountConnected360CoachSharingPanel(root,{provider:'apple_health',longitudinal:true,clientId,stillCurrent:()=>true,getToken:async()=>'token',transport});
+ assert.equal(view.panel.dataset.qaAppleCoachTrendSharing,'true');assert.equal(calls.length,0);
+ root.find('Gestionar permisos de tendencias').click();await flush();root.find('Autorizar actividad compartida').click();assert.equal(calls.length,0);
+ assert.ok(root.find("Confirma el acceso de este entrenador a las comparaciones de Apple Salud de hasta 730 días. El permiso semanal no cambia."));root.find('Confirmar permiso').click();await flush();
+ assert.equal(calls.length,1);assert.equal(calls[0].opts.confirmed,true);view.retire();
+});

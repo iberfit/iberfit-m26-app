@@ -28,7 +28,7 @@ import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable
 import {createConnected360ProductionSync} from './v46-production-sync.js';
 import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline,connected360ActivityContinuity} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
-import {connected360RecipientDecision,verifyConnected360CoachRecipients,verifyConnected360AppleCoachRecipients,sameConnected360CoachScope} from './v49-coach-activity-contract.js';
+import {connected360RecipientDecision,verifyConnected360CoachRecipients,verifyConnected360AppleCoachRecipients,verifyConnected360AppleCoachTrendRecipients,sameConnected360CoachScope} from './v49-coach-activity-contract.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionIsCompleted,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {
   createLatestTaskCoordinator,
@@ -404,22 +404,23 @@ function supersededError(error){
   return next;
 }
 
-export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,stillCurrent,getToken,transport}={}){
+export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,stillCurrent,getToken,transport,longitudinal=false}={}){
     const apple=provider==='apple_health';
+    if(typeof longitudinal!=='boolean'||(longitudinal&&!apple))throw Error('M26_COACH_SHARING_PURPOSE_INVALID');
     if(!['apple_health','health_connect'].includes(provider))throw Error('M26_COACH_SHARING_PROVIDER_INVALID');
     if(apple&&transport.connected360AppleCandidateAvailable?.()!==true)throw Error('M26_V56_CANDIDATE_DISABLED');
-    const readRemote=apple?transport.connected360AppleCandidateCoachRecipients:transport.connected360ProductionCoachRecipients;
-    const writeRemote=apple?transport.setConnected360AppleCandidateCoachConsent:transport.setConnected360ProductionCoachConsent;
+    const readRemote=longitudinal?transport.connected360AppleCandidateCoachTrendRecipients:apple?transport.connected360AppleCandidateCoachRecipients:transport.connected360ProductionCoachRecipients;
+    const writeRemote=longitudinal?transport.setConnected360AppleCandidateCoachTrendConsent:apple?transport.setConnected360AppleCandidateCoachConsent:transport.setConnected360ProductionCoachConsent;
     if(typeof readRemote!=='function'||typeof writeRemote!=='function')throw Error('M26_COACH_SHARING_UNAVAILABLE');
     const document=wrap.ownerDocument;
     const panel=document.createElement('section');
-    if(apple)panel.dataset.qaAppleCoachSharing='true';else panel.dataset.prodConnected360CoachSharing='true';
-    const title=document.createElement('h4');title.textContent=apple?'Compartir actividad de Apple Salud · QA':'Compartir actividad con mi entrenador';
+    if(longitudinal)panel.dataset.qaAppleCoachTrendSharing='true';else if(apple)panel.dataset.qaAppleCoachSharing='true';else panel.dataset.prodConnected360CoachSharing='true';
+    const title=document.createElement('h4');title.textContent=longitudinal?"Compartir tendencias de Apple Salud · QA":apple?'Compartir actividad de Apple Salud · QA':'Compartir actividad con mi entrenador';
     const description=document.createElement('p');
-    description.textContent=apple?"Puedes compartir los días y tipos de deporte de Apple Salud de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.":"Puedes compartir los días y tipos de deporte de Health Connect de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.";
+    description.textContent=longitudinal?"Permiso independiente para comparar días y disciplinas de Apple Salud en dos periodos de hasta 365 días cada uno (hasta 730 días en total). Solo registros de la autorización vigente. No incluye biometría, rutas ni publicación de informes.":apple?"Puedes compartir los días y tipos de deporte de Apple Salud de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.":"Puedes compartir los días y tipos de deporte de Health Connect de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.";
     const status=document.createElement('p');status.setAttribute('role','status');
     const content=document.createElement('div');
-    const open=document.createElement('button');open.type='button';open.textContent='Gestionar permisos del entrenador';
+    const open=document.createElement('button');open.type='button';open.textContent=longitudinal?"Gestionar permisos de tendencias":'Gestionar permisos del entrenador';
     panel.append(title,description,open,status,content);wrap.append(panel);
     let busy=false,retired=false,controller=null;
     const active=()=>!retired&&stillCurrent()&&panel.isConnected&&(!apple||transport.connected360AppleCandidateAvailable?.()===true);
@@ -430,7 +431,7 @@ export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,still
       return el;
     }
     function renderRecipients(value){
-      const verified=(apple?verifyConnected360AppleCoachRecipients:verifyConnected360CoachRecipients)(value,{clientId});
+      const verified=(longitudinal?verifyConnected360AppleCoachTrendRecipients:apple?verifyConnected360AppleCoachRecipients:verifyConnected360CoachRecipients)(value,{clientId});
       content.replaceChildren();
       if(!verified.recipients.length){status.textContent='No hay entrenadores disponibles para compartir actividad.';return;}
       status.textContent='Selecciona el permiso que quieras gestionar.';
@@ -443,7 +444,7 @@ export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,still
         function confirm(allow){
           if(!active())return;
           const confirmation=document.createElement('p');
-          confirmation.textContent=apple?(allow?"Confirma que quieres compartir los datos de Apple Salud con este entrenador.":"Confirma que quieres retirar el permiso de Apple Salud sin borrar tu historial."):(allow?'Confirma que quieres compartir estos datos con este entrenador.':'Confirma que quieres retirar este permiso sin borrar tu historial.');
+          confirmation.textContent=longitudinal?(allow?"Confirma el acceso de este entrenador a las comparaciones de Apple Salud de hasta 730 días. El permiso semanal no cambia.":"Confirma la retirada del permiso de tendencias. No cambia el permiso semanal ni se borra tu historial."):apple?(allow?"Confirma que quieres compartir los datos de Apple Salud con este entrenador.":"Confirma que quieres retirar el permiso de Apple Salud sin borrar tu historial."):(allow?'Confirma que quieres compartir estos datos con este entrenador.':'Confirma que quieres retirar este permiso sin borrar tu historial.');
           row.replaceChildren(name,state,confirmation,
             button(allow?'Confirmar permiso':'Confirmar retirada',()=>write(recipient,allow)),
             button('Cancelar',()=>renderRecipients(verified)));
@@ -1134,8 +1135,8 @@ export function createWearableController({
       return group;
     });
   }
-  function appendCoachSharing(wrap,{clientId,stillCurrent,provider='health_connect'}){
-    const item=mountConnected360CoachSharingPanel(wrap,{clientId,stillCurrent,provider,getToken,transport});
+  function appendCoachSharing(wrap,{clientId,stillCurrent,provider='health_connect',longitudinal=false}){
+    const item=mountConnected360CoachSharingPanel(wrap,{clientId,stillCurrent,provider,getToken,transport,longitudinal});
     coachSharingPanels.add(item);
   }
   async function refreshProductionSummary(wrap,{supersede=false}={}){
@@ -2147,6 +2148,21 @@ export function createWearableController({
       const expected=qaClientIdentity(),identityEpoch=nativeIdentityEpoch;
       if(expected.role==='client'&&expected.ownerId&&expected.clientId){
         appendCoachSharing(appleSharingCard,{clientId:expected.clientId,provider:'apple_health',stillCurrent:()=>{
+          const current=qaClientIdentity();
+          return mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+            &&identityEpoch===nativeIdentityEpoch&&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;
+        }});
+      }
+    }
+
+    if(appleSharingCard&&mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+      &&transport.connected360AppleCandidateAvailable?.()===true
+      &&typeof transport.connected360AppleCandidateCoachTrendRecipients==='function'
+      &&typeof transport.setConnected360AppleCandidateCoachTrendConsent==='function'
+      &&!appleSharingCard.querySelector?.('[data-qa-apple-coach-trend-sharing]')){
+      const expected=qaClientIdentity(),identityEpoch=nativeIdentityEpoch;
+      if(expected.role==='client'&&expected.ownerId&&expected.clientId){
+        appendCoachSharing(appleSharingCard,{clientId:expected.clientId,provider:'apple_health',longitudinal:true,stillCurrent:()=>{
           const current=qaClientIdentity();
           return mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
             &&identityEpoch===nativeIdentityEpoch&&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;

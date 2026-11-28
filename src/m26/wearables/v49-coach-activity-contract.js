@@ -4,6 +4,7 @@ import {connected360ActivityContinuity,connected360ObservedDayContinuity} from '
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const SPORTS=new Set(['running','interval_running','hiit','cycling','walking','strength','swimming','other']);
 const PURPOSE='coaching-exercise-days-v1';
+const APPLE_TREND_PURPOSE='coaching-apple-trends-v1';
 const revision=v=>Number.isInteger(v)&&v>=0&&v<=2147483647;
 const uuid=v=>typeof v==='string'&&UUID.test(v);
 const exact=(value,keys)=>Boolean(value&&typeof value==='object'&&!Array.isArray(value)
@@ -85,13 +86,16 @@ export function verifyConnected360CoachRecipients(value,options={}){
 export function verifyConnected360AppleCoachRecipients(value,options={}){
   return verifyProviderRecipients(value,'apple_health',options);
 }
-function verifyProviderRecipients(value,provider,{clientId}={}){
+export function verifyConnected360AppleCoachTrendRecipients(value,options={}){
+  return verifyProviderRecipients(value,'apple_health',options,true);
+}
+function verifyProviderRecipients(value,provider,{clientId}={},longitudinal=false){
   const apple=provider==='apple_health',keys=['ok','schema','clientId','purpose','recipients'];
   if(apple)keys.push('provider');
   if(!uuid(clientId)||!exact(value,keys)
-    ||value.ok!==true||value.schema!==(apple?'iberfit.connected360.apple-coach-recipients.v1':'iberfit.connected360.coach-recipients.v1')
+    ||value.ok!==true||value.schema!==(longitudinal?'iberfit.connected360.apple-coach-trend-recipients.v1':apple?'iberfit.connected360.apple-coach-recipients.v1':'iberfit.connected360.coach-recipients.v1')
     ||(apple&&value.provider!==provider)
-    ||value.clientId!==clientId||value.purpose!==(apple?'coaching-apple-exercise-days-v1':PURPOSE)
+    ||value.clientId!==clientId||value.purpose!==(longitudinal?APPLE_TREND_PURPOSE:apple?'coaching-apple-exercise-days-v1':PURPOSE)
     ||!Array.isArray(value.recipients)||value.recipients.length>20)fail();
   const seen=new Set();
   const recipients=value.recipients.map(row=>{
@@ -201,4 +205,36 @@ export function connected360MultiProviderCoachActivityView(payloads,{clientId,no
   days:Object.freeze(ordered.map(([date,sports])=>Object.freeze({date,sports:Object.freeze([...sports.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([sport,sources])=>Object.freeze({sport,label:labels[sport],providers:Object.freeze([...sources].sort())})))}))),
   cue:activity?.source==='coach_authorized_activity'?Object.freeze({days:activity.days,discipline:activity.discipline,periodStart:activity.periodStart,periodEnd:activity.periodEnd}):null,
   disciplineCues:context.disciplineCues,automaticPlanChange:false});
+}
+
+export function verifyConnected360AppleCoachTrendConsentReceipt(value,params){
+ if(!exact(value,['ok','provider','purpose','shared','revision'])||value.purpose!==APPLE_TREND_PURPOSE)fail();
+ const {purpose,...receipt}=value;
+ return Object.freeze({...verifyConnected360AppleCoachConsentReceipt(receipt,params),purpose});
+}
+// Separate, minimized professional trend DTO. Owner history and weekly
+// sharing responses are not interchangeable with this purpose.
+export function verifyConnected360AppleCoachTrends(value,{clientId,days,now=new Date()}={}){
+ const end=Number.isFinite(now?.getTime?.())?reportCivilDate(now):null;
+ if(!end||!uuid(clientId)||![7,28,90,365].includes(days)
+ ||!exact(value,['ok','schema','provider','clientId','purpose','windowDays','coverage','periods'])
+ ||value.ok!==true||value.schema!=='iberfit.connected360.apple-coach-trends.v1'
+ ||value.provider!=='apple_health'||value.clientId!==clientId||value.purpose!==APPLE_TREND_PURPOSE
+ ||value.windowDays!==days||value.coverage!=='observed-only'||!Array.isArray(value.periods)||value.periods.length!==2)fail();
+ const shift=(day,n)=>{const date=new Date(day+'T00:00:00Z');date.setUTCDate(date.getUTCDate()+n);return date.toISOString().slice(0,10);};
+ const periods=value.periods.map((row,index)=>{
+  const last=shift(end,-1-index*days),first=shift(last,1-days),kind=index?'previous':'recent';
+  if(!exact(row,['kind','periodStart','periodEnd','observedDays','disciplines'])||row.kind!==kind
+    ||row.periodStart!==first||row.periodEnd!==last||!Number.isInteger(row.observedDays)||row.observedDays<0||row.observedDays>days
+    ||!Array.isArray(row.disciplines)||row.disciplines.length>SPORTS.size)fail();
+  const seen=new Set();
+  const disciplines=row.disciplines.map(d=>{
+   if(!exact(d,['sport','observedDays'])||!SPORTS.has(d.sport)||d.sport==='interval_running'||seen.has(d.sport)
+     ||!Number.isInteger(d.observedDays)||d.observedDays<1||d.observedDays>row.observedDays)fail();
+   seen.add(d.sport);return Object.freeze({...d});
+  });
+  if(disciplines.reduce((sum,d)=>sum+d.observedDays,0)<row.observedDays)fail();
+  return Object.freeze({...row,disciplines:Object.freeze(disciplines)});
+ });
+ return Object.freeze({provider:'apple_health',purpose:APPLE_TREND_PURPOSE,windowDays:days,coverage:'observed-only',periods:Object.freeze(periods),automaticPlanChange:false});
 }
