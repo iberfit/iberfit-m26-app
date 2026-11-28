@@ -487,3 +487,12 @@ test('V48 owner history preserves older stored sessions independently of recent 
   assert.match(page,/LIMIT 21/u);
   assert.doesNotMatch(page,/observed_started_at\s*>=|interval\s*'\d+ days'|\bDELETE FROM\b/iu);
 });
+
+test('V48 historical page requires a live owner session rather than only a cached JWT',()=>{
+  const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v48_owner_activity_history_v1.sql',import.meta.url),'utf8');
+  const page=sql.slice(0,sql.indexOf('CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()'));
+  assert.match(page,/FROM auth\.sessions s/u);
+  assert.ok(page.includes("THEN (auth.jwt()->>'session_id')::uuid ELSE NULL END"));
+  assert.ok(page.includes('s.user_id=v_owner AND (s.not_after IS NULL OR s.not_after>pg_catalog.now())'));
+  assert.equal((sql.match(/^COMMIT;$/gm)||[]).length,1);
+});

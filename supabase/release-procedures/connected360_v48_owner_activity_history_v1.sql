@@ -35,6 +35,11 @@ BEGIN
     OR public.iberfit_current_role_v26() IS DISTINCT FROM 'cliente'
     OR NOT EXISTS(SELECT 1 FROM public.user_profiles p
       WHERE p.user_id=v_owner AND p.client_id=v_client AND p.role::text='client')
+    OR NOT EXISTS(SELECT 1 FROM auth.sessions s
+      WHERE s.id=CASE WHEN coalesce(auth.jwt()->>'session_id','') ~
+        '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+        THEN (auth.jwt()->>'session_id')::uuid ELSE NULL END
+      AND s.user_id=v_owner AND (s.not_after IS NULL OR s.not_after>pg_catalog.now()))
     OR ((p_before_started_at IS NULL) <> (p_before_id IS NULL))
     OR (p_before_started_at IS NOT NULL AND NOT pg_catalog.isfinite(p_before_started_at)) THEN
     RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='M26_V48_ACTIVITY_FORBIDDEN';
