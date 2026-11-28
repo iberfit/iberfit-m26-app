@@ -471,3 +471,39 @@ test('workout-only continuation never rereads daily observations or rehydrates f
   assert.deepEqual([dailyWrites,exerciseWrites,refreshes],[1,2,1]);
   api.destroy();
 });
+
+test('Android history rejects a non-adjacent cursor cycle before any write and restarts safely',async()=>{
+  const a='11111111-aaaa-4aaa-8aaa-111111111111';
+  const b='22222222-bbbb-4bbb-8bbb-222222222222';
+  const reads=[],writes=[];
+  let cycle=true;
+  const api=createConnected360ProductionSync({
+    transport:{connected360ProductionCapabilities:async()=>({serverEnabled:true}),
+      connected360ProductionAuthorizationStatus:async()=>({authorized:true,grantId:GRANT,revocationCursor:0,scopes:['exerciseSessions']}),
+      importConnected360Production:async(_token,_grant,rows)=>{
+        writes.push(rows.exerciseEvidence[0].observationKey);
+        return {ok:true,persisted:true,inserted:1,updated:0,unchanged:0};
+      }},
+    native:{readLocal:async options=>{
+      const cursor=options.workoutCursor??null;
+      reads.push([options.workoutHistoryDays,cursor]);
+      const key=cursor===null?'a':cursor===a?'b':'c';
+      return {provider:'health_connect',ownerId:OWNER,clientId:CLIENT,persisted:false,metrics:['exerciseSessions'],
+        envelope:{schema:'iberfit.connected360.v46.ingest.v1',heartRateDaily:[],exerciseEvidence:[{observationKey:key.repeat(64)}]},
+        workoutPage:{days:options.workoutHistoryDays,nextCursor:cursor===null?a:cursor===a?b:cycle?a:null}};
+    },invalidate(){}},
+    getIdentity:()=>({role:'client',ownerId:OWNER,clientId:CLIENT}),
+    getToken:async()=> 'synthetic-token-for-test',now:()=>clock,isOnline:()=>true,
+  });
+  await api.sync();await api.sync();
+  api.invalidate();
+  await assert.rejects(api.sync(),/M26_HEALTH_V46_CURSOR_INVALID/u);
+  assert.deepEqual(writes,['a'.repeat(64),'b'.repeat(64)]);
+  cycle=false;
+  await api.sync();await api.sync();
+  assert.equal((await api.sync()).workoutHistoryPending,false);
+  assert.deepEqual(reads,[[30,null],[30,a],[30,b],[30,null],[30,a],[30,b]]);
+  assert.equal((await api.sync()).workoutHistoryPending,true);
+  assert.deepEqual(reads.at(-1),[7,null]);
+  api.destroy();
+});
