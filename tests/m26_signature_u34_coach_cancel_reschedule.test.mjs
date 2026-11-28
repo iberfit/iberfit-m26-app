@@ -35,6 +35,23 @@ test('U34 release transforms use each exact anchor once and reverse all five cha
  const pairs=s=>[...s.matchAll(/anchor_text := \$old\$([^]*?)\$old\$;\n replacement_text := \$new\$([^]*?)\$new\$;/gu)].map(m=>[m[1],m[2]]);
  assert.equal(pairs(forward).length,5);
  assert.deepEqual(pairs(rollback),pairs(forward).reverse().map(([a,b])=>[b,a]));
+ // Exercise the transformations against the actual checked-in historical
+ // function, not merely against the inverse mapping of the release scripts.
+ const apply=(source,changes)=>{
+  for(const [anchor,replacement] of changes){
+   assert.equal(source.split(anchor).length-1,1,'exact historical anchor must be unique');
+   source=source.replace(anchor,replacement);
+  }
+  return source;
+ };
+ const candidate=apply(sql,pairs(forward));
+ assert.notEqual(candidate,sql);
+ assert.equal(apply(candidate,pairs(rollback)),sql);
+ assert.ok(candidate.indexOf("PRESCRIPTION_REVISION_CHANGED")<candidate.indexOf("UPDATE public.training_session_occurrences_v1 SET"));
+ assert.match(candidate,/batch->>'kind' IS DISTINCT FROM 'ack' OR batch->>'count' IS DISTINCT FROM '1'/u);
+ assert.match(candidate,/r\.prescription_snapshot=occ\.prescription_snapshot/u);
+ assert.match(candidate,/r\.prescription_revision=occ\.prescription_revision/u);
+ assert.match(candidate,/r\.duration_minutes=occ\.duration_minutes/u);
  for(const source of [forward,rollback]){
   assert.equal((source.match(/IF old_count<>1 THEN RAISE EXCEPTION/gu)||[]).length,5);
   assert.equal((source.match(/body := replace\(body,anchor_text,replacement_text\);/gu)||[]).length,5);
