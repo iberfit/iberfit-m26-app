@@ -211,11 +211,16 @@ export function connected360WorkoutMix(rows){
   const sports=new Map(),allowed=new Set(Object.values(WORKOUT_SPORTS));
   // Input is already ordered newest first. A sport appears only once,
   // regardless of duplicate observations or overlapping device sources.
+  // Distinct observed days are a lower bound, never total sessions or load.
   for(const row of rows){
     if(!allowed.has(row?.label)||typeof row.detail!=='string'||!row.detail)return Object.freeze([]);
-    if(!sports.has(row.label))sports.set(row.label,Object.freeze({label:row.label,detail:row.detail}));
+    if(!sports.has(row.label))sports.set(row.label,{label:row.label,detail:row.detail,days:new Set()});
+    if(row.source==='imported'&&Number.isFinite(row.orderAt)
+      &&row.dayKey===localWorkoutDay(row.orderAt))sports.get(row.label).days.add(row.dayKey);
   }
-  return Object.freeze([...sports.values()]);
+  return Object.freeze([...sports.values()].map(({days,...row})=>Object.freeze({
+    ...row,observedDays:days.size||null,
+  })));
 }
 export function formatConnected360ProductionSummary(p,{nativeAvailable=true}={}){
   if(!p||p.ok!==true||p.provider!=='health_connect'||
