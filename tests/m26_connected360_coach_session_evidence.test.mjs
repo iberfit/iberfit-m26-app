@@ -146,3 +146,19 @@ test('V49 candidate professional sharing is owner-decided, recipient-specific an
   assert.doesNotMatch(sql,/GRANT SELECT ON TABLE|source_record_key|source_app_key|heart_rate_avg|distance_meters/iu);
   assert.doesNotMatch(rollback,/DROP TABLE|DELETE FROM|TRUNCATE/iu);
 });
+
+test('V49 release procedure has a single transaction and unique function definitions',()=>{
+  const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v49_coach_activity_consent_v1.sql',import.meta.url),'utf8');
+  assert.equal((sql.match(/^BEGIN;$/gm)||[]).length,1);
+  assert.equal((sql.match(/^COMMIT;$/gm)||[]).length,1);
+  const names=[...sql.matchAll(/^CREATE FUNCTION ([^(]+)\(/gm)].map(m=>m[1]);
+  assert.equal(new Set(names).size,names.length);
+  assert.ok(sql.includes("THEN (auth.jwt()->>'session_id')::uuid ELSE NULL END"));
+  assert.match(sql,/\{12\}\$'\s+THEN/u);
+  assert.ok(sql.includes('private.m26_v49_eligible_assignments(v_client'));
+  assert.ok(sql.includes('private.m26_v49_eligible_assignments(p_client'));
+  assert.ok(sql.includes('FULL JOIN decisions'));
+  assert.ok(sql.includes('LIMIT 21'));
+  assert.ok(sql.includes('M26_V49_RECIPIENT_LIMIT'));
+  assert.ok(sql.includes('public.m26_wearable_v49_my_coach_recipients_v1()'));
+});
