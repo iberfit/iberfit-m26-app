@@ -151,9 +151,12 @@ export function connected360ActivityContinuity(rows,{now=new Date()}={}){
   if(!any&&!run)return null;
   // The observation is an advisory context, not an automatic exercise
   // prescription, diagnosis, claim of no recovery, or retention alert.
-  const chosen=run&&(!any||run.days>=any.days)?{...run,discipline:'running'}:{...any,discipline:'mixed'};
+  // Preserve the more specific running observation even when there is a
+  // longer mixed-activity streak. Keep both counts available for reports.
+  const chosen=run?{...run,discipline:'running'}:{...any,discipline:'mixed'};
   return Object.freeze({...chosen,kind:'observed_activity_continuity',
-    source:'recent_authorized_activity',coverage:'partial',
+    activityDays:any?.days??null,runningDays:run?.days??null,
+    source:rows.every(row=>row.source==='iberfit')?'confirmed_iberfit_execution':'recent_authorized_activity',coverage:'partial',
     interpretation:'presence_only',recommendation:'review_recovery_with_coach',
     automaticPlanChange:false});
 }
