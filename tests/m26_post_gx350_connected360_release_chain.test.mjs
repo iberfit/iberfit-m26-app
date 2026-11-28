@@ -43,3 +43,18 @@ test('disposable PG17 CI uses per-run random credentials, loopback and cleanup',
  assert.equal(result.status,65);
  assert.match(result.stderr,/DISPOSABLE_PG17_CI_ONLY/u);
 });
+
+test('V48 summary transformation and rollback use the exact inverse with pinned catalog hashes',()=>{
+ const base='supabase/release-procedures/connected360_v48_owner_activity_history_v1';
+ const forward=fs.readFileSync(base+'.sql','utf8'),reverse=fs.readFileSync(base+'.rollback.sql','utf8');
+ const pairs=s=>[...s.matchAll(/d:=replace\(d,\$before\$([^]*?)\$before\$,\$after\$([^]*?)\$after\$\);/gu)].map(m=>[m[1],m[2]]);
+ assert.equal(pairs(forward).length,5);
+ assert.deepEqual(pairs(reverse),pairs(forward).map(([a,b])=>[b,a]));
+ for(const text of [forward,reverse]){
+  assert.match(text,/6dbbb0b2fb17b97fb10cdfb4a158dd33/u);
+  assert.match(text,/74ce2bde4cb3edef05b2be6e6ed0d071/u);
+  assert.match(text,/M26_V48_SUMMARY_VERIFY_DRIFT/u);
+  assert.doesNotMatch(text,/CREATE OR REPLACE FUNCTION public\.m26_wearable_v46_my_summary_prod_v1/u);
+ }
+ assert.match(source,/CONNECTED360_V48_EXACT_ROLLBACK_REINSTALL_SUCCESS/u);
+});

@@ -32,6 +32,12 @@ psql_synthetic -f /repo/supabase/migrations/20261103114500_connected360_v47_boun
 psql_synthetic -f /repo/supabase/migrations/20261111131000_connected360_v47_last_seven_owner_history.sql
 psql_synthetic -f /repo/qa/sql/connected360-release-chain/baseline_fingerprints.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v48_owner_activity_history_v1.sql
+# Certify exact V48 inverse before any dependent stage; then reinstall.
+psql_synthetic -f /repo/supabase/release-procedures/connected360_v48_owner_activity_history_v1.rollback.sql
+psql_synthetic -c "SELECT gx_test.assert(md5(pg_get_functiondef('public.m26_wearable_v46_my_summary_prod_v1()'::regprocedure))='6dbbb0b2fb17b97fb10cdfb4a158dd33' AND to_regprocedure('public.m26_wearable_v48_my_activity_page_prod_v1(timestamptz,uuid)') IS NULL,'V48 exact rollback');"
+v48_install=/repo/supabase/release-procedures/connected360_v48_owner_activity_history_v1.sql
+psql_synthetic -f "$v48_install"
+echo 'CONNECTED360_V48_EXACT_ROLLBACK_REINSTALL_SUCCESS'
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v49_coach_activity_consent_v1.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v50_provider_selective_cleanup_v1.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v51_exercise_storage_v1.sql

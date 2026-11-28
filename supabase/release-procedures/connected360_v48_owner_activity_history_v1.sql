@@ -111,22 +111,22 @@ $function$;
 REVOKE ALL ON FUNCTION public.m26_wearable_v48_my_activity_page_prod_v1(timestamptz,uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.m26_wearable_v48_my_activity_page_prod_v1(timestamptz,uuid) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
-AS $my_summary$
-DECLARE
-  v_owner uuid:=(SELECT auth.uid());
-  v_client uuid:=public.iberfit_client_id();
-  v_hr jsonb;
-  v_workouts jsonb;
+-- Exact fingerprint-pinned summary transformation; preserve OID, owner and ACL.
+DO $patch$
+DECLARE d text;
+BEGIN
+  d:=pg_get_functiondef('public.m26_wearable_v46_my_summary_prod_v1()'::regprocedure);
+  IF md5(d) IS DISTINCT FROM '6dbbb0b2fb17b97fb10cdfb4a158dd33' THEN RAISE EXCEPTION 'M26_V48_SUMMARY_DRIFT'; END IF;
+  d:=replace(d,$before$  v_workouts jsonb;
+BEGIN$before$,$after$  v_workouts jsonb;
   v_auth jsonb;
   v_history boolean := false;
   v_exercise boolean := false;
   v_pulse boolean := false;
-BEGIN
-  PERFORM public.iberfit_require_privileged_assurance_v65d();
-  IF v_owner IS NULL OR v_client IS NULL THEN
-    RAISE EXCEPTION USING MESSAGE='M26_V46_CLIENT_REQUIRED',ERRCODE='42501';
+BEGIN$after$);
+  d:=replace(d,$before$    RAISE EXCEPTION USING MESSAGE='M26_V46_CLIENT_REQUIRED',ERRCODE='42501';
+  END IF;
+$before$,$after$    RAISE EXCEPTION USING MESSAGE='M26_V46_CLIENT_REQUIRED',ERRCODE='42501';
   END IF;
   -- Additive capability: the legacy owner summary remains usable if the
   -- new history feature is disabled. Require the live profile as well as JWT.
@@ -141,31 +141,22 @@ BEGIN
       AND coalesce((v_auth->'scopes')?'exerciseSessions',false);
     v_pulse:=v_exercise AND coalesce((v_auth->'scopes')?'generalHeartRate',false);
   END IF;
-  SELECT coalesce(jsonb_agg(
-    jsonb_build_object('date',q.record_date,'samples',q.sample_count,
-      'minBpm',q.heart_rate_min,'maxBpm',q.heart_rate_max,
-      'sourceVerified',q.source_identity_verified)
-    ORDER BY q.record_date DESC,q.imported_at DESC
-  ),'[]'::jsonb) INTO v_hr
-  FROM (
-    SELECT record_date,sample_count,heart_rate_min,heart_rate_max,
-           source_identity_verified,imported_at
-    FROM public.m26_wearable_heart_rate_daily_v46
-    WHERE owner_user_id=v_owner AND client_id=v_client
-      AND record_date>=((now() AT TIME ZONE 'America/Santiago')::date-6)
-    ORDER BY record_date DESC,imported_at DESC LIMIT 7
-  ) q;
-  SELECT coalesce(jsonb_agg(
-    jsonb_build_object('sport',w.sport,'startedAt',w.observed_started_at,
-      'endedAt',w.observed_ended_at,'distanceMeters',w.distance_meters,
-      'heartRateSamples',w.heart_rate_samples,
+$after$);
+  d:=replace(d,$before$      'heartRateSamples',w.heart_rate_samples,
+      'sourceVerified',false,'linkedToTraining',false)
+    ORDER BY w.observed_started_at DESC
+$before$,$after$      'heartRateSamples',w.heart_rate_samples,
       'avgBpm',CASE WHEN v_pulse AND w.current_grant AND w.heart_rate_samples>0 THEN w.heart_rate_avg END,
       'authorizationState',CASE WHEN NOT v_history THEN 'unknown' WHEN w.current_grant THEN 'current' ELSE 'retained' END,
       'sourceVerified',false,'linkedToTraining',false)
     ORDER BY w.observed_started_at DESC,w.id DESC
-  ),'[]'::jsonb) INTO v_workouts
-  FROM (
-    SELECT id,sport,observed_started_at,observed_ended_at,
+$after$);
+  d:=replace(d,$before$    SELECT sport,observed_started_at,observed_ended_at,
+      distance_meters,heart_rate_samples
+    FROM public.m26_wearable_exercise_evidence_v46
+    WHERE owner_user_id=v_owner AND client_id=v_client
+      AND observed_started_at>=now()-interval '7 days'
+    ORDER BY observed_started_at DESC LIMIT 10$before$,$after$    SELECT id,sport,observed_started_at,observed_ended_at,
       distance_meters,heart_rate_samples,heart_rate_avg,
       coalesce(v_exercise AND grant_id=(v_auth->>'grantId')::uuid
         AND revocation_cursor=(v_auth->>'revocationCursor')::bigint,false) AS current_grant
@@ -173,15 +164,16 @@ BEGIN
     WHERE owner_user_id=v_owner AND client_id=v_client
       AND provider='health_connect' AND link_status='unlinked'
       AND observed_started_at>=now()-interval '7 days'
-    ORDER BY observed_started_at DESC,id DESC LIMIT 10
-  ) w;
-  RETURN jsonb_build_object(
-    'ok',true,'provider','health_connect','heartRateDaily',v_hr,
-    'exerciseEvidence',v_workouts,'restingHeartRate',null,
-    'clinicalInterpretation',false,'activityHistoryAvailable',v_history
-  );
-END;
-$my_summary$;
+    ORDER BY observed_started_at DESC,id DESC LIMIT 10$after$);
+  d:=replace(d,$before$    'clinicalInterpretation',false
+$before$,$after$    'clinicalInterpretation',false,'activityHistoryAvailable',v_history
+$after$);
+  IF md5(d) IS DISTINCT FROM '74ce2bde4cb3edef05b2be6e6ed0d071' THEN RAISE EXCEPTION 'M26_V48_SUMMARY_TRANSFORM_DRIFT'; END IF;
+  EXECUTE d;
+  IF md5(pg_get_functiondef('public.m26_wearable_v46_my_summary_prod_v1()'::regprocedure)) IS DISTINCT FROM '74ce2bde4cb3edef05b2be6e6ed0d071' THEN
+    RAISE EXCEPTION 'M26_V48_SUMMARY_VERIFY_DRIFT';
+  END IF;
+END $patch$;
 REVOKE ALL ON FUNCTION public.m26_wearable_v46_my_summary_prod_v1() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.m26_wearable_v46_my_summary_prod_v1() TO authenticated;
 COMMIT;
