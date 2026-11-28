@@ -208,3 +208,12 @@ test('invalid civil dates and rolled-over 24h timestamps are never rendered as o
   ];
   assert.deepEqual(connected360WorkoutHistory({...empty(),exerciseEvidence},{now}).map(row=>row.label),['Ciclismo']);
 });
+
+test('workout mean heart rate is optional, sample-backed and never inferred from daily pulse',()=>{
+  const now=new Date('2026-10-13T12:00:00Z');
+  const row={sport:'running',startedAt:'2026-10-12T10:00:00Z',endedAt:'2026-10-12T10:30:00Z',linkedToTraining:false};
+  const display=patch=>connected360WorkoutHistory({...empty(),exerciseEvidence:[{...row,...patch}]},{now})[0].detail;
+  assert.match(display({avgBpm:148,heartRateSamples:120}),/FC media 148 lpm/u);
+  for(const patch of [{avgBpm:148},{avgBpm:148,heartRateSamples:0},{avgBpm:'148',heartRateSamples:120},{avgBpm:241,heartRateSamples:120},{heartRateSamples:120,minBpm:100,maxBpm:190},{avgBpm:0,heartRateSamples:120}])
+    assert.doesNotMatch(display(patch),/FC media/u);
+});

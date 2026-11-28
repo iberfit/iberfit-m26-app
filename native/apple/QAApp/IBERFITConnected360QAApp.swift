@@ -38,6 +38,7 @@ private final class IBERFITHealthKitQAState: ObservableObject {
     @Published private(set) var rows: [IBERFITIOSHealthKitDailyVitalsReader.DailyVitals] = []
     @Published private(set) var workouts: [IBERFITLocalWorkout] = []
     @Published private(set) var workoutStatus = "Sin lectura de actividades."
+    @Published var includeWorkoutHeartRate = false
     private let workoutReader = IBERFITIOSHealthKitWorkoutReader()
 
     private let reader = IBERFITIOSHealthKitDailyVitalsReader()
@@ -88,7 +89,7 @@ private final class IBERFITHealthKitQAState: ObservableObject {
         workouts = []
         isBusy = true
         workoutStatus = "Solicitando lectura de entrenamientos en Apple Salud…"
-        workoutReader.requestExplicitWorkoutAccess { [weak self] permission in
+        workoutReader.requestExplicitWorkoutAccess(includeHeartRate: includeWorkoutHeartRate) { [weak self] permission in
             Task { @MainActor [weak self] in
                 guard let self, self.generation == lease else { return }
                 guard case .success = permission else {
@@ -118,6 +119,7 @@ private final class IBERFITHealthKitQAState: ObservableObject {
         workoutReader.invalidate()
         workouts = []
         workoutStatus = "Vista local borrada."
+        includeWorkoutHeartRate = false
         reader.revokeLocalReadApproval()
         rows = []
         isBusy = false
@@ -187,6 +189,10 @@ private struct IBERFITHealthKitQAView: View {
                             Divider().overlay(gold.opacity(0.25))
                         }
                     }
+                    Toggle("Incluir frecuencia cardíaca media", isOn: $model.includeWorkoutHeartRate)
+                        .foregroundStyle(cream)
+                        .tint(gold)
+                        .disabled(model.isBusy)
                     Button("Consultar entrenamientos de Apple Salud", action: model.readWorkoutsOnce)
                         .foregroundStyle(gold)
                         .disabled(model.isBusy)
@@ -196,6 +202,9 @@ private struct IBERFITHealthKitQAView: View {
                             Text(["running":"Carrera", "cycling":"Ciclismo", "walking":"Caminata", "strength":"Fuerza", "hiit":"HIIT", "swimming":"Natación"][workout.sport] ?? "Otro entrenamiento").font(.headline)
                             Text(workout.start.formatted(date: .abbreviated, time: .shortened))
                             Text("Duración activa: \(Int(workout.activeSeconds / 60)) min")
+                            if let average = workout.averageHeartRate {
+                                Text("FC media: \(Int(average.rounded())) lpm")
+                            }
                             if let distance = workout.distanceMeters {
                                 Text("Distancia: \((distance / 1000).formatted(.number.precision(.fractionLength(0...2)))) km")
                             }

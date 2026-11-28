@@ -6,13 +6,18 @@ struct IBERFITLocalWorkoutSpec {
         let from = now.addingTimeInterval(-30*86_400)
         let id = UUID()
         func row(_ id: UUID = UUID(), start: Double = -3600, end: Double = -1800,
-                 active: Double = 1500, distance: Double? = 5000, sport: String = "running") -> IBERFITLocalWorkout? {
+                 active: Double = 1500, distance: Double? = 5000, heartRate: Double? = nil, sport: String = "running") -> IBERFITLocalWorkout? {
             IBERFITLocalWorkout(id: id, sport: sport, start: now.addingTimeInterval(start),
                 end: now.addingTimeInterval(end), activeSeconds: active,
-                distanceMeters: distance, from: from, until: now)
+                distanceMeters: distance, averageHeartRate: heartRate, from: from, until: now)
         }
         let a = row(id)!
         precondition(a.activeSeconds == 1500 && a.distanceMeters == 5000)
+        precondition(a.averageHeartRate == nil)
+        precondition(row(heartRate: 148.5)?.averageHeartRate == 148.5)
+        precondition(row(heartRate: 0)?.averageHeartRate == nil)
+        precondition(row(heartRate: 241)?.averageHeartRate == nil)
+        precondition(row(heartRate: .nan)?.averageHeartRate == nil)
         precondition(row(distance: nil)?.distanceMeters == nil)
         precondition(row(distance: 0)?.distanceMeters == 0)
         precondition(row(distance: .infinity)?.distanceMeters == nil)

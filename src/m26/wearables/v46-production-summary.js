@@ -35,8 +35,13 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
     if(start===null||end===null||start>=end||end-start>86400000||end>now.getTime()+300000)continue;
     const d=row.distanceMeters, distance=typeof d==='number'&&Number.isFinite(d)&&d>=0&&d<=500000
       ?decimal.format(d>=1000?d/1000:d)+(d>=1000?' km':' m'):null;
+    // The existing summary does not yet expose avgBpm. Accept it only from
+    // the owner-scoped server DTO with positive observed sample coverage.
+    const average=bpm(row.avgBpm);
+    const averageLabel=average!==null&&Number.isSafeInteger(row.heartRateSamples)&&row.heartRateSamples>0&&row.heartRateSamples<=200000
+      ?'FC media '+decimal.format(average)+' lpm':null;
     rows.push({start,label:WORKOUT_SPORTS[row.sport],
-      detail:[workoutDate.format(start),observedDuration(end-start),distance].filter(Boolean).join(' · ')});
+      detail:[workoutDate.format(start),observedDuration(end-start),distance,averageLabel].filter(Boolean).join(' · ')});
   }
   return Object.freeze(rows.sort((a,b)=>b.start-a.start).map(({label,detail})=>Object.freeze({label,detail})));
 }
