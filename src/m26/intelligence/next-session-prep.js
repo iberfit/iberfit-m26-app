@@ -1,4 +1,4 @@
-import {computeProgressSummary} from '../engagement/progress-engine.js';
+import {computeProgressSummary,confirmedCheckinRecordsForClient,confirmedCheckinDate,checkinValues} from '../engagement/progress-engine.js';
 import {confirmedScheduledCompletion,reusableConfirmedSummary} from '../engagement/progress-continuity.js';
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
@@ -194,13 +194,8 @@ function wellbeingScore(value){
   return n!==null&&n>=0&&n<=10?n:null;
 }
 function wellbeingScores(record){
-  return Object.freeze({
-    energy:wellbeingScore(field(record,'energy','energia')),
-    sleep:wellbeingScore(field(record,'sleep','sueno','sueño')),
-    stress:wellbeingScore(field(record,'stress','estres','estrés')),
-    fatigue:wellbeingScore(field(record,'fatigue','fatiga')),
-    motivation:wellbeingScore(field(record,'motivation','motivacion','motivación')),
-  });
+  const {energy,sleep,stress,fatigue,motivation}=checkinValues(record);
+  return Object.freeze({energy,sleep,stress,fatigue,motivation});
 }
 function pairAverage(values){
   return values.every(Number.isFinite)
@@ -214,8 +209,8 @@ function wellbeingShift(state,clientId,{now=new Date(),days=28,threshold=WELLBEI
   // Keep only the four newest owner-scoped check-ins. Stable ties preserve
   // input order, and older history is never cloned or sorted.
   const selected=[];
-  for(const item of forClient(state,'checkins',clientId)){
-    const time=safeDate(dateOf(item))?.getTime();
+  for(const item of confirmedCheckinRecordsForClient(state,clientId)){
+    const time=safeDate(confirmedCheckinDate(item))?.getTime();
     if(!Number.isFinite(time)||time<startMs||time>endMs)continue;
     const index=selected.findIndex(row=>time>row.time);
     const at=index<0?selected.length:index;

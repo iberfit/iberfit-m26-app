@@ -488,3 +488,31 @@ test('Coach preparation rejects malformed, pending and explicitly incomplete ser
   item.planSnapshot.queue[0].sets='3';
   assert.equal(summarizeConfirmedSessionSets(item)?.plannedSets,3);
 });
+
+test('Coach wellbeing and evolution use one confirmed revision of each check-in, never voided or pending copies',async()=>{
+  const {computeProgressSummary,buildProgressTimeline,confirmedCheckinRecordsForClient}=await import('../src/m26/engagement/progress-engine.js');
+  const state=baseState();
+  const check=(id,day,energy,extra={})=>({id,clientId,recordedAt:'2026-09-'+String(day).padStart(2,'0')+'T10:00:00Z',energy,status:'confirmado',revision:1,...extra});
+  const old=check('old',8,8),prior=check('prior',9,8);
+  const actual=check('actual',10,4,{revision:2});
+  const recent=check('recent',11,4);
+  state.collections.checkins=[
+    old,prior,actual,{...actual},check('actual',10,10),recent,
+    check('void',12,0),check('void',12,0,{revision:2,status:'anulado'}),
+    check('pending',12,0,{syncStatus:'pending'}),
+    check('conflict',12,0),check('conflict',12,10),
+    check('cross',12,0,{body:{clientId:'different-client',energy:0}}),
+    check('corrected',12,0,{serverConfirmed:false}),
+  ];
+  assert.deepEqual(confirmedCheckinRecordsForClient(state,clientId).map(x=>x.id),['old','prior','actual','recent']);
+  const summary=computeProgressSummary(state,clientId,{now,days:28});
+  assert.equal(summary.checkins,4);
+  assert.equal(summary.checkinAverage.energy,6);
+  assert.equal(summary.latestCheckin.energy,4);
+  assert.equal(buildProgressTimeline(state,clientId,{now,days:28}).filter(x=>x.kind==='checkin').length,4);
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.wellbeingShift.checkins,4);
+  assert.equal(prep.wellbeingShift.signals.find(x=>x.key==='energy')?.delta,-4);
+  state.collections.checkins.push({...recent,revision:2,status:'anulado'});
+  assert.equal(buildNextSessionPreparation(state,clientId,{now}).wellbeingShift.available,false);
+});

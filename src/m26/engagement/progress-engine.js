@@ -1,5 +1,5 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
-import {evidenceNumber,observedSet,observedLoadKg} from '../domain/evidence-signal.js';
+import {evidenceNumber,observedSet,observedLoadKg,stableEvidenceJson} from '../domain/evidence-signal.js';
 import {confirmedAdherenceEvidence} from './confirmed-adherence.js';
 import {parseDateValue,reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
@@ -77,7 +77,7 @@ function volumeOf(execution){
     );
   },0);
 }
-function checkinValues(record){
+export function checkinValues(record){
   const item=unwrap(record)||{};
   return {
     energy:number(first(item,'energy','energia'),{min:0,max:10}),
@@ -88,6 +88,40 @@ function checkinValues(record){
     motivation:number(first(item,'motivation','motivacion','motivación'),{min:0,max:10}),
   };
 }
+// Resolve check-in revisions before testing eligibility or dates. A later
+// cancellation/pending revision must not resurrect an earlier confirmed copy.
+// Same-revision contradictions remain unknown, not whichever copy arrived first.
+export function confirmedCheckinRecordsForClient(state,clientId){
+  if(typeof clientId!=='string'||!clientId)return [];
+  const byId=new Map();
+  const aliases=(parts,keys)=>parts.flatMap(part=>keys.map(key=>part[key]))
+    .filter(value=>value!==undefined&&value!==null&&value!=='');
+  const denied=new Set(['anulado','anulada','void','voided','cancelled','canceled','cancelado','cancelada','deleted','eliminado','eliminada','archivado','archivada','rejected','rechazado','rechazada','conflict','conflicto','draft','pending','pendiente','unconfirmed','borrador']);
+  for(const raw of collection(state,'checkins')){
+    if(!raw||typeof raw!=='object'||Array.isArray(raw))continue;
+    const parts=[raw,...(raw.body&&typeof raw.body==='object'&&!Array.isArray(raw.body)?[raw.body]:[])];
+    const owners=aliases(parts,['clientId','client_id','clienteId','cliente_id']);
+    if(!owners.length||owners.some(value=>value!==clientId))continue;
+    const ids=aliases(parts,['id','entityId','entity_id']);
+    if(ids.some(value=>typeof value!=='string'||!value.trim()||value!==ids[0]))continue;
+    const revisions=aliases(parts,['revision']);
+    const revision=revisions.length?evidenceNumber(revisions[0],{min:0,integer:true}):0;
+    if(revision===null||revisions.some(value=>evidenceNumber(value,{min:0,integer:true})!==revision))continue;
+    const item=unwrap(raw),values=checkinValues(item);
+    const confirmed=parts.every(part=>observedSet(part)&&part.server_confirmed!==false&&
+      !aliases([part],['status','estado']).some(value=>denied.has(String(value).trim().toLowerCase()))&&
+      !aliases([part],['syncStatus','sync_status']).some(value=>String(value).trim().toLowerCase()!=='clean'));
+    const date=dateOf(item);
+    const usable=confirmed&&Boolean(safeDate(date))&&Object.values(values).some(Number.isFinite);
+    const signature=stableEvidenceJson({date,values,usable});
+    const key=ids.length?'id:'+ids[0]:'legacy:'+signature;
+    const prior=byId.get(key);
+    if(!prior||revision>prior.revision)byId.set(key,{item,revision,usable,signature,conflict:false});
+    else if(revision===prior.revision&&prior.signature!==signature)prior.conflict=true;
+  }
+  return [...byId.values()].filter(row=>row.usable&&!row.conflict).map(row=>row.item);
+}
+export function confirmedCheckinDate(record){return dateOf(unwrap(record));}
 function average(values){const valid=values.filter(Number.isFinite);return valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:null;}
 function objectiveValue(value){
   if(value===null||value===undefined||value==='')return false;
@@ -421,7 +455,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,ci
   const rpes=completedExecutions.flatMap(rpeValues);
   const {volume,volumeDelta,comparableVolumeSeries,volumeEvidence,reportVolumeReadings}=summarizeRecordedVolume(completedExecutions
     .map((item)=>({date:executionTime(item,window),volume:volumeOf(item),comparisonKey:volumeComparisonKey(item)})),{reportEvidenceOnly});
-  const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>withinWindow(dateOf(item),window)&&observedSet(item)&&Object.values(checkinValues(item)).some(Number.isFinite)).sort(byDateDesc);
+  const checkins=confirmedCheckinRecordsForClient(state,clientId).filter(item=>withinWindow(confirmedCheckinDate(item),window)).sort(byDateDesc);
   const wearable=reportEvidenceOnly?null:summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
   const checkinSeries=checkins.map(checkinValues);
   const iriBaselineRecordValue=reportEvidenceOnly?null:iriBaselineRecord(state,clientId);
@@ -509,7 +543,7 @@ export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,lim
       rows.push({kind:'iri',date:dateOf(item),title:'Diagnóstico IRI inicial',status:statusOf(item),detail:coverage?`${coverage} de 3 dominios registrados · punto de partida`:'Diagnóstico inicial registrado · sin comparación longitudinal dentro del IRI'});
     }
   }
-  for(const item of forClient(state,'checkins',clientId).map(unwrap))if(within(dateOf(item),start,end)){
+  for(const item of confirmedCheckinRecordsForClient(state,clientId))if(within(confirmedCheckinDate(item),start,end)){
     const values=checkinValues(item);
     const optional=[];
     if(Number.isFinite(values.fatigue))optional.push(`Fatiga ${values.fatigue}`);
