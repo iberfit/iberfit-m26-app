@@ -5,19 +5,15 @@ const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v50_
 const rollback=readFileSync(new URL('../supabase/release-procedures/connected360_v50_provider_selective_cleanup_v1.rollback.sql',import.meta.url),'utf8');
 const tables=["m26_wearable_heart_rate_daily_v46","m26_wearable_exercise_evidence_v46","m26_wearable_daily_health_v47","m26_wearable_v46_consents_prod","m26_wearable_v47_consents_prod"];
 test('V50 preserves owner/client lock and requires exact provider except explicit wildcard',()=>{
-  assert.match(sql,/iberfit:wfence:v1:/u);
-  assert.match(sql,/v_owner is distinct from \(select auth.uid\(\)\)/u);
-  assert.match(sql,/if new.action<>'delete' then return new/u);
-  assert.match(sql,/if new.provider<>'\*' then return new/u);
-  const start=sql.indexOf("if v_provider='*' then");
-  const end=sql.indexOf('  return new;',start);
-  const branches=sql.slice(start,end).split('  else');
-  assert.equal(branches.length,2);
-  for(const name of tables){
-    assert.ok(branches[0].includes('delete from public.'+name+'\n      where owner_user_id=v_owner and client_id=v_client;'));
-    assert.ok(branches[1].includes('delete from public.'+name+'\n      where owner_user_id=v_owner and client_id=v_client and provider=v_provider;'));
-  }
-  assert.equal((sql.match(/delete from public\./gu)||[]).length,10);
+  assert.match(sql,/28bb4b1e77b2d64e2c579e2eeb50eb23/u);
+  assert.match(sql,/5f8d8f5e93d9a09bc66d2af8f1a88bad/u);
+  assert.match(sql,/d:=replace\(d,prior,target\)/u);
+  assert.match(sql,/replace\(deletes,'client_id=v_client;','client_id=v_client and provider=v_provider;'\)/u);
+  for(const name of tables)assert.ok(sql.includes("'"+name+"'"));
+  assert.match(sql,/if v_provider='\*' then/u);
+  assert.match(rollback,/d:=replace\(d,target,prior\)/u);
+  assert.match(rollback,/chr\(13\)\|\|chr\(10\)/u);
+  assert.doesNotMatch(sql,/CREATE OR REPLACE FUNCTION public\.m26_wearable_v46_cleanup/u);
   assert.doesNotMatch(sql,/ALTER TABLE|DROP TABLE|TRUNCATE|GRANT EXECUTE/u);
 });
 test('V50 rollback refuses widened schema and does not erase data',()=>{

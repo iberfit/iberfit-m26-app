@@ -47,64 +47,27 @@ BEGIN
     RAISE EXCEPTION 'M26_V50_CLEANUP_TRIGGER_DRIFT';
   END IF;
 END $guard$;
+-- Exact inverse transformation. Restore the historical CRLF function body.
 DO $restore$
-DECLARE
-  definition text:=$original$CREATE OR REPLACE FUNCTION public.m26_wearable_v46_cleanup_prod_v1()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO ''
-AS $function$
-declare
-  v_owner uuid;
-  v_client uuid;
-  v_provider text;
-begin
-  if tg_table_schema <> 'public' then
-    raise exception 'M26_V46_CLEANUP_SCOPE_INVALID';
-  end if;
-  if tg_table_name='m26_wearable_consents_v44' then
-    if new.action<>'delete' then return new; end if;
-    v_owner:=new.actor_user_id; v_client:=new.client_id; v_provider:=new.provider;
-  elsif tg_table_name='m26_wearable_revocation_events_v2' then
-    if new.provider<>'*' then return new; end if;
-    v_owner:=new.owner_user_id; v_client:=new.client_id; v_provider:='*';
-  else
-    raise exception 'M26_V46_CLEANUP_SOURCE_INVALID';
-  end if;
-  if v_owner is null or v_client is null or v_provider not in ('*','health_connect',
-    'samsung_health','apple_health','normalized_file','strava','garmin_connect','fitbit','oura') then
-    raise exception 'M26_V46_CLEANUP_OWNER_INVALID';
-  end if;
-  if (select auth.uid()) is not null and (
-    v_owner is distinct from (select auth.uid())
-    or v_client is distinct from public.iberfit_client_id()
-  ) then
-    raise exception 'M26_V46_CLEANUP_AUTH_MISMATCH';
-  end if;
-  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
-    'iberfit:wfence:v1:'||v_owner::text||':'||v_client::text,0::bigint
-  ));
-  if v_provider in ('health_connect','*') then
-    delete from public.m26_wearable_heart_rate_daily_v46
-      where owner_user_id=v_owner and client_id=v_client;
-    delete from public.m26_wearable_exercise_evidence_v46
-      where owner_user_id=v_owner and client_id=v_client;
-    delete from public.m26_wearable_daily_health_v47
-      where owner_user_id=v_owner and client_id=v_client;
-    delete from public.m26_wearable_v46_consents_prod
-      where owner_user_id=v_owner and client_id=v_client;
-    delete from public.m26_wearable_v47_consents_prod
-      where owner_user_id=v_owner and client_id=v_client;
-  end if;
-  return new;
-end;
-$function$$original$;
+DECLARE d text; relation text; deletes text:=''; prior text; target text;
   body_start integer;
 BEGIN
-  body_start:=strpos(definition,'AS $function$')+length('AS $function$');
-  -- pg_get_functiondef original body used CRLF; header used LF.
-  EXECUTE left(definition,body_start-1)||replace(substr(definition,body_start),chr(10),chr(13)||chr(10));
+  -- Read the exact installed definition; keep the five relation names explicit.
+  d:=replace(pg_get_functiondef('public.m26_wearable_v46_cleanup_prod_v1()'::regprocedure),chr(13)||chr(10),chr(10));
+  FOREACH relation IN ARRAY ARRAY['m26_wearable_heart_rate_daily_v46','m26_wearable_exercise_evidence_v46','m26_wearable_daily_health_v47','m26_wearable_v46_consents_prod','m26_wearable_v47_consents_prod'] LOOP
+    deletes:=deletes||'    delete from public.'||relation||chr(10)||'      where owner_user_id=v_owner and client_id=v_client;'||chr(10);
+  END LOOP;
+  prior:=$prior$  if v_provider in ('health_connect','*') then
+$prior$||deletes||'  end if;'||chr(10);
+  target:=$target$  -- Keep exact provider deletion separate from an explicit all-source purge.
+  -- All branches run behind the existing owner/client advisory fence.
+  if v_provider='*' then
+$target$||deletes||'  else'||chr(10)||replace(deletes,'client_id=v_client;','client_id=v_client and provider=v_provider;')||'  end if;'||chr(10);
+  IF strpos(d,target)=0 THEN RAISE EXCEPTION 'M26_V50_ROLLBACK_CANDIDATE_DRIFT'; END IF;
+  d:=replace(d,target,prior);
+  body_start:=strpos(d,'AS $function$')+length('AS $function$');
+  d:=left(d,body_start-1)||replace(substr(d,body_start),chr(10),chr(13)||chr(10));
+  EXECUTE d;
   IF md5(pg_get_functiondef('public.m26_wearable_v46_cleanup_prod_v1()'::regprocedure)) <> '28bb4b1e77b2d64e2c579e2eeb50eb23' THEN
     RAISE EXCEPTION 'M26_V50_ROLLBACK_BASELINE_DRIFT';
   END IF;

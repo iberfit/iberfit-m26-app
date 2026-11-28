@@ -11,7 +11,7 @@ esac
 credential="$(openssl rand -hex 32)"
 [[ "$credential" =~ ^[a-f0-9]{64}$ ]] || exit 65
 printf '::add-mask::%s\n' "$credential"
-export POSTGRES_PASSWORD="$credential" PGPASSWORD="$credential"
+export POSTGRES_PASSWORD=$credential PGPASSWORD=$credential
 unset credential
 export IBERFIT_PG17_SYNTHETIC_ONLY=YES PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=postgres
 # Only remove the container whose ID this invocation created.

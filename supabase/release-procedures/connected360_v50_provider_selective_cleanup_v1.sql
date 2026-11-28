@@ -16,70 +16,26 @@ BEGIN
     RAISE EXCEPTION 'M26_V50_CLEANUP_TRIGGER_DRIFT';
   END IF;
 END $guard$;
-CREATE OR REPLACE FUNCTION public.m26_wearable_v46_cleanup_prod_v1()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO ''
-AS $function$
-declare
-  v_owner uuid;
-  v_client uuid;
-  v_provider text;
-begin
-  if tg_table_schema <> 'public' then
-    raise exception 'M26_V46_CLEANUP_SCOPE_INVALID';
-  end if;
-  if tg_table_name='m26_wearable_consents_v44' then
-    if new.action<>'delete' then return new; end if;
-    v_owner:=new.actor_user_id; v_client:=new.client_id; v_provider:=new.provider;
-  elsif tg_table_name='m26_wearable_revocation_events_v2' then
-    if new.provider<>'*' then return new; end if;
-    v_owner:=new.owner_user_id; v_client:=new.client_id; v_provider:='*';
-  else
-    raise exception 'M26_V46_CLEANUP_SOURCE_INVALID';
-  end if;
-  if v_owner is null or v_client is null or v_provider not in ('*','health_connect',
-    'samsung_health','apple_health','normalized_file','strava','garmin_connect','fitbit','oura') then
-    raise exception 'M26_V46_CLEANUP_OWNER_INVALID';
-  end if;
-  if (select auth.uid()) is not null and (
-    v_owner is distinct from (select auth.uid())
-    or v_client is distinct from public.iberfit_client_id()
-  ) then
-    raise exception 'M26_V46_CLEANUP_AUTH_MISMATCH';
-  end if;
-  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
-    'iberfit:wfence:v1:'||v_owner::text||':'||v_client::text,0::bigint
-  ));
-  -- Keep exact provider deletion separate from an explicit all-source purge.
+-- Derive the candidate from the pinned baseline; no second full trigger body.
+DO $patch$
+DECLARE d text; relation text; deletes text:=''; prior text; target text;
+BEGIN
+  -- Read the exact installed definition; keep the five relation names explicit.
+  d:=replace(pg_get_functiondef('public.m26_wearable_v46_cleanup_prod_v1()'::regprocedure),chr(13)||chr(10),chr(10));
+  FOREACH relation IN ARRAY ARRAY['m26_wearable_heart_rate_daily_v46','m26_wearable_exercise_evidence_v46','m26_wearable_daily_health_v47','m26_wearable_v46_consents_prod','m26_wearable_v47_consents_prod'] LOOP
+    deletes:=deletes||'    delete from public.'||relation||chr(10)||'      where owner_user_id=v_owner and client_id=v_client;'||chr(10);
+  END LOOP;
+  prior:=$prior$  if v_provider in ('health_connect','*') then
+$prior$||deletes||'  end if;'||chr(10);
+  target:=$target$  -- Keep exact provider deletion separate from an explicit all-source purge.
   -- All branches run behind the existing owner/client advisory fence.
   if v_provider='*' then
-    delete from public.m26_wearable_heart_rate_daily_v46
-      where owner_user_id=v_owner and client_id=v_client;
-    delete from public.m26_wearable_exercise_evidence_v46
-      where owner_user_id=v_owner and client_id=v_client;
-    delete from public.m26_wearable_daily_health_v47
-      where owner_user_id=v_owner and client_id=v_client;
-    delete from public.m26_wearable_v46_consents_prod
-      where owner_user_id=v_owner and client_id=v_client;
-    delete from public.m26_wearable_v47_consents_prod
-      where owner_user_id=v_owner and client_id=v_client;
-  else
-    delete from public.m26_wearable_heart_rate_daily_v46
-      where owner_user_id=v_owner and client_id=v_client and provider=v_provider;
-    delete from public.m26_wearable_exercise_evidence_v46
-      where owner_user_id=v_owner and client_id=v_client and provider=v_provider;
-    delete from public.m26_wearable_daily_health_v47
-      where owner_user_id=v_owner and client_id=v_client and provider=v_provider;
-    delete from public.m26_wearable_v46_consents_prod
-      where owner_user_id=v_owner and client_id=v_client and provider=v_provider;
-    delete from public.m26_wearable_v47_consents_prod
-      where owner_user_id=v_owner and client_id=v_client and provider=v_provider;
-  end if;
-  return new;
-end;
-$function$;
+$target$||deletes||'  else'||chr(10)||replace(deletes,'client_id=v_client;','client_id=v_client and provider=v_provider;')||'  end if;'||chr(10);
+  IF strpos(d,prior)=0 THEN RAISE EXCEPTION 'M26_V50_CLEANUP_BASELINE_DRIFT'; END IF;
+  d:=replace(d,prior,target);
+  IF md5(d) IS DISTINCT FROM '5f8d8f5e93d9a09bc66d2af8f1a88bad' THEN RAISE EXCEPTION 'M26_V50_CLEANUP_CANDIDATE_DRIFT'; END IF;
+  EXECUTE d;
+END $patch$;
 DO $verify$
 BEGIN
   IF md5(pg_get_functiondef('public.m26_wearable_v46_cleanup_prod_v1()'::regprocedure)) <> '5f8d8f5e93d9a09bc66d2af8f1a88bad' THEN
