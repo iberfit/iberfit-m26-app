@@ -66,3 +66,102 @@ export function verifyAppleExerciseImportReceipt(v,params){
  ||![v.inserted,v.updated,v.unchanged].every(n=>Number.isSafeInteger(n)&&n>=0)||v.inserted+v.updated+v.unchanged!==count)importFail();
  return Object.freeze({...v});
 }
+
+
+// QA candidate coordinator, deliberately not mounted by the application.
+// The future native adapter must correlate each page to its one-shot local
+// request. The raw HealthKit UUID, user IDs and JWT never cross into Swift.
+// A page cursor is opaque, ephemeral and scoped to the current grant.
+export function createAppleExerciseCandidateSync({
+ transport,native,getIdentity,getToken,canRun,now=()=>Date.now(),
+}={}){
+ if(typeof transport?.connected360AppleCandidateStatus!=='function'
+ ||typeof transport?.importConnected360AppleCandidate!=='function'
+ ||typeof native?.readCandidatePage!=='function'||typeof getIdentity!=='function'
+ ||typeof getToken!=='function'||typeof canRun!=='function'||typeof now!=='function')
+  throw Error('M26_V54_APPLE_SYNC_DEPENDENCIES');
+ let generation=0,dead=false,pending=null,sweep=null;
+ function identity(){
+  const v=getIdentity();
+  if(v?.role!=='client'||!grant(v.ownerId)||!grant(v.clientId))throw Error('M26_V54_APPLE_CLIENT_REQUIRED');
+  return {ownerId:v.ownerId,clientId:v.clientId};
+ }
+ const same=(a,b)=>a.ownerId===b.ownerId&&a.clientId===b.clientId;
+ function check(owner,lease,signal){
+  if(dead||lease!==generation||signal?.aborted||!canRun())throw Error('M26_V54_APPLE_SYNC_INVALIDATED');
+  if(!same(owner,identity()))throw Error('M26_V54_APPLE_OWNER_CHANGED');
+ }
+ async function tokenFor(owner,lease,signal){
+  check(owner,lease,signal);
+  const token=await getToken();check(owner,lease,signal);
+  if(typeof token!=='string'||token.length<10)throw Error('M26_V54_APPLE_SESSION_REQUIRED');
+  return token;
+ }
+ async function runPage({signal=null}={}){
+  if(dead)throw Error('M26_V54_APPLE_SYNC_INVALIDATED');
+  if(!canRun()||signal?.aborted)return Object.freeze({skipped:'inactive'});
+  const owner=identity(),lease=generation;
+  if(pending){
+   if(!same(pending.owner,owner))throw Error('M26_V54_APPLE_OWNER_CHANGED');
+   return pending.promise;
+  }
+  const run=async()=>{
+   const status=verifyAppleExerciseStatus(await transport.connected360AppleCandidateStatus(
+    await tokenFor(owner,lease,signal),{signal}));
+   check(owner,lease,signal);
+   if(!status.authorized){sweep=null;return Object.freeze({skipped:status.reason});}
+   const binding=JSON.stringify([owner.ownerId,owner.clientId,status.grantId,status.revocationCursor]);
+   if(sweep?.binding!==binding)sweep={binding,days:30,cursor:null,seen:new Set()};
+   const current=sweep;
+   let page;
+   try{page=await native.readCandidatePage({days:current.days,cursor:current.cursor,signal});}
+   catch(error){
+    if(lease===generation&&sweep===current&&error?.message==='M26_V54_APPLE_CURSOR_INVALID')sweep=null;
+    throw error;
+   }
+   check(owner,lease,signal);
+   if(!shape(page,['schema','provider','days','cursor','nextCursor','acquiredAt','records','readPermissionStatus','persisted'])
+   ||page.schema!=='iberfit.connected360.v54.apple.page.v1'||page.provider!=='apple_health'
+   ||page.days!==current.days||page.cursor!==current.cursor||page.persisted!==false
+   ||page.readPermissionStatus!=='not_disclosed'||!Array.isArray(page.records)||page.records.length>20
+   ||(page.nextCursor!==null&&(!grant(page.nextCursor)||page.nextCursor===current.cursor||current.seen.has(page.nextCursor)))){
+    sweep=null;throw Error('M26_V54_APPLE_PAGE_INVALID');
+   }
+   const nextCursor=page.nextCursor;
+   // Reject unbounded/cyclic history even if a malformed bridge returns
+   // endlessly unique tokens. Restart only after an explicit future trigger.
+   if(nextCursor!==null&&current.seen.size>=59){sweep=null;throw Error('M26_V54_APPLE_PAGE_LIMIT');}
+   const acquired=instant(page.acquiredAt),at=now();
+   if(!Number.isFinite(at)||!Number.isFinite(acquired)||acquired<at-1200000||acquired>at+300000)importFail();
+   const payload={schema:'iberfit.connected360.v54.apple.ingest.v1',acquiredAt:page.acquiredAt,exerciseEvidence:page.records};
+   // Freeze and validate the page before any subsequent async boundary.
+   const params=page.records.length?appleExerciseImportParams(status,payload,{at}):null;
+   const fresh=verifyAppleExerciseStatus(await transport.connected360AppleCandidateStatus(
+    await tokenFor(owner,lease,signal),{signal}));
+   check(owner,lease,signal);
+   if(!fresh.authorized||fresh.grantId!==status.grantId||fresh.revocationCursor!==status.revocationCursor){
+    sweep=null;throw Error('M26_V54_APPLE_CONSENT_CHANGED');
+   }
+   let receipt=null;
+   if(params){
+    receipt=verifyAppleExerciseImportReceipt(await transport.importConnected360AppleCandidate(
+     await tokenFor(owner,lease,signal),fresh,params.p_payload,{signal}),params);
+    check(owner,lease,signal);
+   }
+   // Never retain health payloads or advance a cursor on uncertain ACK.
+   // Empty pages do not prove OS permission or absence of activity.
+   if(nextCursor===null)sweep={binding,days:7,cursor:null,seen:new Set()};
+   else sweep={binding,days:current.days,cursor:nextCursor,seen:new Set([...current.seen,nextCursor])};
+   return Object.freeze({ok:true,provider:'apple_health',workoutHistoryPending:nextCursor!==null,
+    inserted:receipt?.inserted??0,updated:receipt?.updated??0,unchanged:receipt?.unchanged??0,
+    observedRows:params?.p_payload.exerciseEvidence.length??0,readPermissionStatus:'not_disclosed',
+    automaticSyncCertified:false});
+  };
+  const promise=run().finally(()=>{if(pending?.promise===promise)pending=null;});
+  pending={owner,promise};
+  return promise;
+ }
+ function invalidate(){generation++;sweep=null;pending=null;native.invalidate?.();}
+ function destroy(){if(dead)return;dead=true;invalidate();}
+ return Object.freeze({runPage,invalidate,destroy});
+}
