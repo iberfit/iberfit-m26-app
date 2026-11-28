@@ -62,3 +62,33 @@ export function formatConnected360ProductionSummary(p,{nativeAvailable=true}={})
     (latest?'.'+dailyText:'')+
     '. No son entrenamientos confirmados. La FC general no equivale a FC en reposo; el origen físico del reloj no está verificado.';
 }
+
+/** Coalesce view replacement reads. Only short-lived in-memory data, never a
+ * durable health cache. A fresh native receipt or privacy event retires it. */
+export function createConnected360SummaryReader({now=()=>Date.now(),ttlMs=15000}={}){
+  if(typeof now!=='function'||!Number.isSafeInteger(ttlMs)||ttlMs<0||ttlMs>15000)
+    throw new Error('M26_V46_SUMMARY_CACHE_INVALID');
+  let epoch=0,current=null;
+  function clear(){epoch++;current=null;}
+  function read(key,load,{force=false}={}){
+    if(typeof key!=='string'||!key||typeof load!=='function')return Promise.reject(new Error('M26_V46_SUMMARY_READ_INVALID'));
+    if(current?.key!==key||force)clear();
+    const timestamp=now();
+    if(current?.pending)return current.pending;
+    if(current?.value&&Number.isFinite(timestamp)&&timestamp>=current.at&&timestamp-current.at<ttlMs)
+      return Promise.resolve(current.value);
+    const version=epoch;
+    const entry={key,pending:null,value:null,at:null};
+    current=entry;
+    const pending=Promise.resolve().then(()=>{
+      if(current!==entry||epoch!==version)throw new Error('M26_V46_SUMMARY_READ_RETIRED');
+      return load();
+    }).then(value=>{
+      if(current===entry&&epoch===version){entry.value=value;entry.at=now();}
+      return value;
+    }).finally(()=>{if(current===entry)entry.pending=null;});
+    entry.pending=pending;
+    return pending;
+  }
+  return Object.freeze({read,clear});
+}

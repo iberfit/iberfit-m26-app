@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory} from '../src/m26/wearables/v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader} from '../src/m26/wearables/v46-production-summary.js';
 
 const empty=()=>({ok:true,provider:'health_connect',heartRateDaily:[],exerciseEvidence:[]});
 
@@ -116,7 +116,8 @@ test('browser and native history reuse one owner-scoped read with no browser log
   assert.match(browser,/appendProductionHistory\(wrap\)/u);
   assert.doesNotMatch(browser,/refreshProductionSummary|requestPermissions|authorize\(/u);
   assert.match(controller,/action==='prod-connected360-history'[\s\S]{0,150}await refreshProductionSummary/u);
-  assert.match(controller,/productionHistoryMutationDepth===0&&wrap.isConnected/u);
+  assert.match(controller,/productionHistoryMutationDepth===0/u);
+  assert.match(controller,/stillOwner\(\)&&wrap.isConnected&&requestEpoch===productionSummaryEpoch/u);
   assert.match(controller,/clearProductionHistorySurface\(\);\s*foregroundSync\.invalidate\(\);\s*try\{await remoteSync.deleteAll/u);
   assert.match(controller,/clearProductionHistorySurface\(\);\s*productionSync\?\.invalidate\(\);\s*foregroundSync\.invalidate\(\);\s*try\{await remoteSync.revoke/u);
 });
@@ -127,4 +128,51 @@ test('post-import refresh supersedes an older summary and retired owner cannot r
   assert.match(controller,/if\(refresh\?\.disabled&&!supersede\)return/u);
   assert.match(controller,/canReadProductionHistory=\(\)=>!productionHistoryRetired/u);
   assert.match(controller,/clearOwner:\(\)=>\{\s*productionHistoryRetired=true/u);
+});
+
+test('visible Client Hoy and Actividad share the existing owner history without repeating the device list',()=>{
+  const home=readFileSync(new URL('../src/m26/wearables/client-health-snapshot.js',import.meta.url),'utf8');
+  const routes=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  assert.match(home,/data-prod-connected360-feed="compact" hidden/u);
+  assert.match(routes,/vm\.role==='client'\?'<section class="m26-panel" data-prod-connected360-feed="full" hidden/u);
+  assert.match(controller,/appendProductionHistory\(wrap,\{feed:true\}\);[\s\S]{0,100}void refreshProductionSummary\(wrap\)/u);
+  assert.match(controller,/prodConnected360Feed==='compact'\?allRows\.slice\(0,3\):allRows/u);
+  assert.match(controller,/if\(!feed\)appendProductionHistory\(wrap,\{native:true\}\)/u);
+});
+test('summary read coalesces replacements, bounds reuse, refreshes after receipt and never reuses another owner',async()=>{
+  let clock=100,calls=0,resolve;
+  const reader=createConnected360SummaryReader({now:()=>clock});
+  const pending=new Promise(r=>{resolve=r});
+  const first=reader.read('owner-a',()=>{calls++;return pending;});
+  assert.equal(reader.read('owner-a',()=>{throw Error('duplicate');}),first);
+  resolve('a');assert.equal(await first,'a');assert.equal(calls,1);
+  assert.equal(await reader.read('owner-a',()=>{throw Error('duplicate');}),'a');
+  assert.equal(await reader.read('owner-a',()=>{calls++;return 'fresh';},{force:true}),'fresh');
+  clock+=15000;
+  assert.equal(await reader.read('owner-a',()=>{calls++;return 'expired';}),'expired');
+  assert.equal(await reader.read('owner-b',()=>{calls++;return 'b';}),'b');
+  reader.clear();
+  assert.equal(await reader.read('owner-b',()=>{calls++;return 'after-clear';}),'after-clear');
+  assert.equal(calls,5);
+});
+test('late read after privacy invalidation never becomes reusable',async()=>{
+  const reader=createConnected360SummaryReader();
+  let resolve;
+  const pending=reader.read('owner-a',()=>new Promise(r=>{resolve=r}));
+  await Promise.resolve();
+  reader.clear();
+  const fresh=await reader.read('owner-a',()=> 'fresh');
+  resolve('retired');await pending;
+  assert.equal(fresh,'fresh');
+  assert.equal(await reader.read('owner-a',()=>{throw Error('duplicate');}),'fresh');
+});
+
+test('privacy retirement before a queued summary read prevents unnecessary remote work',async()=>{
+  const reader=createConnected360SummaryReader();
+  let calls=0;
+  const pending=reader.read('owner-a',()=>{calls++;return 'old';});
+  reader.clear();
+  await assert.rejects(pending,/SUMMARY_READ_RETIRED/u);
+  assert.equal(calls,0);
 });

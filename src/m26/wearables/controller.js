@@ -26,7 +26,7 @@ import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {createConnected360ProductionSync} from './v46-production-sync.js';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory} from './v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {
   createLatestTaskCoordinator,
@@ -431,6 +431,7 @@ export function createWearableController({
   let productionSummaryEpoch=0;
   let productionHistoryMutationDepth=0;
   let productionHistoryRetired=false;
+  const productionSummaryReader=createConnected360SummaryReader();
 
   const tasks=createLatestTaskCoordinator();
 
@@ -903,21 +904,23 @@ export function createWearableController({
     });
   }
   // Reading already saved records is separate from permission prompts and
-  // native acquisition. Browser history is opt-in per view, not a login RPC.
+  // native acquisition. The visible route reads asynchronously, not in the login gate.
   const canReadProductionHistory=()=>!productionHistoryRetired&&Boolean(productionSync||productionHistoryEnabled===true)
     &&typeof transport.connected360ProductionSummary==='function';
   function clearProductionHistorySurface(){
     productionSummaryEpoch+=1;
+    productionSummaryReader.clear();
     root.querySelectorAll?.('[data-prod-connected360-summary]')?.forEach?.(node=>{node.textContent='';});
     root.querySelectorAll?.('[data-prod-connected360-workouts]')?.forEach?.(node=>{node.replaceChildren();node.hidden=true;});
     root.querySelectorAll?.('[data-wearable-action="prod-connected360-history"]')?.forEach?.(button=>{button.disabled=false;});
+    root.querySelectorAll?.('[data-prod-connected360-feed]')?.forEach?.(node=>{node.hidden=true;});
   }
-  function appendProductionHistory(wrap,{native=false}={}){
+  function appendProductionHistory(wrap,{native=false,feed=false}={}){
     const document=wrap.ownerDocument;
     const results=document.createElement('p');
     results.dataset.prodConnected360Summary='true';
     results.setAttribute('role','status');
-    results.textContent=native?'Datos de salud: consultando registros disponibles…':'Consulta las actividades guardadas en tu cuenta, sin volver a conectar el dispositivo.';
+    results.textContent=feed?'Datos de salud: consultando registros disponibles…':native?'Datos de salud: consultando registros disponibles…':'Consulta las actividades guardadas en tu cuenta, sin volver a conectar el dispositivo.';
     const workoutHistory=document.createElement('section');
     workoutHistory.dataset.prodConnected360Workouts='true';
     workoutHistory.hidden=true;
@@ -929,43 +932,59 @@ export function createWearableController({
     wrap.append(refresh,results,workoutHistory);
   }
   async function refreshProductionSummary(wrap,{supersede=false}={}){
-    if(!mounted||!canReadProductionHistory()||!wrap?.isConnected||productionHistoryMutationDepth>0)return;
+    if(!mounted||!canReadProductionHistory()||!wrap?.isConnected||productionHistoryMutationDepth>0
+      ||root.ownerDocument?.visibilityState==='hidden')return;
     const target=wrap.querySelector?.('[data-prod-connected360-summary]');
     if(!target)return;
     const refresh=wrap.querySelector?.('[data-wearable-action="prod-connected360-history"]');
     if(refresh?.disabled&&!supersede)return;
     const requestEpoch=++productionSummaryEpoch;
     const identityEpoch=nativeIdentityEpoch;
+    const feed=wrap.closest?.('[data-prod-connected360-feed]')||null;
     const expected=qaClientIdentity();
     if(expected.role!=='client'||!expected.ownerId||!expected.clientId)return;
-    const stillCurrent=()=>{
+    const stillOwner=()=>{
       const current=qaClientIdentity();
-      return mounted&&!productionHistoryRetired&&productionHistoryMutationDepth===0&&wrap.isConnected&&requestEpoch===productionSummaryEpoch
-        &&identityEpoch===nativeIdentityEpoch&&current.role==='client'
+      return mounted&&!productionHistoryRetired&&productionHistoryMutationDepth===0&&isOnline()
+        &&root.ownerDocument?.visibilityState!=='hidden'&&identityEpoch===nativeIdentityEpoch&&current.role==='client'
         &&expected.ownerId===current.ownerId&&expected.clientId===current.clientId;
     };
+    const stillCurrent=()=>stillOwner()&&wrap.isConnected&&requestEpoch===productionSummaryEpoch;
     if(!isOnline()){
       target.textContent='Necesitas conexión para consultar la actividad guardada.';
+      if(feed)feed.hidden=feed.dataset.prodConnected360Feed==='compact';
       return;
     }
+    if(feed?.dataset.prodConnected360Feed==='full')feed.hidden=false;
     if(refresh)refresh.disabled=true;
     target.textContent='Datos de salud: consultando registros disponibles…';
     try{
-      const token=await getToken();
-      if(!stillCurrent())return;
-      const response=await transport.connected360ProductionSummary(token);
+      const key=JSON.stringify([expected.ownerId,expected.clientId,identityEpoch]);
+      const response=await productionSummaryReader.read(key,async()=>{
+        const token=await getToken();
+        if(!stillOwner())throw new Error('M26_V46_PROD_OWNER_CHANGED');
+        return transport.connected360ProductionSummary(token);
+      },{force:supersede});
       if(stillCurrent()){
         target.textContent=formatConnected360ProductionSummary(response,{nativeAvailable:Boolean(productionSync)});
         const history=wrap.querySelector?.('[data-prod-connected360-workouts]');
         if(history){
           const document=history.ownerDocument;
-          const rows=connected360WorkoutHistory(response);
+          const allRows=connected360WorkoutHistory(response);
+          const rows=feed?.dataset.prodConnected360Feed==='compact'?allRows.slice(0,3):allRows;
+          if(feed){
+            target.textContent=rows.length?'':'No hay actividades deportivas recientes importadas.';
+            // Do not add another empty panel to Hoy if the owner has no workouts.
+            feed.hidden=feed.dataset.prodConnected360Feed==='compact'&&!rows.length;
+          }
           const children=[];
           if(rows.length){
             const heading=document.createElement('h4');
             heading.textContent='Últimos entrenamientos importados';
             const note=document.createElement('p');
-            note.textContent='Hasta 10 actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.';
+            note.textContent=feed?.dataset.prodConnected360Feed==='compact'
+              ?'Últimas actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.'
+              :'Hasta 10 actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.';
             const list=document.createElement('ul');
             for(const row of rows){
               const item=document.createElement('li');
@@ -982,6 +1001,7 @@ export function createWearableController({
       }
     }catch{
       if(stillCurrent()){
+        if(feed)feed.hidden=false;
         target.textContent='No se ha podido actualizar el historial. '+
           'Los datos existentes se conservan y se reintentará al volver a abrir IBERFIT.';
         const history=wrap.querySelector?.('[data-prod-connected360-workouts]');
@@ -1020,7 +1040,7 @@ export function createWearableController({
           if(result?.ok===true||(savedPage&&result?.skipped==='no-recent-observations')){
             const wrap=root.querySelector?.('[data-prod-connected360]');
             if(wrap?.isConnected){
-              const status=wrap.querySelector?.('[data-prod-connected360-status]');
+              const status=root.querySelector?.('[data-prod-connected360-status]');
               if(status)status.textContent=result.workoutHistoryPending===true
                 ?'Actividades guardadas. La recuperación del historial continuará al volver a sincronizar.'
                 :'Sincronización automática completada. '+'Actualizando las mediciones disponibles…';
@@ -1095,11 +1115,14 @@ export function createWearableController({
       nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       productionSync?.invalidate();
+      clearProductionHistorySurface();
       return;
     }
     if(doc?.visibilityState==='visible'){
       nativeForegroundHeartbeat.start();
       requestForegroundSync();
+      const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
+      if(wrap)void refreshProductionSummary(wrap);
     }
   }
 
@@ -1108,6 +1131,7 @@ export function createWearableController({
     nativeForegroundHeartbeat.stop();
     foregroundSync.invalidate();
     productionSync?.invalidate();
+    clearProductionHistorySurface();
   }
 
   function onPageShow(){
@@ -1115,6 +1139,8 @@ export function createWearableController({
     if(doc?.visibilityState!=='hidden'){
       nativeForegroundHeartbeat.start();
       requestForegroundSync();
+      const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
+      if(wrap)void refreshProductionSummary(wrap);
     }
   }
   function onNativeHealthPermissionsReturned(){
@@ -1420,6 +1446,19 @@ export function createWearableController({
 
     if(role!=='client')return;
 
+    const feed=root.querySelector?.('[data-prod-connected360-feed]');
+    if(feed&&canReadProductionHistory()&&productionHistoryMutationDepth===0&&!feed.querySelector?.('[data-prod-connected360]')){
+      const expected=qaClientIdentity();
+      if(expected.ownerId&&expected.clientId){
+        const wrap=feed.ownerDocument.createElement('section');
+        wrap.dataset.prodConnected360='true';
+        wrap.className='m26-wearable-native-connect';
+        appendProductionHistory(wrap,{feed:true});
+        feed.append(wrap);
+        void refreshProductionSummary(wrap);
+      }
+    }
+
     const form=root.querySelector?.(
       '[data-wearable-import]',
     );
@@ -1555,10 +1594,10 @@ export function createWearableController({
         note.setAttribute('role','status');
         note.textContent='Verificando disponibilidad segura…';
         wrap.append(intro,consentArea,permissions,connect,note);
-        appendProductionHistory(wrap,{native:true});
+        if(!feed)appendProductionHistory(wrap,{native:true});
         nativeCard.append(wrap);
         const generation=nativeIdentityEpoch;
-        void refreshProductionSummary(wrap);
+        if(!feed)void refreshProductionSummary(wrap);
         void productionSync.availability().then(flags=>{
           if(generation!==nativeIdentityEpoch||!wrap.isConnected)return;
           const enabled=flags.serverEnabled===true;
@@ -1574,7 +1613,7 @@ export function createWearableController({
       }
     }
 
-    if(!productionSync&&canReadProductionHistory()&&healthConnectCard&&!healthConnectCard.querySelector?.('[data-prod-connected360]')){
+    if(!productionSync&&canReadProductionHistory()&&healthConnectCard&&!feed&&!healthConnectCard.querySelector?.('[data-prod-connected360]')){
       const wrap=document.createElement('section');
       wrap.dataset.prodConnected360='true';
       wrap.className='m26-wearable-native-connect';
@@ -1745,7 +1784,7 @@ export function createWearableController({
       }else if(action==='sync-pending'){
         await syncPending();
       }else if(action==='prod-connected360-history'){
-        await refreshProductionSummary(button.closest?.('[data-prod-connected360]'));
+        await refreshProductionSummary(button.closest?.('[data-prod-connected360]'),{supersede:true});
       }else if(action==='prod-connected360-permissions'){
         if(!productionNative)throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
         productionNative.requestPermissions();
@@ -2027,6 +2066,8 @@ export function createWearableController({
     });
     nativeForegroundHeartbeat.start();
     requestForegroundSync({force:true});
+    const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
+    if(wrap)void refreshProductionSummary(wrap);
   }
 
   function onOffline(){
@@ -2035,6 +2076,9 @@ export function createWearableController({
     nativeForegroundHeartbeat.stop();
     foregroundSync.invalidate();
     productionSync?.invalidate();
+    clearProductionHistorySurface();
+    const wrap=root.querySelector?.('[data-prod-connected360-feed="full"] [data-prod-connected360]');
+    if(wrap)void refreshProductionSummary(wrap);
   }
 
   return Object.freeze({
