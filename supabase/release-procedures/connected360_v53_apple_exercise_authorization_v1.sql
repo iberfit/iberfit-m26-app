@@ -40,14 +40,46 @@ END;
 $f$;
 REVOKE ALL ON FUNCTION private.m26_v53_apple_client_context() FROM PUBLIC,anon,authenticated,service_role;
 
+-- Internal provider generation check; not callable by API roles. The caller
+-- must first establish actor/owner authorization, release-row lock and the
+-- owner/client transaction fence. This avoids duplicating the source rule
+-- in a later professional sharing boundary.
+CREATE FUNCTION private.m26_v53_apple_exercise_source_state(p_owner uuid,p_client uuid,p_enabled boolean)
+RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path TO ''
+AS $f$
+DECLARE
+ v_cursor bigint; v_old_grant uuid; v_old_cursor bigint; v_old_scopes text[];
+ v_blocked boolean; v_ledger boolean; v_reason text;
+BEGIN
+ IF p_owner IS NULL OR p_client IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='M26_V53_SOURCE_SCOPE_REQUIRED'; END IF;
+ SELECT coalesce(max(e.id),0) INTO v_cursor FROM public.m26_wearable_revocation_events_v2 e
+ WHERE e.owner_user_id=p_owner AND e.client_id=p_client AND e.provider IN ('apple_health','*');
+ SELECT a.grant_id,a.revocation_cursor,a.scopes INTO v_old_grant,v_old_cursor,v_old_scopes
+ FROM public.m26_wearable_authorization_sources_v3 a
+ WHERE a.owner_user_id=p_owner AND a.client_id=p_client AND a.provider='apple_health';
+ SELECT EXISTS(SELECT 1 FROM public.m26_wearable_connections_v44 c
+ WHERE c.owner_user_id=p_owner AND c.client_id=p_client AND c.provider='apple_health'
+ AND (c.status IN ('paused','revoked','disconnected') OR c.sync_enabled=false)) INTO v_blocked;
+ SELECT EXISTS(SELECT 1 FROM public.m26_wearable_v46_consents_prod l
+ WHERE l.owner_user_id=p_owner AND l.client_id=p_client AND l.provider='apple_health'
+ AND l.grant_id=v_old_grant AND l.revocation_cursor=v_cursor AND l.scopes=ARRAY['exerciseSessions']::text[]) INTO v_ledger;
+ v_reason:= CASE WHEN NOT coalesce(p_enabled,false) THEN 'release-disabled'
+ WHEN coalesce(v_blocked,false) THEN 'connection-blocked'
+ WHEN v_old_grant IS NOT NULL AND v_old_scopes IS DISTINCT FROM ARRAY['exerciseSessions']::text[] THEN 'scope-conflict'
+ WHEN v_old_grant IS NOT NULL AND v_old_cursor=v_cursor AND coalesce(v_ledger,false) THEN 'authorized'
+ ELSE 'consent-required' END;
+ RETURN jsonb_build_object('ok',true,'provider','apple_health','serverEnabled',coalesce(p_enabled,false),
+ 'authorized',v_reason='authorized','reason',v_reason,'grantId',v_old_grant,'revocationCursor',v_cursor,
+ 'scopes',CASE WHEN v_reason='authorized' THEN jsonb_build_array('exerciseSessions') ELSE '[]'::jsonb END);
+END;
+$f$;
+REVOKE ALL ON FUNCTION private.m26_v53_apple_exercise_source_state(uuid,uuid,boolean) FROM PUBLIC,anon,authenticated,service_role;
+
 -- Passive status never renews consent; stale grant is CAS input only.
 CREATE FUNCTION private.m26_v53_apple_exercise_status()
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
 AS $f$
-DECLARE
- v_owner uuid:=auth.uid(); v_client uuid:=private.m26_v53_apple_client_context();
- v_enabled boolean; v_cursor bigint; v_old_grant uuid; v_old_cursor bigint; v_old_scopes text[];
- v_blocked boolean; v_ledger boolean; v_reason text;
+DECLARE v_owner uuid:=auth.uid(); v_client uuid:=private.m26_v53_apple_client_context(); v_enabled boolean;
 BEGIN
  SELECT enabled AND apple_exercise_enabled INTO v_enabled FROM public.m26_wearable_v46_release_control_prod WHERE id=true FOR SHARE;
  IF NOT pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(
@@ -55,25 +87,7 @@ BEGIN
  THEN RAISE EXCEPTION USING ERRCODE='55P03',MESSAGE='M26_V53_RETRY'; END IF;
  IF private.m26_v53_apple_client_context() IS DISTINCT FROM v_client
  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='M26_V53_CLIENT_REQUIRED'; END IF;
- SELECT coalesce(max(e.id),0) INTO v_cursor FROM public.m26_wearable_revocation_events_v2 e
- WHERE e.owner_user_id=v_owner AND e.client_id=v_client AND e.provider IN ('apple_health','*');
- SELECT a.grant_id,a.revocation_cursor,a.scopes INTO v_old_grant,v_old_cursor,v_old_scopes
- FROM public.m26_wearable_authorization_sources_v3 a
- WHERE a.owner_user_id=v_owner AND a.client_id=v_client AND a.provider='apple_health';
- SELECT EXISTS(SELECT 1 FROM public.m26_wearable_connections_v44 c
- WHERE c.owner_user_id=v_owner AND c.client_id=v_client AND c.provider='apple_health'
- AND (c.status IN ('paused','revoked','disconnected') OR c.sync_enabled=false)) INTO v_blocked;
- SELECT EXISTS(SELECT 1 FROM public.m26_wearable_v46_consents_prod l
- WHERE l.owner_user_id=v_owner AND l.client_id=v_client AND l.provider='apple_health'
- AND l.grant_id=v_old_grant AND l.revocation_cursor=v_cursor AND l.scopes=ARRAY['exerciseSessions']::text[]) INTO v_ledger;
- v_reason:= CASE WHEN NOT coalesce(v_enabled,false) THEN 'release-disabled'
- WHEN coalesce(v_blocked,false) THEN 'connection-blocked'
- WHEN v_old_grant IS NOT NULL AND v_old_scopes IS DISTINCT FROM ARRAY['exerciseSessions']::text[] THEN 'scope-conflict'
- WHEN v_old_grant IS NOT NULL AND v_old_cursor=v_cursor AND coalesce(v_ledger,false) THEN 'authorized'
- ELSE 'consent-required' END;
- RETURN jsonb_build_object('ok',true,'provider','apple_health','serverEnabled',coalesce(v_enabled,false),
- 'authorized',v_reason='authorized','reason',v_reason,'grantId',v_old_grant,'revocationCursor',v_cursor,
- 'scopes',CASE WHEN v_reason='authorized' THEN jsonb_build_array('exerciseSessions') ELSE '[]'::jsonb END);
+ RETURN private.m26_v53_apple_exercise_source_state(v_owner,v_client,v_enabled);
 END;
 $f$;
 REVOKE ALL ON FUNCTION private.m26_v53_apple_exercise_status() FROM PUBLIC,anon,authenticated,service_role;
