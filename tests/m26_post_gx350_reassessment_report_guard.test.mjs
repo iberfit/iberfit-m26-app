@@ -15,3 +15,12 @@ test('rollback stops after reevaluation data exists, without deleting data',()=>
  assert.match(rollback,/GX_REASSESSMENT_ROLLBACK_REQUIRES_RETAINED_HISTORY_PLAN/u);
  assert.doesNotMatch(rollback,/DROP TABLE|DELETE FROM|TRUNCATE/u);
 });
+
+test('Connected360 structured evidence is reserved and denied at shared report and PDF guard',()=>{
+ assert.match(sql,/LIKE 'gx-professional:%'\) OR EXISTS[\s\S]*?LIKE 'connected360:%'/u);
+ const body=sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION private.iberfit_gx_report_body_current_v1'));
+ assert.match(body,/LIKE 'connected360:%'\) THEN RETURN false; END IF;/u);
+ assert.ok(body.indexOf("LIKE 'connected360:%'")<body.indexOf("IF NOT private.iberfit_gx_report_body_has_refs_v1"));
+ assert.match(sql,/public\.reports r WHERE EXISTS[\s\S]*?LIKE 'connected360:%'/u);
+ assert.match(sql,/public\.iberfit_evolution_report_issuances_v1 r WHERE EXISTS[\s\S]*?LIKE 'connected360:%'/u);
+});

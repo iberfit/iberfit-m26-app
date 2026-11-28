@@ -11,6 +11,8 @@ DO $guard$ BEGIN
  OR NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='public.iberfit_evolution_report_issuances_v1'::regclass AND tgname='gx326_issuance_evidence_guard' AND tgenabled='O')
  OR EXISTS(SELECT 1 FROM public.reports WHERE report_type='reassessment' OR content->>'reportType'='reassessment')
  OR EXISTS(SELECT 1 FROM public.iberfit_evolution_report_issuances_v1 WHERE source_snapshot->>'reportType'='reassessment')
+ OR EXISTS(SELECT 1 FROM public.reports r WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.content->'evidence')='array' THEN r.content->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%'))
+ OR EXISTS(SELECT 1 FROM public.iberfit_evolution_report_issuances_v1 r WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.source_snapshot->'evidence')='array' THEN r.source_snapshot->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%'))
  THEN RAISE EXCEPTION 'GX_REASSESSMENT_BASELINE_DRIFT'; END IF;
 END $guard$;
 ALTER TABLE public.reports ADD CONSTRAINT gx_reassessment_type_consistency CHECK (
@@ -27,6 +29,7 @@ BEGIN
  OR coalesce(p_body->>'periodEnd','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
  OR (p_body ? 'activitySeries' AND p_body->'activitySeries' IS DISTINCT FROM '[]'::jsonb)
  OR (p_body ? 'assessmentId' AND p_body->'assessmentId' IS DISTINCT FROM 'null'::jsonb)
+ OR (p_body ? 'assessmentRevision' AND p_body->'assessmentRevision' IS DISTINCT FROM 'null'::jsonb)
  OR (p_body ? 'sourceAssessmentId' AND p_body->'sourceAssessmentId' IS DISTINCT FROM 'null'::jsonb)
  OR (p_body ? 'sourceAssessmentRevision' AND p_body->'sourceAssessmentRevision' IS DISTINCT FROM 'null'::jsonb)
  THEN RETURN false; END IF;
@@ -50,12 +53,14 @@ END $f$;
 REVOKE ALL ON FUNCTION private.iberfit_gx_reassessment_body_current_v1(uuid,jsonb) FROM PUBLIC,anon,authenticated,service_role;
 CREATE OR REPLACE FUNCTION private.iberfit_gx_report_body_has_refs_v1(p_body jsonb)
 RETURNS boolean LANGUAGE sql IMMUTABLE SECURITY INVOKER SET search_path TO '' AS $f$
- SELECT coalesce(p_body->>'reportType'='reassessment',false) OR EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p_body->'evidence')='array' THEN p_body->'evidence' ELSE '[]'::jsonb END) e WHERE lower(btrim(coalesce(e->>'source',''))) LIKE 'gx-professional:%');
+ SELECT coalesce(p_body->>'reportType'='reassessment',false) OR EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p_body->'evidence')='array' THEN p_body->'evidence' ELSE '[]'::jsonb END) e WHERE lower(btrim(coalesce(e->>'source',''))) LIKE 'gx-professional:%') OR EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p_body->'evidence')='array' THEN p_body->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%');
 $f$;
 CREATE OR REPLACE FUNCTION private.iberfit_gx_report_body_current_v1(p_client uuid,p_body jsonb)
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path TO '' AS $f$
 DECLARE r jsonb; seen text[]:=ARRAY[]::text[]; start_day date; end_day date;
 BEGIN
+ -- Connected360 read consent is not publication consent.
+ IF EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p_body->'evidence')='array' THEN p_body->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%') THEN RETURN false; END IF;
  IF p_body->>'reportType'='reassessment' THEN RETURN private.iberfit_gx_reassessment_body_current_v1(p_client,p_body); END IF;
  IF NOT private.iberfit_gx_report_body_has_refs_v1(p_body) THEN RETURN true; END IF;
  IF jsonb_array_length(p_body->'evidence') NOT BETWEEN 1 AND 12 OR coalesce(p_body->>'periodStart','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' OR coalesce(p_body->>'periodEnd','') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' OR coalesce(p_body->>'reportType','') NOT IN ('weekly','monthly','quarterly','year-in-iberfit','reassessment','post-session') THEN RETURN false; END IF;
