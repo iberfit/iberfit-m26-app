@@ -408,7 +408,6 @@ export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,still
     const apple=provider==='apple_health';
     if(!['apple_health','health_connect'].includes(provider))throw Error('M26_COACH_SHARING_PROVIDER_INVALID');
     if(apple&&transport.connected360AppleCandidateAvailable?.()!==true)throw Error('M26_V56_CANDIDATE_DISABLED');
-    const source=apple?'Apple Salud':'Health Connect';
     const readRemote=apple?transport.connected360AppleCandidateCoachRecipients:transport.connected360ProductionCoachRecipients;
     const writeRemote=apple?transport.setConnected360AppleCandidateCoachConsent:transport.setConnected360ProductionCoachConsent;
     if(typeof readRemote!=='function'||typeof writeRemote!=='function')throw Error('M26_COACH_SHARING_UNAVAILABLE');
@@ -417,7 +416,7 @@ export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,still
     if(apple)panel.dataset.qaAppleCoachSharing='true';else panel.dataset.prodConnected360CoachSharing='true';
     const title=document.createElement('h4');title.textContent=apple?'Compartir actividad de Apple Salud · QA':'Compartir actividad con mi entrenador';
     const description=document.createElement('p');
-    description.textContent='Puedes compartir los días y tipos de deporte de '+source+' de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.';
+    description.textContent=apple?"Puedes compartir los días y tipos de deporte de Apple Salud de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.":"Puedes compartir los días y tipos de deporte de Health Connect de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.";
     const status=document.createElement('p');status.setAttribute('role','status');
     const content=document.createElement('div');
     const open=document.createElement('button');open.type='button';open.textContent='Gestionar permisos del entrenador';
@@ -444,7 +443,7 @@ export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,still
         function confirm(allow){
           if(!active())return;
           const confirmation=document.createElement('p');
-          confirmation.textContent=allow?'Confirma que quieres compartir los datos de '+source+' con este entrenador.':'Confirma que quieres retirar el permiso de '+source+' sin borrar tu historial.';
+          confirmation.textContent=apple?(allow?"Confirma que quieres compartir los datos de Apple Salud con este entrenador.":"Confirma que quieres retirar el permiso de Apple Salud sin borrar tu historial."):(allow?'Confirma que quieres compartir estos datos con este entrenador.':'Confirma que quieres retirar este permiso sin borrar tu historial.');
           row.replaceChildren(name,state,confirmation,
             button(allow?'Confirmar permiso':'Confirmar retirada',()=>write(recipient,allow)),
             button('Cancelar',()=>renderRecipients(verified)));
@@ -1381,9 +1380,9 @@ export function createWearableController({
       return;
     }
     if(doc?.visibilityState==='visible'){
-      enhanceControls();
       nativeForegroundHeartbeat.start();
       requestForegroundSync();
+      enhanceControls();
       const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
       if(wrap)void refreshProductionSummary(wrap);
     }
@@ -1402,9 +1401,9 @@ export function createWearableController({
   function onPageShow(){
     const doc=root.ownerDocument||globalThis.document;
     if(doc?.visibilityState!=='hidden'){
-      enhanceControls();
       nativeForegroundHeartbeat.start();
       requestForegroundSync();
+      enhanceControls();
       const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
       if(wrap)void refreshProductionSummary(wrap);
     }
@@ -1725,8 +1724,9 @@ export function createWearableController({
     const action=document.createElement('button');action.type='button';action.textContent='Consultar actividad compartida';
     const status=document.createElement('p');status.setAttribute('role','status');
     const body=document.createElement('div');
-    let epoch=0,timer=null;
+    let epoch=0,timer=null,abort=null;
     const clear=()=>{
+      abort?.abort();abort=null;
       epoch+=1;if(timer!==null){clearTimeout(timer);timer=null;}
       body.replaceChildren();status.textContent='';action.disabled=false;
     };
@@ -1735,11 +1735,11 @@ export function createWearableController({
       &&document.visibilityState!=='hidden'&&sameConnected360CoachScope(scope,getCoachActivityScope());
     action.addEventListener('click',async()=>{
       if(!active()||action.disabled)return;
-      clear();const request=epoch;action.disabled=true;
+      clear();const request=epoch;abort=new AbortController();action.disabled=true;
       status.textContent='Consultando actividad compartida…';
       const stillCurrent=()=>request===epoch&&active();
       try{
-        const result=await readCoachActivity(scope,stillCurrent);
+        const result=await readCoachActivity(scope,stillCurrent,{signal:abort.signal});
         if(!stillCurrent())return;
         status.textContent=result.days.length?'Registros disponibles de los últimos 7 días.':'No hay actividad compartida disponible en esta ventana.';
         if(result.cue){
@@ -1757,7 +1757,18 @@ export function createWearableController({
         const list=document.createElement('ul');
         for(const day of result.days){
           const item=document.createElement('li'),date=document.createElement('strong');
-          date.textContent=day.date;item.append(date,document.createTextNode(' · '+day.sports.join(', ')));list.append(item);
+          date.textContent=day.date;item.append(date);
+          for(const [index,sport] of day.sports.entries()){
+            const label=document.createElement('span');
+            label.textContent=typeof sport==='string'?sport:sport.label;
+            item.append(document.createTextNode(index?', ':' · '),label);
+            if(typeof sport!=='string'&&Array.isArray(sport.providers)){
+              const sources=document.createElement('small');
+              sources.textContent=' ('+sport.providers.map(provider=>provider==='apple_health'?'Apple Salud':'Health Connect').join(' / ')+')';
+              item.append(sources);
+            }
+          }
+          list.append(item);
         }
         if(result.days.length)body.append(list);
         // Drop the displayed evidence after a short lease; never poll.

@@ -121,7 +121,7 @@ export function connected360RecipientDecision(recipient,allow,{confirmed=false}=
 export function sameConnected360CoachScope(a,b){
   return Boolean(a&&b&&a.lease&&a.lease===b.lease&&uuid(a.clientId)
     &&a.clientId===b.clientId&&a.actorId&&a.actorId===b.actorId
-    &&['expediente','sesion'].includes(a.area)&&a.area===b.area);
+    &&['expediente','sesion'].includes(a.area)&&a.area===b.area&&a.provider===b.provider);
 }
 const labels=Object.freeze({running:'Carrera',interval_running:'Carrera por intervalos',
  hiit:'HIIT',cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',swimming:'Natación',other:'Otro entrenamiento'});

@@ -26,7 +26,7 @@ import {createEngagementDraftRepository} from '../engagement/activity-drafts.js'
 import {createEngagementCommandService} from '../engagement/command-service.js';
 import {createEngagementController} from '../engagement/engagement-controller.js';
 import {createWearableController} from '../wearables/controller.js';
-import {connected360CoachActivityView,sameConnected360CoachScope} from '../wearables/v49-coach-activity-contract.js';
+import {connected360CoachActivityView,connected360MultiProviderCoachActivityView,sameConnected360CoachScope} from '../wearables/v49-coach-activity-contract.js';
 import {confirmedCoachTrainingRows} from '../intelligence/next-session-prep.js';
 import {mergeV47DailyIntoClientProgress} from '../wearables/v47-progress-bridge.js';
 import {buildWearableViewModel} from '../wearables/view-model.js';
@@ -527,7 +527,7 @@ export function preserveLoginInputsDuringMount(root,render){
   return restored;
 }
 
-export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
+export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history,connected360AppleCertificationHarness=false}={}){
   if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
   const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
   const posthogObserver=createIberfitPosthogObserver({
@@ -1754,18 +1754,24 @@ export async function createM26Application({root=document.querySelector('#app'),
     // Enable only after V49 server capability, authenticated and physical QA.
     // This UI gate is not authorization; RPC repeats live session/consent checks.
     function coachActivityScope(){
-      if(runtimeConfig?.connected360CoachActivityCertified!==true
-        ||runtime.environment!=='production'||runtime.qaOnly!==false)return null;
+      const apple=transport?.connected360AppleCandidateAvailable?.()===true;
+      if(!apple&&(runtimeConfig?.connected360CoachActivityCertified!==true
+        ||runtime.environment!=='production'||runtime.qaOnly!==false))return null;
       const area=store.getRouteAuthorizationSnapshot().activeArea;
       const auth=professionalReportSelectionScope();
-      return auth&&['expediente','sesion'].includes(area)?{...auth,area}:null;
+      return auth&&['expediente','sesion'].includes(area)?{...auth,area,provider:apple?'apple_health':'health_connect'}:null;
     }
-    async function readCoachActivity(scope,stillCurrent){
-      const check=()=>{if(!stillCurrent()||!sameConnected360CoachScope(scope,coachActivityScope()))
+    async function readCoachActivity(scope,stillCurrent,{signal}={}){
+      const check=()=>{if(signal?.aborted||!stillCurrent()||!sameConnected360CoachScope(scope,coachActivityScope()))
         throw Error('M26_V49_STALE_COACH_SCOPE');};
       check();await refreshSessionIfNeeded();check();
       const token=currentToken();
       await ensurePrivilegedActionAssurance({transport,token,userId:scope.actorId,friendlyName:'IBERFIT · seguimiento profesional'});check();
+      if(scope.provider==='apple_health'){
+        const payload=await transport.connected360AppleCandidateCoachExerciseDays(token,scope.clientId,{signal});check();
+        const now=new Date(),confirmedRows=confirmedCoachTrainingRows(store.getRenderSnapshot(),scope.clientId,{now});
+        check();return connected360MultiProviderCoachActivityView([payload],{clientId:scope.clientId,now,confirmedRows});
+      }
       const payload=await transport.connected360ProductionCoachExerciseDays(token,scope.clientId);check();
       const now=new Date();
       const confirmedRows=confirmedCoachTrainingRows(store.getRenderSnapshot(),scope.clientId,{now});
@@ -2923,7 +2929,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   function mount() {
   sanitizePendingIriExternalReportIntent();
   transport = runtime.enabled
-    ? createM26Transport(runtime)
+    ? createM26Transport(runtime,{connected360AppleCandidate:connected360AppleCertificationHarness===true})
     : null;
 
   sessionForegroundRefresh?.destroy?.();
