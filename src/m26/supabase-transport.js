@@ -1747,10 +1747,13 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       throw new Error('M26_V46_PRODUCTION_RUNTIME_REQUIRED');
   }
   // Only an explicitly enabled certification harness on the exact QA project
-  // can invoke candidate Apple RPCs. No UI, production or automatic retry.
+  // can invoke candidate Apple RPCs. No production or automatic retry.
+  function connected360AppleCandidateAvailable(){
+    return dependencies.connected360AppleCandidate===true&&runtime.qaOnly===true&&runtime.canary===true
+      &&runtime.projectRef===M26_QA_PROJECT_REF&&runtime.url===M26_QA_SUPABASE_ORIGIN;
+  }
   function assertAppleExerciseCandidate(token){
-    if(dependencies.connected360AppleCandidate!==true||runtime.qaOnly!==true||runtime.canary!==true
-      ||runtime.projectRef!==M26_QA_PROJECT_REF||runtime.url!==M26_QA_SUPABASE_ORIGIN)
+    if(!connected360AppleCandidateAvailable())
       throw Error('M26_V54_APPLE_CANDIDATE_QA_ONLY');
     if(typeof token!=='string'||!token)throw Error('M26_AUTH_REQUIRED');
   }
@@ -2343,6 +2346,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     importConnected360QaV45,
     importConnected360QaV46,
     extendConnected360QaV46Grant,
+    connected360AppleCandidateAvailable,
     connected360AppleCandidateStatus,
     connected360AppleCandidateHistory,
     connected360AppleCandidateCoachRecipients,

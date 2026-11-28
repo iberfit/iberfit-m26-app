@@ -28,7 +28,7 @@ import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable
 import {createConnected360ProductionSync} from './v46-production-sync.js';
 import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline,connected360ActivityContinuity} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
-import {connected360RecipientDecision,verifyConnected360CoachRecipients,sameConnected360CoachScope} from './v49-coach-activity-contract.js';
+import {connected360RecipientDecision,verifyConnected360CoachRecipients,verifyConnected360AppleCoachRecipients,sameConnected360CoachScope} from './v49-coach-activity-contract.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionIsCompleted,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {
   createLatestTaskCoordinator,
@@ -404,6 +404,82 @@ function supersededError(error){
   return next;
 }
 
+export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,stillCurrent,getToken,transport}={}){
+    const apple=provider==='apple_health';
+    if(!['apple_health','health_connect'].includes(provider))throw Error('M26_COACH_SHARING_PROVIDER_INVALID');
+    if(apple&&transport.connected360AppleCandidateAvailable?.()!==true)throw Error('M26_V56_CANDIDATE_DISABLED');
+    const source=apple?'Apple Salud':'Health Connect';
+    const readRemote=apple?transport.connected360AppleCandidateCoachRecipients:transport.connected360ProductionCoachRecipients;
+    const writeRemote=apple?transport.setConnected360AppleCandidateCoachConsent:transport.setConnected360ProductionCoachConsent;
+    if(typeof readRemote!=='function'||typeof writeRemote!=='function')throw Error('M26_COACH_SHARING_UNAVAILABLE');
+    const document=wrap.ownerDocument;
+    const panel=document.createElement('section');
+    if(apple)panel.dataset.qaAppleCoachSharing='true';else panel.dataset.prodConnected360CoachSharing='true';
+    const title=document.createElement('h4');title.textContent=apple?'Compartir actividad de Apple Salud · QA':'Compartir actividad con mi entrenador';
+    const description=document.createElement('p');
+    description.textContent='Puedes compartir los días y tipos de deporte de '+source+' de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.';
+    const status=document.createElement('p');status.setAttribute('role','status');
+    const content=document.createElement('div');
+    const open=document.createElement('button');open.type='button';open.textContent='Gestionar permisos del entrenador';
+    panel.append(title,description,open,status,content);wrap.append(panel);
+    let busy=false,retired=false,controller=null;
+    const active=()=>!retired&&stillCurrent()&&panel.isConnected&&(!apple||transport.connected360AppleCandidateAvailable?.()===true);
+    const retire=()=>{if(retired)return;retired=true;controller?.abort();controller=null;content.replaceChildren();status.textContent='';panel.remove();};
+    function button(label,handler){
+      const el=document.createElement('button');el.type='button';el.textContent=label;
+      el.addEventListener('click',()=>{if(active()&&!busy&&el.isConnected&&content.contains(el))void handler();});
+      return el;
+    }
+    function renderRecipients(value){
+      const verified=(apple?verifyConnected360AppleCoachRecipients:verifyConnected360CoachRecipients)(value,{clientId});
+      content.replaceChildren();
+      if(!verified.recipients.length){status.textContent='No hay entrenadores disponibles para compartir actividad.';return;}
+      status.textContent='Selecciona el permiso que quieras gestionar.';
+      for(const recipient of verified.recipients){
+        const row=document.createElement('section');
+        const name=document.createElement('strong');name.textContent=recipient.displayName;
+        const state=document.createElement('p');
+        state.textContent=recipient.effective?'Acceso activo':recipient.recorded?'Permiso registrado; acceso no activo':'Sin permiso';
+        row.append(name,state);
+        function confirm(allow){
+          if(!active())return;
+          const confirmation=document.createElement('p');
+          confirmation.textContent=allow?'Confirma que quieres compartir los datos de '+source+' con este entrenador.':'Confirma que quieres retirar el permiso de '+source+' sin borrar tu historial.';
+          row.replaceChildren(name,state,confirmation,
+            button(allow?'Confirmar permiso':'Confirmar retirada',()=>write(recipient,allow)),
+            button('Cancelar',()=>renderRecipients(verified)));
+        }
+        if(recipient.eligible&&!recipient.effective)row.append(button('Autorizar actividad compartida',()=>confirm(true)));
+        if(recipient.recorded)row.append(button('Retirar permiso',()=>confirm(false)));
+        content.append(row);
+      }
+    }
+    async function load(){
+      if(!active()||busy)return;
+      busy=true;controller=new AbortController();open.disabled=true;content.replaceChildren();status.textContent='Consultando permisos…';
+      try{
+        const token=await getToken();if(!active())return;
+        const value=await readRemote.call(transport,token,clientId,{signal:controller.signal});
+        if(active())renderRecipients(value);
+      }catch{if(active())status.textContent='No se pudieron consultar los permisos. Vuelve a intentarlo.';}
+      finally{controller=null;busy=false;if(active())open.disabled=false;else retire();}
+    }
+    async function write(recipient,allow){
+      if(!active()||busy)return;
+      busy=true;controller=new AbortController();open.disabled=true;content.replaceChildren();
+      status.textContent='Guardando tu decisión…';
+      try{
+        const decision=connected360RecipientDecision(recipient,allow,{confirmed:true});
+        const token=await getToken();if(!active())return;
+        await writeRemote.call(transport,token,decision,{confirmed:true,signal:controller.signal});
+        if(active())status.textContent='Decisión guardada. Consulta el estado actualizado del permiso.';
+      }catch{if(active())status.textContent='No se pudo confirmar el cambio. Consulta el estado antes de volver a intentarlo.';}
+      finally{controller=null;busy=false;if(active())open.disabled=false;else retire();}
+    }
+    open.addEventListener('click',()=>void load());
+    return Object.freeze({panel,provider,active,retire});
+  }
+
 export function createWearableController({
   root,
   store,
@@ -436,6 +512,8 @@ export function createWearableController({
   let productionHistoryMutationDepth=0;
   let productionHistoryRetired=false;
   let coachActivityPanel=null;
+  const coachSharingPanels=new Set();
+  const retireCoachSharingPanels=()=>{for(const item of coachSharingPanels)item.retire();coachSharingPanels.clear();};
   const productionSummaryReader=createConnected360SummaryReader();
 
   const tasks=createLatestTaskCoordinator();
@@ -913,6 +991,7 @@ export function createWearableController({
   const canReadProductionHistory=()=>!productionHistoryRetired&&Boolean(productionSync||productionHistoryEnabled===true)
     &&typeof transport.connected360ProductionSummary==='function';
   function clearProductionHistorySurface(){
+    retireCoachSharingPanels();
     coachActivityPanel?.clear();
     productionSummaryEpoch+=1;
     productionSummaryReader.clear();
@@ -976,71 +1055,9 @@ export function createWearableController({
       return group;
     });
   }
-  function appendCoachSharing(wrap,{clientId,stillCurrent}){
-    const document=wrap.ownerDocument;
-    const panel=document.createElement('section');
-    panel.dataset.prodConnected360CoachSharing='true';
-    const title=document.createElement('h4');title.textContent='Compartir actividad con mi entrenador';
-    const description=document.createElement('p');
-    description.textContent='Puedes compartir los días y tipos de deporte de Health Connect de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.';
-    const status=document.createElement('p');status.setAttribute('role','status');
-    const content=document.createElement('div');
-    const open=document.createElement('button');open.type='button';open.textContent='Gestionar permisos del entrenador';
-    panel.append(title,description,open,status,content);wrap.append(panel);
-    let busy=false;
-    const active=()=>stillCurrent()&&panel.isConnected;
-    function button(label,handler){
-      const el=document.createElement('button');el.type='button';el.textContent=label;
-      el.addEventListener('click',()=>{if(active()&&!busy&&el.isConnected)void handler();});
-      return el;
-    }
-    function renderRecipients(value){
-      const verified=verifyConnected360CoachRecipients(value,{clientId});
-      content.replaceChildren();
-      if(!verified.recipients.length){status.textContent='No hay entrenadores disponibles para compartir actividad.';return;}
-      status.textContent='Selecciona el permiso que quieras gestionar.';
-      for(const recipient of verified.recipients){
-        const row=document.createElement('section');
-        const name=document.createElement('strong');name.textContent=recipient.displayName;
-        const state=document.createElement('p');
-        state.textContent=recipient.effective?'Acceso activo':recipient.recorded?'Permiso registrado; acceso no activo':'Sin permiso';
-        row.append(name,state);
-        function confirm(allow){
-          if(!active())return;
-          const confirmation=document.createElement('p');
-          confirmation.textContent=allow?'Confirma que quieres compartir estos datos con este entrenador.':'Confirma que quieres retirar este permiso sin borrar tu historial.';
-          row.replaceChildren(name,state,confirmation,
-            button(allow?'Confirmar permiso':'Confirmar retirada',()=>write(recipient,allow)),
-            button('Cancelar',()=>renderRecipients(verified)));
-        }
-        if(recipient.eligible&&!recipient.effective)row.append(button('Autorizar actividad compartida',()=>confirm(true)));
-        if(recipient.recorded)row.append(button('Retirar permiso',()=>confirm(false)));
-        content.append(row);
-      }
-    }
-    async function load(){
-      if(!active()||busy)return;
-      busy=true;open.disabled=true;content.replaceChildren();status.textContent='Consultando permisos…';
-      try{
-        const token=await getToken();if(!active())return;
-        const value=await transport.connected360ProductionCoachRecipients(token,clientId);
-        if(active())renderRecipients(value);
-      }catch{if(active())status.textContent='No se pudieron consultar los permisos. Vuelve a intentarlo.';}
-      finally{busy=false;if(active())open.disabled=false;}
-    }
-    async function write(recipient,allow){
-      if(!active()||busy)return;
-      busy=true;open.disabled=true;content.replaceChildren();
-      status.textContent='Guardando tu decisión…';
-      try{
-        const decision=connected360RecipientDecision(recipient,allow,{confirmed:true});
-        const token=await getToken();if(!active())return;
-        await transport.setConnected360ProductionCoachConsent(token,decision);
-        if(active())status.textContent='Decisión guardada. Consulta el estado actualizado del permiso.';
-      }catch{if(active())status.textContent='No se pudo confirmar el cambio. Consulta el estado antes de volver a intentarlo.';}
-      finally{busy=false;if(active())open.disabled=false;}
-    }
-    open.addEventListener('click',()=>void load());
+  function appendCoachSharing(wrap,{clientId,stillCurrent,provider='health_connect'}){
+    const item=mountConnected360CoachSharingPanel(wrap,{clientId,stillCurrent,provider,getToken,transport});
+    coachSharingPanels.add(item);
   }
   async function refreshProductionSummary(wrap,{supersede=false}={}){
     if(!mounted||!canReadProductionHistory()||!wrap?.isConnected||productionHistoryMutationDepth>0
@@ -1364,6 +1381,7 @@ export function createWearableController({
       return;
     }
     if(doc?.visibilityState==='visible'){
+      enhanceControls();
       nativeForegroundHeartbeat.start();
       requestForegroundSync();
       const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
@@ -1384,6 +1402,7 @@ export function createWearableController({
   function onPageShow(){
     const doc=root.ownerDocument||globalThis.document;
     if(doc?.visibilityState!=='hidden'){
+      enhanceControls();
       nativeForegroundHeartbeat.start();
       requestForegroundSync();
       const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
@@ -1541,6 +1560,7 @@ export function createWearableController({
   }
 
   function clearQaSensitiveSurface(){
+    for(const item of coachSharingPanels){if(item.provider==='apple_health'){item.retire();coachSharingPanels.delete(item);}}
     root.querySelectorAll?.('[data-apple-qa-workouts]')?.forEach?.(node=>node.replaceChildren());
     root.querySelectorAll?.('[data-apple-qa-status]')?.forEach?.(node=>{
       node.textContent='';
@@ -1752,6 +1772,7 @@ export function createWearableController({
     host.replaceChildren(title,note,action,status,body);host.hidden=false;
   }
   function enhanceControls(){
+    for(const item of coachSharingPanels){if(!item.active()){item.retire();coachSharingPanels.delete(item);}}
     enhanceCoachActivity();
     const {
       role,
@@ -2024,6 +2045,21 @@ export function createWearableController({
           });
           qaCard.append(consentRows,commitButton);
         }
+      }
+    }
+
+    // Explicit QA harness only: a provider card or native bridge alone
+    // never enables the Apple professional sharing surface.
+    const appleSharingCard=root.querySelector?.('[data-provider="apple_health"]');
+    if(appleSharingCard&&mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+      &&transport.connected360AppleCandidateAvailable?.()===true&&!appleSharingCard.querySelector?.('[data-qa-apple-coach-sharing]')){
+      const expected=qaClientIdentity(),identityEpoch=nativeIdentityEpoch;
+      if(expected.role==='client'&&expected.ownerId&&expected.clientId){
+        appendCoachSharing(appleSharingCard,{clientId:expected.clientId,provider:'apple_health',stillCurrent:()=>{
+          const current=qaClientIdentity();
+          return mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+            &&identityEpoch===nativeIdentityEpoch&&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;
+        }});
       }
     }
 
@@ -2417,6 +2453,7 @@ export function createWearableController({
         error,
       );
     });
+    enhanceControls();
     nativeForegroundHeartbeat.start();
     requestForegroundSync({force:true});
     const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
