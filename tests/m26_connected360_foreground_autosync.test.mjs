@@ -8,6 +8,8 @@ import {
   createWearableForegroundSync,
   createNativeForegroundHeartbeat,WEARABLE_NATIVE_FOREGROUND_HEARTBEAT_MS,
   isCertifiedNativeAutoSyncSource,
+  runConnected360ForegroundPages,CONNECTED360_FOREGROUND_PAGE_LIMIT,
+  CONNECTED360_FOREGROUND_PAGE_START_BUDGET_MS,
 } from '../src/m26/wearables/foreground-sync.js';
 
 test('foreground: one in-flight read for repeated page focus and pageshow events',async()=>{
@@ -381,4 +383,62 @@ test('heartbeat: one native read at a time, errors reported and teardown safe',a
  second.start();callback();await Promise.resolve();await Promise.resolve();
  assert.deepEqual(errors,['native-read-failed']);
  second.stop();
+});
+
+test('workout backlog: at most three acknowledged sequential pages, no parallel or extra timer',async()=>{
+ let calls=0,active=0,peak=0;
+ const seen=[];
+ const last=await runConnected360ForegroundPages({
+   now:()=>100,canRun:()=>true,
+   runPage:async()=>{calls++;active++;peak=Math.max(peak,active);
+     await Promise.resolve();active--;
+     return {ok:true,workoutHistoryPending:true,page:calls};},
+   onPage:page=>seen.push(page.page),
+ });
+ assert.equal(calls,CONNECTED360_FOREGROUND_PAGE_LIMIT);
+ assert.deepEqual(seen,[1,2,3]);
+ assert.equal(peak,1);
+ assert.equal(last.workoutHistoryPending,true);
+});
+test('workout backlog: stops as soon as completed or start budget expires',async()=>{
+ let clock=0,calls=0;
+ const last=await runConnected360ForegroundPages({
+   now:()=>clock,canRun:()=>true,
+   runPage:async()=>{calls++;clock+=CONNECTED360_FOREGROUND_PAGE_START_BUDGET_MS;return {ok:true,workoutHistoryPending:true};},
+ });
+ assert.equal(calls,1);
+ assert.equal(last.workoutHistoryPending,true);
+ calls=0;
+ await runConnected360ForegroundPages({now:()=>100,canRun:()=>true,
+   runPage:async()=>({ok:true,workoutHistoryPending:++calls===1})});
+ assert.equal(calls,2);
+});
+test('workout backlog: account retirement and abort prevent later page and stale UI publication',async()=>{
+ let allowed=true,calls=0,published=0;
+ const ac=new AbortController();
+ const first=await runConnected360ForegroundPages({
+   now:()=>1,canRun:()=>allowed,signal:ac.signal,
+   runPage:async()=>{calls++;allowed=false;return {ok:true,workoutHistoryPending:true};},
+   onPage:()=>published++,
+ });
+ assert.deepEqual(first,{skipped:'invalidated'});
+ assert.equal(calls,1);assert.equal(published,0);
+ allowed=true;calls=0;
+ const second=await runConnected360ForegroundPages({
+   now:()=>1,canRun:()=>true,signal:ac.signal,
+   runPage:async()=>{calls++;ac.abort();return {ok:true,workoutHistoryPending:true};},
+   onPage:()=>published++,
+ });
+ assert.deepEqual(second,{skipped:'invalidated'});
+ assert.equal(calls,1);assert.equal(published,0);
+});
+test('workout backlog: failed page is not retried automatically and previous receipt remains observable',async()=>{
+ let calls=0;const seen=[];
+ await assert.rejects(runConnected360ForegroundPages({
+   now:()=>1,canRun:()=>true,
+   runPage:async()=>{if(++calls===2)throw Error('M26_NETWORK_UNAVAILABLE');return {ok:true,workoutHistoryPending:true};},
+   onPage:p=>seen.push(p),
+ }),/M26_NETWORK_UNAVAILABLE/u);
+ assert.equal(calls,2);
+ assert.deepEqual(seen,[{ok:true,workoutHistoryPending:true}]);
 });

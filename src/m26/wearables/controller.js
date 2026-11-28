@@ -16,7 +16,7 @@ import {
   createWearableRemoteSync,
 } from './remote-sync.js';
 import {formatSleepDuration} from './duration-format.js';
-import {assertWearableClientContinuity,createWearableForegroundSync,createNativeForegroundHeartbeat,isCertifiedNativeAutoSyncSource} from './foreground-sync.js';
+import {assertWearableClientContinuity,createWearableForegroundSync,createNativeForegroundHeartbeat,isCertifiedNativeAutoSyncSource,runConnected360ForegroundPages} from './foreground-sync.js';
 import {
   createConnected360QaNativeChannel,
   isConnected360QaNativeAvailable,
@@ -999,11 +999,25 @@ export function createWearableController({
     const providers=[...new Set(rows.filter(isCertifiedNativeAutoSyncSource).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&wearableZeroCostPolicy(provider)?.productionAllowed&&bridge.isAvailable(provider)))];
     const results=[];
     if(productionSync&&!signal?.aborted){
+      let savedPage=false,pendingPage=false;
+      const canContinue=()=>{
+        const doc=root.ownerDocument||globalThis.document;
+        if(!mounted||productionHistoryRetired||productionHistoryMutationDepth>0||!isOnline()
+          ||doc?.visibilityState==='hidden')return false;
+        try{return assertWearableClientContinuity(session,context(store));}catch{return false;}
+      };
       try{
-        const result=await productionSync.sync({signal});
-        if(!signal?.aborted){
+        const result=await runConnected360ForegroundPages({
+          runPage:()=>productionSync.sync({signal}),canRun:canContinue,signal,
+          onPage:page=>{
+            savedPage=savedPage||page?.ok===true;
+            pendingPage=page?.workoutHistoryPending===true;
+          },
+        });
+        if(signal?.aborted||!canContinue())return results;
+        {
           results.push(result);
-          if(result?.ok===true){
+          if(result?.ok===true||(savedPage&&result?.skipped==='no-recent-observations')){
             const wrap=root.querySelector?.('[data-prod-connected360]');
             if(wrap?.isConnected){
               const status=wrap.querySelector?.('[data-prod-connected360-status]');
@@ -1018,7 +1032,13 @@ export function createWearableController({
           }
         }
       }catch(error){
-        if(signal?.aborted)return results;
+        if(signal?.aborted||!canContinue())return results;
+        if(pendingPage){
+          const wrap=root.querySelector?.('[data-prod-connected360]');
+          const note=wrap?.querySelector?.('[data-prod-connected360-status]');
+          if(note)note.textContent='La recuperación del historial se ha interrumpido. Continuará en una próxima sincronización.';
+          if(savedPage&&wrap?.isConnected)void refreshProductionSummary(wrap,{supersede:true});
+        }
         emitDiagnostic('connected360-prod-foreground',error);
       }
     }
@@ -1207,6 +1227,7 @@ export function createWearableController({
     productionSync?.invalidate();
     productionHistoryMutationDepth+=1;
     clearProductionHistorySurface();
+    foregroundSync.invalidate();
     try{await remoteSync.deleteAll();}finally{productionHistoryMutationDepth-=1;}
     clearPreview(false);
 
@@ -1942,6 +1963,7 @@ export function createWearableController({
           productionHistoryMutationDepth+=1;
           clearProductionHistorySurface();
           productionSync?.invalidate();
+          foregroundSync.invalidate();
           try{await remoteSync.revoke({provider,deleteData:erase});}
           finally{productionHistoryMutationDepth-=1;}
         }else await remoteSync.revoke({provider,deleteData:erase});
@@ -2012,6 +2034,7 @@ export function createWearableController({
     // A network loss must retire in-flight native reads and any old grant lease.
     nativeForegroundHeartbeat.stop();
     foregroundSync.invalidate();
+    productionSync?.invalidate();
   }
 
   return Object.freeze({

@@ -114,8 +114,8 @@ test('browser and native history reuse one owner-scoped read with no browser log
   assert.doesNotMatch(browser,/refreshProductionSummary|requestPermissions|authorize\(/u);
   assert.match(controller,/action==='prod-connected360-history'[\s\S]{0,150}await refreshProductionSummary/u);
   assert.match(controller,/productionHistoryMutationDepth===0&&wrap.isConnected/u);
-  assert.match(controller,/clearProductionHistorySurface\(\);\s*try\{await remoteSync.deleteAll/u);
-  assert.match(controller,/clearProductionHistorySurface\(\);\s*productionSync\?\.invalidate\(\);\s*try\{await remoteSync.revoke/u);
+  assert.match(controller,/clearProductionHistorySurface\(\);\s*foregroundSync\.invalidate\(\);\s*try\{await remoteSync.deleteAll/u);
+  assert.match(controller,/clearProductionHistorySurface\(\);\s*productionSync\?\.invalidate\(\);\s*foregroundSync\.invalidate\(\);\s*try\{await remoteSync.revoke/u);
 });
 
 test('post-import refresh supersedes an older summary and retired owner cannot reopen it',()=>{
