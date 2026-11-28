@@ -439,3 +439,22 @@ test('observed sport ranges retain per-metric day coverage and never imply compa
   assert.ok(Object.isFrozen(mix.ranges));
   assert.equal(connected360WorkoutMix(records.slice(0,2))[0].ranges.length,0);
 });
+
+test('V48 guarded candidate keeps raw storage private and distinguishes retained owner history',()=>{
+  const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v48_owner_activity_history_v1.sql',import.meta.url),'utf8');
+  const rollback=readFileSync(new URL('../supabase/release-procedures/connected360_v48_owner_activity_history_v1.rollback.sql',import.meta.url),'utf8');
+  const baseline=readFileSync(new URL('../supabase/migrations/20261012160000_connected360_production_native_e2e_macro.sql',import.meta.url),'utf8');
+  const marker='CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()';
+  const old=baseline.slice(baseline.indexOf(marker),baseline.indexOf('\n\n-- V44 stays IMMUTABLE.'));
+  assert.ok(rollback.includes(old));
+  assert.match(sql,/6dbbb0b2fb17b97fb10cdfb4a158dd33/u);
+  assert.match(sql,/p\.user_id=v_owner AND p\.client_id=v_client AND p\.role::text='client'/u);
+  assert.match(sql,/w\.owner_user_id=v_owner AND w\.client_id=v_client/u);
+  assert.match(sql,/pg_try_advisory_xact_lock/u);
+  assert.match(sql,/CASE WHEN current_grant THEN 'current' ELSE 'retained' END/u);
+  assert.match(sql,/CASE WHEN v_hr AND current_grant AND heart_rate_samples>0 THEN heart_rate_avg END/u);
+  assert.match(sql,/LANGUAGE sql SECURITY INVOKER SET search_path TO ''/u);
+  assert.match(sql,/ORDER BY w\.observed_started_at DESC,w\.id DESC LIMIT 21/u);
+  assert.doesNotMatch(sql,/GRANT SELECT ON TABLE|CREATE TABLE|ALTER TABLE|source_record_key|source_app_key/iu);
+  assert.doesNotMatch(rollback,/CASCADE/iu);
+});
