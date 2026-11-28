@@ -217,3 +217,18 @@ test('workout mean heart rate is optional, sample-backed and never inferred from
   for(const patch of [{avgBpm:148},{avgBpm:148,heartRateSamples:0},{avgBpm:'148',heartRateSamples:120},{avgBpm:241,heartRateSamples:120},{heartRateSamples:120,minBpm:100,maxBpm:190},{avgBpm:0,heartRateSamples:120}])
     assert.doesNotMatch(display(patch),/FC media/u);
 });
+
+test('running pace uses elapsed time and valid distance, never claims active pace',()=>{
+  const now=new Date('2026-10-13T12:00:00Z');
+  const row={sport:'running',startedAt:'2026-10-12T10:00:00Z',endedAt:'2026-10-12T10:30:00Z',distanceMeters:5000};
+  const display=patch=>connected360WorkoutHistory({...empty(),exerciseEvidence:[{...row,...patch}]},{now})[0].detail;
+  assert.match(display({}),/Ritmo total estimado 6:00 min\/km/u);
+  assert.match(display({sport:'interval_running',distanceMeters:5400}),/Ritmo total estimado 5:33 min\/km/u);
+  assert.match(display({endedAt:'2026-10-12T10:29:59Z'}),/Ritmo total estimado 6:00 min\/km/u);
+  for(const patch of [{sport:'cycling'},{sport:'walking'},{sport:'strength'},{sport:'hiit'},
+    {distanceMeters:null},{distanceMeters:0},{distanceMeters:99},{distanceMeters:'5000'},
+    {distanceMeters:NaN},{distanceMeters:Infinity},{distanceMeters:500001},
+    {distanceMeters:100000},{distanceMeters:100}])
+    assert.doesNotMatch(display(patch),/Ritmo total estimado/u);
+  assert.doesNotMatch(display({}),/Ritmo activo|en movimiento/u);
+});
