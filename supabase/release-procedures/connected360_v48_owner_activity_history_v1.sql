@@ -171,6 +171,7 @@ BEGIN
         AND revocation_cursor=(v_auth->>'revocationCursor')::bigint,false) AS current_grant
     FROM public.m26_wearable_exercise_evidence_v46
     WHERE owner_user_id=v_owner AND client_id=v_client
+      AND provider='health_connect' AND link_status='unlinked'
       AND observed_started_at>=now()-interval '7 days'
     ORDER BY observed_started_at DESC,id DESC LIMIT 10
   ) w;

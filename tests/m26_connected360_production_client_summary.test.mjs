@@ -496,3 +496,10 @@ test('V48 historical page requires a live owner session rather than only a cache
   assert.ok(page.includes('s.user_id=v_owner AND (s.not_after IS NULL OR s.not_after>pg_catalog.now())'));
   assert.equal((sql.match(/^COMMIT;$/gm)||[]).length,1);
 });
+
+
+test('V48 legacy Health Connect summary does not relabel records of future providers',()=>{
+  const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v48_owner_activity_history_v1.sql',import.meta.url),'utf8');
+  const summary=sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()'));
+  assert.match(summary,/FROM public\.m26_wearable_exercise_evidence_v46\s+WHERE owner_user_id=v_owner AND client_id=v_client\s+AND provider='health_connect' AND link_status='unlinked'/u);
+});
