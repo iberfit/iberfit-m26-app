@@ -2,6 +2,7 @@ import {iberfitCompareText,iberfitDomainTranslate} from '../ui/i18n-domain.js';
 import {
   deriveAdherenceAlerts as deriveBaseAdherenceAlerts,
 } from '../engagement/adherence-engine.js';
+import {trainingServiceStatusFrom} from '../domain/training-service.js';
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {buildProgressHub} from '../engagement/progress-hub.js';
 
@@ -49,6 +50,19 @@ function severity(value){
     :'info';
 }
 
+// Explicit service state supersedes legacy lifecycle and display labels.
+export function coachPortfolioServiceStatus(client={}){
+  const body=client?.body&&typeof client.body==='object'&&!Array.isArray(client.body)?client.body:{};
+  const merged={...body,...client};
+  const experience=merged.experience||{};
+  const serviceKind=txt(experience.serviceKind).toLowerCase();
+  const legacy=merged.lifecycleStatus??merged.lifecycle_status??merged.lifecycle?.status;
+  return trainingServiceStatusFrom({
+    ...merged,
+    trainingServiceStatus:merged.trainingServiceStatus??experience.trainingServiceStatus,
+    lifecycleStatus:legacy??(['iri_only','none'].includes(serviceKind)?'iri_only':undefined),
+  });
+}
 function signalLabel(kind){
   const safe=Object.hasOwn(KIND_RANK,kind)?kind:'clear';
   return tr(`coach.signal.${safe}`);
@@ -165,7 +179,9 @@ function itemFromEntry(entry={}){
   const experience=client.experience||{};
   const adaptive=client.adaptiveExperience||{};
   const adaptiveKind=['critical','warning'].includes(txt(adaptive.kind).toLowerCase())?txt(adaptive.kind).toLowerCase():null;
-  const adaptiveRisk=adaptive.coachReviewRequired===true&&adaptiveKind?adaptive:null;
+  // A contextual warning must never hide a confirmed critical alert.
+  const adaptiveRisk=adaptive.coachReviewRequired===true&&adaptiveKind
+    &&(!risk||KIND_RANK[adaptiveKind]<=KIND_RANK[risk.severity])?adaptive:null;
   const stage=txt(experience.stage,'active');
   const stageLabel=txt(
     experience.stageLabel,
@@ -224,7 +240,7 @@ function itemFromEntry(entry={}){
     source=txt(info.source,'followup');
   }
 
-  const decisionAction=radarAction(selectedAlert);
+  const decisionAction=adaptiveRisk?radarAction({decision:{recommendedActions:[adaptiveRisk.action]}}):radarAction(selectedAlert);
   const nextAction=Object.freeze({
     key:txt(
       decisionAction?.key,
@@ -573,7 +589,7 @@ function summarizeCockpit(items,totalClients,riskFocus=null){
 
 export function deriveCoachCockpit(entries=[]){
   const all=arr(entries)
-    .filter((entry)=>String(entry?.client?.lifecycleStatus||entry?.client?.experience?.serviceKind||'')!=='iri_only')
+    .filter((entry)=>['active','paused'].includes(coachPortfolioServiceStatus(entry?.client)))
     .map(itemFromEntry)
     .filter((item)=>item.clientId);
 
@@ -591,7 +607,7 @@ export function augmentCoachCockpitWithCrm(cockpit,crmSummaries=[]){
   const existing=arr(base.items)
     .filter((item)=>item?.source!=='crm-renewals');
   const commercial=arr(crmSummaries)
-    .filter((summary)=>String(summary?.client?.lifecycleStatus||'')!=='iri_only')
+    .filter((summary)=>coachPortfolioServiceStatus(summary?.client)!=='none')
     .map(commercialItemFromCrm)
     .filter(Boolean);
   const items=[...existing,...commercial]

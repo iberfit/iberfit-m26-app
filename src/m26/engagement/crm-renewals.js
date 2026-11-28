@@ -1,4 +1,5 @@
 import {parseDateValue,reportCivilDate} from '../domain/civil-date.js';
+import {trainingServiceStatusFrom} from '../domain/training-service.js';
 import {normalizeClientProfile} from '../domain/client-profile.js';
 
 const DAY_MS=86_400_000;
@@ -180,6 +181,7 @@ export function buildCrmRenewalSummary(state,clientId,{now=new Date(),upcomingDa
     generatedAt:clock.toISOString(),
     client:{
       lifecycleStatus:clean(value(client,'lifecycleStatus','lifecycle_status'),80)||null,
+      trainingServiceStatus:trainingServiceStatusFrom({...bodyOf(client),...client}),
       status:clientStatus,
       statusLabel:clientStatus?statusLabel(clientStatus):'Evidencia insuficiente',
       rawStatus:clientStatusRaw===null?null:clean(clientStatusRaw,80),
