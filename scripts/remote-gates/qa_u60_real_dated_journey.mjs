@@ -9,6 +9,7 @@ import {createHash} from 'node:crypto';
 import {releaseQaAuthSessions,runQaStageWithCleanup} from './release_qa_auth_sessions.mjs';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {buildAppointmentCommand,buildConfirmAppointmentCommand,santiagoAppointmentInstant} from '../../src/m26/workflows/agenda-workflow.js';
+import {executionResultForStep} from '../../src/m26/workflows/session-execution.js';
 const QA='gjztkdwfmunnzhtvxrsu';
 const BASE='https://'+QA+'.supabase.co';
 const BRANCHES=new Set([
@@ -492,6 +493,24 @@ export function verifyU74DatedReadback(first,future,fixture){
    &&Object.keys(e.results).length===f.stepsExpected
    &&Object.values(e.results).every(row=>row&&typeof row==='object'&&!Array.isArray(row)&&Object.keys(row).length>0)
    &&e.skippedSets&&typeof e.skippedSets==='object'&&!Array.isArray(e.skippedSets)&&Object.keys(e.skippedSets).length===0,'UI_EXECUTION_RESULTS_INVALID');
+ // Equal counts alone do not prove that the actual prescribed sets were
+ // persisted. Resolve each position through the same domain reader as the
+ // player, including repeated exercises in different blocks.
+ const queue=first.prescriptionSnapshot.queue;
+ const resolved=new Set();
+ for(const item of queue){
+  const sets=Number(item?.sets);
+  assert(typeof item?.exerciseId==='string'&&item.exerciseId.length>0
+   &&Number.isSafeInteger(sets)&&sets>=1&&sets<=40,'UI_EXECUTION_QUEUE_INVALID');
+  for(let setNumber=1;setNumber<=sets;setNumber++){
+   const row=executionResultForStep({queue,results:e.results},item,setNumber);
+   assert(row&&row.exerciseId===item.exerciseId&&row.setNumber===setNumber
+    &&!resolved.has(row),'UI_EXECUTION_SET_IDENTITY_INVALID');
+   resolved.add(row);
+   assert(resolved.size<=f.stepsExpected,'UI_EXECUTION_SET_IDENTITY_INVALID');
+  }
+ }
+ assert(resolved.size===f.stepsExpected,'UI_EXECUTION_SET_IDENTITY_INVALID');
  assert(e.feedback?.sessionRpe===7&&e.feedback?.comment==='IBERFIT U74 QA ejecución real sintética','UI_FINAL_FEEDBACK_NOT_PERSISTED');
  assert(future.occurrence.status==='confirmada'&&future.occurrence.revision===f.futureRevision
    &&future.occurrence.executionId===null&&future.executionBody===null,'UI_FUTURE_EXECUTION_CHANGED');

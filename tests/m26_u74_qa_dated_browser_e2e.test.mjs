@@ -233,7 +233,7 @@ test('U74 verifies immutable original prescriptions, final feedback and untouche
  const fingerprint=u74PrescriptionFingerprint(snapshot,CLIENT,sessionId);
  const fixture={clientId:CLIENT,sessionId,occurrenceId:OCC,futureOccurrenceId:FOREIGN,localDate:'2026-11-28',futureDate:'2026-12-05',stepsExpected:1,appointmentless:true,firstPrescriptionHash:fingerprint,futurePrescriptionHash:fingerprint,futureRevision:1};
  const detail=(id,day,status,exec,body)=>({kind:'private-occurrence',occurrence:{id,clientId:CLIENT,sessionId,localDate:day,appointmentId:null,status,executionId:exec,revision:status==='confirmada'?1:3},prescriptionSnapshot:structuredClone(snapshot),executionBody:body});
- const first=detail(OCC,fixture.localDate,'completada',executionId,{id:executionId,revision:5,clientId:CLIENT,sessionId,occurrenceId:OCC,status:'completada',sourceSnapshot:structuredClone(snapshot),results:{'squat:1':{reps:8}},skippedSets:{},feedback:{sessionRpe:7,comment:'IBERFIT U74 QA ejecución real sintética'}});
+ const first=detail(OCC,fixture.localDate,'completada',executionId,{id:executionId,revision:5,clientId:CLIENT,sessionId,occurrenceId:OCC,status:'completada',sourceSnapshot:structuredClone(snapshot),results:{'squat:1':{exerciseId:'squat',setNumber:1,reps:8}},skippedSets:{},feedback:{sessionRpe:7,comment:'IBERFIT U74 QA ejecución real sintética'}});
  const future=detail(FOREIGN,fixture.futureDate,'confirmada',null,null);
  assert.equal(verifyU74DatedReadback(first,future,fixture),true);
  const owner={first:structuredClone(first),future:structuredClone(future)};
@@ -243,7 +243,6 @@ test('U74 verifies immutable original prescriptions, final feedback and untouche
  assert.equal(verifyU74OwnerCoachReadback(owner,coach,fixture),true);
  for(const alter of [
   x=>{x.first.executionBody.results['squat:1'].reps=9;},
-  x=>{x.first.executionBody.results={'wrong:1':{reps:8}};},
   x=>{x.first.executionBody.revision=99;},
   x=>{x.first.executionBody.id=FOREIGN;x.first.occurrence.executionId=FOREIGN;},
  ]){const bad=structuredClone(coach);alter(bad);assert.throws(
@@ -254,12 +253,25 @@ test('U74 verifies immutable original prescriptions, final feedback and untouche
   (a,b)=>{a.executionBody.sourceSnapshot.blocks[0].sets=2;},
   (a,b)=>{a.executionBody.feedback.comment='';},
   (a,b)=>{a.executionBody.results={'squat:1':null};},
+  (a,b)=>{a.executionBody.results={'wrong:1':{exerciseId:'squat',setNumber:1,reps:8}};},
+  (a,b)=>{a.executionBody.results['squat:1'].exerciseId='wrong';},
+  (a,b)=>{a.executionBody.results['squat:1'].setNumber=2;},
   (a,b)=>{b.occurrence.revision=2;},
   (a,b)=>{b.executionBody={status:'en_curso'};},
   (a,b)=>{b.prescriptionSnapshot.queue[0].sets=2;},
   (a,b)=>{a.executionBody.clientId=FOREIGN;},
   (a,b)=>{b.occurrence.appointmentId=executionId;}
  ]){const a=structuredClone(first),b=structuredClone(future);mutate(a,b);assert.throws(()=>verifyU74DatedReadback(a,b,fixture),/U71_UI_/);}
+ // Two blocks can prescribe the same exercise; each must resolve its own set.
+ const repeated=structuredClone(first);
+ repeated.prescriptionSnapshot.queue.push({blockId:'b2',exerciseId:'squat',sets:1});
+ repeated.prescriptionSnapshot.blocks.push({id:'b2',exerciseId:'squat',sets:1});
+ repeated.executionBody.sourceSnapshot=structuredClone(repeated.prescriptionSnapshot);
+ const repeatedFixture={...fixture,stepsExpected:2,firstPrescriptionHash:u74PrescriptionFingerprint(repeated.prescriptionSnapshot,CLIENT,sessionId)};
+ repeated.executionBody.results={'b:squat:1':{exerciseId:'squat',setNumber:1,reps:8},'b2:squat:1':{exerciseId:'squat',setNumber:1,reps:9}};
+ assert.equal(verifyU74DatedReadback(repeated,future,repeatedFixture),true);
+ repeated.executionBody.results={'b:squat:1':{exerciseId:'squat',setNumber:1,reps:8},'squat:1':{exerciseId:'squat',setNumber:1,reps:9}};
+ assert.throws(()=>verifyU74DatedReadback(repeated,future,repeatedFixture),/U71_UI_EXECUTION_SET_IDENTITY_INVALID/);
 });
 
 
