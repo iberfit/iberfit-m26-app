@@ -8,6 +8,7 @@ import {summarizeActionOutcomes} from './action-outcome.js';
 import {selectInitialIriBaseline,initialIriMeasurementDate} from '../workflows/iri-2-longitudinal.js';
 import {evidenceNumber,currentWearableEvidence,observedSet} from '../domain/evidence-signal.js';
 import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
+import {connected360RecentTrainingRows,connected360ActivityContinuity} from '../wearables/v46-production-summary.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record||{};}
@@ -398,8 +399,23 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   const iri=iriContext(state,safeClientId,progress,now);
   const wellbeingTrend=wellbeingShift(state,safeClientId,{now});
   const deviceContext=wearableContextForPreparation(progress?.wearable,{now});
+  // Only already authorized, canonical IBERFIT executions are available in
+  // this professional snapshot. Never consume the owner's private device
+  // response or assume generic client access grants health disclosure.
+  const activityContinuity=connected360ActivityContinuity(connected360RecentTrainingRows(
+    confirmedSessionExecutionsForClient(state,safeClientId,{requireCompleted:true})
+      .filter(record=>sessionExecutionIsCompleted(record,{allowDatedFallback:false}))
+      .map(record=>({completedAt:sessionExecutionCompletionDate(record)})),
+    {now}),{now});
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
   const reasons=[...reviewReasons({progress,outcomes,feedback,session,wellbeingTrend})];
+  if(activityContinuity){
+    // Keep explicit pain/wellbeing findings ahead of this non-clinical context.
+    const position=reasons.findIndex(reason=>!['pain','wellbeing','wellbeing-shift'].includes(reason.kind));
+    reasons.splice(position<0?reasons.length:position,0,Object.freeze({
+      kind:'activity-continuity',label:activityContinuity.days+' · Días consecutivos con entrenamiento IBERFIT confirmado. Revisa la recuperación antes de decidir.',
+    }));
+  }
   const sessionId=idOf(session)||null;
   const appointmentMismatch=Boolean(appointmentSessionId&&appointmentSessionId!==sessionId);
   if(appointmentMismatch)reasons.push(Object.freeze({kind:'appointment-session-mismatch',label:'La cita confirmada apunta a una sesión diferente o no disponible. Revisa la vinculación antes de iniciar.'}));
@@ -439,6 +455,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
     wellbeingShift:wellbeingTrend,
     sinceLastReview,
     deviceContext,
+    activityContinuity,
     progress:Object.freeze({
       plannedSessions:Number(progress?.plannedSessions||0),
       completedSessions:Number(progress?.completedSessions||0),
