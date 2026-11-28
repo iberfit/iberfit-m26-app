@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360ActivityPage,connected360ActivityPageParams,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline} from '../src/m26/wearables/v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360ActivityPage,connected360ActivityPageParams,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline,connected360ActivityContinuity} from '../src/m26/wearables/v46-production-summary.js';
 
 const empty=()=>({ok:true,provider:'health_connect',heartRateDaily:[],exerciseEvidence:[]});
 
@@ -360,4 +360,48 @@ test('combined recent view is bounded and canonical confirmation remains mandato
   assert.match(controller,/combined\?connected360RecentTimeline\(rows,recentConfirmedTrainingRows\(expected\.clientId,now\)\):rows/u);
   assert.match(controller,/row\.source==='iberfit'\?'Entrenamiento IBERFIT confirmado':'Actividad importada · Health Connect'/u);
   assert.match(controller,/Los registros de dos fuentes pueden corresponder a una misma sesión/u);
+});
+
+test('five recorded running days are positive context, not proof of no recovery or plan completion',()=>{
+  const now=new Date('2026-11-28T18:00:00Z');
+  const run=(day,sport='running')=>({sport,startedAt:'2026-11-'+day+'T12:00:00Z',
+    endedAt:'2026-11-'+day+'T12:40:00Z',distanceMeters:5000,linkedToTraining:false});
+  const rows=connected360WorkoutHistory({...empty(),exerciseEvidence:[
+    run(27),run(26),run(25),run(24),run(23),run(23),run(22,'walking'),
+  ]},{now});
+  const signal=connected360ActivityContinuity(rows,{now});
+  assert.equal(signal.days,6);
+  assert.equal(signal.discipline,'mixed');
+  assert.equal(signal.periodStart,'2026-11-22');
+  assert.equal(signal.periodEnd,'2026-11-27');
+  assert.equal(signal.coverage,'partial');
+  assert.equal(signal.interpretation,'presence_only');
+  assert.equal(signal.automaticPlanChange,false);
+  assert.ok(Object.isFrozen(signal));
+  const five=connected360ActivityContinuity(rows.filter(r=>r.label==='Carrera'),{now});
+  assert.equal(five.days,5);assert.equal(five.discipline,'running');
+  assert.equal(connected360ActivityContinuity(rows.filter(r=>r.dayKey!=='2026-11-25'),{now}),null);
+  assert.equal(connected360ActivityContinuity(rows,{now:new Date('2026-11-30T18:00:00Z')}),null);
+  assert.equal(connected360ActivityContinuity([],{now}),null);
+  assert.equal(connected360ActivityContinuity([...rows,{...rows[0],dayKey:'2026-11-28'}],{now}),null);
+});
+test('canonical training and device records on same day count only once; no inferred sport',()=>{
+  const now=new Date('2026-11-28T18:00:00Z');
+  const imported=connected360WorkoutHistory({...empty(),exerciseEvidence:
+    [25,26,27,28].map(day=>({sport:'running',startedAt:'2026-11-'+day+'T12:00:00Z',endedAt:'2026-11-'+day+'T12:30:00Z'})),
+  },{now});
+  const confirmed=connected360RecentTrainingRows([
+    {title:'Carrera',completedAt:'2026-11-24T18:00:00Z'},
+    {title:'Fuerza',completedAt:'2026-11-28T15:00:00Z'},
+  ],{now});
+  assert.equal(connected360ActivityContinuity(imported,{now}),null);
+  const signal=connected360ActivityContinuity(connected360RecentTimeline(imported,confirmed),{now});
+  assert.equal(signal.days,5);assert.equal(signal.discipline,'mixed');
+  assert.equal(signal.periodEnd,'2026-11-28');
+});
+test('activity continuity is local read-only context, not an adherence or diagnosis mutation',()=>{
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  assert.match(controller,/connected360ActivityContinuity\(timelineRows,\{now\}\)/u);
+  assert.match(controller,/Los registros disponibles no permiten determinar si descansaste ni si necesitas cambiar el entrenamiento\./u);
+  assert.match(controller,/context\.dataset\.prodConnected360Continuity='true'/u);
 });
