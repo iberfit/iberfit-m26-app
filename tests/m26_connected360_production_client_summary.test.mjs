@@ -447,7 +447,16 @@ test('V48 guarded candidate keeps raw storage private and distinguishes retained
   const baseline=readFileSync(new URL('../supabase/migrations/20261012160000_connected360_production_native_e2e_macro.sql',import.meta.url),'utf8');
   const marker='CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()';
   const old=baseline.slice(baseline.indexOf(marker),baseline.indexOf('\n\n-- V44 stays IMMUTABLE.'));
-  assert.ok(rollback.includes(old));
+  const pairs=source=>[...source.matchAll(/d:=replace\(d,\$before\$([^]*?)\$before\$,\$after\$([^]*?)\$after\$\);/gu)].map(m=>[m[1],m[2]]);
+  const transform=(source,patches)=>patches.reduce((body,[before,after])=>{
+    assert.equal(body.split(before).length,2,'exact transform anchor');
+    return body.replace(before,after);
+  },source);
+  const candidate=transform(old,pairs(sql));
+  assert.equal(transform(candidate,pairs(rollback)),old);
+  assert.match(candidate,/AND provider='health_connect' AND link_status='unlinked'/u);
+  assert.match(sql,/74ce2bde4cb3edef05b2be6e6ed0d071/u);
+  assert.match(rollback,/6dbbb0b2fb17b97fb10cdfb4a158dd33/u);
   assert.match(sql,/6dbbb0b2fb17b97fb10cdfb4a158dd33/u);
   assert.match(sql,/p\.user_id=v_owner AND p\.client_id=v_client AND p\.role::text='client'/u);
   assert.match(sql,/w\.owner_user_id=v_owner AND w\.client_id=v_client/u);
@@ -484,14 +493,14 @@ test('V48 owner history preserves older stored sessions independently of recent 
   assert.equal(result.rows[1].authorizationState,'retained');
   assert.equal(result.rows[1].measurements.averageBpm,null);
   const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v48_owner_activity_history_v1.sql',import.meta.url),'utf8');
-  const page=sql.slice(sql.indexOf('WITH candidates AS ('),sql.indexOf('CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()'));
+  const page=sql.slice(sql.indexOf('WITH candidates AS ('),sql.indexOf('DO $patch$'));
   assert.match(page,/LIMIT 21/u);
   assert.doesNotMatch(page,/observed_started_at\s*>=|interval\s*'\d+ days'|\bDELETE FROM\b/iu);
 });
 
 test('V48 historical page requires a live owner session rather than only a cached JWT',()=>{
   const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v48_owner_activity_history_v1.sql',import.meta.url),'utf8');
-  const page=sql.slice(0,sql.indexOf('CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()'));
+  const page=sql.slice(0,sql.indexOf('DO $patch$'));
   assert.match(page,/FROM auth\.sessions s/u);
   assert.ok(page.includes("THEN (auth.jwt()->>'session_id')::uuid ELSE NULL END"));
   assert.ok(page.includes('s.user_id=v_owner AND (s.not_after IS NULL OR s.not_after>pg_catalog.now())'));
@@ -501,7 +510,7 @@ test('V48 historical page requires a live owner session rather than only a cache
 
 test('V48 legacy Health Connect summary does not relabel records of future providers',()=>{
   const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v48_owner_activity_history_v1.sql',import.meta.url),'utf8');
-  const summary=sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()'));
+  const summary=sql.slice(sql.indexOf('DO $patch$'));
   assert.match(summary,/FROM public\.m26_wearable_exercise_evidence_v46\s+WHERE owner_user_id=v_owner AND client_id=v_client\s+AND provider='health_connect' AND link_status='unlinked'/u);
 });
 
