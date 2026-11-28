@@ -98,6 +98,104 @@ public struct IBERFITAppleWorkoutImportRow: Encodable, Sendable {
         else { try c.encodeNil(forKey: .distanceMeters) }
     }
 }
+
+// V54 candidate paging over a complete, bounded native snapshot. Not mounted
+// by the DEBUG preview or production. The caller must own the native
+// foreground/consent lease and invalidate on navigation or account change.
+// Keep only projected rows, never raw HealthKit UUIDs, tokens or account IDs.
+public struct IBERFITAppleWorkoutCandidatePage: Encodable, Sendable {
+    public let days: Int
+    public let cursor: UUID?
+    public let nextCursor: UUID?
+    public let acquiredAt: String
+    public let records: [IBERFITAppleWorkoutImportRow]
+
+    private enum CodingKeys: String, CodingKey {
+        case schema, provider, days, cursor, nextCursor, acquiredAt, records, readPermissionStatus, persisted
+    }
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode("iberfit.connected360.v54.apple.page.v1", forKey: .schema)
+        try c.encode("apple_health", forKey: .provider)
+        try c.encode(days, forKey: .days)
+        if let cursor { try c.encode(cursor.uuidString.lowercased(), forKey: .cursor) }
+        else { try c.encodeNil(forKey: .cursor) }
+        if let nextCursor { try c.encode(nextCursor.uuidString.lowercased(), forKey: .nextCursor) }
+        else { try c.encodeNil(forKey: .nextCursor) }
+        try c.encode(acquiredAt, forKey: .acquiredAt)
+        try c.encode(records, forKey: .records)
+        try c.encode("not_disclosed", forKey: .readPermissionStatus)
+        try c.encode(false, forKey: .persisted)
+    }
+}
+
+public struct IBERFITAppleWorkoutCandidatePager: Sendable {
+    public static let maximumRows = 1200
+    public static let pageSize = 20
+    public static let leaseSeconds: TimeInterval = 120
+    private let days: Int
+    private let acquiredAt: String
+    private let openedAt: TimeInterval
+    private var rows: [IBERFITAppleWorkoutImportRow]
+    private var handles: [UUID]
+    private var valid = true
+
+    // A truncated or filtered source result is not a complete snapshot.
+    // Do not silently publish a terminal page for an incomplete acquisition.
+    public init?(workouts: [IBERFITLocalWorkout], returnedCount: Int, days: Int,
+                 acquiredAt: Date, uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard [7, 30].contains(days), returnedCount == workouts.count,
+              returnedCount <= Self.maximumRows, uptime.isFinite, uptime >= 0,
+              acquiredAt.timeIntervalSince1970.isFinite else { return nil }
+        let from = acquiredAt.addingTimeInterval(-Double(days) * 86_400)
+        guard workouts.allSatisfy({ $0.start >= from && $0.end <= acquiredAt }),
+              Set(workouts.map(\.id)).count == workouts.count else { return nil }
+        let ordered = workouts.sorted {
+            $0.start == $1.start ? $0.id.uuidString < $1.id.uuidString : $0.start > $1.start
+        }
+        let projected = ordered.compactMap { IBERFITAppleWorkoutImportRow(workout: $0) }
+        guard projected.count == returnedCount else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        self.days = days
+        self.acquiredAt = formatter.string(from: acquiredAt)
+        self.openedAt = uptime
+        self.rows = projected
+        let continuationCount = max(0, (projected.count - 1) / Self.pageSize)
+        self.handles = (0..<continuationCount).map { _ in UUID() }
+    }
+
+    // A retry of the same opaque handle returns the same page; the JS
+    // coordinator advances only after a full server ACK. No new OS reads
+    // or additional approval occur during continuation. Expiry erases rows.
+    public mutating func page(days requestedDays: Int, cursor: UUID?,
+                              uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) -> IBERFITAppleWorkoutCandidatePage? {
+        let age = uptime - openedAt
+        guard valid, age.isFinite, age >= 0, age <= Self.leaseSeconds else {
+            invalidate()
+            return nil
+        }
+        guard requestedDays == days else { return nil }
+        let pageIndex: Int
+        if let cursor {
+            guard let offset = handles.firstIndex(of: cursor) else { return nil }
+            pageIndex = offset + 1
+        } else { pageIndex = 0 }
+        let start = pageIndex * Self.pageSize
+        let end = min(start + Self.pageSize, rows.count)
+        guard start <= end else { return nil }
+        return IBERFITAppleWorkoutCandidatePage(days: days, cursor: cursor,
+            nextCursor: pageIndex < handles.count ? handles[pageIndex] : nil,
+            acquiredAt: acquiredAt, records: Array(rows[start..<end]))
+    }
+
+    public mutating func invalidate() {
+        valid = false
+        rows.removeAll(keepingCapacity: false)
+        handles.removeAll(keepingCapacity: false)
+    }
+}
 #endif
 
 #if canImport(HealthKit) && os(iOS)

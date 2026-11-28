@@ -56,6 +56,34 @@ struct IBERFITLocalWorkoutSpec {
         precondition(IBERFITAppleWorkoutImportRow(workout: row(start: -0.0002, end: -0.0001, active: 0.0001)!) == nil)
         let text = String(decoding: data, as: UTF8.self)
         precondition(!text.contains(fixtureID.uuidString) && !text.contains("averageHeartRate"))
+        let pagedRows = (0..<41).map { i in row(start: -7200-Double(i)*60, end: -3600-Double(i)*60)! }
+        var pager = IBERFITAppleWorkoutCandidatePager(workouts: pagedRows, returnedCount: 41, days: 30, acquiredAt: now, uptime: 100)!
+        let p0 = pager.page(days: 30, cursor: nil, uptime: 100)!
+        precondition(p0.records.count == 20 && p0.cursor == nil && p0.nextCursor != nil)
+        let p1 = pager.page(days: 30, cursor: p0.nextCursor, uptime: 101)!
+        let replayPage = pager.page(days: 30, cursor: p0.nextCursor, uptime: 102)!
+        precondition(p1.records.map(\.observationKey) == replayPage.records.map(\.observationKey))
+        precondition(p1.nextCursor == replayPage.nextCursor && p1.acquiredAt == p0.acquiredAt)
+        let p2 = pager.page(days: 30, cursor: p1.nextCursor, uptime: 103)!
+        precondition(p2.records.count == 1 && p2.nextCursor == nil)
+        precondition(Set((p0.records+p1.records+p2.records).map(\.observationKey)).count == 41)
+        let pageJSON = try! JSONSerialization.jsonObject(with: JSONEncoder().encode(p0)) as! [String: Any]
+        precondition(Set(pageJSON.keys) == Set(["schema","provider","days","cursor","nextCursor","acquiredAt","records","readPermissionStatus","persisted"]))
+        precondition(pageJSON["cursor"] is NSNull && pageJSON["readPermissionStatus"] as? String == "not_disclosed")
+        precondition(pageJSON["persisted"] as? Bool == false)
+        precondition(pager.page(days: 7, cursor: p0.nextCursor, uptime: 104) == nil)
+        precondition(pager.page(days: 30, cursor: UUID(), uptime: 104) == nil)
+        precondition(pager.page(days: 30, cursor: nil, uptime: 221) == nil)
+        precondition(pager.page(days: 30, cursor: nil, uptime: 100) == nil)
+        precondition(IBERFITAppleWorkoutCandidatePager(workouts: pagedRows, returnedCount: 42, days: 30, acquiredAt: now) == nil)
+        precondition(IBERFITAppleWorkoutCandidatePager(workouts: [a,a], returnedCount: 2, days: 30, acquiredAt: now) == nil)
+        precondition(IBERFITAppleWorkoutCandidatePager(workouts: [row(start: -8*86_400,end: -8*86_400+3600)!], returnedCount: 1, days: 7, acquiredAt: now) == nil)
+        var emptyPager = IBERFITAppleWorkoutCandidatePager(workouts: [], returnedCount: 0, days: 7, acquiredAt: now, uptime: 1)!
+        let empty = emptyPager.page(days: 7, cursor: nil, uptime: 1)!
+        precondition(empty.records.isEmpty && empty.nextCursor == nil)
+        emptyPager.invalidate()
+        precondition(emptyPager.page(days: 7, cursor: nil, uptime: 1) == nil)
+        print("IBERFIT_APPLE_V54_CANDIDATE_PAGING_OK")
         print("IBERFIT_APPLE_V54_CANDIDATE_PROJECTION_OK")
         #endif
         print("IBERFIT_LOCAL_WORKOUT_PREVIEW_OK")
