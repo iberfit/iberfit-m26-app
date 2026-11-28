@@ -26,7 +26,7 @@ import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {createConnected360ProductionSync} from './v46-production-sync.js';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline} from './v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline,connected360ActivityContinuity} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionIsCompleted,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {
@@ -1015,6 +1015,32 @@ export function createWearableController({
             feed.hidden=feed.dataset.prodConnected360Feed!=='full'&&!rows.length;
           }
           const children=[];
+          // Reuse the already authorized owner-scoped observations. No extra
+          // sync, polling, writes, or inference about missing rest days.
+          if(combined){
+            const continuity=connected360ActivityContinuity(timelineRows,{now});
+            if(continuity){
+              const context=document.createElement('section');
+              context.className='m26-notice';
+              context.dataset.prodConnected360Continuity='true';
+              const title=document.createElement('h4');
+              title.textContent='Continuidad de actividad';
+              const count=document.createElement('p');
+              const label=document.createElement('strong');
+              label.textContent=continuity.discipline==='running'?'Días consecutivos con carrera registrada':'Días consecutivos con actividad registrada';
+              count.append(label,document.createTextNode(': '+continuity.days));
+              const period=document.createElement('p');
+              const periodLabel=document.createElement('span');
+              periodLabel.textContent='Periodo observado';
+              period.append(periodLabel,document.createTextNode(': '+continuity.periodStart+' — '+continuity.periodEnd));
+              const next=document.createElement('p');
+              next.textContent='Comenta con tu entrenador cómo te encuentras antes de la próxima sesión.';
+              const boundary=document.createElement('small');
+              boundary.textContent='Los registros disponibles no permiten determinar si descansaste ni si necesitas cambiar el entrenamiento.';
+              context.append(title,count,period,next,boundary);
+              children.push(context);
+            }
+          }
           if(timelineRows.length){
             const heading=document.createElement('h4');
             const evolution=feed?.dataset.prodConnected360Feed==='evolution';
