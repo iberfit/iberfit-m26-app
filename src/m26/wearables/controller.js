@@ -26,8 +26,9 @@ import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {createConnected360ProductionSync} from './v46-production-sync.js';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays} from './v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionIsCompleted,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {
   createLatestTaskCoordinator,
 } from '../platform/latest-task.js';
@@ -931,6 +932,19 @@ export function createWearableController({
     refresh.textContent='Consultar actividad guardada';
     wrap.append(refresh,results,workoutHistory);
   }
+  function recentConfirmedTrainingRows(clientId,now){
+    // Reuse the same reconciled ownership/confirmation truth as Progress.
+    // Explicit completion is required; never show an optimistic or dated-only draft.
+    const confirmed=confirmedSessionExecutionsForClient(store.getState(),clientId,{requireCompleted:true})
+      .filter(record=>sessionExecutionIsCompleted(record,{allowDatedFallback:false}))
+      .map(record=>{
+        const item=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)
+          ?{...record,...record.body}:record;
+        return {completedAt:sessionExecutionCompletionDate(record),
+          title:item?.title||item?.sessionTitle||item?.session_title};
+      });
+    return connected360RecentTrainingRows(confirmed,{now});
+  }
   function renderProductionWorkoutDays(document,rows,beforeStartedAt=null){
     return connected360WorkoutDays(rows,{beforeStartedAt}).map(day=>{
       const group=document.createElement('section');
@@ -942,7 +956,9 @@ export function createWearableController({
         const item=document.createElement('li');
         const label=document.createElement('strong');
         label.textContent=row.label;
-        item.append(label,document.createTextNode(' · '+row.dayDetail));
+        const source=document.createElement('small');
+        source.textContent=row.source==='iberfit'?'Entrenamiento IBERFIT confirmado':'Actividad importada · Health Connect';
+        item.append(label,document.createTextNode(' · '+row.dayDetail+' · '),source);
         list.append(item);
       }
       group.append(heading,list);
@@ -988,22 +1004,26 @@ export function createWearableController({
         const history=wrap.querySelector?.('[data-prod-connected360-workouts]');
         if(history){
           const document=history.ownerDocument;
-          const allRows=connected360WorkoutHistory(response);
+          const now=new Date();
+          const allRows=connected360WorkoutHistory(response,{now});
           const rows=feed?.dataset.prodConnected360Feed==='compact'?allRows.slice(0,3):allRows;
+          const combined=feed?.dataset.prodConnected360Feed==='full';
+          const timelineRows=combined?connected360RecentTimeline(rows,recentConfirmedTrainingRows(expected.clientId,now)):rows;
           if(feed){
-            target.textContent=rows.length?'':'No hay actividades deportivas recientes importadas.';
+            target.textContent=timelineRows.length?'':combined?'No hay registros deportivos recientes disponibles.':'No hay actividades deportivas recientes importadas.';
             // Do not add another empty panel to Hoy if the owner has no workouts.
             feed.hidden=feed.dataset.prodConnected360Feed!=='full'&&!rows.length;
           }
           const children=[];
-          if(rows.length){
+          if(timelineRows.length){
             const heading=document.createElement('h4');
             const evolution=feed?.dataset.prodConnected360Feed==='evolution';
-            heading.textContent=evolution?'Actividad deportiva complementaria':'Últimos entrenamientos importados';
+            heading.textContent=evolution?'Actividad deportiva complementaria':combined?'Tu actividad por días':'Últimos entrenamientos importados';
             const note=document.createElement('p');
             note.textContent=feed?.dataset.prodConnected360Feed==='compact'
               ?'Últimas actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.'
               :'Hasta 10 actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.';
+            if(combined)note.textContent='Últimos registros disponibles de 7 días: hasta 20 entrenamientos IBERFIT confirmados y 10 actividades importadas. Los registros de dos fuentes pueden corresponder a una misma sesión; no se suman ni modifican la adherencia. Los entrenamientos IBERFIT se muestran por fecha de finalización.';
             const list=document.createElement('ul');
             if(evolution){
               note.textContent='Último registro disponible por deporte (hasta 10 actividades de los últimos 7 días). No mide el cumplimiento del plan.';
@@ -1019,7 +1039,7 @@ export function createWearableController({
               action.textContent='Ver mi actividad';
               children.push(heading,note,list,action);
             }else{
-              children.push(heading,note,...renderProductionWorkoutDays(document,rows));
+              children.push(heading,note,...renderProductionWorkoutDays(document,timelineRows));
             }
           }
           // The server must explicitly advertise the V48 read model. Older
@@ -1030,7 +1050,7 @@ export function createWearableController({
           if(fullHistory){
             const action=document.createElement('button');
             action.type='button';
-            action.textContent='Consultar historial completo';
+            action.textContent='Consultar historial de actividades importadas';
             action.addEventListener('click',async()=>{
               if(!stillCurrent()||action.disabled)return;
               action.disabled=true;
@@ -1039,7 +1059,7 @@ export function createWearableController({
             children.push(action);
           }
           history.replaceChildren(...children);
-          history.hidden=!rows.length&&!fullHistory;
+          history.hidden=!timelineRows.length&&!fullHistory;
 
           async function renderActivityPage(cursor,previousCursors){
             if(!stillCurrent()||!history.isConnected)return;
