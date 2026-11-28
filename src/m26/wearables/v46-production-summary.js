@@ -113,6 +113,50 @@ export function connected360WorkoutDays(rows,{beforeStartedAt=null}={}){
   return Object.freeze([...groups.values()].sort((a,b)=>b.dayKey.localeCompare(a.dayKey))
     .map(day=>Object.freeze({...day,rows:Object.freeze(day.rows)})));
 }
+// A positive-only training continuity observation, not a workload/recovery
+// score. Count unique civil days, never sessions or minutes across sources.
+// The limited recent response can establish presence, never absence of exercise.
+function previousCivilDay(day){
+  const date=new Date(day+'T00:00:00Z');
+  date.setUTCDate(date.getUTCDate()-1);
+  return date.toISOString().slice(0,10);
+}
+export function connected360ActivityContinuity(rows,{now=new Date()}={}){
+  if(!Array.isArray(rows)||rows.length>30||!Number.isFinite(now?.getTime?.()))return null;
+  const today=localWorkoutDay(now),yesterday=previousCivilDay(today);
+  const observed=new Set(),running=new Set();
+  for(const row of rows){
+    if(!row||!['imported','iberfit'].includes(row.source)
+      ||!Number.isFinite(row.orderAt)||row.orderAt>now.getTime()
+      ||row.dayKey!==localWorkoutDay(row.orderAt))return null;
+    observed.add(row.dayKey);
+    if(row.source==='imported'&&['Carrera','Carrera por intervalos'].includes(row.label))
+      running.add(row.dayKey);
+  }
+  // Do not interpret an unobserved current day as a rest day. Anchor to
+  // today or yesterday only; never revive an old series as a current alert.
+  function streak(days){
+    const end=days.has(today)?today:days.has(yesterday)?yesterday:null;
+    if(!end)return null;
+    let day=end,count=0;
+    while(count<7&&days.has(day)){count++;day=previousCivilDay(day);}
+    if(count<5)return null;
+    return {days:count,periodStart:previousCivilDayOffset(end,count-1),periodEnd:end};
+  }
+  function previousCivilDayOffset(day,offset){
+    for(let i=0;i<offset;i++)day=previousCivilDay(day);
+    return day;
+  }
+  const any=streak(observed),run=streak(running);
+  if(!any&&!run)return null;
+  // The observation is an advisory context, not an automatic exercise
+  // prescription, diagnosis, claim of no recovery, or retention alert.
+  const chosen=run&&(!any||run.days>=any.days)?{...run,discipline:'running'}:{...any,discipline:'mixed'};
+  return Object.freeze({...chosen,kind:'observed_activity_continuity',
+    source:'recent_authorized_activity',coverage:'partial',
+    interpretation:'presence_only',recommendation:'review_recovery_with_coach',
+    automaticPlanChange:false});
+}
 // V48 page contract: keyset pagination, no raw source keys or device IDs.
 // Keep the legacy seven-day summary bounded at ten; a history page is separate.
 const HISTORY_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
