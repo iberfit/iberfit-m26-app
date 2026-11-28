@@ -21,6 +21,7 @@ test('provider chain runs every unmodified candidate in order and retains the tw
  assert.deepEqual(stages,Array.from({length:11},(_,i)=>48+i));
  assert.match(source,/baseline_fingerprints\.sql/u);
  assert.match(source,/role_lifecycle\.sql/u);
+ assert.match(source,/android_isolation\.sql/u);
  assert.match(source,/disabled_surfaces\.sql/u);
  assert.match(workflow,/isolated-pg17-provider-release-chain:/u);
  assert.match(workflow,/isolated-pg17-roles-and-rollback:/u);

@@ -44,6 +44,7 @@ psql_synthetic -f /repo/supabase/release-procedures/connected360_v57_apple_owner
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v58_apple_coach_trends_v1.sql
 echo 'CONNECTED360_V48_V58_EXACT_INSTALLERS_SUCCESS'
 psql_synthetic -f /repo/qa/sql/connected360-release-chain/role_lifecycle.sql
+psql_synthetic -f /repo/qa/sql/connected360-release-chain/android_isolation.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v58_apple_coach_trends_v1.rollback.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v57_apple_owner_trends_v1.rollback.sql
 psql_synthetic -f /repo/supabase/release-procedures/connected360_v56_apple_coach_consent_v1.rollback.sql
