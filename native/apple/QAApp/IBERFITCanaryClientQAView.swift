@@ -244,16 +244,17 @@ struct IBERFITCanaryClientQAView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Button("Autorizar UNA lectura local", action: state.authorizeOnce)
-                    .disabled(state.isBusy)
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color(red: 0.73, green: 0.60, blue: 0.36))
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 12) {
+                    Button("Autorizar UNA lectura local", action: state.authorizeOnce)
+                        .disabled(state.isBusy)
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 0.73, green: 0.60, blue: 0.36))
+                    Text("QA").font(.caption.bold())
+                }
                 Button("Autorizar actividades", action: state.authorizeWorkoutsOnce)
                     .disabled(state.isBusy)
                     .buttonStyle(.bordered)
-                Text("QA")
-                    .font(.caption.bold())
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)

@@ -193,6 +193,7 @@ test('Apple workout preview preserves civil days and active pace by discipline w
     {...workoutReply,records:[{...workoutReply.records[0],id:'native-uuid'}]},
     {...workoutReply,records:[{...workoutReply.records[0],averageHeartRate:148}]},
     {...workoutReply,records:[{...workoutReply.records[0],activeSeconds:5000}]},
+    {...workoutReply,records:[{...workoutReply.records[0],startedAt:'2026-11-31T12:00:00Z'}]},
     {...workoutReply,records:[...workoutReply.records].reverse()},
     {...workoutReply,records:Array.from({length:61},()=>workoutReply.records[0])},
   ])assert.throws(()=>normalizeAppleQaWorkouts(invalid,{at:workoutAt,days:30}),/RESPONSE_INVALID/u);

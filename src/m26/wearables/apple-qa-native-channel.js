@@ -80,6 +80,14 @@ function civilWorkoutDay(at){
   return parts.year+'-'+parts.month+'-'+parts.day;
 }
 const workoutFail=()=>{throw Error('M26_APPLE_QA_RESPONSE_INVALID');};
+// Native ISO formatter uses UTC and optional fractional seconds; reject
+// coercive date parsing (e.g. 31 February) rather than relabel observations.
+function workoutInstant(value){
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(value))return NaN;
+  const at=Date.parse(value);
+  if(!Number.isFinite(at)||new Date(at).toISOString()!==(value.length===20?value.slice(0,-1)+'.000Z':value))return NaN;
+  return at;
+}
 export function normalizeAppleQaWorkouts(value,{at=Date.now(),days=30}={}){
   if(!Number.isFinite(at)||!Number.isInteger(days)||days<1||days>30
     ||value?.schema!==WORKOUT_RESPONSE||value.provider!=='apple_health'||value.days!==days
@@ -93,7 +101,7 @@ export function normalizeAppleQaWorkouts(value,{at=Date.now(),days=30}={}){
       ||!Object.hasOwn(WORKOUT_SPORTS,row.sport)
       ||typeof row.startedAt!=='string'||typeof row.endedAt!=='string'
       ||typeof row.activeSeconds!=='number'||!Number.isFinite(row.activeSeconds))workoutFail();
-    const start=Date.parse(row.startedAt),end=Date.parse(row.endedAt),elapsed=(end-start)/1000;
+    const start=workoutInstant(row.startedAt),end=workoutInstant(row.endedAt),elapsed=(end-start)/1000;
     if(!Number.isFinite(start)||!Number.isFinite(end)||start<at-days*86400000-120000
       ||end>at+5000||start>previous||elapsed<=0||elapsed>86400
       ||row.activeSeconds<=0||row.activeSeconds>elapsed+1)workoutFail();

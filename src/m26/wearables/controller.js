@@ -2146,7 +2146,7 @@ export function createWearableController({
               group=document.createElement('ul');list.append(heading,group);
             }
             const item=document.createElement('li');
-            const details=[row.time,row.label,Math.round(row.activeSeconds/60)+' min'];
+            const details=[row.time,row.label,Math.round(row.activeSeconds/60)+' min activos'];
             if(row.distanceMeters!==null)details.push((row.distanceMeters/1000).toFixed(2)+' km');
             if(row.activePaceSeconds!==null){
               const pace=Math.floor(row.activePaceSeconds/60)+':'+String(row.activePaceSeconds%60).padStart(2,'0');
@@ -2419,6 +2419,8 @@ export function createWearableController({
   }
 
   function onOffline(){
+    appleReadEpoch+=1;
+    root.querySelectorAll?.('[data-apple-qa-workouts]')?.forEach?.(node=>node.replaceChildren());
     lastOnline=false;
     // A network loss must retire in-flight native reads and any old grant lease.
     nativeForegroundHeartbeat.stop();
