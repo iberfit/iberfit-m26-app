@@ -365,7 +365,7 @@ test('combined recent view is bounded and canonical confirmation remains mandato
 test('five recorded running days are positive context, not proof of no recovery or plan completion',()=>{
   const now=new Date('2026-11-28T18:00:00Z');
   const run=(day,sport='running')=>({sport,startedAt:'2026-11-'+day+'T12:00:00Z',
-    endedAt:'2026-11-'+day+'T12:40:00Z',distanceMeters:5000,linkedToTraining:false});
+    endedAt:'2026-11-'+day+'T12:40:00Z',distanceMeters:5000,linkedToTraining:false,authorizationState:'current'});
   const rows=connected360WorkoutHistory({...empty(),exerciseEvidence:[
     run(27),run(26),run(25),run(24),run(23),run(23),run(22,'walking'),
   ]},{now});
@@ -390,7 +390,7 @@ test('five recorded running days are positive context, not proof of no recovery 
 test('canonical training and device records on same day count only once; no inferred sport',()=>{
   const now=new Date('2026-11-28T18:00:00Z');
   const imported=connected360WorkoutHistory({...empty(),exerciseEvidence:
-    [25,26,27,28].map(day=>({sport:'running',startedAt:'2026-11-'+day+'T12:00:00Z',endedAt:'2026-11-'+day+'T12:30:00Z'})),
+    [25,26,27,28].map(day=>({sport:'running',startedAt:'2026-11-'+day+'T12:00:00Z',endedAt:'2026-11-'+day+'T12:30:00Z',authorizationState:'current'})),
   },{now});
   const confirmed=connected360RecentTrainingRows([
     {title:'Carrera',completedAt:'2026-11-24T18:00:00Z'},
@@ -457,4 +457,18 @@ test('V48 guarded candidate keeps raw storage private and distinguishes retained
   assert.match(sql,/ORDER BY w\.observed_started_at DESC,w\.id DESC LIMIT 21/u);
   assert.doesNotMatch(sql,/GRANT SELECT ON TABLE|CREATE TABLE|ALTER TABLE|source_record_key|source_app_key/iu);
   assert.doesNotMatch(rollback,/CASCADE/iu);
+});
+
+test('retained and legacy activity stays visible without producing current device continuity',()=>{
+  const now=new Date('2026-11-28T18:00:00Z');
+  const evidence=[24,25,26,27,28].map(day=>({sport:'running',startedAt:'2026-11-'+day+'T12:00:00Z',endedAt:'2026-11-'+day+'T12:30:00Z',distanceMeters:5000,avgBpm:150,heartRateSamples:20}));
+  for(const authorizationState of ['retained',undefined,'unrecognized']){
+    const rows=connected360WorkoutHistory({...empty(),exerciseEvidence:evidence.map(row=>({...row,authorizationState}))},{now});
+    assert.equal(rows.length,5);
+    assert.equal(connected360ActivityContinuity(rows,{now}),null);
+    if(authorizationState==='retained')assert.ok(rows.every(row=>row.measurements.averageBpm===null));
+  }
+  const rows=connected360WorkoutHistory({...empty(),exerciseEvidence:evidence.map(row=>({...row,authorizationState:'current'}))},{now});
+  assert.equal(connected360ActivityContinuity(rows,{now}).days,5);
+  assert.ok(rows.every(row=>row.authorizationState==='current'));
 });

@@ -959,6 +959,11 @@ export function createWearableController({
         const source=document.createElement('small');
         source.textContent=row.source==='iberfit'?'Entrenamiento IBERFIT confirmado':'Actividad importada · Health Connect';
         item.append(label,document.createTextNode(' · '+row.dayDetail+' · '),source);
+        if(row.authorizationState==='retained'){
+          const historical=document.createElement('small');
+          historical.textContent='Registro conservado de una autorización anterior';
+          item.append(document.createTextNode(' · '),historical);
+        }
         list.append(item);
       }
       group.append(heading,list);

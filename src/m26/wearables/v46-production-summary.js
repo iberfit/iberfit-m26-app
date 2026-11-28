@@ -58,13 +58,14 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
       ?decimal.format(d>=1000?d/1000:d)+(d>=1000?' km':' m'):null;
     // The existing summary does not yet expose avgBpm. Accept it only from
     // the owner-scoped server DTO with positive observed sample coverage.
-    const average=bpm(row.avgBpm);
+    const authorizationState=['current','retained'].includes(row.authorizationState)?row.authorizationState:'unknown';
+    const average=authorizationState==='retained'?null:bpm(row.avgBpm);
     const averageLabel=average!==null&&Number.isSafeInteger(row.heartRateSamples)&&row.heartRateSamples>0&&row.heartRateSamples<=200000
       ?'FC media '+decimal.format(average)+' lpm':null;
     const elapsedPaceSecondsPerKm=observedElapsedRunningPaceSeconds(row.sport,end-start,d);
     const metrics=[observedDuration(end-start),distance,averageLabel,
       elapsedPaceSecondsPerKm===null?null:'Ritmo total estimado '+formatPace(elapsedPaceSecondsPerKm)+' min/km'].filter(Boolean);
-    rows.push({start,orderAt:start,source:'imported',label:WORKOUT_SPORTS[row.sport],
+    rows.push({start,orderAt:start,source:'imported',authorizationState,label:WORKOUT_SPORTS[row.sport],
       measurements:Object.freeze({elapsedSeconds:(end-start)/1000,
         distanceMeters:distance===null?null:d,averageBpm:averageLabel===null?null:average,
         elapsedPaceSecondsPerKm}),
@@ -136,6 +137,9 @@ export function connected360ActivityContinuity(rows,{now=new Date()}={}){
     if(!row||!['imported','iberfit'].includes(row.source)
       ||!Number.isFinite(row.orderAt)||row.orderAt>now.getTime()
       ||row.dayKey!==localWorkoutDay(row.orderAt))return null;
+    // Legacy/retained owner history stays visible but cannot become
+    // current device-derived readiness context without a verified grant.
+    if(row.source==='imported'&&row.authorizationState!=='current')continue;
     observed.add(row.dayKey);
     if(row.source==='imported'&&['Carrera','Carrera por intervalos'].includes(row.label))
       running.add(row.dayKey);

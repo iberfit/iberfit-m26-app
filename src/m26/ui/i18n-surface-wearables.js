@@ -1,4 +1,5 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  ["Registro conservado de una autorización anterior","Record retained from an earlier authorization","Donnée conservée d’une autorisation antérieure","Registo conservado de uma autorização anterior"],
   ["Variación observada","Observed variation","Variation observée","Variação observada"],
   ["Días con medición","Days with measurements","Jours avec des mesures","Dias com medições"],
   ["Distancia registrada","Recorded distance","Distance enregistrée","Distância registada"],
