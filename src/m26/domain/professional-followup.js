@@ -376,12 +376,19 @@ export function bindProfessionalReportSelection(root,getScope){
    if(!sameSelectionScope(s,current()))return false;
    const [proof]=verified.items,[row]=verified.evidence;
    const prior=items.find(x=>x.publicationId===proof.publicationId);
-   if(prior&&prior.row.source===row.source&&stableEvidenceJson(prior.row)===stableEvidenceJson(row))return true;
+   if(prior){
+    if(proof.publicationRevision<prior.publicationRevision)return false;
+    if(proof.publicationRevision===prior.publicationRevision){
+     if(stableEvidenceJson(prior.row)===stableEvidenceJson(row))return true;
+     // Contradictory content at the same revision invalidates the selection.
+     clear();return false;
+    }
+   }
    if(!prior&&items.length>=12)return false;
    // A different revision invalidates any previous editor selection, rather
    // than silently replacing a reviewed row under the same publication ID.
    if(prior)token=Object.freeze({});
-   items=[...items.filter(x=>x.publicationId!==proof.publicationId),Object.freeze({publicationId:proof.publicationId,periodEnd:proof.periodEnd,row})];
+   items=[...items.filter(x=>x.publicationId!==proof.publicationId),Object.freeze({publicationId:proof.publicationId,publicationRevision:proof.publicationRevision,periodStart:proof.periodStart,periodEnd:proof.periodEnd,testId:proof.testId,field:proof.field,side:proof.side,row})];
    return true;
   },
   snapshot(clientId){const s=current();return s&&s.clientId===clientId?Object.freeze({clientId:s.clientId,token,items:Object.freeze([...items])}):null;},
@@ -391,6 +398,20 @@ export function bindProfessionalReportSelection(root,getScope){
 }
 export function professionalReportSelectionSnapshot(root,clientId){return gxSelectionsByRoot.get(root)?.snapshot(clientId)??null;}
 export function clearProfessionalReportSelection(root){gxSelectionsByRoot.get(root)?.clear();}
+// Read-only review for the seventh format, scoped to this live session.
+// Repeated metrics require deliberate selection before formal issuance.
+export function professionalReassessmentSelectionPreview(root,clientId){
+ const snapshot=professionalReportSelectionSnapshot(root,clientId);
+ if(!snapshot?.items.length)return null;
+ const counts=new Map();
+ for(const item of snapshot.items){
+  const key=JSON.stringify([item.testId,item.field,item.side]);
+  counts.set(key,(counts.get(key)??0)+1);
+ }
+ const ambiguousMetrics=[...counts.values()].filter(n=>n>1).length;
+ const rows=snapshot.items.map(item=>item.row);
+ return Object.freeze({official:false,ready:false,rows:Object.freeze(rows),comparisonCount:rows.length,ambiguousMetrics});
+}
 export function professionalReportSelectionRows(candidate,snapshot,sources){
  if(!candidate?.ready||!PROFESSIONAL_REPORT_TYPES.includes(candidate.id)||!Array.isArray(candidate.evidence)||candidate.evidence.length<1||candidate.evidence.length>12||candidate.evidence.some(x=>String(x?.source??'').toLowerCase().startsWith('gx-professional:'))||!snapshot?.token||!Array.isArray(snapshot.items)||!Array.isArray(sources)||!sources.length||new Set(sources).size!==sources.length||candidate.evidence.length+sources.length>12)throw Error('M26_GX_REPORT_SELECTION_INVALID');
  const extra=sources.map(source=>{const entry=snapshot.items.find(x=>x.row.source===source);if(!entry||entry.periodEnd<candidate.periodStart||entry.periodEnd>candidate.periodEnd)throw Error('M26_GX_REPORT_SELECTION_STALE');return entry.row;});

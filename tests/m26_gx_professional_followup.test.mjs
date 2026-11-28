@@ -119,7 +119,7 @@ const evidence326=()=>{const h=head324(),{p,result}=proof325(h),x=result.items[0
 test('GX326 canonical report evidence has exact lineage, text, zero and no private protocol',()=>{const {h,p,result}=evidence326();const r=verifyProfessionalReportEvidence(result,p,[h],{now});assert.equal(r.official,false);assert.equal(r.evidence[0].source,'gx-professional:'+h.id+':1');assert.match(r.evidence[0].text,/0 rep/);assert.ok(Object.isFrozen(r.evidence[0]));assert.doesNotMatch(JSON.stringify(r),/configuration|chairHeightCm|adaptationReason/);});
 test('GX326 rejects forged evidence and mismatched references',()=>{const {h,p,result}=evidence326();for(const bad of [{...result,evidence:[]},{...result,evidence:[{...result.evidence[0],text:'Logro garantizado'}]},{...result,evidence:[{...result.evidence[0],source:'gx-professional:'+h.id+':2'}]},{...result,evidence:[{...result.evidence[0],quality:'verified'}]},{...result,evidence:[{...result.evidence[0],privateNote:'secret'}]},{...result,official:true}])assert.throws(()=>verifyProfessionalReportEvidence(bad,p,[h],{now}),/EVIDENCE_RESPONSE_INVALID/);});
 
-import {bindProfessionalReportSelection,professionalReportSelectionSnapshot,professionalReportSelectionRows,PROFESSIONAL_REPORT_SELECTION_MARKER,clearProfessionalReportSelection} from '../src/m26/domain/professional-followup.js';
+import {bindProfessionalReportSelection,professionalReassessmentSelectionPreview,professionalReportSelectionSnapshot,professionalReportSelectionRows,PROFESSIONAL_REPORT_SELECTION_MARKER,clearProfessionalReportSelection} from '../src/m26/domain/professional-followup.js';
 const receipt327=(h=head324())=>{const {p,result}=proof325(h),x=result.items[0];const row={...evidence326().result.evidence[0],source:'gx-professional:'+h.id+':'+h.revision};return verifyProfessionalReportEvidence({...result,evidence:[row]},p,[h],{now});};
 const candidate327=(overrides={})=>({id:'monthly',ready:true,periodStart:'2026-11-01',periodEnd:'2026-11-26',evidence:[{label:'Entrenamientos',text:'2 sesiones confirmadas.',source:'sessionExecutions',quality:''}],...overrides});
 function selection327(){const root={},lease={};let scope={actorId:operation324,clientId:client,lease};const api=bindProfessionalReportSelection(root,()=>scope);return {root,api,get snapshot(){return professionalReportSelectionSnapshot(root,client)},switchClient(v){scope={...scope,clientId:v};api.prune();},newLease(){scope={...scope,lease:{}};api.prune();},signOut(){scope=null;api.prune();}};}
@@ -132,3 +132,26 @@ import {captureProfessionalReportApproval,isProfessionalReportApprovalLive,requi
 test('GX328 approval fence accepts only exact staged canonical rows and cannot be transferred',()=>{const x=selection327(),h=head324();x.api.stage(h,receipt327(),proofOpts325);const row=x.snapshot.items[0].row;const merged=professionalReportSelectionRows(candidate327(),x.snapshot,[row.source]);const fence=captureProfessionalReportApproval(x.root,client,merged.evidence);assert.equal(isProfessionalReportApprovalLive(x.root,fence),true);assert.equal(isProfessionalReportApprovalLive({},fence),false);for(const evidence of [[],[row,row],[{...row,text:'alterado'}]])assert.throws(()=>captureProfessionalReportApproval(x.root,client,evidence),/professional-selection-stale/);assert.throws(()=>captureProfessionalReportApproval(x.root,other,[row]));assert.ok(Object.isFrozen(fence));x.api.destroy();});
 test('GX328 approval fence fails closed after asynchronous session or client change',async()=>{for(const invalidate of [x=>x.newLease(),x=>x.switchClient(other),x=>x.signOut(),x=>clearProfessionalReportSelection(x.root)]){const x=selection327(),h=head324();x.api.stage(h,receipt327(),proofOpts325);const fence=captureProfessionalReportApproval(x.root,client,[x.snapshot.items[0].row]);await Promise.resolve().then(()=>invalidate(x));assert.equal(isProfessionalReportApprovalLive(x.root,fence),false);assert.throws(()=>requireProfessionalReportApprovalLive(x.root,fence),/professional-selection-stale/);x.api.destroy();}assert.doesNotThrow(()=>requireProfessionalReportApprovalLive({},null));});
 test('GX328 a new reviewed revision invalidates a previously captured approval',()=>{const x=selection327(),h=head324();x.api.stage(h,receipt327(),proofOpts325);const fence=captureProfessionalReportApproval(x.root,client,[x.snapshot.items[0].row]);const next={...h,revision:2};x.api.stage(next,receipt327(next),proofOpts325);assert.equal(isProfessionalReportApprovalLive(x.root,fence),false);x.api.destroy();});
+
+test('post GX350: staged report evidence cannot regress to an older publication revision',()=>{
+ const x=selection327(),h=head324(),newer={...h,revision:2};
+ assert.equal(x.api.stage(newer,receipt327(newer),proofOpts325),true);
+ const token=x.snapshot.token;
+ assert.equal(x.api.stage(h,receipt327(h),proofOpts325),false);
+ assert.equal(x.snapshot.token,token);assert.equal(x.snapshot.items[0].publicationRevision,2);
+ x.api.destroy();
+});
+test('post GX350: reassessment preview is private, non-issuable and flags repeated indicators',()=>{
+ const x=selection327(),h=head324();
+ assert.equal(professionalReassessmentSelectionPreview(x.root,client),null);
+ x.api.stage(h,receipt327(h),proofOpts325);
+ const view=professionalReassessmentSelectionPreview(x.root,client);
+ assert.equal(view.official,false);assert.equal(view.ready,false);assert.equal(view.comparisonCount,1);assert.equal(view.ambiguousMetrics,0);
+ assert.deepEqual(view.rows,[x.snapshot.items[0].row]);
+ const second={...h,id:'44444444-4444-4444-8444-000000000123'};
+ x.api.stage(second,receipt327(second),proofOpts325);
+ assert.equal(professionalReassessmentSelectionPreview(x.root,client).ambiguousMetrics,1);
+ assert.equal(professionalReassessmentSelectionPreview(x.root,other),null);
+ x.newLease();assert.equal(professionalReassessmentSelectionPreview(x.root,client),null);
+ x.api.destroy();
+});
