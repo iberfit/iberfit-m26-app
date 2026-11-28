@@ -3,22 +3,19 @@ import {isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {isCertifiedNativeAutoSyncSource} from './foreground-sync.js';
 import {zeroCostProviderReadiness,wearableZeroCostPolicy} from './free-policy.js';
 import {createWearableConnectionState,wearableConnectionHealth} from './connection-state.js';
-import {summarizeWearableData,deduplicateWearableDailyRecords} from './normalization.js';
+import {summarizeWearableData} from './normalization.js';
 
 function clone(value){return value==null?value:structuredClone(value);}
 function status(value){const key=String(value||'').trim().toLowerCase();return ['active','activo','connected','conectado'].includes(key)?'conectado':['paused','pausado'].includes(key)?'pausado':['revoked','revocado'].includes(key)?'revocado':'pendiente';}
 
 export function buildWearableViewModel({records=[],connections=[],role='client',now=new Date(),scope=globalThis}={}){
-  const summary=summarizeWearableData(records,{now,days:7});
+  const summary=summarizeWearableData(records,{now,days:7,includeHistorical:true});
   // Show up to seven real older observations regardless of their age.
   // The seven-day summary remains the ONLY source for current status/decisions.
   // Canonical deduplication removes invalid providers/metrics and future dates
   // are excluded via the local civil-day start of that recent window.
-  const historicalRecords=Object.freeze(summary.daysWithData===0
-    ?deduplicateWearableDailyRecords(records)
-      .filter(item=>item.date<summary.startDate)
-      .slice(-7).reverse()
-    :[]);
+  // Reuse the same normalization pass for recent and historical evidence.
+  const historicalRecords=summary.historicalRecords;
   const lastHistoricalDate=historicalRecords[0]?.date||null;
   const connectionRows=(Array.isArray(connections)?connections:[]).map((item)=>{
     const definition=wearableProviderDefinition(item?.provider||item?.source);

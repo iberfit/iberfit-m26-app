@@ -65,10 +65,20 @@ export function mergeV47DailyIntoClientProgress({
     if(!original.ok){result[index]=observed.value;continue;}
     const current=original.value;
     const metrics={...current.metrics};
-    for(const k of CATEGORIES){if(row[k]!=null)metrics[k]=observed.value.metrics[k];}
+    const newer=Date.parse(observed.value.sourceUpdatedAt)>Date.parse(current.sourceUpdatedAt);
+    // A delayed response cannot overwrite an already measured newer value.
+    // Older evidence for the same civil day may fill a genuinely absent
+    // category, but does not refresh the row's acquisition timestamp.
+    let changed=false;
+    for(const k of CATEGORIES){
+      if(row[k]!=null&&(newer||metrics[k]==null)&&metrics[k]!==observed.value.metrics[k]){
+        metrics[k]=observed.value.metrics[k];changed=true;
+      }
+    }
+    if(!changed&&!newer)continue;
     result[index]=Object.freeze({...current,
       metrics:Object.freeze(metrics),
-      sourceUpdatedAt:[current.sourceUpdatedAt,observed.value.sourceUpdatedAt].sort().at(-1),
+      sourceUpdatedAt:newer?observed.value.sourceUpdatedAt:current.sourceUpdatedAt,
       quality:'limitada',
     });
   }

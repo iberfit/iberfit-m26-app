@@ -3983,13 +3983,14 @@ export function renderActivityRoute(vm){
     // their existing data without activating a paid training follow-up.
     const confirmedDays=Number(vm.wearables?.summary?.daysWithData||0)>0;
     const historicalDays=Number(vm.wearables?.historicalRecords?.length||0)>0;
-    const healthHistory=confirmedDays?vm.wearables?.dailyRecords:vm.wearables?.historicalRecords;
-    const healthHistoryCards=healthHistory?.length
+    const healthHistoryCards=[
+      [vm.wearables?.dailyRecords,'Últimos registros diarios'],
+      [vm.wearables?.historicalRecords,'Historial anterior · registros no actuales'],
+    ].map(([rows,title])=>rows?.length
       ?'<section class="m26-panel m26-wearable-history"><h3>'
-        +(confirmedDays?'Últimos registros diarios':'Historial anterior · registros no actuales')
-        +'</h3><div class="m26-wearable-day-grid">'
-        +healthHistory.map(item=>wearableDailyRecordCard(item,'client')).join('')
-        +'</div></section>':'';
+        +escapeHtml(title)+'</h3><div class="m26-wearable-day-grid">'
+        +rows.map(item=>wearableDailyRecordCard(item,'client')).join('')
+        +'</div></section>':'').join('');
     const ownedHealth=vm.role==='client'&&(confirmedDays||historicalDays)
       ?renderClientDeviceHub(vm.wearables,{dailyRecords:healthHistoryCards}):'';
     return `<div class="m26-route" data-service-kind="none">

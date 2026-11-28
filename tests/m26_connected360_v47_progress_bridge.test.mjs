@@ -101,3 +101,57 @@ test('P0: historical health stays accessible to Client even when training servic
   assert.match(html,/No hay datos de los últimos siete días/u);
   assert.doesNotMatch(html,/Medias de los últimos siete días/u);
 });
+
+test('V47 delayed or equal-time conflicting observation never overwrites newer measured categories',()=>{
+  const current={...legacy,metrics:{...legacy.metrics,steps:9000,sleepMinutes:null},
+    sourceUpdatedAt:'2026-10-12T20:00:00Z'};
+  const delayed={...row,steps:5000,sleepMinutes:420,restingHeartRate:null,
+    acquiredAt:'2026-10-12T17:00:00Z'};
+  const merged=mergeV47DailyIntoClientProgress({clientId:a,existing:[current],dailyHealth:[delayed]});
+  assert.equal(merged[0].metrics.steps,9000);
+  assert.equal(merged[0].metrics.sleepMinutes,420);
+  assert.equal(merged[0].sourceUpdatedAt,new Date(current.sourceUpdatedAt).toISOString());
+  const tie=mergeV47DailyIntoClientProgress({clientId:a,existing:merged,dailyHealth:[{
+    ...row,steps:1,sleepMinutes:0,restingHeartRate:null,acquiredAt:current.sourceUpdatedAt,
+  }]});
+  assert.equal(tie[0].metrics.steps,9000);
+  assert.equal(tie[0].metrics.sleepMinutes,420);
+  const fresh=mergeV47DailyIntoClientProgress({clientId:a,existing:tie,dailyHealth:[{
+    ...row,steps:0,sleepMinutes:null,restingHeartRate:null,acquiredAt:'2026-10-12T21:00:00Z',
+  }]});
+  assert.equal(fresh[0].metrics.steps,0);
+  assert.equal(fresh[0].metrics.sleepMinutes,420);
+  assert.equal(fresh[0].metrics.hrvMs,51);
+  assert.equal(fresh[0].sourceUpdatedAt,'2026-10-12T21:00:00.000Z');
+});
+test('recent and previous daily evidence coexist without making historical data current',async()=>{
+  const {buildWearableViewModel}=await import('../src/m26/wearables/view-model.js');
+  const {renderActivityRoute}=await import('../src/m26/modules/route-render.js');
+  const records=mergeV47DailyIntoClientProgress({clientId:a,dailyHealth:[
+    row,{...row,date:'2026-11-02',steps:10000,acquiredAt:'2026-11-02T17:00:00Z'},
+  ]});
+  const wearables=buildWearableViewModel({records,role:'client',now:new Date('2026-11-03T12:00:00Z'),scope:{}});
+  assert.equal(wearables.summary.daysWithData,1);
+  assert.equal(wearables.summary.metrics.steps,10000);
+  assert.equal(wearables.historicalRecords.length,1);
+  assert.equal(wearables.historicalRecords[0].date,today);
+  const html=renderActivityRoute({role:'client',serviceKind:'none',wearables});
+  assert.match(html,/Últimos registros diarios/u);
+  assert.match(html,/Historial anterior · registros no actuales/u);
+  assert.match(html,/2026-10-12/u);
+  assert.match(html,/2026-11-02/u);
+});
+
+test('historical projection uses the canonical normalization and leaves default summary shape unchanged',()=>{
+  const old={...legacy,date:'2026-09-10',id:'old-record',sourceUpdatedAt:'2026-09-10T15:00:00Z'};
+  const future={...legacy,date:'2026-12-01',id:'future-record'};
+  const now=new Date('2026-10-12T21:00:00Z');
+  const input=[legacy,old,old,future];
+  const original=summarizeWearableData(input,{now,days:7});
+  const extended=summarizeWearableData(input,{now,days:7,includeHistorical:true});
+  const {historicalRecords,...recent}=extended;
+  assert.deepEqual(recent,original);
+  assert.equal(historicalRecords.length,1);
+  assert.equal(historicalRecords[0].date,'2026-09-10');
+  assert.equal(Object.hasOwn(original,'historicalRecords'),false);
+});
