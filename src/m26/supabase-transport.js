@@ -1,7 +1,7 @@
 import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
 import {verifyAppleExerciseStatus,appleExerciseConsentParams,verifyAppleExerciseConsentReceipt,appleExerciseImportParams,verifyAppleExerciseImportReceipt} from './wearables/v53-apple-authorization-contract.js';
 import {CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT} from './wearables/measurement-capability-contract.js';
-import {connected360ActivityPage,connected360ActivityPageParams} from './wearables/v46-production-summary.js';
+import {connected360AppleActivityPage,connected360ActivityPage,connected360ActivityPageParams} from './wearables/v46-production-summary.js';
 import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients} from './wearables/v49-coach-activity-contract.js';
 import {verifyInvitationReceipt} from './workflows/coach-invitation-outcome.js';
 import {createQaInFlightReadGate} from './domain/qa-inflight-read-gate.js';
@@ -1772,6 +1772,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     const params=appleExerciseImportParams(status,payload);
     return verifyAppleExerciseImportReceipt(appleCandidateResponse(await request('/rest/v1/rpc/m26_wearable_v54_import_apple_exercise_v1',{method:'POST',token,body:JSON.stringify(params),signal})),params);
   }
+  async function connected360AppleCandidateHistory(token,cursor=null,{signal}={}){
+    assertAppleExerciseCandidate(token);
+    const params=connected360ActivityPageParams(cursor);
+    const raw=await request('/rest/v1/rpc/m26_wearable_v55_apple_owner_history_v1',{method:'POST',token,body:JSON.stringify(params),signal});
+    return connected360AppleActivityPage(appleCandidateResponse(raw),{cursor});
+  }
   async function connected360DailyProduction(token){
     assertConnected360Production();
     if(!token)throw new Error('M26_AUTH_REQUIRED');
@@ -2314,6 +2320,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     importConnected360QaV46,
     extendConnected360QaV46Grant,
     connected360AppleCandidateStatus,
+    connected360AppleCandidateHistory,
     authorizeConnected360AppleCandidate,
     importConnected360AppleCandidate,
     connected360ProductionCapabilities,

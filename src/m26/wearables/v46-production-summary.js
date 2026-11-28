@@ -321,3 +321,48 @@ export function createConnected360SummaryReader({now=()=>Date.now(),ttlMs=15000}
   }
   return Object.freeze({read,clear});
 }
+
+
+// Apple owner history V55: strict provider-specific DTO. Reuse existing
+// formatting and microsecond cursor machinery, never relax the Android DTO.
+// Active and elapsed pace are different measurements, never substituted.
+export function connected360AppleActivityPage(p,{cursor=null,now=new Date()}={}){
+ const fail=()=>{throw Error('M26_V55_APPLE_HISTORY_INVALID');};
+ const exact=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));
+ if(!exact(p,['ok','schema','provider','exerciseEvidence','nextCursor'])||p.ok!==true
+ ||p.schema!=='iberfit.connected360.apple.activity-page.v1'||p.provider!=='apple_health'
+ ||!Array.isArray(p.exerciseEvidence)||p.exerciseEvidence.length>CONNECTED360_ACTIVITY_PAGE_SIZE
+ ||!Number.isFinite(now?.getTime?.()))fail();
+ let previous=cursor===null?null:activityCursor(cursor);
+ const rows=[],seen=new Set();
+ for(const row of p.exerciseEvidence){
+  if(!exact(row,['id','sport','startedAt','endedAt','activeSeconds','distanceMeters','authorizationState','linkedToTraining'])
+  ||!['running','cycling','walking','strength','hiit','swimming','other'].includes(row.sport)
+  ||!['current','retained'].includes(row.authorizationState)||row.linkedToTraining!==false
+  ||!HISTORY_UTC.test(row.endedAt||''))fail();
+  const k=activityCursor(row),start=observedInstant(row.startedAt),end=observedInstant(row.endedAt);
+  const elapsed=(end-start)/1000,active=row.activeSeconds,distance=row.distanceMeters;
+  if(seen.has(k.id)||(previous&&!strictlyEarlier(k,previous))||start===null||end===null
+  ||elapsed<=0||elapsed>86400||end>now.getTime()||typeof active!=='number'||!Number.isFinite(active)||active<=0||active>elapsed+1
+  ||(distance!==null&&(typeof distance!=='number'||!Number.isFinite(distance)||distance<0||distance>500000)))fail();
+  const unit=row.sport==='swimming'?100:row.sport==='running'?1000:null;
+  const pace=unit&&distance>=100?Math.round(active*unit/distance):null;
+  const validPace=Number.isSafeInteger(pace)&&pace>=(unit===100?15:60)&&pace<=(unit===100?1200:3600)?pace:null;
+  const details=['Duración activa '+observedDuration(active*1000),'Duración total '+observedDuration(end-start),
+   distance===null?null:decimal.format(distance>=1000?distance/1000:distance)+(distance>=1000?' km':' m'),
+   validPace===null?null:'Ritmo activo estimado '+formatPace(validPace)+(unit===100?' min/100 m':' min/km')].filter(Boolean);
+  rows.push(Object.freeze({source:'imported',provider:'apple_health',orderAt:start,label:WORKOUT_SPORTS[row.sport],authorizationState:row.authorizationState,
+   measurements:Object.freeze({elapsedSeconds:elapsed,activeSeconds:active,distanceMeters:distance,
+    ...(unit===100?{activePaceSecondsPer100m:validPace}:unit===1000?{activePaceSecondsPerKm:validPace}:{})}),
+   dayKey:localWorkoutDay(start),dayLabel:workoutDayLabel.format(start),
+   dayDetail:[workoutTime.format(start),...details].join(' · '),detail:[workoutDate.format(start),...details].join(' · ')}));
+  seen.add(k.id);previous=k;
+ }
+ let nextCursor=null;
+ if(p.nextCursor!==null){
+  const next=activityCursor(p.nextCursor);
+  if(rows.length!==CONNECTED360_ACTIVITY_PAGE_SIZE||!previous||next.id!==previous.id||next.startedAt!==previous.startedAt)fail();
+  nextCursor=next;
+ }
+ return Object.freeze({rows:Object.freeze(rows),nextCursor});
+}
