@@ -102,6 +102,9 @@ internal object Connected360V46QaEnvelope {
                 val avg = bpm(w.heartRateAverage)?.takeIf {
                     (lo == null || it >= lo) && (hi == null || it <= hi)
                 }
+                // V46 backend only accepts the legacy vocabulary. Swimming
+                // is classified locally, but the wire contract must remain
+                // unchanged until a new coordinated release is certified.
                 val mode = w.sport.takeIf { it in sports } ?: "other"
                 mutableMapOf<String, Any>(
                     "observationKey" to key,

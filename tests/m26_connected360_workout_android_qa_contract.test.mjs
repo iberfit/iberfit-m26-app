@@ -76,3 +76,15 @@ test('native workout pagination uses fixed intervals and keeps system tokens out
   assert.doesNotMatch(native,/put\("pageToken"/u);
   assert.match(native,/workoutHistoryLeases.clear\(\)/u);
 });
+
+test('swimming is identified locally without changing the legacy production wire vocabulary',()=>{
+  assert.match(android,/EXERCISE_TYPE_SWIMMING_POOL,[\s\S]*?EXERCISE_TYPE_SWIMMING_OPEN_WATER -> "Natación"/u);
+  assert.match(android,/EXERCISE_TYPE_SWIMMING_POOL,[\s\S]*?EXERCISE_TYPE_SWIMMING_OPEN_WATER -> "swimming"/u);
+  assert.match(android,/ritmo total estimado/u);
+  assert.match(android,/min\/100 m/u);
+  const wire=readFileSync(new URL(base+'src/main/java/cl/iberfit/m26/phone/Connected360V46QaEnvelope.kt',import.meta.url),'utf8');
+  const vocabulary=wire.match(/private val sports = setOf\(([^\n]+)\)/u)?.[1];
+  assert.ok(vocabulary);
+  assert.doesNotMatch(vocabulary,/"swimming"/u);
+  assert.match(wire,/val mode = w\.sport\.takeIf \{ it in sports \} \?: "other"/u);
+});

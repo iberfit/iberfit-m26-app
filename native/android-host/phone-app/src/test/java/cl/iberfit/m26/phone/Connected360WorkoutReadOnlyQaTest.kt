@@ -20,6 +20,36 @@ class Connected360WorkoutReadOnlyQaTest {
             ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT))
     }
 
+    @Test fun swimmingPoolAndOpenWaterHaveNativeIdentityAndEstimatedPace() {
+        for(type in listOf(ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL,
+            ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER)) {
+            assertEquals("Natación", Connected360WorkoutReadOnlyQa.label(type))
+            assertEquals("swimming", Connected360WorkoutReadOnlyQa.sport(type))
+        }
+        val swim=Connected360WorkoutReadOnlyQa.LocalWorkout(
+            exerciseType="Natación",startAt="2026-11-28T10:00:00Z",
+            endAt="2026-11-28T10:30:00Z",durationMinutes=30,
+            heartRateSamples=null,heartRateAverage=null,heartRateMin=null,
+            heartRateMax=null,distanceKm=1.5,steps=null,caloriesKcal=null,
+            observationKey="a".repeat(64),sport="swimming")
+        assertEquals(120L,Connected360WorkoutReadOnlyQa.elapsedSwimPaceSeconds(swim))
+        assertEquals(null,Connected360WorkoutReadOnlyQa.elapsedSwimPaceSeconds(swim.copy(distanceKm=null)))
+        assertEquals(null,Connected360WorkoutReadOnlyQa.elapsedSwimPaceSeconds(swim.copy(distanceKm=0.0)))
+        assertEquals(null,Connected360WorkoutReadOnlyQa.elapsedSwimPaceSeconds(swim.copy(sport="running")))
+        assertEquals(null,Connected360WorkoutReadOnlyQa.elapsedSwimPaceSeconds(swim.copy(endAt=swim.startAt)))
+        val text=Connected360WorkoutReadOnlyQa.render(
+            Connected360WorkoutReadOnlyQa.ReadResult(listOf(swim),false,setOf("exercise","distance")))
+        assertTrue(text.contains("ritmo total estimado 2:00 min/100 m"))
+        // Until the server's next contract supports swimming, legacy ingest
+        // must still preserve the observation without an invalid enum.
+        val legacy=Connected360V46QaEnvelope.build(emptyList(),listOf(swim),
+            java.time.ZoneId.of("America/Santiago"),java.time.Instant.parse("2026-11-28T12:00:00Z"))
+        val workouts=legacy["exerciseEvidence"] as List<*>
+        assertEquals(1,workouts.size)
+        assertEquals("other",(workouts.single() as Map<*,*>)["sport"])
+        assertEquals(1500.0,(workouts.single() as Map<*,*>)["distanceMeters"])
+    }
+
     @Test fun aRealRunShowsObservedDistanceAndGeneralPulseButNeverRestingHeartRate() {
         val w=Connected360WorkoutReadOnlyQa.LocalWorkout(
             exerciseType="Carrera",
