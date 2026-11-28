@@ -20,3 +20,15 @@ test('rollback refuses classified Android rows and preserves original RPC baseli
   assert.match(rollback,/0049ade9c829d330ba8db94381a35666/u);
   assert.doesNotMatch(rollback,/DELETE FROM|TRUNCATE |DROP TABLE/u);
 });
+
+test('V52 installer and inverse restore use pinned transformations, not duplicated RPC definitions',()=>{
+ for(const source of [sql,rollback]){
+  assert.match(source,/DO \$patch\$/u);
+  assert.equal((source.match(/EXECUTE d;/gu)||[]).length,2);
+  assert.equal((source.match(/IF md5\(d\) IS DISTINCT FROM/gu)||[]).length,2);
+  assert.doesNotMatch(source,/CREATE OR REPLACE FUNCTION public\.m26_wearable_v46_/u);
+ }
+ const pairs=source=>[...source.matchAll(/d:=replace\(d,\$before\$([^]*?)\$before\$,\$after\$([^]*?)\$after\$\);/gu)].map(m=>[m[1],m[2]]);
+ assert.equal(pairs(sql).length,7);
+ assert.deepEqual(pairs(rollback),pairs(sql).map(([before,after])=>[after,before]));
+});

@@ -6,8 +6,8 @@ const path='scripts/data-safety/gx_document_consent_isolated_pg17.sh';
 const script=readFileSync(path,'utf8');
 const workflow=readFileSync('.github/workflows/m26-c-connected360-isolated-pg17.yml','utf8');
 const lifecycle=readFileSync('qa/sql/connected360-document/lifecycle.sql','utf8');
-// Fixed disposable database credential, never an environment or hosted secret.
-const disposableDbCredential='synthetic-local-only';
+// Synthetic format-only credential fixture; the real CI launcher generates a random value.
+const disposableDbCredential='a'.repeat(64);
 const env={PATH:process.env.PATH,IBERFIT_PG17_SYNTHETIC_ONLY:'YES',PGHOST:'127.0.0.1',PGPORT:'5432',PGUSER:'postgres',PGDATABASE:'postgres',PGPASSWORD:disposableDbCredential};
 test('document PG17 harness shell parses and refuses every non-synthetic connection parameter before docker',()=>{
  assert.equal(spawnSync('bash',['-n',path]).status,0);
@@ -19,8 +19,11 @@ test('document PG17 harness shell parses and refuses every non-synthetic connect
 test('document PG17 job is isolated, reads no repository secrets, and retains existing V47 job',()=>{
  assert.match(workflow,/isolated-pg17-roles-and-rollback:/u);
  assert.match(workflow,/isolated-pg17-document-consent:/u);
- assert.match(workflow,/image: postgres:17-alpine/u);
- assert.match(workflow,/run: bash scripts\/data-safety\/gx_document_consent_isolated_pg17.sh/u);
+ const launcher=readFileSync('scripts/data-safety/run_disposable_pg17_ci.sh','utf8');
+ assert.match(launcher,/postgres:17-alpine/u);
+ assert.match(launcher,/-p 127\.0\.0\.1:5432:5432/u);
+ assert.match(launcher,/openssl rand -hex 32/u);
+ assert.match(workflow,/run: bash scripts\/data-safety\/run_disposable_pg17_ci\.sh scripts\/data-safety\/gx_document_consent_isolated_pg17\.sh/u);
  assert.doesNotMatch(workflow,/secrets\./u);
  assert.match(script,/GX_DOCUMENT_FRESH_PG17_REQUIRED/u);
 });
