@@ -26,7 +26,7 @@ import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {createConnected360ProductionSync} from './v46-production-sync.js';
-import {formatConnected360ProductionSummary} from './v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {
   createLatestTaskCoordinator,
@@ -917,10 +917,39 @@ export function createWearableController({
       const token=await getToken();
       if(!stillCurrent())return;
       const response=await transport.connected360ProductionSummary(token);
-      if(stillCurrent())target.textContent=formatConnected360ProductionSummary(response);
+      if(stillCurrent()){
+        target.textContent=formatConnected360ProductionSummary(response);
+        const history=wrap.querySelector?.('[data-prod-connected360-workouts]');
+        if(history){
+          const document=history.ownerDocument;
+          const rows=connected360WorkoutHistory(response);
+          const children=[];
+          if(rows.length){
+            const heading=document.createElement('h4');
+            heading.textContent='Últimos entrenamientos importados';
+            const note=document.createElement('p');
+            note.textContent='Hasta 10 actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.';
+            const list=document.createElement('ul');
+            for(const row of rows){
+              const item=document.createElement('li');
+              const label=document.createElement('strong');
+              label.textContent=row.label;
+              item.append(label,document.createTextNode(' · '+row.detail));
+              list.append(item);
+            }
+            children.push(heading,note,list);
+          }
+          history.replaceChildren(...children);
+          history.hidden=!rows.length;
+        }
+      }
     }catch{
-      if(stillCurrent())target.textContent='No se ha podido actualizar el historial. '+
-        'Los datos existentes se conservan y se reintentará al volver a abrir IBERFIT.';
+      if(stillCurrent()){
+        target.textContent='No se ha podido actualizar el historial. '+
+          'Los datos existentes se conservan y se reintentará al volver a abrir IBERFIT.';
+        const history=wrap.querySelector?.('[data-prod-connected360-workouts]');
+        if(history){history.replaceChildren();history.hidden=true;}
+      }
     }
   }
   async function autoSyncNativeProviders({signal=null}={}){
@@ -1454,7 +1483,7 @@ export function createWearableController({
         const connect=document.createElement('button');
         connect.type='button';
         connect.dataset.wearableAction='prod-connected360-connect';
-        connect.textContent='Conectar mi reloj a IBERFIT';
+        connect.textContent='Conectar mi actividad a IBERFIT';
         const note=document.createElement('p');
         note.dataset.prodConnected360Status='true';
         note.setAttribute('role','status');
@@ -1463,7 +1492,11 @@ export function createWearableController({
         results.dataset.prodConnected360Summary='true';
         results.setAttribute('role','status');
         results.textContent='Datos de salud: consultando registros disponibles…';
-        wrap.append(intro,consentArea,permissions,connect,note,results);
+        const workoutHistory=document.createElement('section');
+        workoutHistory.dataset.prodConnected360Workouts='true';
+        workoutHistory.hidden=true;
+        workoutHistory.setAttribute('aria-label','Entrenamientos importados de Health Connect');
+        wrap.append(intro,consentArea,permissions,connect,note,results,workoutHistory);
         nativeCard.append(wrap);
         const generation=nativeIdentityEpoch;
         void refreshProductionSummary(wrap);

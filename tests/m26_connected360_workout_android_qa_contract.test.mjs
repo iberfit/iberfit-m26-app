@@ -43,3 +43,11 @@ test('session association is candidate-only and never mutates training or bypass
   assert.match(model,/status:'ambiguous'/u);
   assert.doesNotMatch(model,/service_role|fetch\(|localStorage|indexedDB|document\.cookie|\.update\(|\.insert\(/u);
 });
+
+test('bounded native workout read prioritizes recent completed records before taking the batch',()=>{
+  const reader=readFileSync(new URL('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360WorkoutReadOnlyQa.kt',import.meta.url),'utf8');
+  assert.match(reader,/ascendingOrder=false/u);
+  assert.match(reader,/!it\.endTime\.isAfter\(end\)/u);
+  assert.match(reader,/Duration\.between\(it\.startTime,it\.endTime\) <= Duration\.ofHours\(24\)/u);
+  assert.match(reader,/opaqueRecordKey\(it\.metadata\.id\) != null/u);
+});

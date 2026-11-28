@@ -1,6 +1,39 @@
 import {formatSleepDuration} from './duration-format.js';
 const DAY=/^\d{4}-\d\d-\d\d$/u;
 const bpm=n=>typeof n==='number'&&Number.isFinite(n)&&n>=25&&n<=240?n:null;
+const WORKOUT_SPORTS=Object.freeze({
+  running:'Carrera',interval_running:'Carrera por intervalos',hiit:'HIIT',
+  cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',other:'Otro entrenamiento',
+});
+const workoutDate=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/Santiago'});
+const decimal=new Intl.NumberFormat('es-CL',{maximumFractionDigits:2});
+function observedInstant(value){
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/u.test(value))return null;
+  const stamp=Date.parse(value);return Number.isFinite(stamp)?stamp:null;
+}
+function observedDuration(ms){
+  const seconds=Math.floor(ms/1000),hours=Math.floor(seconds/3600),minutes=Math.floor((seconds%3600)/60);
+  return [hours?hours+' h':'',minutes?minutes+' min':'',!hours&&seconds%60?seconds%60+' s':''].filter(Boolean).join(' ')||'Menos de 1 s';
+}
+// Only the current owner-scoped server response feeds this list. The contract
+// contains up to ten observations, not a complete historical activity feed.
+// Do not infer physical watch identity or completed IBERFIT training.
+export function connected360WorkoutHistory(p,{now=new Date()}={}){
+  if(p?.ok!==true||p.provider!=='health_connect'||!Array.isArray(p.exerciseEvidence)
+    ||p.exerciseEvidence.length>10||!Number.isFinite(now?.getTime?.()))return Object.freeze([]);
+  const rows=[];
+  for(const row of p.exerciseEvidence){
+    if(!row||typeof row!=='object'||Array.isArray(row)||!Object.hasOwn(WORKOUT_SPORTS,row.sport)
+      ||row.linkedToTraining===true)continue;
+    const start=observedInstant(row.startedAt),end=observedInstant(row.endedAt);
+    if(start===null||end===null||start>=end||end-start>86400000||end>now.getTime()+300000)continue;
+    const d=row.distanceMeters, distance=typeof d==='number'&&Number.isFinite(d)&&d>=0&&d<=500000
+      ?decimal.format(d>=1000?d/1000:d)+(d>=1000?' km':' m'):null;
+    rows.push({start,label:WORKOUT_SPORTS[row.sport],
+      detail:[workoutDate.format(start),observedDuration(end-start),distance].filter(Boolean).join(' · ')});
+  }
+  return Object.freeze(rows.sort((a,b)=>b.start-a.start).map(({label,detail})=>Object.freeze({label,detail})));
+}
 export function formatConnected360ProductionSummary(p){
   if(!p||p.ok!==true||p.provider!=='health_connect'||
     !Array.isArray(p.heartRateDaily)||!Array.isArray(p.exerciseEvidence)

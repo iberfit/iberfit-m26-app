@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {formatConnected360ProductionSummary} from '../src/m26/wearables/v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory} from '../src/m26/wearables/v46-production-summary.js';
 
 const empty=()=>({ok:true,provider:'health_connect',heartRateDaily:[],exerciseEvidence:[]});
 
@@ -61,4 +61,40 @@ test('post-sync Client history refresh fences stale owner and older responses',(
   assert.match(controller,/productionSummaryEpoch\+=1/u);
   assert.match(controller,/target\.textContent=formatConnected360ProductionSummary\(response\)/u);
   assert.match(controller,/Datos existentes se conservan|Los datos existentes se conservan/u);
+});
+
+test('imported activity list displays actual type, date, duration and optional distance in reverse chronology',()=>{
+  const now=new Date('2026-10-13T12:00:00Z');
+  const row=(sport,startedAt,endedAt,extra={})=>({sport,startedAt,endedAt,linkedToTraining:false,...extra});
+  const exerciseEvidence=[
+    row('running','2026-10-11T10:00:00Z','2026-10-11T10:30:00Z',{distanceMeters:5000}),
+    row('strength','2026-10-12T10:00:00Z','2026-10-12T10:45:00Z',{deviceId:'private-device'}),
+    row('cycling','2026-10-10T10:00:00Z','2026-10-10T11:05:00Z',{distanceMeters:0}),
+  ];
+  const rows=connected360WorkoutHistory({...empty(),exerciseEvidence},{now});
+  assert.deepEqual(rows.map(x=>x.label),['Fuerza','Carrera','Ciclismo']);
+  assert.match(rows[0].detail,/45 min/u);
+  assert.doesNotMatch(rows[0].detail,/km|0 m|private-device/u);
+  assert.match(rows[1].detail,/30 min · 5 km/u);
+  assert.match(rows[2].detail,/1 h 5 min · 0 m/u);
+  assert.ok(Object.isFrozen(rows)&&rows.every(Object.isFrozen));
+});
+test('invalid, future, linked and malformed observations never become external workout details',()=>{
+  const now=new Date('2026-10-13T12:00:00Z');
+  const base={sport:'running',startedAt:'2026-10-12T10:00:00Z',endedAt:'2026-10-12T10:30:00Z'};
+  const exerciseEvidence=[null,{...base,sport:'<script>'},{...base,startedAt:'2026-10-12T10:00:00'},
+    {...base,endedAt:'2026-10-14T10:30:00Z'},{...base,linkedToTraining:true},{...base,distanceMeters:'5000'}];
+  const rows=connected360WorkoutHistory({...empty(),exerciseEvidence},{now});
+  assert.equal(rows.length,1);
+  assert.doesNotMatch(rows[0].detail,/km|script/u);
+  assert.deepEqual(connected360WorkoutHistory({...empty(),exerciseEvidence:Array(11).fill(base)},{now}),[]);
+});
+test('history shares the fenced production read, uses safe text nodes and never claims complete coverage',()=>{
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const section=controller.slice(controller.indexOf('async function refreshProductionSummary'),controller.indexOf('async function autoSyncNativeProviders'));
+  assert.match(section,/if\(stillCurrent\(\)\)\{[\s\S]*connected360WorkoutHistory\(response\)/u);
+  assert.match(section,/document\.createTextNode/u);
+  assert.match(section,/Hasta 10 actividades de los últimos 7 días/u);
+  assert.doesNotMatch(section,/innerHTML|insertAdjacentHTML/u);
+  assert.match(section,/history\.replaceChildren\(\);history\.hidden=true/u);
 });

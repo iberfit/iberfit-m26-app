@@ -125,11 +125,16 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
             ReadRecordsRequest(
                 recordType=ExerciseSessionRecord::class,
                 timeRangeFilter=TimeRangeFilter.between(start,end),
+                // Health Connect defaults to ascending start time; taking one
+                // page in that order can permanently hide the newest activities.
+                ascendingOrder=false,
                 pageSize=PAGE_SIZE,
             )
         )
         val exercises=page.records
-            .filter { it.endTime.isAfter(it.startTime) && it.startTime.isBefore(end) }
+            .filter { it.endTime.isAfter(it.startTime) && !it.endTime.isAfter(end) &&
+                Duration.between(it.startTime,it.endTime) <= Duration.ofHours(24) &&
+                opaqueRecordKey(it.metadata.id) != null }
             .sortedByDescending { it.endTime }
         val truncated=page.pageToken!=null||exercises.size>MAX_WORKOUTS
         val found=mutableListOf<LocalWorkout>()
