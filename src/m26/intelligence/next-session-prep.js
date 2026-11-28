@@ -8,7 +8,8 @@ import {summarizeActionOutcomes} from './action-outcome.js';
 import {selectInitialIriBaseline,initialIriMeasurementDate} from '../workflows/iri-2-longitudinal.js';
 import {evidenceNumber,currentWearableEvidence,observedSet} from '../domain/evidence-signal.js';
 import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
-import {connected360RecentTrainingRows,connected360ActivityContinuity} from '../wearables/v46-production-summary.js';
+import {connected360RecentTrainingRows,connected360ActivityContinuity,connected360ObservedDayContinuity} from '../wearables/v46-production-summary.js';
+import {verifyConnected360CoachExerciseDays} from '../wearables/v49-coach-activity-contract.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record||{};}
@@ -382,7 +383,7 @@ export function buildTrainingSinceLastCoachReview(state,clientId,{now=new Date()
   });
 }
 
-export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null,summary=null}={}){
+export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null,summary=null,authorizedCoachDays=null}={}){
   const safeClientId=String(clientId||'').trim();
   if(!safeClientId)return null;
   // Reuse only the same-owner, same-window projection from this render.
@@ -399,21 +400,42 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   const iri=iriContext(state,safeClientId,progress,now);
   const wellbeingTrend=wellbeingShift(state,safeClientId,{now});
   const deviceContext=wearableContextForPreparation(progress?.wearable,{now});
-  // Only already authorized, canonical IBERFIT executions are available in
-  // this professional snapshot. Never consume the owner's private device
-  // response or assume generic client access grants health disclosure.
-  const activityContinuity=connected360ActivityContinuity(connected360RecentTrainingRows(
+  // Canonical executions remain independently usable. External context is
+  // an explicit, freshly authorized per-render transport response only,
+  // never sourced from the generic state collection or owner-private data.
+  const trainingRows=connected360RecentTrainingRows(
     confirmedSessionExecutionsForClient(state,safeClientId,{requireCompleted:true})
       .filter(record=>sessionExecutionIsCompleted(record,{allowDatedFallback:false}))
-      .map(record=>({completedAt:sessionExecutionCompletionDate(record)})),
-    {now}),{now});
+      .map(record=>({completedAt:sessionExecutionCompletionDate(record)})),{now});
+  const canonicalContinuity=connected360ActivityContinuity(trainingRows,{now});
+  let activityContinuity=canonicalContinuity;
+  if(authorizedCoachDays!==null&&state?.identity?.role==='coach'){
+    try{
+      const authorized=verifyConnected360CoachExerciseDays(authorizedCoachDays,{clientId:safeClientId,now});
+      const observed=new Set(trainingRows.map(row=>row.dayKey));
+      const running=new Set();
+      for(const row of authorized.days){
+        observed.add(row.date);
+        if(row.sports.includes('running')||row.sports.includes('interval_running'))running.add(row.date);
+      }
+      const external=connected360ObservedDayContinuity(observed,running,{now,source:'coach_authorized_activity'});
+      // Avoid duplicating an identical canonical cue. A specific running
+      // observation or a longer mixed sequence adds context without totals.
+      if(external&&(external.runningDays!==null||!canonicalContinuity||external.days>canonicalContinuity.days))
+        activityContinuity=external;
+    }catch{/* Invalid, stale or cross-client device context is discarded. */}
+  }
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
   const reasons=[...reviewReasons({progress,outcomes,feedback,session,wellbeingTrend})];
   if(activityContinuity){
     // Keep explicit pain/wellbeing findings ahead of this non-clinical context.
     const position=reasons.findIndex(reason=>!['pain','wellbeing','wellbeing-shift'].includes(reason.kind));
     reasons.splice(position<0?reasons.length:position,0,Object.freeze({
-      kind:'activity-continuity',label:activityContinuity.days+' · Días consecutivos con entrenamiento IBERFIT confirmado. Revisa la recuperación antes de decidir.',
+      kind:'activity-continuity',label:activityContinuity.days+(activityContinuity.source==='coach_authorized_activity'
+        ?activityContinuity.discipline==='running'
+          ?' · Días consecutivos con carrera registrada y compartida. Revisa la recuperación antes de decidir.'
+          :' · Días consecutivos con actividad registrada. Revisa la recuperación antes de decidir.'
+        :' · Días consecutivos con entrenamiento IBERFIT confirmado. Revisa la recuperación antes de decidir.'),
     }));
   }
   const sessionId=idOf(session)||null;

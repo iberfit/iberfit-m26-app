@@ -1,4 +1,6 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  [" · Días consecutivos con carrera registrada y compartida. Revisa la recuperación antes de decidir."," · Consecutive days with shared running records. Review recovery before deciding."," · Jours consécutifs avec des courses enregistrées et partagées. Examinez la récupération avant de décider."," · Dias consecutivos com corrida registada e partilhada. Revê a recuperação antes de decidir."],
+  [" · Días consecutivos con actividad registrada. Revisa la recuperación antes de decidir."," · Consecutive days with recorded activity. Review recovery before deciding."," · Jours consécutifs avec activité enregistrée. Examinez la récupération avant de décider."," · Dias consecutivos com atividade registada. Revê a recuperação antes de decidir."],
   ["Registro conservado de una autorización anterior","Record retained from an earlier authorization","Donnée conservée d’une autorisation antérieure","Registo conservado de uma autorização anterior"],
   ["Variación observada","Observed variation","Variation observée","Variação observada"],
   ["Días con medición","Days with measurements","Jours avec des mesures","Dias com medições"],

@@ -1,6 +1,7 @@
 import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
 import {CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT} from './wearables/measurement-capability-contract.js';
 import {connected360ActivityPage,connected360ActivityPageParams} from './wearables/v46-production-summary.js';
+import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt} from './wearables/v49-coach-activity-contract.js';
 import {verifyInvitationReceipt} from './workflows/coach-invitation-outcome.js';
 import {createQaInFlightReadGate} from './domain/qa-inflight-read-gate.js';
 import {compactQaCanonicalExecutionSummaries} from './domain/qa-canonical-summary-transport.js';
@@ -128,6 +129,9 @@ const CONNECTED360_RPC=Object.freeze({
   prodImport:'m26_wearable_v46_import_prod_v1',
   prodSummary:'m26_wearable_v46_my_summary_prod_v1',
   prodActivityPage:'m26_wearable_v48_my_activity_page_prod_v1',
+  prodCoachDays:'m26_wearable_v49_coach_exercise_days_v1',
+  prodCoachConsentStatus:'m26_wearable_v49_my_coach_consent_status_v1',
+  prodCoachConsentSet:'m26_wearable_v49_set_coach_consent_v1',
   prodDailyImport:'m26_wearable_v47_import_daily_prod_v1',
   prodDailySummary:'m26_wearable_v47_my_daily_prod_v1',
 });
@@ -1779,6 +1783,35 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     });
     return connected360ActivityPage(Array.isArray(raw)?raw[0]:raw,{cursor});
   }
+  // Explicit calls only: do not invoke from boot, polling or automatic sync.
+  // Consumers must wait for the certified backend capability; these methods
+  // are not themselves an authorization grant.
+  async function connected360ProductionCoachExerciseDays(token,clientId){
+    assertConnected360Production();
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=connected360CoachActivityParams(clientId);
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodCoachDays,{
+      method:'POST',token,body:JSON.stringify(params),
+    });
+    return verifyConnected360CoachExerciseDays(Array.isArray(raw)?raw[0]:raw,{clientId});
+  }
+  async function connected360ProductionCoachConsentStatus(token,coachId){
+    assertConnected360Production();
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodCoachConsentStatus,{
+      method:'POST',token,body:JSON.stringify(connected360CoachConsentStatusParams(coachId)),
+    });
+    return verifyConnected360CoachConsentStatus(Array.isArray(raw)?raw[0]:raw);
+  }
+  async function setConnected360ProductionCoachConsent(token,decision){
+    assertConnected360Production();
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const params=connected360CoachConsentParams(decision);
+    const raw=await request('/rest/v1/rpc/'+CONNECTED360_RPC.prodCoachConsentSet,{
+      method:'POST',token,body:JSON.stringify(params),
+    });
+    return verifyConnected360CoachConsentReceipt(Array.isArray(raw)?raw[0]:raw,params);
+  }
   async function connected360ProductionCapabilities(token){
     assertConnected360Production();
     if(!token)throw new Error('M26_AUTH_REQUIRED');
@@ -2247,6 +2280,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     connected360ProductionAuthorizationStatus,
     connected360ProductionSummary,
     connected360ProductionActivityPage,
+    connected360ProductionCoachExerciseDays,
+    connected360ProductionCoachConsentStatus,
+    setConnected360ProductionCoachConsent,
     connected360DailyProduction,
     authorizeConnected360Production,
     importConnected360Production,

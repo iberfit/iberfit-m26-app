@@ -541,3 +541,21 @@ test('Coach reviews a sequence of confirmed training days without counting dupli
   state.collections.sessionExecutions=state.collections.sessionExecutions.filter(row=>row.id!=='sequence-2');
   assert.equal(buildNextSessionPreparation(state,clientId,{now}).activityContinuity,null);
 });
+
+test('Coach prep accepts explicit current V49 data without duplicating canonical days or changing the plan',()=>{
+  const state=baseState();
+  const payload={ok:true,schema:'iberfit.connected360.coach-exercise-days.v1',clientId,provider:'health_connect',
+    coverage:'partial',periodStart:'2026-09-07',periodEnd:'2026-09-13',
+    days:[12,11,10,9,8].map(day=>({date:'2026-09-'+String(day).padStart(2,'0'),sports:['running']}))};
+  const prep=buildNextSessionPreparation(state,clientId,{now,authorizedCoachDays:payload});
+  assert.equal(prep.activityContinuity.days,5);
+  assert.equal(prep.activityContinuity.source,'coach_authorized_activity');
+  assert.equal(prep.activityContinuity.discipline,'running');
+  assert.equal(prep.reviewReasons.filter(reason=>reason.kind==='activity-continuity').length,1);
+  assert.equal(prep.session.startable,true);
+  assert.equal(prep.safety.automaticLoadChange,false);
+  assert.equal(buildNextSessionPreparation(state,clientId,{now,authorizedCoachDays:{...payload,clientId:'other'}}).activityContinuity,null);
+  assert.equal(buildNextSessionPreparation(state,clientId,{now,authorizedCoachDays:{...payload,periodEnd:'2026-09-12'}}).activityContinuity,null);
+  state.identity.role='admin';
+  assert.equal(buildNextSessionPreparation(state,clientId,{now,authorizedCoachDays:payload}).activityContinuity,null);
+});

@@ -131,7 +131,6 @@ function previousCivilDay(day){
 }
 export function connected360ActivityContinuity(rows,{now=new Date()}={}){
   if(!Array.isArray(rows)||rows.length>30||!Number.isFinite(now?.getTime?.()))return null;
-  const today=localWorkoutDay(now),yesterday=previousCivilDay(today);
   const observed=new Set(),running=new Set();
   for(const row of rows){
     if(!row||!['imported','iberfit'].includes(row.source)
@@ -144,8 +143,17 @@ export function connected360ActivityContinuity(rows,{now=new Date()}={}){
     if(row.source==='imported'&&['Carrera','Carrera por intervalos'].includes(row.label))
       running.add(row.dayKey);
   }
-  // Do not interpret an unobserved current day as a rest day. Anchor to
-  // today or yesterday only; never revive an old series as a current alert.
+  return connected360ObservedDayContinuity(observed,running,{now,
+    source:rows.every(row=>row.source==='iberfit')?'confirmed_iberfit_execution':'recent_authorized_activity'});
+}
+// Shared positive-only day calculation for authorized date-only Coach data
+// and timestamped owner observations. Never infer a rest day or load.
+export function connected360ObservedDayContinuity(observed,running,{now=new Date(),source}={}){
+  if(!(observed instanceof Set)||!(running instanceof Set)||!Number.isFinite(now?.getTime?.())
+    ||![...running].every(day=>observed.has(day))
+    ||!['confirmed_iberfit_execution','recent_authorized_activity','coach_authorized_activity'].includes(source))return null;
+  const today=localWorkoutDay(now),yesterday=previousCivilDay(today);
+  // Anchor to today or yesterday only; never revive an old series as current.
   function streak(days){
     const end=days.has(today)?today:days.has(yesterday)?yesterday:null;
     if(!end)return null;
@@ -163,7 +171,7 @@ export function connected360ActivityContinuity(rows,{now=new Date()}={}){
   const chosen=run?{...run,discipline:'running'}:{...any,discipline:'mixed'};
   return Object.freeze({...chosen,kind:'observed_activity_continuity',
     activityDays:any?.days??null,runningDays:run?.days??null,
-    source:rows.every(row=>row.source==='iberfit')?'confirmed_iberfit_execution':'recent_authorized_activity',coverage:'partial',
+    source,coverage:'partial',
     interpretation:'presence_only',recommendation:'review_recovery_with_coach',
     automaticPlanChange:false});
 }
