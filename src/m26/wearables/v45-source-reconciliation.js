@@ -193,3 +193,111 @@ export function reconcileV45SourceDailyMetrics(rows,{ownerId,clientId,preferredS
 }
 
 export const V45_RECONCILIATION_METRICS=Object.freeze(Object.keys(FIELDS));
+
+
+// Longitudinal exercise reconciliation: a separate projection over the same
+// authorized evidence rows, not a second storage table or a provider writer.
+// A stable provider record key identifies a replay, not a physical workout
+// shared by two providers. Overlap is ambiguous: never fuse or delete it.
+// Caller must provide the complete bounded period (never a partial page).
+const EXERCISE_PROVIDERS=new Set(['health_connect','apple_health','strava','garmin_connect','fitbit','oura']);
+const EXERCISE_SPORTS=new Set(['running','interval_running','hiit','cycling','walking','strength','swimming','other']);
+const EXERCISE_DAY_FORMAT=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'});
+const EXERCISE_LIMIT=4000;
+function exerciseDay(ms){
+  const parts=Object.fromEntries(EXERCISE_DAY_FORMAT.formatToParts(ms).map(p=>[p.type,p.value]));
+  return parts.year+'-'+parts.month+'-'+parts.day;
+}
+const exerciseFail=()=>{throw Error('M26_CONNECTED360_EXERCISE_RECONCILIATION_INVALID');};
+function exerciseInstant(v){
+  // PostgreSQL serializes offsets and microseconds. Preserve the instant
+  // for grouping, not the original source identifier. Reject invalid dates.
+  if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/u.test(v))exerciseFail();
+  civilDay(v.slice(0,10));
+  const n=Date.parse(v);if(!Number.isFinite(n))exerciseFail();return n;
+}
+function exerciseNumber(v,max){
+  if(v===undefined||v===null)return null;
+  if(typeof v!=='number'&&(typeof v!=='string'||!/^\d+(?:\.\d+)?$/u.test(v)))exerciseFail();
+  const n=Number(v);if(!Number.isFinite(n)||n<0||n>max)exerciseFail();return n;
+}
+export function reconcileConnected360ExercisePeriod(rows,{ownerId,clientId,periodStart,periodEnd,
+  complete=false,now=new Date()}={}){
+  if(!Array.isArray(rows)||rows.length>EXERCISE_LIMIT||!UUID.test(String(ownerId||''))
+    ||!UUID.test(String(clientId||''))||typeof complete!=='boolean'
+    ||!Number.isFinite(now?.getTime?.()))exerciseFail();
+  const first=civilDay(periodStart),last=civilDay(periodEnd);
+  if(first>last||last>exerciseDay(now.getTime())||
+    (Date.parse(last+'T00:00:00Z')-Date.parse(first+'T00:00:00Z'))/86400000>365)exerciseFail();
+  const records=new Map();
+  for(const raw of rows){
+    if(!raw||raw.owner_user_id!==ownerId||raw.client_id!==clientId
+      ||!EXERCISE_PROVIDERS.has(raw.provider)||!EXERCISE_SPORTS.has(raw.sport)
+      ||typeof raw.source_record_key!=='string'||!KEY.test(raw.source_record_key)
+      ||!UUID.test(String(raw.grant_id||''))||!/^(0|[1-9]\d*)$/u.test(String(raw.revocation_cursor))
+      ||raw.link_status!=='unlinked'||raw.quality!=='limitada'
+      ||raw.source_identity_verified!==false||raw.automatic_sync_certified!==false)exerciseFail();
+    const start=exerciseInstant(raw.observed_started_at),end=exerciseInstant(raw.observed_ended_at);
+    if(end<=start||end-start>86400000||end>now.getTime())exerciseFail();
+    const day=exerciseDay(start);
+    if(day<first||day>last)exerciseFail();
+    const distance=exerciseNumber(raw.distance_meters,500000);
+    // Current V46 rows do not include active duration. Do not infer it
+    // from elapsed time, and do not mix active and elapsed pace.
+    const active=exerciseNumber(raw.active_seconds,(end-start)/1000+1);
+    if(active===0)exerciseFail();
+    const item=Object.freeze({provider:raw.provider,sport:raw.sport,start,end,day,distance,active,
+      grant:raw.grant_id,cursor:String(raw.revocation_cursor)});
+    const key=raw.provider+':'+raw.source_record_key;
+    if(records.has(key)){
+      if(JSON.stringify(records.get(key))!==JSON.stringify(item))exerciseFail();
+      continue;
+    }
+    records.set(key,item);
+  }
+  const sorted=[...records.values()].sort((a,b)=>a.start-b.start||a.end-b.end||
+    a.provider.localeCompare(b.provider)||a.sport.localeCompare(b.sport));
+  const components=[];
+  for(const item of sorted){
+    const lastGroup=components.at(-1);
+    if(lastGroup&&item.start<lastGroup.end){
+      lastGroup.rows.push(item);lastGroup.end=Math.max(lastGroup.end,item.end);
+    }else components.push({end:item.end,rows:[item]});
+  }
+  const days=new Set(),sports=new Map(),conflicts=[];
+  const sportEntry=sport=>{
+    if(!sports.has(sport))sports.set(sport,{observedDays:new Set(),unambiguous:0,ambiguous:0,
+      distance:0,distanceCount:0,elapsed:0,active:0,activeCount:0});
+    return sports.get(sport);
+  };
+  for(const group of components){
+    for(const row of group.rows){days.add(row.day);sportEntry(row.sport).observedDays.add(row.day);}
+    if(group.rows.length>1){
+      const groupSports=[...new Set(group.rows.map(x=>x.sport))].sort();
+      const groupDays=[...new Set(group.rows.map(x=>x.day))].sort();
+      for(const sport of groupSports)sportEntry(sport).ambiguous+=1;
+      conflicts.push(Object.freeze({days:Object.freeze(groupDays),sports:Object.freeze(groupSports),
+        providers:Object.freeze([...new Set(group.rows.map(x=>x.provider))].sort()),
+        reason:'overlapping_observations'}));
+      continue;
+    }
+    const row=group.rows[0],entry=sportEntry(row.sport);entry.unambiguous+=1;
+    entry.elapsed+=(row.end-row.start)/1000;
+    if(row.distance!==null){entry.distance+=row.distance;entry.distanceCount+=1;}
+    if(row.active!==null){entry.active+=row.active;entry.activeCount+=1;}
+  }
+  const result=[...sports.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([sport,entry])=>{
+    const full=complete&&entry.ambiguous===0&&entry.unambiguous>0;
+    return Object.freeze({sport,observedDays:entry.observedDays.size,
+      unambiguousObservations:entry.unambiguous,ambiguousGroups:entry.ambiguous,
+      // Only complete non-overlapping evidence may expose aggregate volumes.
+      // Partial or conflicted evidence must not look like a total.
+      elapsedSeconds:full?entry.elapsed:null,
+      activeSeconds:full&&entry.activeCount===entry.unambiguous?entry.active:null,
+      distanceMeters:full&&entry.distanceCount===entry.unambiguous?entry.distance:null});
+  });
+  return Object.freeze({periodStart:first,periodEnd:last,coverage:complete?'complete-input':'partial-input',
+    observedDays:days.size,disciplines:Object.freeze(result),conflicts:Object.freeze(conflicts),
+    interpretation:'observed-external-evidence-only',persisted:false,authorizationChecked:false,
+    automaticPlanChange:false});
+}

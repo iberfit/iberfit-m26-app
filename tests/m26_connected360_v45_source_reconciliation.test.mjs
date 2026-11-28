@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {reconcileV45SourceDailyMetrics as reconcile} from '../src/m26/wearables/v45-source-reconciliation.js';
+import {reconcileV45SourceDailyMetrics as reconcile,reconcileConnected360ExercisePeriod} from '../src/m26/wearables/v45-source-reconciliation.js';
 
 const ownerId='22222222-2222-4222-8222-222222222222';
 const clientId='11111111-1111-4111-8111-111111111111';
@@ -134,4 +134,70 @@ test('no cross-day fusion and missing values stay null, not zero',()=>{
   assert.deepEqual(result.days.map(d=>d.date),['2026-10-09','2026-10-10']);
   assert.deepEqual(result.days.map(d=>d.metrics.steps),[5000,8000]);
   assert.deepEqual(result.days.map(d=>d.metrics.sleepMinutes),[null,null]);
+});
+
+
+const exerciseOptions={...options,periodStart:'2026-01-01',periodEnd:'2026-11-28',now:new Date('2026-11-28T20:00:00Z'),complete:true};
+const exercise=(changes={})=>({
+  owner_user_id:ownerId,client_id:clientId,provider:'health_connect',sport:'running',
+  source_record_key:'a'.repeat(64),grant_id:grant,revocation_cursor:0,
+  observed_started_at:'2026-11-28T12:00:00Z',observed_ended_at:'2026-11-28T12:30:00Z',
+  distance_meters:5000,link_status:'unlinked',quality:'limitada',
+  source_identity_verified:false,automatic_sync_certified:false,...changes
+});
+test('same-provider replay is idempotent and elapsed duration is not active duration',()=>{
+  const result=reconcileConnected360ExercisePeriod([exercise(),exercise()],exerciseOptions);
+  assert.equal(result.observedDays,1);
+  assert.deepEqual(result.disciplines[0],{sport:'running',observedDays:1,unambiguousObservations:1,
+    ambiguousGroups:0,elapsedSeconds:1800,activeSeconds:null,distanceMeters:5000});
+  assert.equal(result.authorizationChecked,false);
+  assert.equal(result.automaticPlanChange,false);
+});
+test('overlapping Apple and Android observations never double count or merge',()=>{
+  const apple=exercise({provider:'apple_health',source_record_key:'b'.repeat(64),active_seconds:1700});
+  const result=reconcileConnected360ExercisePeriod([exercise(),apple],exerciseOptions);
+  assert.equal(result.observedDays,1);
+  assert.equal(result.disciplines[0].distanceMeters,null);
+  assert.equal(result.disciplines[0].elapsedSeconds,null);
+  assert.equal(result.disciplines[0].ambiguousGroups,1);
+  assert.deepEqual(result.conflicts[0].providers,['apple_health','health_connect']);
+  assert.deepEqual(reconcileConnected360ExercisePeriod([apple,exercise()],exerciseOptions),result);
+  assert.doesNotMatch(JSON.stringify(result),/source_record_key|grant_id|aaaaaaaa/u);
+});
+test('separate days and non-overlapping activities are retained, including swimming',()=>{
+  const swim=exercise({provider:'apple_health',sport:'swimming',source_record_key:'b'.repeat(64),
+    observed_started_at:'2026-11-27T14:00:00Z',observed_ended_at:'2026-11-27T14:30:00Z',
+    active_seconds:1200,distance_meters:1000});
+  const result=reconcileConnected360ExercisePeriod([exercise(),swim],exerciseOptions);
+  assert.equal(result.observedDays,2);
+  assert.equal(result.disciplines.find(x=>x.sport==='swimming').activeSeconds,1200);
+  assert.equal(result.disciplines.find(x=>x.sport==='swimming').distanceMeters,1000);
+  const partial=reconcileConnected360ExercisePeriod([exercise(),swim],{...exerciseOptions,complete:false});
+  assert.ok(partial.disciplines.every(x=>x.distanceMeters===null&&x.elapsedSeconds===null));
+});
+test('overlap across midnight and transitive overlaps remain ambiguous; touching sessions do not',()=>{
+  const a=exercise({observed_started_at:'2026-11-28T02:40:00Z',observed_ended_at:'2026-11-28T03:10:00Z'});
+  const b=exercise({provider:'apple_health',source_record_key:'b'.repeat(64),
+    observed_started_at:'2026-11-28T03:00:00Z',observed_ended_at:'2026-11-28T03:30:00Z'});
+  const c=exercise({provider:'strava',source_record_key:'c'.repeat(64),
+    observed_started_at:'2026-11-28T03:20:00Z',observed_ended_at:'2026-11-28T03:40:00Z'});
+  const d=exercise({source_record_key:'d'.repeat(64),
+    observed_started_at:'2026-11-28T03:40:00Z',observed_ended_at:'2026-11-28T04:00:00Z'});
+  const result=reconcileConnected360ExercisePeriod([a,b,c,d],exerciseOptions);
+  assert.equal(result.conflicts.length,1);
+  assert.deepEqual(result.conflicts[0].days,['2026-11-27','2026-11-28']);
+  assert.equal(result.disciplines[0].unambiguousObservations,1);
+  assert.equal(result.disciplines[0].distanceMeters,null);
+});
+test('exercise projection rejects different ownership, divergent replay and invalid or future observations',()=>{
+  for(const bad of [exercise({owner_user_id:clientId}),exercise({client_id:ownerId}),
+    exercise({automatic_sync_certified:true}),exercise({distance_meters:''}),
+    exercise({active_seconds:3600}),exercise({observed_started_at:'2026-11-31T12:00:00Z'}),
+    exercise({observed_ended_at:'2026-11-29T12:00:00Z'}),exercise({link_status:'linked'}),
+    exercise({source_record_key:'native-uuid'})])
+    assert.throws(()=>reconcileConnected360ExercisePeriod([bad],exerciseOptions));
+  assert.throws(()=>reconcileConnected360ExercisePeriod([exercise(),exercise({distance_meters:5001})],exerciseOptions));
+  const noDistance=reconcileConnected360ExercisePeriod([exercise({distance_meters:null})],exerciseOptions);
+  assert.equal(noDistance.disciplines[0].distanceMeters,null);
+  assert.equal(reconcileConnected360ExercisePeriod([],exerciseOptions).observedDays,0);
 });
