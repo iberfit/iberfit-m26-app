@@ -1011,8 +1011,72 @@ export function createWearableController({
               children.push(heading,note,list);
             }
           }
+          // The server must explicitly advertise the V48 read model. Older
+          // deployments keep the existing recent history without a failed RPC.
+          const fullHistory=feed?.dataset.prodConnected360Feed==='full'
+            &&response.activityHistoryAvailable===true
+            &&typeof transport.connected360ProductionActivityPage==='function';
+          if(fullHistory){
+            const action=document.createElement('button');
+            action.type='button';
+            action.textContent='Consultar historial completo';
+            action.addEventListener('click',async()=>{
+              if(!stillCurrent()||action.disabled)return;
+              action.disabled=true;
+              await renderActivityPage(null,[]);
+            });
+            children.push(action);
+          }
           history.replaceChildren(...children);
-          history.hidden=!rows.length;
+          history.hidden=!rows.length&&!fullHistory;
+
+          async function renderActivityPage(cursor,previousCursors){
+            if(!stillCurrent()||!history.isConnected)return;
+            const heading=document.createElement('h4');
+            heading.textContent='Historial de actividad importada';
+            const status=document.createElement('p');
+            status.setAttribute('role','status');
+            status.textContent='Consultando actividades…';
+            history.replaceChildren(heading,status);
+            const makeAction=(label,handler)=>{
+              const button=document.createElement('button');
+              button.type='button';button.textContent=label;
+              button.addEventListener('click',()=>{
+                if(!stillCurrent()||!button.isConnected||button.disabled)return;
+                button.disabled=true;void handler();
+              });
+              return button;
+            };
+            try{
+              const token=await getToken();
+              if(!stillCurrent()||!history.isConnected)return;
+              const page=await transport.connected360ProductionActivityPage(token,cursor);
+              if(!stillCurrent()||!history.isConnected)return;
+              status.textContent=page.rows.length
+                ?'Página '+(previousCursors.length+1)+' · Actividades importadas de Health Connect; no equivalen a sesiones confirmadas.'
+                :'No hay más actividades autorizadas.';
+              const list=document.createElement('ul');
+              for(const row of page.rows){
+                const item=document.createElement('li'),label=document.createElement('strong');
+                label.textContent=row.label;
+                item.append(label,document.createTextNode(' · '+row.detail));
+                list.append(item);
+              }
+              const controls=[];
+              if(previousCursors.length)controls.push(makeAction('Anterior',()=>
+                renderActivityPage(previousCursors.at(-1),previousCursors.slice(0,-1))));
+              if(page.nextCursor)controls.push(makeAction('Siguiente',()=>
+                renderActivityPage(page.nextCursor,[...previousCursors,cursor])));
+              controls.push(makeAction('Volver al resumen',()=>refreshProductionSummary(wrap,{supersede:true})));
+              history.replaceChildren(heading,status,list,...controls);
+            }catch{
+              if(!stillCurrent()||!history.isConnected)return;
+              status.textContent='No se pudo consultar el historial autorizado. Puedes reintentar.';
+              history.replaceChildren(heading,status,
+                makeAction('Reintentar',()=>renderActivityPage(cursor,previousCursors)),
+                makeAction('Volver al resumen',()=>refreshProductionSummary(wrap,{supersede:true})));
+            }
+          }
         }
       }
     }catch{
