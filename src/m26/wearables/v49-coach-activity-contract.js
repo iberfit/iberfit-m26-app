@@ -38,6 +38,11 @@ export function verifyConnected360CoachConsentReceipt(value,params){
       ![params.p_expected_revision,params.p_expected_revision+1].includes(value.revision)))fail();
   return Object.freeze({...value});
 }
+export function verifyConnected360AppleCoachConsentReceipt(value,params){
+  if(!exact(value,['ok','provider','shared','revision'])||value.provider!=='apple_health')fail();
+  const {provider,...receipt}=value;
+  return Object.freeze({...verifyConnected360CoachConsentReceipt(receipt,params),provider});
+}
 function startOfWindow(end){
   const d=new Date(end+'T00:00:00Z');
   d.setUTCDate(d.getUTCDate()-6);
@@ -45,11 +50,18 @@ function startOfWindow(end){
 }
 // Strict minimized server response, never a persisted or generic client-state
 // collection. Date-only observations are not fabricated workout timestamps.
-export function verifyConnected360CoachExerciseDays(value,{clientId,now=new Date()}={}){
+export function verifyConnected360CoachExerciseDays(value,options={}){
+  return verifyProviderExerciseDays(value,'health_connect',options);
+}
+export function verifyConnected360AppleCoachExerciseDays(value,options={}){
+  return verifyProviderExerciseDays(value,'apple_health',options);
+}
+function verifyProviderExerciseDays(value,provider,{clientId,now=new Date()}={}){
+  const schema=provider==='apple_health'?'iberfit.connected360.apple-coach-exercise-days.v1':'iberfit.connected360.coach-exercise-days.v1';
   const end=Number.isFinite(now?.getTime?.())?reportCivilDate(now):null;
   if(!end||!uuid(clientId)||!exact(value,['ok','schema','clientId','provider','coverage','periodStart','periodEnd','days'])
-    ||value.ok!==true||value.schema!=='iberfit.connected360.coach-exercise-days.v1'
-    ||value.clientId!==clientId||value.provider!=='health_connect'||value.coverage!=='partial'
+    ||value.ok!==true||value.schema!==schema
+    ||value.clientId!==clientId||value.provider!==provider||value.coverage!=='partial'
     ||value.periodEnd!==end||value.periodStart!==startOfWindow(end)
     ||!Array.isArray(value.days)||value.days.length>7)fail();
   let previous=null;
@@ -67,10 +79,19 @@ export function verifyConnected360CoachExerciseDays(value,{clientId,now=new Date
 
 // Recipient discovery is a separate owner-scoped capability. Never derive
 // sharing eligibility from a generic list of coaches or client assignments.
-export function verifyConnected360CoachRecipients(value,{clientId}={}){
-  if(!uuid(clientId)||!exact(value,['ok','schema','clientId','purpose','recipients'])
-    ||value.ok!==true||value.schema!=='iberfit.connected360.coach-recipients.v1'
-    ||value.clientId!==clientId||value.purpose!==PURPOSE
+export function verifyConnected360CoachRecipients(value,options={}){
+  return verifyProviderRecipients(value,'health_connect',options);
+}
+export function verifyConnected360AppleCoachRecipients(value,options={}){
+  return verifyProviderRecipients(value,'apple_health',options);
+}
+function verifyProviderRecipients(value,provider,{clientId}={}){
+  const apple=provider==='apple_health',keys=['ok','schema','clientId','purpose','recipients'];
+  if(apple)keys.push('provider');
+  if(!uuid(clientId)||!exact(value,keys)
+    ||value.ok!==true||value.schema!==(apple?'iberfit.connected360.apple-coach-recipients.v1':'iberfit.connected360.coach-recipients.v1')
+    ||(apple&&value.provider!==provider)
+    ||value.clientId!==clientId||value.purpose!==(apple?'coaching-apple-exercise-days-v1':PURPOSE)
     ||!Array.isArray(value.recipients)||value.recipients.length>20)fail();
   const seen=new Set();
   const recipients=value.recipients.map(row=>{
@@ -149,4 +170,35 @@ export function connected360CoachActivityView(payload,{clientId,now=new Date(),c
  // infer inactivity or diagnose inadequate recovery from partial coverage.
  const cueBasis=cue?(activity.discipline==='running'||(context.external?.days===activity.days&&context.external?.periodEnd===activity.periodEnd)?'external':'combined'):null;
  return Object.freeze({days:Object.freeze(days),cue,cueBasis,disciplineCues:context.disciplineCues});
+}
+
+/** Candidate, positive-only view of independently authorized provider responses.
+ * A missing source is never substituted by an empty response. No session
+ * counts, totals, biometric measurements or inferred days of rest. */
+export function connected360MultiProviderCoachActivityView(payloads,{clientId,now=new Date(),confirmedRows=[]}={}){
+ if(!Array.isArray(payloads)||payloads.length<1||payloads.length>2)fail();
+ const providers=new Set(),days=new Map();
+ for(const raw of payloads){
+  const provider=raw?.provider;
+  if(providers.has(provider)||!['health_connect','apple_health'].includes(provider))fail();
+  const checked=provider==='apple_health'?verifyConnected360AppleCoachExerciseDays(raw,{clientId,now}):verifyConnected360CoachExerciseDays(raw,{clientId,now});
+  providers.add(provider);
+  for(const row of checked.days){
+   if(!days.has(row.date))days.set(row.date,new Map());
+   const sports=days.get(row.date);
+   for(const sport of row.sports){
+    const key=sport==='interval_running'?'running':sport;
+    if(!sports.has(key))sports.set(key,new Set());
+    sports.get(key).add(provider);
+   }
+  }
+ }
+ const ordered=[...days.entries()].sort(([a],[b])=>b.localeCompare(a));
+ const merged={days:ordered.map(([date,sports])=>({date,sports:[...sports.keys()]}))};
+ const context=continuityFromVerified(merged,confirmedRows,now);
+ const activity=context.activity;
+ return Object.freeze({coverage:'partial',providers:Object.freeze([...providers].sort()),
+  days:Object.freeze(ordered.map(([date,sports])=>Object.freeze({date,sports:Object.freeze([...sports.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([sport,sources])=>Object.freeze({sport,label:labels[sport],providers:Object.freeze([...sources].sort())})))}))),
+  cue:activity?.source==='coach_authorized_activity'?Object.freeze({days:activity.days,discipline:activity.discipline,periodStart:activity.periodStart,periodEnd:activity.periodEnd}):null,
+  disciplineCues:context.disciplineCues,automaticPlanChange:false});
 }
