@@ -370,9 +370,11 @@ test('five recorded running days are positive context, not proof of no recovery 
     run(27),run(26),run(25),run(24),run(23),run(23),run(22,'walking'),
   ]},{now});
   const signal=connected360ActivityContinuity(rows,{now});
-  assert.equal(signal.days,6);
-  assert.equal(signal.discipline,'mixed');
-  assert.equal(signal.periodStart,'2026-11-22');
+  assert.equal(signal.days,5);
+  assert.equal(signal.runningDays,5);
+  assert.equal(signal.activityDays,6);
+  assert.equal(signal.discipline,'running');
+  assert.equal(signal.periodStart,'2026-11-23');
   assert.equal(signal.periodEnd,'2026-11-27');
   assert.equal(signal.coverage,'partial');
   assert.equal(signal.interpretation,'presence_only');
