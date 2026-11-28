@@ -2,6 +2,7 @@
 // U36 RPC grants are still revoked. Never fall back to V26 when an RPC,
 // network, JWT refresh, or device reconciliation fails.
 import {buildOccurrenceScopedCommand} from '../domain/occurrence-commands.js';
+import {resolveSantiagoLocalInstant} from '../domain/dated-training-occurrences.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const LOCAL_DATE=/^\d{4}-\d{2}-\d{2}$/u;
@@ -133,6 +134,35 @@ function verifyCalendarRow(row,owner,start,end,role){
   ].includes(key)))throw error('CALENDAR_PRIVATE_DATA');
   return row;
 }
+// U34: do not clear the durable journal on an ambiguous/mismatched
+// cancellation or replacement ACK. The old occurrence is retired atomically;
+// a replacement, if requested, has its own identity and exact Chile date.
+function verifyCoachScheduleAck(reply,cmd){
+  if(reply.kind!=='ack'||!['OCURRENCIA_CANCELAR','OCURRENCIA_REPROGRAMAR'].includes(cmd.type))return;
+  if(reply.entityType!=='training_occurrence'||reply.status!=='cancelada'||
+    reply.remoteRevision!==cmd.baseRevision+1||!Number.isSafeInteger(reply.remoteRevision)||
+    typeof reply.duplicate!=='boolean')throw error('U34_SCHEDULE_ACK_UNVERIFIED');
+  if(cmd.type==='OCURRENCIA_CANCELAR'){
+    if(reply.replacement!==null)throw error('U34_SCHEDULE_ACK_UNVERIFIED');
+    return;
+  }
+  const target=cmd.payload.replacement,r=reply.replacement;
+  if(!r||typeof r!=='object'||Array.isArray(r)||
+    Object.keys(r).length!==4||!['id','localDate','startsAt','appointmentId'].every(k=>Object.hasOwn(r,k))||
+    typeof r.id!=='string'||!UUID.test(r.id)||r.id.toLowerCase()===cmd.entityId||
+    r.localDate!==target.localDate||r.appointmentId!==(target.appointmentId??null))
+    throw error('U34_REPLACEMENT_ACK_UNVERIFIED');
+  if(!target.localTime){
+    if(r.startsAt!==null)throw error('U34_REPLACEMENT_ACK_UNVERIFIED');
+  }else{
+    const expected=resolveSantiagoLocalInstant(target.localDate,target.localTime,{
+      disambiguation:target.dstDisambiguation??null,
+    });
+    if(typeof r.startsAt!=='string'||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u.test(r.startsAt)||
+      Date.parse(r.startsAt)!==Date.parse(expected))throw error('U34_REPLACEMENT_ACK_UNVERIFIED');
+  }
+}
 function verifiedResponse(reply,cmd){
   if(!reply||typeof reply!=='object'||Array.isArray(reply)||
     !['ack','conflict','rejected'].includes(reply.kind)||
@@ -167,6 +197,7 @@ function verifiedResponse(reply,cmd){
       (!paused&&!Number.isFinite(Date.parse(reply.activeSince))))
       throw error('U72_ACK_CLOCK_OR_CAS_INVALID');
   }
+  verifyCoachScheduleAck(reply,cmd);
   return immutable({...reply});
 }
 
@@ -215,12 +246,13 @@ export function createOccurrenceCoordinator({
       throw error('CALENDAR_RANGE_INVALID');
     const actor=await authenticate();canAccess(actor,owner);
     const all=[],seen=new Set(),cursors=new Set();
-    let afterDate=null,afterId=null,lastKey='';
+    let afterDate=null,afterId=null,lastKey='',pageActor=actor;
     for(let page=0;page<maxPages;page++){
       const query={clientId:owner,startDate:start,endDate:end,limit,
         ...(afterDate?{afterDate,afterId}:{})};
-      const response=await transport.occurrenceCalendar(actor.accessToken,query);
-      assertOwner(actor,await authenticate());
+      const response=await transport.occurrenceCalendar(pageActor.accessToken,query);
+      pageActor=await authenticate();
+      assertOwner(actor,pageActor);
       if(!response||response.kind!=='calendar'||
         uuid(response.clientId)!==owner||
         !Array.isArray(response.occurrences)||response.occurrences.length>limit||
@@ -285,21 +317,26 @@ export function createOccurrenceCoordinator({
         await journal.writePending(scopeKey,cmd);
         uncertain.set(scopeKey,{cmd,signature});
       }
-      assertOwner(actor,await authenticate());
+      const dispatchActor=await authenticate();
+      assertOwner(actor,dispatchActor);
       dispatched=true;
-      const reply=await transport.occurrenceCommand(actor.accessToken,cmd);
+      const reply=await transport.occurrenceCommand(dispatchActor.accessToken,cmd);
       assertOwner(actor,await authenticate());
       confirmed=verifiedResponse(reply,cmd);
+      let result=confirmed;
       try{
         await journal.clearPending(scopeKey,cmd.operationId);
         uncertain.delete(scopeKey);
-        return confirmed;
       }catch{
         // A remote ACK remains an ACK even if cleanup is unavailable.
         // No second command ID is permitted until recovery is reconciled.
         uncertain.set(scopeKey,{cmd,signature});
-        return immutable({...confirmed,localRecoveryPending:true});
+        result=immutable({...confirmed,localRecoveryPending:true});
       }
+      // Cleanup is asynchronous: never deliver the old actor's receipt to a
+      // replacement identity, even when the remote operation is confirmed.
+      assertOwner(actor,await authenticate());
+      return result;
     }catch(cause){
       if(dispatched&&confirmed===null)uncertain.set(scopeKey,{cmd,signature});
       throw cause;

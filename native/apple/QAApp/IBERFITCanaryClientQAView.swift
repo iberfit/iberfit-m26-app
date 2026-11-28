@@ -12,6 +12,11 @@ final class IBERFITAppleCanaryQAState: ObservableObject {
     @Published private(set) var status = "Inicia sesión en Canary. La lectura necesita autorización local independiente."
     @Published private(set) var isBusy = false
     private let reader = IBERFITIOSHealthKitDailyVitalsReader()
+    private let workoutReader = IBERFITIOSHealthKitWorkoutReader()
+    private var workoutApproved = false
+    private var candidateApproved = false
+    private var candidatePager: IBERFITAppleWorkoutCandidatePager?
+    private var candidateExpiry: Task<Void, Never>?
     private var oneReadApproved = false
     private var approvedAtUptime: TimeInterval?
     private var generation: UInt64 = 0
@@ -36,6 +41,9 @@ final class IBERFITAppleCanaryQAState: ObservableObject {
         oneReadApproved = false
         approvedAtUptime = nil
         isBusy = true
+        workoutApproved = false
+        clearCandidate()
+        workoutReader.invalidate()
         status = "Autorizando una lectura local. IBERFIT no recibe tus datos todavía."
         reader.requestExplicitDailyAccess { [weak self] result in
             Task { @MainActor [weak self] in
@@ -47,6 +55,185 @@ final class IBERFITAppleCanaryQAState: ObservableObject {
                     self.status = "Una lectura local autorizada durante 2 minutos. Consulta Apple Salud en Dispositivos de Canary."
                 } else {
                     self.status = "No se completó la autorización local. Revisa Apple Salud."
+                }
+            }
+        }
+    }
+
+    func authorizeWorkoutsOnce() {
+        guard !isBusy, let webView, Self.trusted(webView.url) else { return }
+        generation &+= 1
+        let lease = generation
+        oneReadApproved = false
+        workoutApproved = false
+        clearCandidate()
+        approvedAtUptime = nil
+        reader.revokeLocalReadApproval()
+        isBusy = true
+        status = "Autorizando una lectura local de actividades, sin frecuencia cardíaca."
+        workoutReader.requestExplicitWorkoutAccess(includeHeartRate: false) { [weak self] result in
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == lease else { return }
+                self.isBusy = false
+                if case .success = result {
+                    self.workoutApproved = true
+                    self.approvedAtUptime = ProcessInfo.processInfo.systemUptime
+                    self.status = "Una lectura de actividades autorizada durante 2 minutos. Consulta entrenamientos en Dispositivos de Canary."
+                } else {
+                    self.status = "No se completó la autorización de actividades."
+                }
+            }
+        }
+    }
+
+    private func clearCandidate() {
+        candidateApproved = false
+        candidateExpiry?.cancel()
+        candidateExpiry = nil
+        candidatePager?.invalidate()
+        candidatePager = nil
+    }
+
+    // Explicit separate local QA permission. This does not authorize any
+    // server import, auto-sync, or production HealthKit access.
+    func authorizeCandidateOnce() {
+        guard !isBusy, let webView, Self.trusted(webView.url) else { return }
+        invalidate()
+        let lease = generation
+        isBusy = true
+        status = "Autorizando la prueba local de historial, sin sincronizar."
+        workoutReader.requestExplicitCandidateWorkoutAccess { [weak self] result in
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == lease else { return }
+                self.isBusy = false
+                if case .success = result {
+                    self.candidateApproved = true
+                    self.approvedAtUptime = ProcessInfo.processInfo.systemUptime
+                    self.status = "Prueba local de historial autorizada durante 2 minutos."
+                } else {
+                    self.status = "No se completó la autorización del historial."
+                }
+            }
+        }
+    }
+
+    private func sendCandidatePage(requestId: String, days: Int, cursor: UUID?, in view: WKWebView) {
+        guard let page = candidatePager?.page(days: days, cursor: cursor),
+              let data = try? JSONEncoder().encode(page),
+              let decoded = try? JSONSerialization.jsonObject(with: data),
+              let record = decoded as? [String: Any] else {
+            clearCandidate()
+            reply(requestId, error: "M26_V54_APPLE_CURSOR_INVALID", to: view)
+            return
+        }
+        // Correlation metadata is removed by the JS adapter. The page has
+        // no raw HealthKit UUID, biometrics, token, or account identifier.
+        reply(["schema": "iberfit.connected360.apple.qa.candidate.v1",
+               "requestId": requestId, "page": record], to: view)
+    }
+
+    func receiveCandidate(requestId: String, days: Int, cursor: UUID?, in view: WKWebView) {
+        guard webView === view, Self.trusted(view.url), [7, 30].contains(days) else { return }
+        guard !isBusy else {
+            reply(requestId, error: "M26_APPLE_QA_BUSY", to: view); return
+        }
+        if candidatePager != nil {
+            sendCandidatePage(requestId: requestId, days: days, cursor: cursor, in: view)
+            return
+        }
+        guard cursor == nil else {
+            reply(requestId, error: "M26_V54_APPLE_CURSOR_INVALID", to: view); return
+        }
+        guard candidateApproved else {
+            reply(requestId, error: "M26_APPLE_QA_LOCAL_APPROVAL_REQUIRED", to: view); return
+        }
+        guard IBERFITAppleQAReadLease.isCurrent(approvedAtUptime: approvedAtUptime,
+            nowUptime: ProcessInfo.processInfo.systemUptime) else {
+            invalidate()
+            reply(requestId, error: "M26_APPLE_QA_LOCAL_APPROVAL_EXPIRED", to: view); return
+        }
+        candidateApproved = false
+        approvedAtUptime = nil
+        generation &+= 1
+        let lease = generation
+        let expectedView = ObjectIdentifier(view)
+        isBusy = true
+        status = "Consultando el historial local, sin guardarlo."
+        workoutReader.readCandidateOnce(days: days) { [weak self] result in
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == lease, let activeView = self.webView,
+                      ObjectIdentifier(activeView) == expectedView, Self.trusted(activeView.url) else { return }
+                self.isBusy = false
+                switch result {
+                case .failure:
+                    self.status = "No se completó la lectura del historial."
+                    self.reply(requestId, error: "M26_APPLE_QA_HEALTH_READ_FAILED", to: activeView)
+                case .success(let pager):
+                    self.candidatePager = pager
+                    self.candidateExpiry = Task { @MainActor [weak self] in
+                        try? await Task.sleep(nanoseconds: 120_000_000_000)
+                        guard !Task.isCancelled, let self, self.generation == lease else { return }
+                        self.clearCandidate()
+                    }
+                    self.status = "Historial local disponible para la prueba; no sincronizado."
+                    self.sendCandidatePage(requestId: requestId, days: days, cursor: nil, in: activeView)
+                }
+            }
+        }
+    }
+
+    func receiveWorkouts(requestId: String, days: Int, in view: WKWebView) {
+        guard webView === view, Self.trusted(view.url) else { return }
+        guard workoutApproved && !isBusy else {
+            reply(requestId, error: "M26_APPLE_QA_LOCAL_APPROVAL_REQUIRED", to: view); return
+        }
+        guard IBERFITAppleQAReadLease.isCurrent(approvedAtUptime: approvedAtUptime,
+            nowUptime: ProcessInfo.processInfo.systemUptime) else {
+            invalidate()
+            reply(requestId, error: "M26_APPLE_QA_LOCAL_APPROVAL_EXPIRED", to: view); return
+        }
+        guard (1...30).contains(days) else {
+            reply(requestId, error: "M26_APPLE_QA_REQUEST_INVALID", to: view); return
+        }
+        workoutApproved = false
+        oneReadApproved = false
+        approvedAtUptime = nil
+        generation &+= 1
+        let lease = generation
+        let expectedView = ObjectIdentifier(view)
+        isBusy = true
+        status = "Consultando actividades en Apple Salud, sin guardarlas."
+        workoutReader.readOnce(days: days) { [weak self] result in
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == lease, let activeView = self.webView,
+                    ObjectIdentifier(activeView) == expectedView, Self.trusted(activeView.url)
+                else { return }
+                self.isBusy = false
+                switch result {
+                case .failure:
+                    self.status = "No se completó la lectura de actividades."
+                    self.reply(requestId, error: "M26_APPLE_QA_HEALTH_READ_FAILED", to: activeView)
+                case .success(let preview):
+                    let formatter = ISO8601DateFormatter()
+                    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                    let rows: [[String: Any]] = preview.workouts.map { workout in
+                        var row: [String: Any] = [
+                            "sport": workout.sport,
+                            "startedAt": formatter.string(from: workout.start),
+                            "endedAt": formatter.string(from: workout.end),
+                            "activeSeconds": workout.activeSeconds
+                        ]
+                        if let distance = workout.distanceMeters { row["distanceMeters"] = distance }
+                        return row
+                    }
+                    // No HealthKit UUID, HR, token, device ID, raw samples or server write.
+                    self.status = "Lectura local completada. No se han sincronizado actividades."
+                    self.reply([
+                        "schema": "iberfit.connected360.apple.qa.workouts.v1",
+                        "requestId": requestId, "provider": "apple_health", "days": days,
+                        "records": rows, "mayHaveMore": preview.mayHaveMore,
+                        "readPermissionStatus": "not_disclosed", "persisted": false, "linked": false
+                    ], to: activeView)
                 }
             }
         }
@@ -146,6 +333,9 @@ final class IBERFITAppleCanaryQAState: ObservableObject {
         approvedAtUptime = nil
         isBusy = false
         reader.revokeLocalReadApproval()
+        workoutApproved = false
+        clearCandidate()
+        workoutReader.invalidate()
         status = "Autorización local retirada. No se enviaron datos."
     }
 }
@@ -156,13 +346,20 @@ struct IBERFITCanaryClientQAView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Button("Autorizar UNA lectura local", action: state.authorizeOnce)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 12) {
+                    Button("Autorizar UNA lectura local", action: state.authorizeOnce)
+                        .disabled(state.isBusy)
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 0.73, green: 0.60, blue: 0.36))
+                    Text("QA").font(.caption.bold())
+                }
+                Button("Autorizar actividades", action: state.authorizeWorkoutsOnce)
                     .disabled(state.isBusy)
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color(red: 0.73, green: 0.60, blue: 0.36))
-                Text("QA")
-                    .font(.caption.bold())
+                    .buttonStyle(.bordered)
+                Button("Prueba local de historial (QA)", action: state.authorizeCandidateOnce)
+                    .disabled(state.isBusy)
+                    .buttonStyle(.bordered)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
@@ -270,6 +467,19 @@ private struct IBERFITCanaryQAWebView: UIViewRepresentable {
                 guard let days = body["days"] as? Int,
                       (1...7).contains(days) else { return }
                 state.receiveRead(requestId: id, days: days, in: webView)
+            case "health.readCandidatePage":
+                guard Set(body.keys) == Set(["schema", "requestId", "action", "days", "cursor"]),
+                      let days = body["days"] as? Int, [7, 30].contains(days) else { return }
+                let cursor: UUID?
+                if body["cursor"] is NSNull { cursor = nil }
+                else if let value = body["cursor"] as? String, let parsed = UUID(uuidString: value) {
+                    cursor = parsed
+                } else { return }
+                state.receiveCandidate(requestId: id, days: days, cursor: cursor, in: webView)
+            case "health.readWorkouts":
+                guard Set(body.keys) == Set(["schema", "requestId", "action", "days"]),
+                      let days = body["days"] as? Int, (1...30).contains(days) else { return }
+                state.receiveWorkouts(requestId: id, days: days, in: webView)
             default:
                 break
             }

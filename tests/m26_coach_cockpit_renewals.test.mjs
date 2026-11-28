@@ -165,3 +165,29 @@ test('La proyección de ruta compone evidencia comercial canónica para Hoy sin 
   assert.equal(item.paymentInference,false);
   assert.equal(projected.coachCockpit.riskFocus,null);
 });
+
+test('explicit service state governs training attention and renewal eligibility after IRI conversion',()=>{
+  const warning={severity:'warning',title:'Revisar entrenamiento'};
+  const entries=[
+    {client:{id:'iri-new',trainingServiceStatus:'none',lifecycleStatus:'active'},alerts:[warning]},
+    {client:{id:'converted',trainingServiceStatus:'active',lifecycleStatus:'iri_only'},alerts:[warning]},
+    {client:{id:'ended',trainingServiceStatus:'ended',lifecycleStatus:'active'},alerts:[warning]},
+    {client:{id:'paused',trainingServiceStatus:'paused'},alerts:[]},
+  ];
+  const cockpit=deriveCoachCockpit(entries);
+  assert.equal(cockpit.totalClients,2);
+  assert.deepEqual(cockpit.items.map(x=>x.clientId),['converted']);
+  const renewed=augmentCoachCockpitWithCrm(cockpit,[
+    {...crm('overdue'),clientId:'iri-new',client:{trainingServiceStatus:'none'}},
+    {...crm('overdue'),clientId:'converted',client:{trainingServiceStatus:'active',lifecycleStatus:'iri_only'}},
+  ]);
+  assert.deepEqual(renewed.items.filter(x=>x.source==='crm-renewals').map(x=>x.clientId),['converted']);
+});
+test('commercial portfolio excludes explicit assessment-only service even with active legacy lifecycle',()=>{
+  const clients=[{id:'iri-new',name:'IRI',trainingServiceStatus:'none',lifecycleStatus:'active'},{id:'converted',name:'Converted',trainingServiceStatus:'active',lifecycleStatus:'iri_only'}];
+  const state={collections:{clients,clientProfiles:[],trainingCycles:[],domainEvents:[],m26Entities:[]}};
+  const vm=applyCommercialPortfolio({kind:'clientes',role:'coach',clients},state,NOW);
+  assert.equal(vm.commercialPortfolio.total,1);
+  assert.equal(vm.clients[0].commercial,null);
+  assert.ok(vm.clients[1].commercial);
+});

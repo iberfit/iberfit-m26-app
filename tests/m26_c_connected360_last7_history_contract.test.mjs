@@ -63,6 +63,10 @@ test('C: recent samples stay current only, historical context cannot inflate the
     role:'client',now:new Date('2026-11-11T12:00:00Z'),scope:{}});
   assert.equal(vm.summary.daysWithData,1);
   assert.equal(vm.summary.metrics.steps,8000);
-  assert.equal(vm.historicalRecords.length,0);
-  assert.equal(vm.lastHistoricalDate,null);
+  assert.equal(vm.historicalRecords.length,1);
+  assert.equal(vm.lastHistoricalDate,'2025-01-10');
+  assert.equal(vm.summary.records.length,1);
+  assert.equal(vm.summary.records[0].date,'2026-11-10');
+  assert.match(renderClientTodayHealth(vm),/Pasos medios/u);
+  assert.doesNotMatch(renderClientTodayHealth(vm),/6000|6\.000/u);
 });

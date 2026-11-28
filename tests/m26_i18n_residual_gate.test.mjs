@@ -114,3 +114,18 @@ test('U74 dated remote-write confirmation is translated in EN, FR and PT',()=>{
 test('GX44 and GX10 interactive report controls and unavailable continuity remain localized',()=>{
  for(const text of ['Permite abrir una ventana para imprimir el informe.','No fue posible abrir el informe interno con los permisos actuales.','Datos insuficientes','No hay datos confirmados suficientes para calcular constancia.'])for(const language of ['en','fr','pt'])assert.notEqual(iberfitSurfaceTranslate(text,{language}),text,language+': '+text);
 });
+
+test('Connected360 swim discipline is localized for both Client and Coach',()=>{
+  for(const [language,expected] of Object.entries({en:'Swimming',fr:'Natation',pt:'Natação'}))
+    assert.equal(iberfitSurfaceTranslate('Natación',{language}),expected);
+});
+
+
+test('Connected360 Apple active and elapsed measurements are localized independently',()=>{
+ for(const language of ['en','fr','pt']){
+  const active=iberfitSurfaceTranslate('Duración activa',{language});
+  const elapsed=iberfitSurfaceTranslate('Duración total',{language});
+  assert.notEqual(active,'Duración activa');assert.notEqual(elapsed,'Duración total');assert.notEqual(active,elapsed);
+  assert.notEqual(iberfitSurfaceTranslate('Ritmo activo estimado',{language}),'Ritmo activo estimado');
+ }
+});

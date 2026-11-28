@@ -171,3 +171,15 @@ test('GX fuente fechada: la cola original debe corresponder a bloques, ejercicio
  assert.equal(readOriginalExecutionPrescription(grouped).kind,'dated');
  assert.equal(readOriginalExecutionPrescription({...grouped,sourceSnapshot:{...grouped.sourceSnapshot,queue:queue.slice().reverse()}}).kind,'invalid');
 });
+
+test('Informe post-sesión: conserva base de carga observada y RIR cero, no la prescripción',()=>{
+ const row={exerciseId:'sq',exerciseName:'Sentadilla',setNumber:1,reps:8,loadKg:20,loadBasis:'assistance',rir:0};
+ const planSnapshot={sessionId:'s1',blocks:[{type:'exercise',exerciseId:'sq',name:'Sentadilla',measurementProfile:'strength',sets:1,loadBasis:'total',plannedLoad:'80 kg'}]};
+ for(const extra of [{sport:'strength'},{planSnapshot}]){
+  const source=execution('load','2026-11-20',{...extra,results:[row]});
+  const evidence=buildPostSessionSportEvidence(source,{clientId:'c1'}).map(x=>x.text).join(' ');
+  assert.match(evidence,/20 kg \(asistencia\)/);assert.match(evidence,/RIR 0/);assert.doesNotMatch(evidence,/80 kg|carga externa total/);
+  const conflict=buildPostSessionSportEvidence({...source,results:[{...row,load_mode:'total',rir:null}]},{clientId:'c1'}).map(x=>x.text).join(' ');
+  assert.match(conflict,/base por implemento no especificada/);assert.doesNotMatch(conflict,/RIR 0|\(asistencia\)|carga externa total/);
+ }
+});

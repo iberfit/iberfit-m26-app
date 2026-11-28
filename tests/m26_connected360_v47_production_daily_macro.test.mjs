@@ -136,3 +136,22 @@ test('Android Release and Client present all three official independent permissi
   for(const k of ['steps','sleepMinutes','restingHeartRate'])
     assert.ok(client.includes("['"+k+"','Compartir"),k);
 });
+
+test('production can accept twenty explicitly requested activities while legacy QA remains bounded',()=>{
+  const exerciseEvidence=Array.from({length:20},(_,i)=>({
+    observationKey:(i+1).toString(16).padStart(64,'0'),sport:'running',
+    startedAt:'2026-10-12T10:00:00Z',endedAt:'2026-10-12T10:30:00Z',
+    acquiredAt:'2026-10-12T15:00:00Z',
+  }));
+  const payload={schema:envelope.schema,heartRateDaily:[],exerciseEvidence};
+  const parse=(data,options)=>__connected360V46ProdInternals.cleanEnvelope(data,['exerciseSessions'],now,options);
+  assert.throws(()=>parse(payload),/RESPONSE_INVALID/u);
+  assert.equal(parse(payload,{maxWorkouts:20}).exerciseEvidence.length,20);
+  assert.throws(()=>parse({...payload,exerciseEvidence:[...exerciseEvidence,exerciseEvidence[0]]},{maxWorkouts:20}),/RESPONSE_INVALID/u);
+  assert.throws(()=>parse(payload,{maxWorkouts:21}),/RESPONSE_INVALID/u);
+  assert.throws(()=>parse({...payload,exerciseEvidence:[...exerciseEvidence.slice(0,19),exerciseEvidence[0]]},{maxWorkouts:20}),/RESPONSE_INVALID/u);
+  const server=readFileSync(new URL('../supabase/migrations/20261012160000_connected360_production_native_e2e_macro.sql',import.meta.url),'utf8');
+  const transport=readFileSync(new URL('../src/m26/supabase-transport.js',import.meta.url),'utf8');
+  assert.match(server,/jsonb_array_length\(v_ex_rows\)>20/u);
+  assert.match(transport,/ex.length>CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT/u);
+});

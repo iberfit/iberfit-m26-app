@@ -3576,6 +3576,7 @@ export function renderExpedienteRoute(vm) {
     </nav>
     <div class="m26-expediente-detail">
 ${summarySurface}
+    ${vm.role==='coach'&&data.id?'<section class="m26-panel" data-connected360-coach-activity hidden></section>':''}
     ${vm.role==='coach'&&data.id?renderProfessionalFollowupHost(data.id):''}
 
     <div class="m26-client360-context" data-m26-expediente-section="contexto">${recentContext}${vm.coachCockpit?renderCoachFollowUpPlan(vm.alerts):''}</div>
@@ -3925,6 +3926,7 @@ export function renderProgressRoute(vm){
       ${stageMarkup}
       ${renderClientCycleGoal(vm.periodization)}
       ${primaryEvidence}
+      <section class="m26-panel" data-prod-connected360-feed="evolution" hidden></section>
       ${detailed}
     </div>`;
   }
@@ -3983,16 +3985,18 @@ export function renderActivityRoute(vm){
     // their existing data without activating a paid training follow-up.
     const confirmedDays=Number(vm.wearables?.summary?.daysWithData||0)>0;
     const historicalDays=Number(vm.wearables?.historicalRecords?.length||0)>0;
-    const healthHistory=confirmedDays?vm.wearables?.dailyRecords:vm.wearables?.historicalRecords;
-    const healthHistoryCards=healthHistory?.length
+    const healthHistoryCards=[
+      [vm.wearables?.dailyRecords,'Últimos registros diarios'],
+      [vm.wearables?.historicalRecords,'Historial anterior · registros no actuales'],
+    ].map(([rows,title])=>rows?.length
       ?'<section class="m26-panel m26-wearable-history"><h3>'
-        +(confirmedDays?'Últimos registros diarios':'Historial anterior · registros no actuales')
-        +'</h3><div class="m26-wearable-day-grid">'
-        +healthHistory.map(item=>wearableDailyRecordCard(item,'client')).join('')
-        +'</div></section>':'';
+        +escapeHtml(title)+'</h3><div class="m26-wearable-day-grid">'
+        +rows.map(item=>wearableDailyRecordCard(item,'client')).join('')
+        +'</div></section>':'').join('');
     const ownedHealth=vm.role==='client'&&(confirmedDays||historicalDays)
       ?renderClientDeviceHub(vm.wearables,{dailyRecords:healthHistoryCards}):'';
     return `<div class="m26-route" data-service-kind="none">
+      ${vm.role==='client'?'<section class="m26-panel" data-prod-connected360-feed="full" hidden></section>':''}
       ${ownedHealth}
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Seguimiento diario no activado</h2><p>Hábitos, adherencia, wearables y check-ins longitudinales pertenecen al acompañamiento posterior, no al diagnóstico IRI inicial.</p></div>${badge('IRI separado del seguimiento','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><p>La información necesaria para interpretar la evaluación se registra dentro del propio IRI. No se crean obligaciones de seguimiento por contratar únicamente la evaluación.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Volver al IRI</button><button type="button" data-m26-area="informes">Abrir informes</button></div></section>
@@ -4039,6 +4043,7 @@ export function renderActivityRoute(vm){
   const deviceSummary=wearableHasData(wearableSummary)?`<section class="m26-panel m26-wearable-overview"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Datos de dispositivos</p><h2>Resumen de los últimos 7 días</h2><p>${escapeHtml(connectionCopy)}</p></div>${badge(wearableFreshnessLabel(wearableSummary.freshness),wearableSummary.freshness==='reciente'?'success':'neutral')}</div><div class="m26-stat-grid">${stat('Pasos medios',metricValue(wearableSummary.metrics.steps),`${wearableSummary.daysWithData} días con datos`)}${stat('Actividad',metricValue(wearableSummary.metrics.activeMinutes,' min'),'Promedio diario disponible')}${stat('Sueño objetivo',sleepHoursPerDay(wearableSummary.metrics.sleepMinutes),'Media diaria · dato de dispositivo, no percepción')}${stat('FC en reposo',metricValue(wearableSummary.metrics.restingHeartRate,' lpm'),`Calidad ${wearableSummary.quality}`)}</div><div class="m26-field-grid m26-wearable-secondary">${wearableMetric('VFC media',wearableSummary.metrics.hrvMs,' ms')}${wearableMetric('Energía activa',wearableSummary.metrics.activeEnergyKcal,' kcal')}${wearableMetric('Entrenamiento registrado',wearableSummary.metrics.workoutMinutes,' min')}${wearableMetric('Fuentes',wearableSummary.providers.join(', ')||'Sin fuentes')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearableSummary),{role:vm.role})}<p class="m26-notice">IBERFIT muestra procedencia, fecha y calidad. No transforma estos datos en indicaciones clínicas ni aumenta cargas sin revisión del entrenador.</p></section>`:`<section class="m26-notice"><strong>Sin datos de dispositivos confirmados</strong><p>El registro de bienestar y las sesiones continúan funcionando sin conectar ningún dispositivo.</p>${renderDataTrustStrip(wearableSummaryTrust(wearableSummary),{role:vm.role})}</section>`;
   return `<div class="m26-route">
     <section class="m26-route-intro"><div><p class="m26-eyebrow">Actividad y contexto</p><h2>${vm.role==='client'?'Tu actividad y bienestar':'Bienestar y hábitos'}</h2><p>${vm.role==='client'?'Tus datos de salud, bienestar y hábitos en un mismo lugar. Tú decides qué compartir.':'Registra cómo se siente la persona y los hábitos acordados. Los dispositivos son opcionales y nunca sustituyen la interpretación del entrenador.'}</p></div>${badge(last?'Último registro disponible':'Sin registro de bienestar','neutral')}</section>
+    ${vm.role==='client'?'<section class="m26-panel" data-prod-connected360-feed="full" hidden></section>':''}
     ${wearable.canControl?renderClientDeviceHub(wearable,{importer,deviceSummary,dailyRecords:dailyRecords+historicalRecords,connectionActions:wearableConnectionActions,coveragePanel:wearableCoveragePanel(wearable)}):''}
     ${capabilityNotice(vm.capabilities.checkins,'Los registros de bienestar')}
     <section class="m26-content-grid">
@@ -4920,7 +4925,7 @@ export function renderSessionsRoute(vm){
       <button type="button" data-m26-area="actividad">Ver mis dispositivos</button>
       </section>`
     :'';
-  return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${coachStartReadiness}${deviceSessionContext}${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}${qaDatedPanel}</div>`;
+  return `<div class="m26-route">${clientContextBar}<section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${pausedNotice}${coachStartReadiness}${deviceSessionContext}${prep}${vm.role==='coach'&&vm.clientId&&serviceActive?'<section class="m26-panel" data-connected360-coach-activity hidden></section>':''}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient,canStartSession:serviceActive})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}${qaDatedPanel}</div>`;
 }
 export function renderReportsRoute(vm){
   const isClient=vm.role==='client';

@@ -116,6 +116,20 @@ class Connected360V46QaEnvelopeTest {
         assertFalse(exercises[0].containsKey("maxBpm"))
     }
 
+    @Test fun productionBatchCanIncludeTwentyUniqueWorkoutsWithoutChangingQaDefault() {
+        val rows = (1..25).map { i ->
+            workout().copy(observationKey = Connected360WorkoutReadOnlyQa.opaqueRecordKey("batch-" + i))
+        }
+        val qa = envelope(workouts = rows)
+        val prod = Connected360V46QaEnvelope.build(emptyList(), rows, zone, captured,
+            maxWorkouts = Connected360WorkoutReadOnlyQa.PRODUCTION_MAX_WORKOUTS)
+        assertEquals(10, (qa["exerciseEvidence"] as List<*>).size)
+        assertEquals(20, (prod["exerciseEvidence"] as List<*>).size)
+        assertTrue(runCatching {
+            Connected360V46QaEnvelope.build(emptyList(), rows, zone, captured, maxWorkouts = 21)
+        }.isFailure)
+    }
+
     @Test fun duplicatesDoNotCauseSameTimestampConflictingWrites() {
         val result = envelope(workouts = listOf(workout(),workout()))
         assertEquals(1,(result["exerciseEvidence"] as List<*>).size)

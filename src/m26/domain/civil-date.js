@@ -120,3 +120,24 @@ export function formatIberfitDate(
 
   return new Intl.DateTimeFormat(locale,options).format(date);
 }
+
+
+// Positive-only civil-day runs. A missing date is not a rest day; these runs
+// describe only the evidence supplied by the authorized caller.
+export function observedCivilDayRuns(dates){
+  if(!Array.isArray(dates))return Object.freeze([]);
+  const valid=[...new Set(dates.filter(value=>typeof value==='string'&&parseCivilDate(value)?.iso===value))].sort((a,b)=>a.localeCompare(b));
+  const runs=[];
+  let current=null,previous=null;
+  for(const day of valid){
+    const instant=Date.parse(day+'T00:00:00Z');
+    if(current&&instant-previous===86400000){
+      current.days++;current.periodEnd=day;
+    }else{
+      current={days:1,periodStart:day,periodEnd:day};
+      runs.push(current);
+    }
+    previous=instant;
+  }
+  return Object.freeze(runs.map(run=>Object.freeze(run)));
+}

@@ -44,8 +44,9 @@ export function createWearableForegroundSync({
     // when the OS bridge or connection is temporarily unavailable.
     const delay=lastFailedAt!==null
       ?Math.min(minIntervalMs,retryIntervalMs):minIntervalMs;
-    if(!force&&lastStartedAt!==null&&timestamp-lastStartedAt>=0
-      &&timestamp-lastStartedAt<delay){
+    const anchor=lastFailedAt??lastStartedAt;
+    if(!force&&anchor!==null&&timestamp-anchor>=0
+      &&timestamp-anchor<delay){
       return Promise.resolve(Object.freeze({
         skipped:lastFailedAt!==null?'retry-backoff':'recently-checked',
       }));
@@ -56,20 +57,23 @@ export function createWearableForegroundSync({
     // immediately after logout without waiting for a hung old OS/network read.
     const controller=new AbortController();
     const stale=()=>version!==generation||controller.signal.aborted;
+    let retryNeeded=false;
+    const markRetry=()=>{if(!stale())retryNeeded=true;};
+    const failureClock=()=>{const completedAt=now();return Number.isFinite(completedAt)?completedAt:timestamp;};
     const runPromise=Promise.resolve().then(()=>{
       if(stale()||!canRun())return Object.freeze({skipped:'invalidated'});
-      return run({signal:controller.signal});
+      return run({signal:controller.signal,markRetry});
     });
     const settled=runPromise.then(
       result=>{
         if(stale())return Object.freeze({skipped:'invalidated'});
-        lastFailedAt=null;
+        lastFailedAt=retryNeeded?failureClock():null;
         return result;
       },
       error=>{
         // An obsolete read must not show an error (or a result) to a new Client.
         if(stale())return Object.freeze({skipped:'invalidated'});
-        lastFailedAt=timestamp;
+        lastFailedAt=failureClock();
         throw error;
       },
     ).finally(()=>{
@@ -88,6 +92,34 @@ export function createWearableForegroundSync({
     pending?.controller.abort();
   }
   return Object.freeze({trigger,invalidate});
+}
+
+// Drain only a small, acknowledged backlog while the original foreground
+// lease is still valid. No new polling timer, consent or parallel reads.
+// The time budget controls starting another page; an in-flight page retains
+// the native and transport deadlines and the caller's cancellation fence.
+export const CONNECTED360_FOREGROUND_PAGE_LIMIT=3;
+export const CONNECTED360_FOREGROUND_PAGE_START_BUDGET_MS=45_000;
+export async function runConnected360ForegroundPages({
+  runPage,canRun,signal=null,now=()=>Date.now(),onPage=()=>{},
+}={}){
+  if(typeof runPage!=='function'||typeof canRun!=='function'||typeof now!=='function'||typeof onPage!=='function')
+    throw new Error('M26_WEARABLE_PAGE_CONFIG_INVALID');
+  const began=now();
+  if(!Number.isFinite(began))throw new Error('M26_WEARABLE_FOREGROUND_CLOCK_INVALID');
+  let result=Object.freeze({skipped:'inactive'});
+  const active=()=>!signal?.aborted&&canRun();
+  for(let index=0;index<CONNECTED360_FOREGROUND_PAGE_LIMIT;index++){
+    if(!active())return Object.freeze({skipped:'invalidated'});
+    const elapsed=now()-began;
+    if(!Number.isFinite(elapsed)||elapsed<0)break;
+    if(index>0&&elapsed>=CONNECTED360_FOREGROUND_PAGE_START_BUDGET_MS)break;
+    result=await runPage();
+    if(!active())return Object.freeze({skipped:'invalidated'});
+    onPage(result);
+    if(result?.workoutHistoryPending!==true)break;
+  }
+  return result;
 }
 
 export function isCertifiedNativeAutoSyncSource(connection){

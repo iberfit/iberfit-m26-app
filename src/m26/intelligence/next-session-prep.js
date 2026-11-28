@@ -1,4 +1,4 @@
-import {computeProgressSummary} from '../engagement/progress-engine.js';
+import {computeProgressSummary,confirmedCheckinRecordsForClient,confirmedCheckinDate,checkinValues} from '../engagement/progress-engine.js';
 import {confirmedScheduledCompletion,reusableConfirmedSummary} from '../engagement/progress-continuity.js';
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {reportCivilDate,isWithinCivilPeriod} from '../domain/civil-date.js';
@@ -6,8 +6,10 @@ import {listExercisePerformanceMemories} from '../engagement/exercise-performanc
 import {confirmedSessionExecutionsForClient,sessionExecutionCompletionDate,sessionExecutionId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
 import {selectInitialIriBaseline,initialIriMeasurementDate} from '../workflows/iri-2-longitudinal.js';
-import {evidenceNumber,currentWearableEvidence} from '../domain/evidence-signal.js';
+import {evidenceNumber,currentWearableEvidence,observedSet} from '../domain/evidence-signal.js';
 import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
+import {connected360RecentTrainingRows,connected360ActivityContinuity} from '../wearables/v46-production-summary.js';
+import {connected360CoachContinuity} from '../wearables/v49-coach-activity-contract.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record||{};}
@@ -38,8 +40,8 @@ export function summarizeConfirmedSessionSets(execution){
     let total=0;
     if(queue.length>200)return null;
     for(const item of queue){
-      const sets=Number(item?.sets);
-      if(!item?.exerciseId||!Number.isInteger(sets)||sets<1||sets>100)return null;
+      const sets=evidenceNumber(item?.sets,{min:1,max:100,integer:true});
+      if(!item?.exerciseId||sets===null)return null;
       total+=sets;
       if(total>2500)return null;
     }
@@ -49,11 +51,10 @@ export function summarizeConfirmedSessionSets(execution){
   const executionSets=sumSets(item.queue);
   if(plannedSets===null||executionSets===null)return null;
   let recordedSets=0,skippedSets=0;
-  const hasRecordedMetric=result=>result&&typeof result==='object'&&[
-    result.reps,result.seconds,result.distanceKm,result.distanceM,
-    result.intervalsCompleted,
-  ].some(value=>(typeof value==='number'||typeof value==='string')&&
-    String(value).trim()!==''&&Number.isFinite(Number(value))&&Number(value)>=0);
+  const hasRecordedMetric=result=>observedSet(result)&&[
+    ['reps',true],['seconds',false],['distanceKm',false],['distanceM',false],
+    ['intervalsCompleted',true],
+  ].some(([key,integer])=>evidenceNumber(result[key],{min:0,integer})!==null);
   for(const block of item.queue){
     for(let setNumber=1;setNumber<=block.sets;setNumber++){
       const step={...block,setNumber,totalSets:block.sets};
@@ -195,13 +196,8 @@ function wellbeingScore(value){
   return n!==null&&n>=0&&n<=10?n:null;
 }
 function wellbeingScores(record){
-  return Object.freeze({
-    energy:wellbeingScore(field(record,'energy','energia')),
-    sleep:wellbeingScore(field(record,'sleep','sueno','sueño')),
-    stress:wellbeingScore(field(record,'stress','estres','estrés')),
-    fatigue:wellbeingScore(field(record,'fatigue','fatiga')),
-    motivation:wellbeingScore(field(record,'motivation','motivacion','motivación')),
-  });
+  const {energy,sleep,stress,fatigue,motivation}=checkinValues(record);
+  return Object.freeze({energy,sleep,stress,fatigue,motivation});
 }
 function pairAverage(values){
   return values.every(Number.isFinite)
@@ -215,8 +211,8 @@ function wellbeingShift(state,clientId,{now=new Date(),days=28,threshold=WELLBEI
   // Keep only the four newest owner-scoped check-ins. Stable ties preserve
   // input order, and older history is never cloned or sorted.
   const selected=[];
-  for(const item of forClient(state,'checkins',clientId)){
-    const time=safeDate(dateOf(item))?.getTime();
+  for(const item of confirmedCheckinRecordsForClient(state,clientId)){
+    const time=safeDate(confirmedCheckinDate(item))?.getTime();
     if(!Number.isFinite(time)||time<startMs||time>endMs)continue;
     const index=selected.findIndex(row=>time>row.time);
     const at=index<0?selected.length:index;
@@ -387,7 +383,12 @@ export function buildTrainingSinceLastCoachReview(state,clientId,{now=new Date()
   });
 }
 
-export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null,summary=null}={}){
+export function confirmedCoachTrainingRows(state,clientId,{now=new Date()}={}){
+ return connected360RecentTrainingRows(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true})
+  .filter(record=>sessionExecutionIsCompleted(record,{allowDatedFallback:false}))
+  .map(record=>({completedAt:sessionExecutionCompletionDate(record)})),{now});
+}
+export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null,summary=null,authorizedCoachDays=null}={}){
   const safeClientId=String(clientId||'').trim();
   if(!safeClientId)return null;
   // Reuse only the same-owner, same-window projection from this render.
@@ -404,8 +405,29 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   const iri=iriContext(state,safeClientId,progress,now);
   const wellbeingTrend=wellbeingShift(state,safeClientId,{now});
   const deviceContext=wearableContextForPreparation(progress?.wearable,{now});
+  // Canonical executions remain independently usable. External context is
+  // an explicit, freshly authorized per-render transport response only,
+  // never sourced from the generic state collection or owner-private data.
+  const trainingRows=confirmedCoachTrainingRows(state,safeClientId,{now});
+  const canonicalContinuity=connected360ActivityContinuity(trainingRows,{now});
+  let activityContinuity=canonicalContinuity;
+  if(authorizedCoachDays!==null&&state?.identity?.role==='coach'){
+    try{activityContinuity=connected360CoachContinuity(authorizedCoachDays,{clientId:safeClientId,now,confirmedRows:trainingRows});}
+    catch{/* Invalid, stale or cross-client device context is discarded. */}
+  }
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
   const reasons=[...reviewReasons({progress,outcomes,feedback,session,wellbeingTrend})];
+  if(activityContinuity){
+    // Keep explicit pain/wellbeing findings ahead of this non-clinical context.
+    const position=reasons.findIndex(reason=>!['pain','wellbeing','wellbeing-shift'].includes(reason.kind));
+    reasons.splice(position<0?reasons.length:position,0,Object.freeze({
+      kind:'activity-continuity',label:activityContinuity.days+(activityContinuity.source==='coach_authorized_activity'
+        ?activityContinuity.discipline==='running'
+          ?' · Días consecutivos con carrera registrada y compartida. Revisa la recuperación antes de decidir.'
+          :' · Días consecutivos con actividad registrada. Revisa la recuperación antes de decidir.'
+        :' · Días consecutivos con entrenamiento IBERFIT confirmado. Revisa la recuperación antes de decidir.'),
+    }));
+  }
   const sessionId=idOf(session)||null;
   const appointmentMismatch=Boolean(appointmentSessionId&&appointmentSessionId!==sessionId);
   if(appointmentMismatch)reasons.push(Object.freeze({kind:'appointment-session-mismatch',label:'La cita confirmada apunta a una sesión diferente o no disponible. Revisa la vinculación antes de iniciar.'}));
@@ -445,6 +467,7 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
     wellbeingShift:wellbeingTrend,
     sinceLastReview,
     deviceContext,
+    activityContinuity,
     progress:Object.freeze({
       plannedSessions:Number(progress?.plannedSessions||0),
       completedSessions:Number(progress?.completedSessions||0),

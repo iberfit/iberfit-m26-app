@@ -56,6 +56,15 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
     private var healthPermissionReturnPending = false
     private val requestIds = LinkedHashSet<String>()
     private val readFence = Connected360PageFence()
+    // Only short-lived opaque handles cross the WebView. Health Connect page
+    // tokens, native source IDs and raw records never leave this Activity.
+    private data class WorkoutHistoryLease(
+        val page: Connected360WorkoutReadOnlyQa.HistoryPage,
+        val days: Int, val maxWorkouts: Int, val requested: Set<String>,
+        val allowed: Set<String>, val issuedAt: Long, val includeSwimming: Boolean,
+    )
+    private val workoutHistoryLeases = LinkedHashMap<String, WorkoutHistoryLease>()
+    private val historyLeaseMs = 2L * 60L * 60L * 1000L
 
     private fun resetReadApproval() {
         oneReadApproved = false
@@ -166,6 +175,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                 resetReadApproval()
                 readFence.retire()
                 requestIds.clear()
+                workoutHistoryLeases.clear()
                 if (production) {
                     status.visibility = View.GONE
                     retry.visibility = View.GONE
@@ -388,12 +398,43 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                     requestedArray.optString(it).takeIf { value -> value.isNotBlank() }
                                 }.toSet()
                             } else emptySet()
-                            if (request.optInt("days", -1) != 7 ||
+                            val maxWorkouts = if (production) request.optInt("maxWorkouts", Connected360WorkoutReadOnlyQa.MAX_WORKOUTS)
+                                else Connected360WorkoutReadOnlyQa.MAX_WORKOUTS
+                            if (maxWorkouts !in setOf(Connected360WorkoutReadOnlyQa.MAX_WORKOUTS, Connected360WorkoutReadOnlyQa.PRODUCTION_MAX_WORKOUTS) ||
+                                (!production && request.has("maxWorkouts")) ||
+                                request.optInt("days", -1) != 7 ||
                                 requested.isEmpty() || requested.size > 5 ||
                                 requested.any { it !in setOf("generalHeartRate", "exerciseSessions",
                                     "steps", "sleepMinutes", "restingHeartRate") }
                             ) {
                                 replyError(replyProxy, id, "M26_HEALTH_V46_REQUEST_INVALID")
+                                return
+                            }
+                            val includeSwimming = request.opt("includeSwimming") == true
+                            if (request.has("includeSwimming") && (!includeSwimming || !production || "exerciseSessions" !in requested)) {
+                                replyError(replyProxy,id,"M26_HEALTH_V46_REQUEST_INVALID")
+                                return
+                            }
+                            val historyDays = if (request.has("workoutHistoryDays"))
+                                request.optInt("workoutHistoryDays", -1) else null
+                            val cursorHandle = if (request.has("workoutCursor"))
+                                request.optString("workoutCursor", "") else null
+                            if ((historyDays != null && (!production || historyDays !in setOf(7,30) ||
+                                    "exerciseSessions" !in requested)) ||
+                                (cursorHandle != null && (historyDays == null || !production ||
+                                    !Regex("^[a-f0-9-]{36}$").matches(cursorHandle)))) {
+                                replyError(replyProxy,id,"M26_HEALTH_V46_REQUEST_INVALID")
+                                return
+                            }
+                            val elapsedNow=SystemClock.elapsedRealtime()
+                            workoutHistoryLeases.entries.removeAll {
+                                elapsedNow-it.value.issuedAt !in 0L..historyLeaseMs
+                            }
+                            val historyLease=cursorHandle?.let { workoutHistoryLeases[it] }
+                            if (cursorHandle != null && (historyLease == null ||
+                                historyLease.days != historyDays || historyLease.maxWorkouts != maxWorkouts ||
+                                historyLease.requested != requested || historyLease.includeSwimming != includeSwimming)) {
+                                replyError(replyProxy,id,"M26_HEALTH_V46_CURSOR_INVALID")
                                 return
                             }
                             // A new user action is mandatory for every QA read, never an
@@ -403,7 +444,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                             readInFlight = true
                             scope.launch {
                                 try {
-                                    val (grantedMetrics, payload, healthDaily) = Connected360ReadBudget.run {
+                                    val (readData, nextHistoryPage) = Connected360ReadBudget.run {
                                         if (HealthConnectClient.getSdkStatus(
                                                 this@Connected360SecureWebViewActivity
                                             ) != HealthConnectClient.SDK_AVAILABLE) {
@@ -424,16 +465,24 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         if (allowed.isEmpty()) {
                                             throw IllegalStateException("M26_HEALTH_PERMISSION_REQUIRED")
                                         }
-                                        val daily = if ("generalHeartRate" in allowed) {
+                                        if (historyLease != null && historyLease.allowed != allowed)
+                                            throw IllegalStateException("M26_HEALTH_V46_CURSOR_INVALID")
+                                        // The first page includes daily observations. Continuing an
+                                        // acknowledged workout page must not reread or reupload them.
+                                        // Workout-specific pulse still uses the separately allowed scope.
+                                        val includeDaily = cursorHandle == null
+                                        val daily = if (includeDaily && "generalHeartRate" in allowed) {
                                             Connected360GeneralHeartRateDiagnostic(client)
                                                 .readDailyRanges()
                                         } else emptyList()
-                                        val sports = if ("exerciseSessions" in allowed) {
-                                            Connected360WorkoutReadOnlyQa(client)
-                                                .read(includeHeartRate = "generalHeartRate" in allowed)
-                                                .workouts
-                                        } else emptyList()
-                                        val healthDaily = if (allowed.any {
+                                        val workoutRead = if ("exerciseSessions" in allowed) {
+                                            val reader=Connected360WorkoutReadOnlyQa(client)
+                                            if(historyDays == null) reader.read(includeHeartRate = "generalHeartRate" in allowed, maxWorkouts = maxWorkouts)
+                                            else reader.read(includeHeartRate = "generalHeartRate" in allowed, maxWorkouts = maxWorkouts,
+                                                historyDays=historyDays, continuation=historyLease?.page)
+                                        } else null
+                                        val sports=workoutRead?.workouts ?: emptyList()
+                                        val healthDaily = if (includeDaily && allowed.any {
                                             it in IberfitHealthConnectReader.supportedMetrics
                                         }) {
                                             IberfitHealthConnectReader(client).readDaily(
@@ -441,10 +490,11 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         } else emptyList()
                                         val data = Connected360V46QaEnvelope.build(
                                             daily, sports, java.time.ZoneId.systemDefault(),
-                                            java.time.Instant.now()
+                                            java.time.Instant.now(), maxWorkouts = maxWorkouts, includeSwimming = includeSwimming
                                         )
-                                        Triple(allowed, data, healthDaily)
+                                        Triple(allowed, data, healthDaily) to workoutRead?.nextPage
                                     }
+                                    val (grantedMetrics,payload,healthDaily)=readData
                                     if (!readFence.isCurrent(documentLease) ||
                                         browser !== view || isFinishing || isDestroyed ||
                                         !trustedTopPage(view)) {
@@ -471,6 +521,8 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         if (row.has("steps") || row.has("sleepMinutes") ||
                                             row.has("restingHeartRate")) dailyRows.put(row)
                                     }
+                                    val nextHandle=if(historyDays != null && nextHistoryPage != null &&
+                                        "exerciseSessions" in grantedMetrics) java.util.UUID.randomUUID().toString() else null
                                     val response = JSONObject()
                                         .put("schema", if (production)
                                             "iberfit.connected360.native.v46.local.v1"
@@ -486,20 +538,38 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         })
                                         .put("persisted", false)
                                         .put("automatic", false)
+                                        .apply {
+                                            if(historyDays != null && "exerciseSessions" in grantedMetrics) {
+                                                put("workoutPage", JSONObject().put("days", historyDays)
+                                                    .put("nextCursor", nextHandle ?: JSONObject.NULL))
+                                            }
+                                        }
                                         .toString()
                                     if (response.length > 32000) {
                                         replyError(replyProxy, id, "M26_HEALTH_V46_RESPONSE_TOO_LARGE")
                                         return@launch
                                     }
+                                    if(historyDays != null && "exerciseSessions" in grantedMetrics) {
+                                        // Retain exactly the input and next handles; an unacknowledged
+                                        // server write can be retried without evicting its input.
+                                        workoutHistoryLeases.clear()
+                                        if(cursorHandle != null && historyLease != null)
+                                            workoutHistoryLeases[cursorHandle]=historyLease
+                                        if(nextHandle != null && nextHistoryPage != null) {
+                                            workoutHistoryLeases[nextHandle]=WorkoutHistoryLease(
+                                                nextHistoryPage,historyDays,maxWorkouts,requested,grantedMetrics,SystemClock.elapsedRealtime(),includeSwimming)
+                                        }
+                                    }
                                     replyProxy.postMessage(response)
                                     status.text = if (production)
                                         "Lectura local completada. IBERFIT verifica los permisos antes de guardar."
                                     else "Lectura V46 local completada. No se han enviado datos a IBERFIT."
-                                } catch (_: Exception) {
+                                } catch (error: Exception) {
                                     if (readFence.isCurrent(documentLease) &&
                                         browser === view && !isFinishing && !isDestroyed &&
                                         trustedTopPage(view)) {
-                                        replyError(replyProxy, id, "M26_HEALTH_PERMISSION_OR_READ_FAILED")
+                                        replyError(replyProxy, id, if(error.message=="M26_HEALTH_V46_CURSOR_INVALID")
+                                            "M26_HEALTH_V46_CURSOR_INVALID" else "M26_HEALTH_PERMISSION_OR_READ_FAILED")
                                         status.text = "Lectura V46 no disponible. Revisa permisos y vuelve a intentar."
                                     }
                                 } finally {
@@ -559,6 +629,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        workoutHistoryLeases.clear()
         readFence.retire()
         scope.cancel()
         resetReadApproval()

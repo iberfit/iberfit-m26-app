@@ -36,6 +36,10 @@ private final class IBERFITHealthKitQAState: ObservableObject {
     @Published private(set) var status = "Sin lectura. Tus datos no salen del iPhone."
     @Published private(set) var isBusy = false
     @Published private(set) var rows: [IBERFITIOSHealthKitDailyVitalsReader.DailyVitals] = []
+    @Published private(set) var workouts: [IBERFITLocalWorkout] = []
+    @Published private(set) var workoutStatus = "Sin lectura de actividades."
+    @Published var includeWorkoutHeartRate = false
+    private let workoutReader = IBERFITIOSHealthKitWorkoutReader()
 
     private let reader = IBERFITIOSHealthKitDailyVitalsReader()
     private var generation: UInt64 = 0
@@ -78,8 +82,44 @@ private final class IBERFITHealthKitQAState: ObservableObject {
         }
     }
 
+    func readWorkoutsOnce() {
+        guard !isBusy else { return }
+        generation &+= 1
+        let lease = generation
+        workouts = []
+        isBusy = true
+        workoutStatus = "Solicitando lectura de entrenamientos en Apple Salud…"
+        workoutReader.requestExplicitWorkoutAccess(includeHeartRate: includeWorkoutHeartRate) { [weak self] permission in
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == lease else { return }
+                guard case .success = permission else {
+                    self.isBusy = false
+                    self.workoutStatus = "No se completó la autorización. Revisa Salud."
+                    return
+                }
+                self.workoutReader.readOnce { [weak self] result in
+                    Task { @MainActor [weak self] in
+                        guard let self, self.generation == lease else { return }
+                        self.isBusy = false
+                        switch result {
+                        case .failure:
+                            self.workoutStatus = "No se pudo consultar las actividades. Puedes reintentar."
+                        case .success(let preview):
+                            self.workouts = preview.workouts
+                            self.workoutStatus = preview.mayHaveMore ? "Vista parcial: hasta 60 registros de los últimos 30 días." : (preview.workouts.isEmpty ? "Sin actividades disponibles o permiso de lectura no concedido." : "Vista local de los últimos 30 días. No sincronizada.")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     func invalidate() {
         generation &+= 1
+        workoutReader.invalidate()
+        workouts = []
+        workoutStatus = "Vista local borrada."
+        includeWorkoutHeartRate = false
         reader.revokeLocalReadApproval()
         rows = []
         isBusy = false
@@ -109,7 +149,7 @@ private struct IBERFITHealthKitQAView: View {
                     Text("Prueba privada de conexión con Apple Salud")
                         .font(.system(size: 16))
                         .foregroundStyle(cream.opacity(0.86))
-                    Text("Solo leeremos tus pasos, sueño y frecuencia cardíaca en reposo si lo autorizas en iOS. Esta versión no conecta tu cuenta IBERFIT ni envía registros. Puedes borrar la vista cuando quieras.")
+                    Text("Solo leeremos tus pasos, sueño, frecuencia cardíaca en reposo y entrenamientos si autorizas cada lectura en iOS. Esta versión no conecta tu cuenta IBERFIT ni envía registros. Puedes borrar la vista cuando quieras.")
                         .font(.system(size: 15))
                         .foregroundStyle(cream.opacity(0.75))
                     Button(action: model.readOnce) {
@@ -148,6 +188,28 @@ private struct IBERFITHealthKitQAView: View {
                             .padding(.vertical, 7)
                             Divider().overlay(gold.opacity(0.25))
                         }
+                    }
+                    Toggle("Incluir frecuencia cardíaca media", isOn: $model.includeWorkoutHeartRate)
+                        .foregroundStyle(cream)
+                        .tint(gold)
+                        .disabled(model.isBusy)
+                    Button("Consultar entrenamientos de Apple Salud", action: model.readWorkoutsOnce)
+                        .foregroundStyle(gold)
+                        .disabled(model.isBusy)
+                    Text(model.workoutStatus).foregroundStyle(cream).font(.caption)
+                    ForEach(model.workouts) { workout in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(["running":"Carrera", "cycling":"Ciclismo", "walking":"Caminata", "strength":"Fuerza", "hiit":"HIIT", "swimming":"Natación"][workout.sport] ?? "Otro entrenamiento").font(.headline)
+                            Text(workout.start.formatted(date: .abbreviated, time: .shortened))
+                            Text("Duración activa: \(Int(workout.activeSeconds / 60)) min")
+                            if let average = workout.averageHeartRate {
+                                Text("FC media: \(Int(average.rounded())) lpm")
+                            }
+                            if let distance = workout.distanceMeters {
+                                Text("Distancia: \((distance / 1000).formatted(.number.precision(.fractionLength(0...2)))) km")
+                            }
+                        }.foregroundStyle(cream)
+                        Divider().overlay(gold.opacity(0.25))
                     }
                     Button("Borrar vista local", action: model.invalidate)
                         .foregroundStyle(gold)

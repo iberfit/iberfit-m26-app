@@ -87,3 +87,23 @@ test('Elite endurance uses actual matched distance and original explicit prescri
  assert.equal(buildPeriodSportProjection(good.slice(0,2),{clientId:'c1'}).comparisons.length,0);
  const text=periodSportEvidence(good,{clientId:'c1'})[0].text;assert.match(text,/Misma distancia/);assert.match(text,/No verifica condiciones reales/);assert.ok(text.length<=500);
 });
+
+test('repeated exercises use exact block coordinates in post-session and period evidence',()=>{
+  const blocks=[{id:'warm',type:'exercise',exerciseId:'run',name:'Carrera suave',sets:1},{id:'main',type:'exercise',exerciseId:'run',name:'Carrera principal',sets:1}];
+  const warm={exerciseId:'run',setNumber:1,distanceKm:1,seconds:300},main={...warm,distanceKm:3,seconds:900};
+  const base={id:'repeat',clientId:'c1',sessionId:'run',status:'completed',syncStatus:'clean',planSnapshot:{sessionId:'run',blocks}};
+  const record={...base,results:{'warm:run:1':warm,'main:run:1':main}};
+  const post=buildPostSessionSportEvidence(record,{clientId:'c1'});
+  assert.ok(post.some(x=>x.label.includes('Bloque 1')&&x.text==='1 km'));
+  assert.ok(post.some(x=>x.label.includes('Bloque 2')&&x.text==='3 km'));
+  assert.equal(buildPeriodSportProjection([record],{clientId:'c1'}).summary[0].metres,4000);
+  const ambiguous={...base,results:[warm,main]};
+  assert.deepEqual(buildPostSessionSportEvidence(ambiguous,{clientId:'c1'}),[]);
+  assert.deepEqual(buildPeriodSportProjection([ambiguous],{clientId:'c1'}).summary,[]);
+  const conflict={...record,body:{results:[warm]}};
+  assert.deepEqual(buildPostSessionSportEvidence(conflict,{clientId:'c1'}),[]);
+  assert.deepEqual(buildPeriodSportProjection([conflict],{clientId:'c1'}).summary,[]);
+  const aliases={...base,set_results:record.results};
+  assert.deepEqual(buildPostSessionSportEvidence(aliases,{clientId:'c1'}),post);
+  assert.equal(buildPeriodSportProjection([aliases],{clientId:'c1'}).summary[0].metres,4000);
+});

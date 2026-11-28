@@ -1,5 +1,5 @@
 import {renderFollowupCapture,buildFollowupCapture,renderFollowupHistory,renderFollowupDetail,renderFollowupRecentActions,renderProfessionalReview,renderPublicationList,renderPublicationHead,renderPublicationReviewActions} from './professional-followup-ui.js';
-import {PROFESSIONAL_RECTIFICATION_REASONS,professionalFollowupDetailMatchesDraft,professionalFollowupDetailMatchesReference,compareProfessionalFollowupPair,buildProfessionalPublicationDraft,professionalPublicationOperationParams,verifyProfessionalPublicationRecovery,verifyProfessionalPublicationRead,verifyProfessionalPublicationReceipt,buildProfessionalPublicationReportPreview,professionalReportProofParams,verifyProfessionalReportEvidence,bindProfessionalReportSelection} from '../domain/professional-followup.js';
+import {PROFESSIONAL_RECTIFICATION_REASONS,professionalFollowupDetailMatchesDraft,professionalFollowupDetailMatchesReference,professionalFollowupHistoryComparisons,buildProfessionalPublicationDraft,professionalPublicationOperationParams,verifyProfessionalPublicationRecovery,verifyProfessionalPublicationRead,verifyProfessionalPublicationReceipt,buildProfessionalPublicationReportPreview,professionalReportProofParams,verifyProfessionalReportEvidence,bindProfessionalReportSelection} from '../domain/professional-followup.js';
 
 // Only the currently open professional workspace retains these private rows.
 // Never write them to canonical state, draft repository, telemetry or browser storage.
@@ -147,8 +147,8 @@ export function createProfessionalFollowupController({root,getScope,getSessionSc
   const row=rows.find(x=>x.id===button.getAttribute('data-gx-id'));if(!row||row.rectification||!loaded)return;
   if(action==='review-publication'){
    purgeRecovery();if(recovery)return;
-   const i=rows.indexOf(row),previous=rows.slice(i+1).find(p=>compareProfessionalFollowupPair(p,row));
-   if(!previous)return;publicationHead=null;publicationReport=null;publicationPreview={previous,current:row,checked:false,head:null};render();host?.querySelector('[data-gx-publication-preview] button')?.focus?.();return;
+   const pair=professionalFollowupHistoryComparisons(rows).get(row.id);
+   if(!pair?.comparison)return;const previous=pair.previous;publicationHead=null;publicationReport=null;publicationPreview={previous,current:row,checked:false,head:null};render();host?.querySelector('[data-gx-publication-preview] button')?.focus?.();return;
   }
   if(action==='goal'){try{goalNotice=reviewGoal(scope.clientId,row)||'No hay un objetivo publicado comparable con esta medición.';}catch{goalNotice='No se pudo comprobar el objetivo.';}render();return;}
   if(action==='void'){purgeRecovery();if(recovery){notice='Hay otra operación profesional por confirmar en esta sesión. Resuélvela antes de anular otra medición.';render();return;}const select=[...host.querySelectorAll('[data-gx-void-reason]')].find(x=>x.getAttribute('data-gx-void-reason')===row.id);const reason=select?.value;if(!Object.hasOwn(PROFESSIONAL_RECTIFICATION_REASONS,reason||'')){notice='Selecciona un motivo de anulación.';host.querySelector('[data-gx-followup-notice]').textContent=notice;select?.focus();return;}if(!confirm('La medición original se conservará en el historial, pero dejará de utilizarse en comparaciones. ¿Confirmas la anulación?'))return;if(!remember({kind:'void',payload:Object.freeze({id:newId(),clientId:scope.clientId,targetId:row.id,reason})}))return;await submitPending();}

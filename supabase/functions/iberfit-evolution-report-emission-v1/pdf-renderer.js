@@ -5,8 +5,8 @@ export const M44_PDF_TEMPLATE='iberfit-evolution-a4-brand-v3';
 export const M44_ACCEPTED_REPLAY_TEMPLATES=Object.freeze(['iberfit-evolution-a4-brand-v2',M44_PDF_TEMPLATE]);
 const W=595.28,H=841.89;
 // Keep the public report vocabulary aligned with the existing A4 preview.
-const REPORT_LABELS=Object.freeze({'post-session':'Informe post-sesión',weekly:'Resumen semanal',monthly:'Informe mensual',quarterly:'Informe trimestral','year-in-iberfit':'Tu año en IBERFIT'});
-const SOURCE_LABELS=Object.freeze({sessionExecutions:'Sesiones IBERFIT confirmadas','session_execution':'Sesión IBERFIT confirmada','session_execution_period':'Historial de sesiones confirmadas',appointments:'Citas verificadas','appointments+sessionExecutions':'Citas verificadas y sesiones IBERFIT confirmadas',checkins:'Registros de bienestar',trainingCycles:'Planificación publicada IBERFIT','canonical-store':'Historial canónico IBERFIT',wearableDailySummaries:'Datos de dispositivo, solo contexto'});
+const REPORT_LABELS=Object.freeze({'post-session':'Informe post-sesión',weekly:'Resumen semanal',monthly:'Informe mensual',quarterly:'Informe trimestral','year-in-iberfit':'Tu año en IBERFIT',reassessment:'Informe de reevaluación'});
+const SOURCE_LABELS=Object.freeze({sessionExecutions:'Sesiones IBERFIT confirmadas','session_execution':'Sesión IBERFIT confirmada','session_execution_period':'Historial de sesiones confirmadas',appointments:'Citas verificadas','appointments+sessionExecutions':'Citas verificadas y sesiones IBERFIT confirmadas',checkins:'Registros de bienestar',trainingCycles:'Planificación publicada IBERFIT','canonical-store':'Historial canónico IBERFIT',wearableDailySummaries:'Datos de dispositivo, solo contexto',professional_followup:'Comparaciones profesionales revisadas'});
 const publicLabel=(dictionary,key,fallback)=>Object.hasOwn(dictionary,key)?dictionary[key]:fallback;
 const shortDate=value=>value.slice(8,10)+'/'+value.slice(5,7);
 const C={forest:[.064,.145,.117],forest2:[.15,.27,.21],gold:[.73,.58,.30],
@@ -27,6 +27,32 @@ export function validateOfficialActivitySeries(series,start,end){
  return series.every((item,index)=>item&&validCivilDate(item.from)&&validCivilDate(item.to)
   &&item.from>=start&&item.to<=end&&item.from<=item.to
   &&Number.isSafeInteger(item.count)&&item.count>=0&&(!index||series[index-1].to<item.from));
+}
+const PROFESSIONAL_SOURCE=/^gx-professional:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([1-9][0-9]{0,9})$/u;
+const professionalSource=value=>{
+ const match=typeof value==='string'?value.match(PROFESSIONAL_SOURCE):null;
+ return match&&Number(match[2])<=2147483647?match[1]:null;
+};
+const reservedDeviceEvidence=row=>typeof row?.source==='string'&&row.source.trim().toLowerCase().startsWith('connected360:');
+// Defense in depth; live SQL proof and authorization remain mandatory.
+export function validateOfficialReassessmentSource(source){
+ if(source?.reportType!=='reassessment'||!validCivilDate(source.periodStart)||!validCivilDate(source.periodEnd)
+ ||source.periodStart>=source.periodEnd||(Date.parse(source.periodEnd)-Date.parse(source.periodStart))/86400000>366
+ ||!Array.isArray(source.evidence)||source.evidence.length<1||source.evidence.length>12
+ ||!Array.isArray(source.activitySeries)||source.activitySeries.length!==0
+ ||['assessmentId','assessmentRevision','sourceAssessmentId','sourceAssessmentRevision'].some(k=>source[k]!=null))return false;
+ const labels=new Set(),refs=new Set();let earliest=null,latest=null;
+ for(const row of source.evidence){
+  const ref=professionalSource(row?.source);
+  if(!ref||refs.has(ref)||typeof row.label!=='string'||!row.label.trim()||labels.has(row.label)
+   ||row.quality!=='revisada'||typeof row.text!=='string'||Object.keys(row).length!==4)return false;
+  const m=row.text.match(/^(\d{4}-\d{2}-\d{2}): -?\d+(?:,\d+)? (rep|lpm|%|kg|cm|s) · (\d{4}-\d{2}-\d{2}): -?\d+(?:,\d+)? \2\. Comparación profesional revisada; no acredita por sí sola un logro\.$/u);
+  if(!m||!validCivilDate(m[1])||!validCivilDate(m[3])||m[1]>=m[3]||m[1]<source.periodStart||m[3]>source.periodEnd)return false;
+  refs.add(ref);labels.add(row.label);
+  if(earliest===null||m[1]<earliest)earliest=m[1];
+  if(latest===null||m[3]>latest)latest=m[3];
+ }
+ return earliest===source.periodStart&&latest===source.periodEnd;
 }
 function wrap(font,size,v,width){
  const words=safe(v).split(/\s+/u).filter(Boolean),lines=[];let line='';
@@ -54,6 +80,9 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  // Never silently omit authorized evidence from a signed professional report.
  // An extreme payload is rejected for Coach review instead of being clipped.
  if(source.evidence.length>80)throw Error('M44_PDF_EVIDENCE_VOLUME_REVIEW_REQUIRED');
+ if(source.evidence.some(reservedDeviceEvidence))throw Error('M44_PDF_DEVICE_PUBLICATION_NOT_AUTHORIZED');
+ const reassessment=source.reportType==='reassessment';
+ if(reassessment&&!validateOfficialReassessmentSource(source))throw Error('M44_PDF_REASSESSMENT_SOURCE_INVALID');
  if(!validateOfficialActivitySeries(source.activitySeries??[],source.periodStart,source.periodEnd))
   throw Error('M44_PDF_ACTIVITY_SERIES_INVALID');
  const {PDFDocument,StandardFonts,rgb}=pdfLib,doc=await PDFDocument.create();
@@ -126,6 +155,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  const volumeMatch=rowText(rowBy(['Volumen comparable'],'sessionExecutions')).match(/\((\d+) y (\d+) sesiones; medias (\d+(?:\.\d+)?) y (\d+(?:\.\d+)?) kg·rep\)/u);
  const volume=volumeMatch?volumeMatch.slice(1).map(Number):null;
  const metrics=[];
+ if(reassessment)metrics.push([fmt(source.evidence.length),'Comparaciones revisadas']);
  if(sessions!==null)metrics.push([fmt(sessions),'Sesiones confirmadas']);
  if(consistency&&Number(consistency[2])>0&&Number(consistency[1])<=Number(consistency[2]))metrics.push([fmt(100*Number(consistency[1])/Number(consistency[2]))+'%','Citas cumplidas']);
  else if(days!==null)metrics.push([fmt(days),'Días con entrenamiento']);
@@ -222,7 +252,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
   const title=safe(item?.label,120);
  const parsedTrend=trends.find(t=>'Tendencia: '+t.label===item?.label);
  const value=item?.label===WELLBEING_BUNDLE_LABEL?wellbeingBundleDescription(source.evidence,source.periodStart,source.periodEnd):parsedTrend?parsedTrend.points.length+' de '+parsedTrend.total+' días registrados ('+parsedTrend.unit+'). '+parsedTrend.points.map(p=>humanDate(p.date)+': '+fmt(p.value)).join(' · '):item?.label==='Calendario de entrenamiento'?(calendar?calendarDescription(calendar):'Registro diario no interpretable; requiere revisión.'):rowText(item);
-  const provenance='Fuente: '+publicLabel(SOURCE_LABELS,item?.source,safe(item?.source,100))+' / '+(safe(item?.quality,70)||'registrada');
+  const provenance='Fuente: '+(professionalSource(item?.source)&&item?.quality==='revisada'?'Comparación profesional contrastada':publicLabel(SOURCE_LABELS,item?.source,safe(item?.source,100)))+' / '+(safe(item?.quality,70)||'registrada');
   const titleLines=wrap(bold,10,title,WIDTH-26),valueLines=wrap(sans,10.2,value,WIDTH-26),sourceLines=wrap(sans,8,provenance,WIDTH-26);
   const h=titleLines.length*13+valueLines.length*14+sourceLines.length*10+15;
   ensure(h);line(M,y+6,R);
@@ -237,7 +267,7 @@ export async function renderEvolutionReportPdf({source,sourceFingerprint,pdfLib,
  section='Tu siguiente paso';
  heading('Interpretación profesional');block(source.conclusions||'Interpretación pendiente.');
  heading('Próximo paso propuesto');block(source.recommendations||'Propuesta pendiente.');
- heading('Transparencia');block('Fuente principal: '+publicLabel(SOURCE_LABELS,source.sourceType,'Evidencia canónica IBERFIT')+'. Periodo: '+interval+'. El diagnóstico inicial IRI se mantiene separado. Los datos de dispositivos no sustituyen una sesión confirmada.',{size:8.5,leading:12,c:'muted',gap:4});
+ heading('Transparencia');block('Fuente principal: '+publicLabel(SOURCE_LABELS,source.sourceType,reassessment?'Comparaciones profesionales revisadas':'Evidencia canónica IBERFIT')+'. Periodo: '+interval+'. El diagnóstico inicial IRI se mantiene separado. Los datos de dispositivos no sustituyen una sesión confirmada.',{size:8.5,leading:12,c:'muted',gap:4});
  for(let i=0;i<pages.length;i++){
   current=pages[i];line(M,51,R);text('IBERFIT / EVOLUCIÓN Y SEGUIMIENTO',M,35,7.5,bold,'muted');
   const count=String(i+1)+' / '+String(pages.length);text(count,R-sans.widthOfTextAtSize(count,8),35,8,sans,'muted');

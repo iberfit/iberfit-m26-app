@@ -25,7 +25,12 @@ import {createTelemetryRemoteSync} from '../telemetry/remote-sync.js';
 import {createEngagementDraftRepository} from '../engagement/activity-drafts.js';
 import {createEngagementCommandService} from '../engagement/command-service.js';
 import {createEngagementController} from '../engagement/engagement-controller.js';
+import {createDocumentConsentApi} from '../wearables/document-consent-api.js';
+import {createDocumentCoachApi} from '../wearables/document-coach-api.js';
+import {documentCoachReportScope,sameDocumentCoachScope} from '../wearables/document-coach-panel.js';
 import {createWearableController} from '../wearables/controller.js';
+import {connected360CoachActivityView,connected360MultiProviderCoachActivityView,sameConnected360CoachScope} from '../wearables/v49-coach-activity-contract.js';
+import {confirmedCoachTrainingRows} from '../intelligence/next-session-prep.js';
 import {mergeV47DailyIntoClientProgress} from '../wearables/v47-progress-bridge.js';
 import {buildWearableViewModel} from '../wearables/view-model.js';
 import {recordsForClient} from '../modules/domain-selectors.js';
@@ -525,7 +530,7 @@ export function preserveLoginInputsDuringMount(root,render){
   return restored;
 }
 
-export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
+export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history,connected360AppleCertificationHarness=false,connected360DualCoachCertificationHarness=false,connected360DocumentCertificationHarness=false}={}){
   if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
   const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
   const posthogObserver=createIberfitPosthogObserver({
@@ -1748,6 +1753,44 @@ export async function createM26Application({root=document.querySelector('#app'),
       const auth=professionalFollowupSession();
       return auth&&client&&hasTrainingService(client)?{...auth,clientId}:null;
     }
+    // Release switch is deliberately absent from current deployment config.
+    // Enable only after V49 server capability, authenticated and physical QA.
+    // This UI gate is not authorization; RPC repeats live session/consent checks.
+    function coachActivityScope(){
+      const apple=transport?.connected360AppleCandidateAvailable?.()===true;
+      if(!apple&&(runtimeConfig?.connected360CoachActivityCertified!==true
+        ||runtime.environment!=='production'||runtime.qaOnly!==false))return null;
+      const area=store.getRouteAuthorizationSnapshot().activeArea;
+      const auth=professionalReportSelectionScope();
+      return auth&&['expediente','sesion'].includes(area)?{...auth,area,provider:apple?'apple_health':'health_connect'}:null;
+    }
+    async function readCoachActivity(scope,stillCurrent,{signal,trendDays=null}={}){
+      const check=()=>{if(signal?.aborted||!stillCurrent()||!sameConnected360CoachScope(scope,coachActivityScope()))
+        throw Error('M26_V49_STALE_COACH_SCOPE');};
+      check();
+      if(trendDays!==null&&(scope.area!=='expediente'||scope.provider!=='apple_health'||![7,28,90,365].includes(trendDays)))throw Error('M26_V58_SCOPE_INVALID');
+      await refreshSessionIfNeeded();check();
+      const token=currentToken();
+      await ensurePrivilegedActionAssurance({transport,token,userId:scope.actorId,friendlyName:'IBERFIT · seguimiento profesional'});check();
+      if(trendDays!==null){
+        const result=await transport.connected360AppleCandidateCoachTrends(token,scope.clientId,trendDays,{signal});check();return result;
+      }
+      if(scope.provider==='apple_health'){
+        let payloads;
+        if(transport.connected360DualCoachCandidateAvailable?.()===true){
+          payloads=await transport.connected360DualCoachCandidateDays(token,scope.clientId,{signal,stillCurrent});check();
+        }else{
+          const payload=await transport.connected360AppleCandidateCoachExerciseDays(token,scope.clientId,{signal});check();
+          payloads=[payload];
+        }
+        const now=new Date(),confirmedRows=confirmedCoachTrainingRows(store.getRenderSnapshot(),scope.clientId,{now});
+        check();return connected360MultiProviderCoachActivityView(payloads,{clientId:scope.clientId,now,confirmedRows});
+      }
+      const payload=await transport.connected360ProductionCoachExerciseDays(token,scope.clientId);check();
+      const now=new Date();
+      const confirmedRows=confirmedCoachTrainingRows(store.getRenderSnapshot(),scope.clientId,{now});
+      check();return connected360CoachActivityView(payload,{clientId:scope.clientId,now,confirmedRows});
+    }
     function professionalFollowupScope(){
       if(store.getRouteAuthorizationSnapshot().activeArea!=='expediente')return null;
       return professionalReportSelectionScope();
@@ -1776,7 +1819,22 @@ export async function createM26Application({root=document.querySelector('#app'),
       reviewGoal:(clientId,row)=>{if(professionalFollowupScope()?.clientId!==clientId)return '';const state=store.getRenderSnapshot();const cycle=selectCurrentTrainingCycle(recordsForClient(state,'trainingCycles',clientId),{clientId,now:new Date()});return goalReviewText(buildProfessionalGoalMeasurementReview(state,clientId,cycle,row));},
     });
     const coachInvitationAttempts=createInvitationAttemptTracker();
-    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,professionalFollowupController,refreshState:hydrate,getSessionLease:()=>hydrationLeaseFor(session),createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},updateExerciseMeasurementProfile:async(payload)=>{await refreshSessionIfNeeded();return transport.updateExerciseMeasurementProfile(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,
+    // Only the explicit QA certification transport can create a binding.
+    const documentCoachApiForReport=transport?.connected360DocumentCandidateAvailable?.()===true?reportId=>{
+      const readScope=()=>documentCoachReportScope(store.getState(),reportId,{actorId:session?.user?.id,lease:hydrationLeaseFor(session)});
+      const scope=readScope();if(!scope)return null;
+      const stillCurrent=()=>sameDocumentCoachScope(scope,readScope());
+      const api=createDocumentCoachApi({transport,getScope:()=>stillCurrent()?scope:null,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},ensureAssurance:(token,userId)=>ensurePrivilegedActionAssurance({transport,token,userId,friendlyName:'IBERFIT · autorización de informe'})});
+      return {api,stillCurrent,scope,onTransition:async()=>{if(stillCurrent())await hydrate({reason:'connected360-document-transition'});}};
+    }:null;
+    const documentCoachDraftCreate=transport?.connected360DocumentCandidateAvailable?.()===true?async(payload,assertEditorCurrent)=>{
+      const lease=hydrationLeaseFor(session),actorId=session?.user?.id;
+      const check=()=>{assertEditorCurrent();const state=store.getState();if(!lease||hydrationLeaseFor(session)!==lease||session?.user?.id!==actorId||state.identity?.id!==actorId||state.identity?.role!=='coach'||state.selectedClientId!==payload.clientId||transport.connected360DocumentCandidateAvailable()!==true)throw Error('GX_DOCUMENT_COACH_SCOPE_CHANGED');};
+      check();await refreshSessionIfNeeded();check();const token=currentToken();
+      await ensurePrivilegedActionAssurance({transport,token,userId:actorId,friendlyName:'IBERFIT · autorización de informe'});check();
+      return transport.createReportDraft(token,payload);
+    }:null;
+    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,professionalFollowupController,refreshState:hydrate,getSessionLease:()=>hydrationLeaseFor(session),documentCoachApiForReport,documentCoachDraftCreate,createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},updateExerciseMeasurementProfile:async(payload)=>{await refreshSessionIfNeeded();return transport.updateExerciseMeasurementProfile(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,
       // When U60 is released in PROD, a Coach withdrawal must also check
       // all dated occurrences. Do not silently fall back to legacy-only
       // retirement authorization just because this is not the QA hostname.
@@ -1803,7 +1861,12 @@ export async function createM26Application({root=document.querySelector('#app'),
       const verified=await waitForCreatedClient({result,payload,fetchSnapshot:async()=>{assertCurrent();const snapshot=await transport.bootstrap(token);assertCurrent();return snapshot;}});
       assertCurrent();await hydrate({reason:'client-created'});assertCurrent();return verified;
     }});
-    engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store,ownerId,transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:({reason}={})=>hydrate({reason:reason||'wearables-refresh'}),isOnline:()=>navigator.onLine!==false});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
+    const documentConsentApi=createDocumentConsentApi({transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getScope:()=>{
+      const identity=store.getState().identity;
+      return identity?.role==='client'&&identity.id===ownerId&&session?.user?.id===ownerId&&identity.clientId
+        ?{ownerId,clientId:identity.clientId,lease:hydrationLeaseFor(session)}:null;
+    }});
+    engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store,ownerId,transport,documentConsentApi,productionHistoryEnabled:runtime.environment==='production'&&runtime.qaOnly===false,getCoachActivityScope:coachActivityScope,readCoachActivity,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:({reason}={})=>hydrate({reason:reason||'wearables-refresh'}),isOnline:()=>navigator.onLine!==false});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
     admin=createAdminController({root,store,service:adminService,render,getSessionLease:()=>hydrationLeaseFor(session)});
@@ -2900,7 +2963,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   function mount() {
   sanitizePendingIriExternalReportIntent();
   transport = runtime.enabled
-    ? createM26Transport(runtime)
+    ? createM26Transport(runtime,{connected360AppleCandidate:connected360AppleCertificationHarness===true,connected360DualCoachCandidate:connected360DualCoachCertificationHarness===true,connected360DocumentCandidate:connected360DocumentCertificationHarness===true})
     : null;
 
   sessionForegroundRefresh?.destroy?.();

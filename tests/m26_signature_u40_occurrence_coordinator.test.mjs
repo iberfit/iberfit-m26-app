@@ -235,3 +235,118 @@ test('U60 Client calendar verifies the exact U33 appointment-state visibility ma
      /U40_CLIENT_CALENDAR_PRIVACY_DRIFT/);
  }
 });
+
+test('U34 cancellation ACK must prove exact transition before releasing the journal',async()=>{
+  actor={userId:COACH,role:'coach',accessToken:'jwt'};
+  const command=cmd('OCURRENCIA_CANCELAR');
+  const good={kind:'ack',operationId:OP,entityId:A,entityType:'training_occurrence',
+    remoteRevision:1,status:'cancelada',replacement:null,duplicate:false};
+  for(const mutate of [
+    r=>{r.status='confirmada';},r=>{r.remoteRevision=0;},r=>{r.remoteRevision=2;},
+    r=>{delete r.replacement;},r=>{r.replacement={id:B};},
+    r=>{r.entityType='session';},r=>{delete r.duplicate;},
+  ]){
+    journalStore.clear();
+    const bad=structuredClone(good);mutate(bad);
+    let reply=bad,sent=[];
+    const svc=make({transport:{...noop,occurrenceCommand:async(_token,c)=>{sent.push(c);return reply;}}});
+    await assert.rejects(svc.send(command),/U40_U34_SCHEDULE_ACK_UNVERIFIED/);
+    assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),true);
+    reply={...good,duplicate:true};
+    assert.equal((await svc.retryUncertain({clientId:CLIENT,occurrenceId:A})).duplicate,true);
+    assert.deepEqual(sent,[command,command]);
+    assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),false);
+  }
+});
+
+test('U34 reprogramming verifies a distinct replacement, exact requested date and no fabricated time or appointment',async()=>{
+  actor={userId:COACH,role:'coach',accessToken:'jwt'};
+  const command=buildOccurrenceScopedCommand({type:'OCURRENCIA_REPROGRAMAR',operationId:OP,
+    clientId:CLIENT,occurrenceId:A,baseRevision:4,newOperationId:OTHER,replacement:{localDate:'2026-11-30'}});
+  const good={kind:'ack',operationId:OP,entityId:A,entityType:'training_occurrence',
+    remoteRevision:5,status:'cancelada',duplicate:false,
+    replacement:{id:B,localDate:'2026-11-30',startsAt:null,appointmentId:null}};
+  for(const mutate of [
+    r=>{r.replacement.id=A;},r=>{r.replacement.id=[B];},r=>{r.replacement.localDate='2026-12-01';},
+    r=>{r.replacement.startsAt='2026-11-30T12:00:00Z';},r=>{r.replacement.appointmentId=OTHER;},
+    r=>{delete r.replacement.appointmentId;},r=>{r.replacement.privateNotes='unexpected';},
+    r=>{r.replacement=null;},
+  ]){
+    journalStore.clear();
+    const bad=structuredClone(good);mutate(bad);
+    const svc=make({transport:{...noop,occurrenceCommand:async()=>bad}});
+    await assert.rejects(svc.send(command),/U40_U34_REPLACEMENT_ACK_UNVERIFIED/);
+    assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),true);
+  }
+  journalStore.clear();
+  const svc=make({transport:{...noop,occurrenceCommand:async()=>good}});
+  assert.deepEqual((await svc.send(command)).replacement,good.replacement);
+  assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),false);
+});
+
+test('U34 timed replacement accepts equal UTC instants and rejects a drifted clock or appointment',async()=>{
+  actor={userId:COACH,role:'coach',accessToken:'jwt'};
+  const command=buildOccurrenceScopedCommand({type:'OCURRENCIA_REPROGRAMAR',operationId:OP,
+    clientId:CLIENT,occurrenceId:A,baseRevision:4,newOperationId:OTHER,
+    replacement:{localDate:'2026-11-30',localTime:'09:00',appointmentId:SESSION}});
+  const good={kind:'ack',operationId:OP,entityId:A,entityType:'training_occurrence',
+    remoteRevision:5,status:'cancelada',duplicate:false,
+    replacement:{id:B,localDate:'2026-11-30',startsAt:'2026-11-30T12:00:00+00:00',appointmentId:SESSION}};
+  for(const mutation of [{startsAt:'2026-11-30T11:00:00Z'},{startsAt:'2026-11-30'},{appointmentId:null}]){
+    journalStore.clear();
+    const svc=make({transport:{...noop,occurrenceCommand:async()=>({...good,replacement:{...good.replacement,...mutation}})}});
+    await assert.rejects(svc.send(command),/U40_U34_REPLACEMENT_ACK_UNVERIFIED/);
+    assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),true);
+  }
+  journalStore.clear();
+  const svc=make({transport:{...noop,occurrenceCommand:async()=>good}});
+  assert.equal((await svc.send(command)).kind,'ack');
+});
+
+test('U40 uses refreshed credentials for subsequent calendar pages and durable dispatch',async()=>{
+  journalStore.clear();
+  actor={userId:COACH,role:'coach',accessToken:'initial'};
+  const tokens=[];
+  const svc=make({transport:{...noop,occurrenceCalendar:async(token)=>{
+    tokens.push(token);
+    if(tokens.length===1){
+      actor={...actor,accessToken:'refreshed'};
+      return {kind:'calendar',clientId:CLIENT,count:1,hasMore:true,
+        nextCursor:{localDate:'2026-10-27',id:A},occurrences:[item(A)]};
+    }
+    return {kind:'calendar',clientId:CLIENT,count:1,hasMore:false,
+      nextCursor:null,occurrences:[item(B,'2026-10-28')]};
+  }}});
+  assert.equal((await svc.calendar({clientId:CLIENT,startDate:'2026-10-25',endDate:'2026-11-01'})).count,2);
+  assert.deepEqual(tokens,['initial','refreshed']);
+  const refreshJournal={...journal,writePending:async(key,value)=>{
+    await journal.writePending(key,value);
+    actor={...actor,accessToken:'after-journal'};
+  }};
+  let sentToken;
+  const writer=make({recovery:refreshJournal,transport:{...noop,occurrenceCommand:async(token,c)=>{
+    sentToken=token;
+    return {kind:'ack',operationId:c.operationId,entityId:c.entityId,remoteRevision:1};
+  }}});
+  assert.equal((await writer.send(cmd())).kind,'ack');
+  assert.equal(sentToken,'after-journal');
+});
+
+test('U40 suppresses a confirmed receipt if identity changes during journal cleanup',async()=>{
+  for(const cleanupFails of [false,true]){
+    journalStore.clear();
+    actor={userId:COACH,role:'coach',accessToken:'jwt'};
+    const switchingJournal={...journal,clearPending:async(key)=>{
+      actor={userId:CLIENT_USER,role:'cliente',clientId:CLIENT,accessToken:'other'};
+      if(cleanupFails)throw new Error('cleanup unavailable');
+      await journal.clearPending(key);
+    }};
+    const svc=make({recovery:switchingJournal,transport:{...noop,occurrenceCommand:async(_token,c)=>({
+      kind:'ack',operationId:c.operationId,entityId:c.entityId,remoteRevision:1,
+    })}});
+    await assert.rejects(svc.send(cmd()),/U40_AUTH_IDENTITY_CHANGED/);
+    actor={userId:COACH,role:'coach',accessToken:'jwt'};
+    assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),cleanupFails);
+  }
+  journalStore.clear();
+});

@@ -92,3 +92,13 @@ test('M44 withdrawn download returns the server forbidden code; client never ren
  })});
  await assert.rejects(service.download('jwt',{issuanceId:issue,sha256:'f'.repeat(64)}),/M44_PDF_ISSUANCE_NOT_AVAILABLE/);
 });
+
+test('M44 open rejects substituted issuance, invalid revision and non-exact digest',async()=>{
+ const good={ok:true,issuanceId:issue,delivery:'authenticated-pdf',version:2,artifactSha256:'f'.repeat(64)};
+ for(const patch of [{issuanceId:uid},{issuanceId:issue+' '},{version:0},{version:'2'},{version:1.2},{version:null},{version:Number.MAX_SAFE_INTEGER+1},{artifactSha256:good.artifactSha256+'x'},{artifactSha256:' '+good.artifactSha256}]){
+  const service=createEvolutionReportGovernanceService({runtime:qa,fetchImpl:async()=>({ok:true,status:200,json:async()=>({...good,...patch})})});
+  await assert.rejects(service.open('jwt',{issuanceId:issue}),/M44_PDF_(ISSUANCE_INVALID_RESPONSE|AUTHENTICATED_DELIVERY_REQUIRED)/u);
+ }
+ const service=createEvolutionReportGovernanceService({runtime:qa,fetchImpl:async()=>({ok:true,status:200,json:async()=>good})});
+ assert.deepEqual(await service.open('jwt',{issuanceId:issue}),{issuanceId:issue,version:2,sha256:good.artifactSha256,delivery:'authenticated-pdf'});
+});

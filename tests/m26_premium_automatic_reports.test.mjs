@@ -41,7 +41,7 @@ test('catálogo premium cubre siete informes sin duplicar diagnóstico y seguimi
   assert.deepEqual(PREMIUM_REPORT_TYPES.map((item)=>item.id),['iri','post-session','weekly','monthly','reassessment','quarterly','year-in-iberfit']);
 });
 
-test('todos los formatos premium, incluido semanal, son aprobables y preservan su tipo',()=>{
+test('seis formatos premium son aprobables; reevaluación conserva su contrato de vista previa privada',()=>{
   const base={clientId:'c1',assessmentId:'iri-new',title:'Informe basado en evidencia',
     periodStart:'2026-08-31',periodEnd:'2026-09-06',
     summary:'Resumen respaldado por datos canónicos confirmados.',
@@ -49,6 +49,12 @@ test('todos los formatos premium, incluido semanal, son aprobables y preservan s
     recommendations:'Revisar resultados con el coach antes de continuar.',reviewAccepted:true};
   for(const {id} of PREMIUM_REPORT_TYPES){
     const draft={...base,reportType:id};
+    if(id==='reassessment'){
+      assert.deepEqual(validateReportDraft(draft).errors,['reassessment-preview-only']);
+      assert.throws(()=>normalizeReportDraft(draft),/reassessment-preview-only/u);
+      assert.throws(()=>buildApproveReportDraftCommand(draft,0),/reassessment-preview-only/u);
+      continue;
+    }
     assert.deepEqual(validateReportDraft(draft).errors,[],id);
     assert.equal(normalizeReportDraft(draft).reportType,id);
     assert.equal(buildApproveReportDraftCommand(draft,0).payload.patch.reportType,id);
@@ -453,4 +459,26 @@ test('GX46 annual report uses the approved Spanish name without changing its typ
  const report=buildPremiumReportPortfolio(stateWithHistory(),'c1',{now:NOW}).find(x=>x.id==='year-in-iberfit');
  assert.equal(report.title,'Tu año en IBERFIT');
  assert.equal(report.label,'Tu año en IBERFIT');
+});
+
+
+test('weekly report describes confirmed consecutive training days without inferring lack of recovery',()=>{
+  const now=new Date('2026-09-06T18:00:00Z');
+  const state=stateWithHistory();
+  state.collections.sessionExecutions=Array.from({length:5},(_,i)=>({
+    id:'daily-'+i,clientId:'c1',sessionId:'s1',status:'completed',syncStatus:'clean',
+    completedAt:'2026-09-'+String(i+1).padStart(2,'0')+'T12:00:00Z',
+  }));
+  state.collections.sessionExecutions.push(
+    {...state.collections.sessionExecutions[0],id:'same-date'},
+    {...state.collections.sessionExecutions[0],id:'pending',syncStatus:'pending',completedAt:'2026-09-06T12:00:00Z'},
+    {...state.collections.sessionExecutions[0],id:'foreign',clientId:'c2',completedAt:'2026-09-06T12:00:00Z'}
+  );
+  const weekly=buildPremiumReportPortfolio(state,'c1',{now}).find(r=>r.id==='weekly');
+  assert.equal(weekly.evidence.find(r=>r.label==='Días con entrenamiento confirmado').text,'5');
+  const continuity=weekly.evidence.find(r=>r.label==='Hitos de continuidad');
+  assert.match(continuity.text,/5 días consecutivos con entrenamiento confirmado/u);
+  assert.match(continuity.text,/no demuestran ausencia de descanso/u);
+  assert.equal(continuity.source,'sessionExecutions');
+  assert.ok(continuity.text.length<=500);
 });

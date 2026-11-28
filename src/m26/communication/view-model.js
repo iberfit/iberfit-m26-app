@@ -1,6 +1,6 @@
 import {groupCommunicationMessages} from './state.js';
 import {buildCrmRenewalSummary} from '../engagement/crm-renewals.js';
-import {augmentCoachCockpitWithCrm} from '../experience/coach-cockpit.js';
+import {augmentCoachCockpitWithCrm,coachPortfolioServiceStatus} from '../experience/coach-cockpit.js';
 
 const list=(value)=>Array.isArray(value)?value:[];
 const field=(record,...keys)=>{
@@ -43,7 +43,7 @@ function plainDateLabel(value){
   return match?`${match[3]}/${match[2]}/${match[1]}`:'';
 }
 function isIriOnlyCommercialClient(client){
-  return String(client?.experience?.serviceKind||client?.lifecycleStatus||client?.lifecycle?.status||'').trim().toLowerCase()==='iri_only';
+  return coachPortfolioServiceStatus(client)==='none';
 }
 function commercialClientName(vm,state,clientIdValue){
   const id=String(clientIdValue||'').trim();
@@ -65,7 +65,8 @@ function commercialClientIds(vm,state){
   }
   if(vm.kind==='expediente'){
     const id=String(state?.selectedClientId||'').trim();
-    return id?[id]:[];
+    const client=list(state?.collections?.clients).find(row=>String(row?.id||'').trim()===id);
+    return id&&!isIriOnlyCommercialClient(client)?[id]:[];
   }
   return [];
 }

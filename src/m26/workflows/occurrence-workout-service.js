@@ -4,7 +4,7 @@
 // occurrence read; U33 CALENDARIO is intentionally insufficient.
 import {
   createOccurrenceWorkoutDraft,rehydrateOccurrenceWorkoutDraft,
-  buildOccurrenceWorkoutCommand,applyOccurrenceWorkoutAck,
+  buildOccurrenceWorkoutCommand,applyOccurrenceWorkoutAck,canonicalJson,
 } from './occurrence-workout-draft.js';
 import {
   recordSet,skipExecutionSet,advanceExecution,finishExecution,currentStep,executionResultForStep,skippedSetForStep,
@@ -48,6 +48,24 @@ export function datedCompletionSummary(execution){
     activeMs:Number.isSafeInteger(duration)&&duration>=0&&duration<=604800000?duration:null,
     pain:typeof feedback.pain==='boolean'?feedback.pain:null});
 }
+// Only canonical JSON values are compared. Object key order can differ after
+// PostgreSQL jsonb round trips; array order and numeric/string types still matter.
+const sameCheckpointJson=(left,right)=>
+  JSON.stringify(canonicalJson(left))===JSON.stringify(canonicalJson(right));
+export function checkpointContainsValues(localValues,remoteValues){
+  return Object.entries(localValues||{}).every(([key,value])=>
+    Object.prototype.hasOwnProperty.call(remoteValues||{},key)&&
+    sameCheckpointJson(value,remoteValues[key]));
+}
+export function checkpointRevisionAdvanced(local,remote,completed=false){
+  const l=[local?.occurrenceRevision,local?.executionRevision];
+  const r=[remote?.occurrenceRevision,remote?.executionRevision];
+  if(![...l,...r].every(v=>Number.isSafeInteger(v)&&v>=1))
+    fail('CHECKPOINT_REVISION_INVALID');
+  if(r.some((v,i)=>v<l[i]))fail('CHECKPOINT_REMOTE_REVISION_REGRESSED');
+  return completed||r.some((v,i)=>v>l[i]);
+}
+
 export function createOccurrenceWorkoutService({
   enabled=false,coordinator,readPrivateOccurrence,checkpoint,
   createId=()=>globalThis.crypto?.randomUUID?.(),
@@ -171,18 +189,14 @@ export function createOccurrenceWorkoutService({
           local.localDate!==remote.localDate||
           (!completed&&(
             local.execution?.id!==remote.execution?.id||
-            JSON.stringify(local.execution?.queue)!==
-              JSON.stringify(remote.execution?.queue)
+            !sameCheckpointJson(local.execution?.queue,remote.execution?.queue)
           ))||
           (completed&&local.execution?.id!==result.executionBody?.id))
           fail('CHECKPOINT_IDENTITY_DRIFT');
-        const sameValues=(localValues,remoteValues)=>
-          Object.entries(localValues||{}).every(([key,value])=>
-            Object.prototype.hasOwnProperty.call(remoteValues||{},key)&&
-            JSON.stringify(value)===JSON.stringify(remoteValues[key]));
-        const revisionAdvanced=completed||
-          local.occurrenceRevision!==remote.occurrenceRevision||
-          local.executionRevision!==remote.executionRevision;
+        // An older or malformed private read must never authorize deleting a
+        // newer encrypted checkpoint, even if its recorded values happen to match.
+        const revisionAdvanced=checkpointRevisionAdvanced(local,remote,completed);
+        const sameValues=checkpointContainsValues;
         if(revisionAdvanced){
           // Only dismiss a stale checkpoint when the server contains ALL
           // locally saved results AND any locally completed feedback.

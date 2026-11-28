@@ -466,3 +466,96 @@ test('Coach preparation ignores acknowledgement-only and future executions and r
   assert.equal(review.confirmedSessions,2);
   assert.equal(review.latestSessionAt,'2026-09-12');
 });
+
+test('Coach preparation rejects malformed, pending and explicitly incomplete series instead of counting them as observed',()=>{
+  const item={sessionId:'session-published',status:'completed',syncStatus:'clean',
+    planSnapshot:{sessionId:'session-published',queue:[{blockId:'b1',exerciseId:'squat',sets:3}]},
+    queue:[{blockId:'b1',exerciseId:'squat',sets:3}],
+    results:{'b1:squat:1':{reps:'0x10'},'b1:squat:2':{reps:8,serverConfirmed:false},
+      'b1:squat:3':{reps:8,completed:false}}};
+  assert.equal(summarizeConfirmedSessionSets(item)?.recordedSets,0);
+  item.results['b1:squat:1']={reps:'8'};
+  item.results['b1:squat:2']={reps:1.5};
+  item.results['b1:squat:3']={seconds:0};
+  assert.equal(summarizeConfirmedSessionSets(item)?.recordedSets,2);
+  item.results['b1:squat:1']={reps:8,status:'pending'};
+  item.results['b1:squat:2']={intervalsCompleted:'0b10'};
+  assert.equal(summarizeConfirmedSessionSets(item)?.recordedSets,1);
+  item.planSnapshot.queue[0].sets=true;
+  assert.equal(summarizeConfirmedSessionSets(item),null);
+  item.planSnapshot.queue[0].sets='0x3';
+  assert.equal(summarizeConfirmedSessionSets(item),null);
+  item.planSnapshot.queue[0].sets='3';
+  assert.equal(summarizeConfirmedSessionSets(item)?.plannedSets,3);
+});
+
+test('Coach wellbeing and evolution use one confirmed revision of each check-in, never voided or pending copies',async()=>{
+  const {computeProgressSummary,buildProgressTimeline,confirmedCheckinRecordsForClient}=await import('../src/m26/engagement/progress-engine.js');
+  const state=baseState();
+  const check=(id,day,energy,extra={})=>({id,clientId,recordedAt:'2026-09-'+String(day).padStart(2,'0')+'T10:00:00Z',energy,status:'confirmado',revision:1,...extra});
+  const old=check('old',8,8),prior=check('prior',9,8);
+  const actual=check('actual',10,4,{revision:2});
+  const recent=check('recent',11,4);
+  state.collections.checkins=[
+    old,prior,actual,{...actual},check('actual',10,10),recent,
+    check('void',12,0),check('void',12,0,{revision:2,status:'anulado'}),
+    check('pending',12,0,{syncStatus:'pending'}),
+    check('conflict',12,0),check('conflict',12,10),
+    check('cross',12,0,{body:{clientId:'different-client',energy:0}}),
+    check('corrected',12,0,{serverConfirmed:false}),
+  ];
+  assert.deepEqual(confirmedCheckinRecordsForClient(state,clientId).map(x=>x.id),['old','prior','actual','recent']);
+  const summary=computeProgressSummary(state,clientId,{now,days:28});
+  assert.equal(summary.checkins,4);
+  assert.equal(summary.checkinAverage.energy,6);
+  assert.equal(summary.latestCheckin.energy,4);
+  assert.equal(buildProgressTimeline(state,clientId,{now,days:28}).filter(x=>x.kind==='checkin').length,4);
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.wellbeingShift.checkins,4);
+  assert.equal(prep.wellbeingShift.signals.find(x=>x.key==='energy')?.delta,-4);
+  state.collections.checkins.push({...recent,revision:2,status:'anulado'});
+  assert.equal(buildNextSessionPreparation(state,clientId,{now}).wellbeingShift.available,false);
+});
+
+test('Coach reviews a sequence of confirmed training days without counting duplicated or unconfirmed records',()=>{
+  const state=baseState();
+  state.collections.sessionExecutions=Array.from({length:5},(_,i)=>({
+    id:'sequence-'+i,clientId,status:'completed',syncStatus:'clean',sessionId:'session-published',
+    completedAt:'2026-09-'+String(8+i).padStart(2,'0')+'T14:00:00Z',
+  }));
+  state.collections.sessionExecutions.push(
+    {...state.collections.sessionExecutions[0],id:'same-day'},
+    {...state.collections.sessionExecutions[0],id:'foreign',clientId:'another-client',completedAt:'2026-09-07T14:00:00Z'},
+    {...state.collections.sessionExecutions[0],id:'pending',syncStatus:'pending',completedAt:'2026-09-13T14:00:00Z'},
+  );
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.activityContinuity.days,5);
+  assert.equal(prep.activityContinuity.source,'confirmed_iberfit_execution');
+  assert.equal(prep.activityContinuity.periodEnd,'2026-09-12');
+  assert.equal(prep.activityContinuity.runningDays,null);
+  assert.equal(prep.activityContinuity.automaticPlanChange,false);
+  assert.ok(prep.reviewReasons.some(reason=>reason.kind==='activity-continuity'));
+  assert.equal(prep.reviewReasons.filter(reason=>reason.kind==='activity-continuity').length,1);
+  assert.equal(prep.session.startable,true);
+  assert.equal(prep.safety.automaticLoadChange,false);
+  state.collections.sessionExecutions=state.collections.sessionExecutions.filter(row=>row.id!=='sequence-2');
+  assert.equal(buildNextSessionPreparation(state,clientId,{now}).activityContinuity,null);
+});
+
+test('Coach prep accepts explicit current V49 data without duplicating canonical days or changing the plan',()=>{
+  const state=baseState();
+  const payload={ok:true,schema:'iberfit.connected360.coach-exercise-days.v1',clientId,provider:'health_connect',
+    coverage:'partial',periodStart:'2026-09-07',periodEnd:'2026-09-13',
+    days:[12,11,10,9,8].map(day=>({date:'2026-09-'+String(day).padStart(2,'0'),sports:['running']}))};
+  const prep=buildNextSessionPreparation(state,clientId,{now,authorizedCoachDays:payload});
+  assert.equal(prep.activityContinuity.days,5);
+  assert.equal(prep.activityContinuity.source,'coach_authorized_activity');
+  assert.equal(prep.activityContinuity.discipline,'running');
+  assert.equal(prep.reviewReasons.filter(reason=>reason.kind==='activity-continuity').length,1);
+  assert.equal(prep.session.startable,true);
+  assert.equal(prep.safety.automaticLoadChange,false);
+  assert.equal(buildNextSessionPreparation(state,clientId,{now,authorizedCoachDays:{...payload,clientId:'other'}}).activityContinuity,null);
+  assert.equal(buildNextSessionPreparation(state,clientId,{now,authorizedCoachDays:{...payload,periodEnd:'2026-09-12'}}).activityContinuity,null);
+  state.identity.role='admin';
+  assert.equal(buildNextSessionPreparation(state,clientId,{now,authorizedCoachDays:payload}).activityContinuity,null);
+});

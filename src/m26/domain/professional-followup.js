@@ -94,6 +94,24 @@ export function compareProfessionalFollowupPair(previous,current,{now=new Date()
  if(a.rectification||b.rectification||a.clientId!==b.clientId||a.id===b.id||!start||!end||end<=start||a.unit!==b.unit||stableEvidenceJson(a.protocol)!==stableEvidenceJson(b.protocol))return null;
  return Object.freeze({clientId:a.clientId,previousId:a.id,currentId:b.id,periodStart:start,periodEnd:end,previous:a.value,value:b.value,unit:a.unit,delta:Math.round((b.value-a.value)*100)/100,deltaUnit:a.unit==='percent'?'p. p.':a.unit,reviewRequired:true});
 }
+// History arrives newest first from verifyProfessionalFollowupPage. Pair only
+// the immediately preceding loaded observation of the same subject, test,
+// field and side. An incompatible, same-day or voided predecessor blocks
+// automatic comparison; do not search back for an older favorable result.
+// Keep this projection local to the current render or explicit review action.
+export function professionalFollowupHistoryComparisons(items,{now=new Date()}={}){
+ const result=new Map(),nextByMetric=new Map();
+ if(!Array.isArray(items))return result;
+ for(let i=items.length-1;i>=0;i--){
+  const row=items[i],p=row?.protocol;
+  if(!row?.id||!row.clientId||!p?.testId||!p.field||!p.side)continue;
+  const key=JSON.stringify([row.clientId,p.testId,p.field,p.side]);
+  const previous=nextByMetric.get(key);
+  if(previous)result.set(row.id,Object.freeze({previous,comparison:compareProfessionalFollowupPair(previous,row,{now})}));
+  nextByMetric.set(key,row);
+ }
+ return result;
+}
 export function professionalFollowupPageParams(clientId,{limit=30,cursor=null}={}){
  const owner=id(clientId);if(!owner||!Number.isInteger(limit)||limit<1||limit>50||(cursor!==null&&(!shape(cursor,['measuredAt','id'])||instant(cursor.measuredAt)===null||!id(cursor.id))))throw Error('M26_GX_FOLLOWUP_PAGE_INVALID');
  return Object.freeze({p_client_id:owner,p_limit:limit,p_cursor_at:cursor?.measuredAt??null,p_cursor_id:cursor?id(cursor.id):null});
@@ -358,12 +376,19 @@ export function bindProfessionalReportSelection(root,getScope){
    if(!sameSelectionScope(s,current()))return false;
    const [proof]=verified.items,[row]=verified.evidence;
    const prior=items.find(x=>x.publicationId===proof.publicationId);
-   if(prior&&prior.row.source===row.source&&stableEvidenceJson(prior.row)===stableEvidenceJson(row))return true;
+   if(prior){
+    if(proof.publicationRevision<prior.publicationRevision)return false;
+    if(proof.publicationRevision===prior.publicationRevision){
+     if(stableEvidenceJson(prior.row)===stableEvidenceJson(row))return true;
+     // Contradictory content at the same revision invalidates the selection.
+     clear();return false;
+    }
+   }
    if(!prior&&items.length>=12)return false;
    // A different revision invalidates any previous editor selection, rather
    // than silently replacing a reviewed row under the same publication ID.
    if(prior)token=Object.freeze({});
-   items=[...items.filter(x=>x.publicationId!==proof.publicationId),Object.freeze({publicationId:proof.publicationId,periodEnd:proof.periodEnd,row})];
+   items=[...items.filter(x=>x.publicationId!==proof.publicationId),Object.freeze({publicationId:proof.publicationId,publicationRevision:proof.publicationRevision,periodStart:proof.periodStart,periodEnd:proof.periodEnd,testId:proof.testId,field:proof.field,side:proof.side,row})];
    return true;
   },
   snapshot(clientId){const s=current();return s&&s.clientId===clientId?Object.freeze({clientId:s.clientId,token,items:Object.freeze([...items])}):null;},
@@ -373,6 +398,43 @@ export function bindProfessionalReportSelection(root,getScope){
 }
 export function professionalReportSelectionSnapshot(root,clientId){return gxSelectionsByRoot.get(root)?.snapshot(clientId)??null;}
 export function clearProfessionalReportSelection(root){gxSelectionsByRoot.get(root)?.clear();}
+// Read-only review for the seventh format, scoped to this live session.
+// Repeated metrics require deliberate selection before formal issuance.
+export function professionalReassessmentSelectionPreview(root,clientId){
+ const snapshot=professionalReportSelectionSnapshot(root,clientId);
+ if(!snapshot?.items.length)return null;
+ const counts=new Map();
+ for(const item of snapshot.items){
+  const key=JSON.stringify([item.testId,item.field,item.side]);
+  counts.set(key,(counts.get(key)??0)+1);
+ }
+ const ambiguousMetrics=[...counts.values()].filter(n=>n>1).length;
+ const rows=snapshot.items.map(item=>item.row);
+ return Object.freeze({official:false,ready:false,rows:Object.freeze(rows),comparisonCount:rows.length,ambiguousMetrics});
+}
+// Explicitly selected, session-local comparisons. The envelope is derived
+// from the actual pair dates, not the date of review or the training calendar.
+// This model cannot enter the official editor/approval path (ready:false).
+export function buildProfessionalReassessmentDraftPreview(root,clientId,sources,{now=new Date()}={}){
+ const fail=()=>{throw Error('M26_GX_REASSESSMENT_SELECTION_INVALID');};
+ const snapshot=professionalReportSelectionSnapshot(root,clientId),today=reportCivilDate(now);
+ if(!snapshot?.token||!today||!Array.isArray(sources)||sources.length<1||sources.length>12||new Set(sources).size!==sources.length)fail();
+ const selected=sources.map(source=>{
+  const item=snapshot.items.find(x=>x.row.source===source);
+  if(!item||item.periodStart>=item.periodEnd||item.periodEnd>today)fail();
+  return item;
+ });
+ if(new Set(selected.map(x=>x.row.label)).size!==selected.length||new Set(selected.map(x=>x.publicationId)).size!==selected.length)fail();
+ const start=selected.map(x=>x.periodStart).sort()[0],end=selected.map(x=>x.periodEnd).sort().at(-1);
+ if((Date.parse(end)-Date.parse(start))/86400000>366)fail();
+ const evidence=Object.freeze(selected.map(x=>x.row));
+ return Object.freeze({id:'reassessment',ready:false,previewOnly:true,official:false,
+  title:'Informe de reevaluación',periodStart:start,periodEnd:end,sourceType:'professional_followup',
+  summary: 'Comparaciones seleccionadas: '+evidence.length+'. Cada resultado conserva las fechas y el protocolo de su revisión profesional.',
+  conclusions:'La variación observada requiere interpretación individual. No acredita por sí sola un logro ni una mejora clínica.',
+  recommendations:'Revisar las comparaciones con el entrenador y acordar los próximos pasos antes de una eventual emisión oficial.',
+  evidence,activitySeries:Object.freeze([]),coachComment:'',dataPolicy:'canonical-only'});
+}
 export function professionalReportSelectionRows(candidate,snapshot,sources){
  if(!candidate?.ready||!PROFESSIONAL_REPORT_TYPES.includes(candidate.id)||!Array.isArray(candidate.evidence)||candidate.evidence.length<1||candidate.evidence.length>12||candidate.evidence.some(x=>String(x?.source??'').toLowerCase().startsWith('gx-professional:'))||!snapshot?.token||!Array.isArray(snapshot.items)||!Array.isArray(sources)||!sources.length||new Set(sources).size!==sources.length||candidate.evidence.length+sources.length>12)throw Error('M26_GX_REPORT_SELECTION_INVALID');
  const extra=sources.map(source=>{const entry=snapshot.items.find(x=>x.row.source===source);if(!entry||entry.periodEnd<candidate.periodStart||entry.periodEnd>candidate.periodEnd)throw Error('M26_GX_REPORT_SELECTION_STALE');return entry.row;});

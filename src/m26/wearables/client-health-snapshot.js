@@ -35,6 +35,7 @@ export function renderClientTodayHealth(wearables){
     +'<div class="m26-client-health-heading"><div><p class="m26-eyebrow">Actividad y salud</p>'
     +'<h2>'+(m?'Tu actividad, a la vista':historicalDate?'Tu última actividad registrada':'Actividad a tu ritmo')+'</h2><p>'+(m?'Tus mediciones autorizadas ya forman parte de IBERFIT.':historicalDate?'No hay mediciones de los últimos 7 días. Puedes consultar tus registros anteriores y revisar la conexión.':'Puedes entrenar sin reloj. Si decides compartir datos compatibles, podrás verlos aquí.')
     +'</p></div><span class="m26-client-health-status">'+(m?'<strong>'+m.days+'</strong> Días con datos':historicalDate?'Último registro '+e(historicalDate):'Sin datos todavía')+'</span></div>'+metrics
+    +'<div data-prod-connected360-feed="compact" hidden></div>'
     +'<div class="m26-client-health-footer"><small>'+(m?'Medias de los últimos 7 días. Los datos no identifican por sí solos el reloj ni modifican el entrenamiento.':historicalDate?'Historial anterior: no representa tu estado actual. La conexión es opcional y no modifica los entrenamientos.':'La conexión es opcional. Tu entrenamiento también funciona sin reloj.')
     +'</small><button type="button" data-m26-area="actividad">'+(m?'Ver mi actividad':'Ver conexión y actividad')+'</button></div></section>';
 }

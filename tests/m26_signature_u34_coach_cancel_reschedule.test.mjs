@@ -27,3 +27,35 @@ test('U34 rollback cannot delete historical receipts',()=>{
  assert.match(rollback,/u34_rollback_requires_no_persisted_change_receipts/u);
  assert.doesNotMatch(rollback,/DELETE FROM|TRUNCATE|DROP TABLE/iu);
 });
+
+test('U34 release transforms use each exact anchor once and reverse all five changes',async()=>{
+ const {readFileSync:read}=await import('node:fs');
+ const base=new URL('../supabase/release-procedures/gx_u34_prescription_preservation_v1.sql',import.meta.url);
+ const forward=read(base,'utf8'),rollback=read(new URL(base.href.replace(/\.sql$/u,'.rollback.sql')),'utf8');
+ const pairs=s=>[...s.matchAll(/anchor_text := \$old\$([^]*?)\$old\$;\n replacement_text := \$new\$([^]*?)\$new\$;/gu)].map(m=>[m[1],m[2]]);
+ assert.equal(pairs(forward).length,5);
+ assert.deepEqual(pairs(rollback),pairs(forward).reverse().map(([a,b])=>[b,a]));
+ // Exercise the transformations against the actual checked-in historical
+ // function, not merely against the inverse mapping of the release scripts.
+ const apply=(source,changes)=>{
+  for(const [anchor,replacement] of changes){
+   assert.equal(source.split(anchor).length-1,1,'exact historical anchor must be unique');
+   source=source.replace(anchor,replacement);
+  }
+  return source;
+ };
+ const candidate=apply(sql,pairs(forward));
+ assert.notEqual(candidate,sql);
+ assert.equal(apply(candidate,pairs(rollback)),sql);
+ assert.ok(candidate.indexOf("PRESCRIPTION_REVISION_CHANGED")<candidate.indexOf("UPDATE public.training_session_occurrences_v1 SET"));
+ assert.match(candidate,/batch->>'kind' IS DISTINCT FROM 'ack' OR batch->>'count' IS DISTINCT FROM '1'/u);
+ assert.match(candidate,/r\.prescription_snapshot=occ\.prescription_snapshot/u);
+ assert.match(candidate,/r\.prescription_revision=occ\.prescription_revision/u);
+ assert.match(candidate,/r\.duration_minutes=occ\.duration_minutes/u);
+ for(const source of [forward,rollback]){
+  assert.equal((source.match(/IF old_count<>1 THEN RAISE EXCEPTION/gu)||[]).length,5);
+  assert.equal((source.match(/body := replace\(body,anchor_text,replacement_text\);/gu)||[]).length,5);
+  for(const hash of ['ca01ce1428cf906ab3db3dd76f75740f','e3a461a489803b1a7e3c0823bf72e965','4f1a97e2c6feefbc1e51954ebce61dd5'])assert.ok(source.includes(hash));
+  assert.match(source,/proacl IS NOT DISTINCT FROM old_acl AND proowner=old_owner/u);
+ }
+});

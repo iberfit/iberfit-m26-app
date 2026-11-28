@@ -16,7 +16,7 @@ import {
   createWearableRemoteSync,
 } from './remote-sync.js';
 import {formatSleepDuration} from './duration-format.js';
-import {assertWearableClientContinuity,createWearableForegroundSync,createNativeForegroundHeartbeat,isCertifiedNativeAutoSyncSource} from './foreground-sync.js';
+import {assertWearableClientContinuity,createWearableForegroundSync,createNativeForegroundHeartbeat,isCertifiedNativeAutoSyncSource,runConnected360ForegroundPages} from './foreground-sync.js';
 import {
   createConnected360QaNativeChannel,
   isConnected360QaNativeAvailable,
@@ -25,9 +25,12 @@ import {createConnected360QaImporter} from './qa-native-import.js';
 import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
+import {mountDocumentConsentPanel} from './document-consent-panel.js';
 import {createConnected360ProductionSync} from './v46-production-sync.js';
-import {formatConnected360ProductionSummary} from './v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline,connected360ActivityContinuity} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
+import {connected360RecipientDecision,verifyConnected360CoachRecipients,verifyConnected360AppleCoachRecipients,verifyConnected360AppleCoachTrendRecipients,sameConnected360CoachScope} from './v49-coach-activity-contract.js';
+import {confirmedSessionExecutionsForClient,sessionExecutionIsCompleted,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {
   createLatestTaskCoordinator,
 } from '../platform/latest-task.js';
@@ -402,6 +405,173 @@ function supersededError(error){
   return next;
 }
 
+export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,stillCurrent,getToken,transport,longitudinal=false}={}){
+    const apple=provider==='apple_health';
+    if(typeof longitudinal!=='boolean'||(longitudinal&&!apple))throw Error('M26_COACH_SHARING_PURPOSE_INVALID');
+    if(!['apple_health','health_connect'].includes(provider))throw Error('M26_COACH_SHARING_PROVIDER_INVALID');
+    if(apple&&transport.connected360AppleCandidateAvailable?.()!==true)throw Error('M26_V56_CANDIDATE_DISABLED');
+    const readRemote=longitudinal?transport.connected360AppleCandidateCoachTrendRecipients:apple?transport.connected360AppleCandidateCoachRecipients:transport.connected360ProductionCoachRecipients;
+    const writeRemote=longitudinal?transport.setConnected360AppleCandidateCoachTrendConsent:apple?transport.setConnected360AppleCandidateCoachConsent:transport.setConnected360ProductionCoachConsent;
+    if(typeof readRemote!=='function'||typeof writeRemote!=='function')throw Error('M26_COACH_SHARING_UNAVAILABLE');
+    const document=wrap.ownerDocument;
+    const panel=document.createElement('section');
+    if(longitudinal)panel.dataset.qaAppleCoachTrendSharing='true';else if(apple)panel.dataset.qaAppleCoachSharing='true';else panel.dataset.prodConnected360CoachSharing='true';
+    const title=document.createElement('h4');title.textContent=longitudinal?"Compartir tendencias de Apple Salud · QA":apple?'Compartir actividad de Apple Salud · QA':'Compartir actividad con mi entrenador';
+    const description=document.createElement('p');
+    description.textContent=longitudinal?"Permiso independiente para comparar días y disciplinas de Apple Salud en dos periodos de hasta 365 días cada uno (hasta 730 días en total). Solo registros de la autorización vigente. No incluye biometría, rutas ni publicación de informes.":apple?"Puedes compartir los días y tipos de deporte de Apple Salud de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.":"Puedes compartir los días y tipos de deporte de Health Connect de los últimos 7 días con el entrenador que elijas. No incluye frecuencia cardíaca, distancia, rutas ni informes. Retirar el permiso no borra tu historial.";
+    const status=document.createElement('p');status.setAttribute('role','status');
+    const content=document.createElement('div');
+    const open=document.createElement('button');open.type='button';open.textContent=longitudinal?"Gestionar permisos de tendencias":'Gestionar permisos del entrenador';
+    panel.append(title,description,open,status,content);wrap.append(panel);
+    let busy=false,retired=false,controller=null;
+    const active=()=>!retired&&stillCurrent()&&panel.isConnected&&(!apple||transport.connected360AppleCandidateAvailable?.()===true);
+    const retire=()=>{if(retired)return;retired=true;controller?.abort();controller=null;content.replaceChildren();status.textContent='';panel.remove();};
+    function button(label,handler){
+      const el=document.createElement('button');el.type='button';el.textContent=label;
+      el.addEventListener('click',()=>{if(active()&&!busy&&el.isConnected&&content.contains(el))void handler();});
+      return el;
+    }
+    function renderRecipients(value){
+      const verified=(longitudinal?verifyConnected360AppleCoachTrendRecipients:apple?verifyConnected360AppleCoachRecipients:verifyConnected360CoachRecipients)(value,{clientId});
+      content.replaceChildren();
+      if(!verified.recipients.length){status.textContent='No hay entrenadores disponibles para compartir actividad.';return;}
+      status.textContent='Selecciona el permiso que quieras gestionar.';
+      for(const recipient of verified.recipients){
+        const row=document.createElement('section');
+        const name=document.createElement('strong');name.textContent=recipient.displayName;
+        const state=document.createElement('p');
+        state.textContent=recipient.effective?'Acceso activo':recipient.recorded?'Permiso registrado; acceso no activo':'Sin permiso';
+        row.append(name,state);
+        function confirm(allow){
+          if(!active())return;
+          const confirmation=document.createElement('p');
+          confirmation.textContent=longitudinal?(allow?"Confirma el acceso de este entrenador a las comparaciones de Apple Salud de hasta 730 días. El permiso semanal no cambia.":"Confirma la retirada del permiso de tendencias. No cambia el permiso semanal ni se borra tu historial."):apple?(allow?"Confirma que quieres compartir los datos de Apple Salud con este entrenador.":"Confirma que quieres retirar el permiso de Apple Salud sin borrar tu historial."):(allow?'Confirma que quieres compartir estos datos con este entrenador.':'Confirma que quieres retirar este permiso sin borrar tu historial.');
+          row.replaceChildren(name,state,confirmation,
+            button(allow?'Confirmar permiso':'Confirmar retirada',()=>write(recipient,allow)),
+            button('Cancelar',()=>renderRecipients(verified)));
+        }
+        if(recipient.eligible&&!recipient.effective)row.append(button('Autorizar actividad compartida',()=>confirm(true)));
+        if(recipient.recorded)row.append(button('Retirar permiso',()=>confirm(false)));
+        content.append(row);
+      }
+    }
+    async function load(){
+      if(!active()||busy)return;
+      busy=true;controller=new AbortController();open.disabled=true;content.replaceChildren();status.textContent='Consultando permisos…';
+      try{
+        const token=await getToken();if(!active())return;
+        const value=await readRemote.call(transport,token,clientId,{signal:controller.signal});
+        if(active())renderRecipients(value);
+      }catch{if(active())status.textContent='No se pudieron consultar los permisos. Vuelve a intentarlo.';}
+      finally{controller=null;busy=false;if(active())open.disabled=false;else retire();}
+    }
+    async function write(recipient,allow){
+      if(!active()||busy)return;
+      busy=true;controller=new AbortController();open.disabled=true;content.replaceChildren();
+      status.textContent='Guardando tu decisión…';
+      try{
+        const decision=connected360RecipientDecision(recipient,allow,{confirmed:true});
+        const token=await getToken();if(!active())return;
+        await writeRemote.call(transport,token,decision,{confirmed:true,signal:controller.signal});
+        if(active())status.textContent='Decisión guardada. Consulta el estado actualizado del permiso.';
+      }catch{if(active())status.textContent='No se pudo confirmar el cambio. Consulta el estado antes de volver a intentarlo.';}
+      finally{controller=null;busy=false;if(active())open.disabled=false;else retire();}
+    }
+    open.addEventListener('click',()=>void load());
+    return Object.freeze({panel,provider,active,retire});
+  }
+
+// Owner-only longitudinal view. One bounded read per deliberate action.
+// Do not turn historical observations into current readiness or coach consent.
+export function mountConnected360AppleTrendsPanel(wrap,{clientId,stillCurrent,getToken,transport,readProfessional=null,setTimer=setTimeout,clearTimer=clearTimeout}={}){
+ const professional=typeof readProfessional==='function';
+ if(transport?.connected360AppleCandidateAvailable?.()!==true
+  ||(professional?typeof transport.connected360AppleCandidateCoachTrends!=='function':typeof transport.connected360AppleCandidateOwnerTrends!=='function'))
+  throw Error('M26_V57_CANDIDATE_DISABLED');
+ const document=wrap.ownerDocument,panel=document.createElement('section');
+ if(professional)panel.dataset.qaAppleCoachTrends='true';else panel.dataset.qaAppleTrends='true';
+ const element=(tag,copy)=>{const node=document.createElement(tag);node.textContent=copy;return node;};
+ const title=element('h4',professional?"Tendencias deportivas compartidas · Apple Salud (QA)":'Tendencias de Apple Salud · QA');
+ const intro=element('p','Compara días con actividad registrada en periodos de igual duración. No se incluye el día de hoy.');
+ const label=element('label','Elige el periodo de comparación');
+ const select=document.createElement('select');
+ for(const [days,copy] of [[7,'7 días'],[28,'28 días'],[90,'90 días'],[365,'365 días']]){
+  const option=element('option',copy);option.value=String(days);select.append(option);
+ }
+ select.value='28';label.append(select);
+ const action=element('button','Consultar tendencias');action.type='button';
+ const status=element('p','');status.setAttribute('role','status');
+ const content=document.createElement('div');
+ const boundary=element('small',professional?"Los días sin registros no demuestran descanso. Solo se muestran observaciones autorizadas de la conexión vigente; no son sesiones confirmadas ni un diagnóstico de recuperación.":"Esta vista del historial es privada. Los días sin registros no demuestran descanso.");
+ panel.append(title,intro,label,action,status,content,boundary);wrap.append(panel);
+ let retired=false,epoch=0,abort=null,leaseTimer=null;
+ const active=()=>!retired&&panel.isConnected&&stillCurrent()&&transport.connected360AppleCandidateAvailable?.()===true;
+ function clear(){
+  epoch++;abort?.abort();abort=null;if(leaseTimer!==null){clearTimer(leaseTimer);leaseTimer=null;}content.replaceChildren();status.textContent='';action.disabled=false;
+ }
+ function retire(){if(retired)return;retired=true;clear();panel.remove();}
+ function metric(parent,caption,count){
+  const row=document.createElement('p');row.append(element('span',caption),element('strong',': '+String(count)));parent.append(row);
+ }
+ function render(view,days){
+  if(view?.provider!=='apple_health'||view.windowDays!==days||view.coverage!=='observed-only'||view.automaticPlanChange!==false||view.periods?.length!==2||(professional?view.purpose!=='coaching-apple-trends-v1':Object.hasOwn(view,'purpose')))throw Error('M26_V57_VIEW_INVALID');
+  const [recent,previous]=view.periods;
+  for(const [period,heading] of [[recent,'Periodo reciente'],[previous,'Periodo anterior']]){
+   const section=document.createElement('section');
+   section.append(element('h5',heading),element('p',period.periodStart+' — '+period.periodEnd));
+   metric(section,'Días con actividad registrada',period.observedDays);
+   if(!professional){
+    metric(section,'Solo registros de autorización vigente',period.currentOnlyDays);
+    metric(section,'Solo registros de autorizaciones anteriores',period.retainedOnlyDays);
+    metric(section,'Registros de ambas autorizaciones',period.mixedDays);
+   }
+   content.append(section);
+  }
+  const sports=new Map();
+  for(const [index,period] of view.periods.entries())for(const row of period.disciplines){
+   if(!sports.has(row.sport))sports.set(row.sport,[0,0]);
+   sports.get(row.sport)[index]=row.observedDays;
+  }
+  if(!sports.size){status.textContent='Sin registros en los periodos consultados.';return;}
+  const names={running:'Carrera',cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',hiit:'HIIT',swimming:'Natación',other:'Otro entrenamiento'};
+  const table=document.createElement('table');
+  table.append(element('caption','Actividad registrada por disciplina'));
+  const head=document.createElement('thead'),header=document.createElement('tr');
+  for(const copy of ['Disciplina','Periodo reciente','Periodo anterior']){
+   const cell=element('th',copy);cell.setAttribute('scope','col');header.append(cell);
+  }
+  head.append(header);table.append(head);
+  const body=document.createElement('tbody');
+  for(const [sport,counts] of sports){
+   const row=document.createElement('tr'),name=element('th',names[sport]);name.setAttribute('scope','row');
+   row.append(name,...counts.map(count=>element('td',String(count))));body.append(row);
+  }
+  table.append(body);content.append(table);status.textContent='';
+ }
+ select.addEventListener('change',clear);
+ action.addEventListener('click',async()=>{
+  if(!active()||action.disabled)return;
+  clear();const request=epoch,days=Number(select.value),controller=new AbortController();abort=controller;
+  const live=()=>active()&&request===epoch&&!controller.signal.aborted;
+  action.disabled=true;status.textContent='Consultando tendencias…';
+  try{
+   if(![7,28,90,365].includes(days))throw Error('M26_V57_PERIOD_INVALID');
+   let view;
+   if(professional)view=await readProfessional(days,live,{signal:controller.signal});
+   else{
+    const token=await getToken();if(!live())return;
+    view=await transport.connected360AppleCandidateOwnerTrends(token,clientId,days,{signal:controller.signal});
+   }
+   if(live()){
+    render(view,days);
+    if(professional)leaseTimer=setTimer(()=>{if(request===epoch)clear();},30000);
+   }
+  }catch{if(live()){content.replaceChildren();status.textContent=professional?"No se pudieron consultar las tendencias autorizadas. Comprueba el permiso específico y vuelve a intentarlo.":'No se pudieron consultar las tendencias. Puedes reintentar.';}}
+  finally{if(request===epoch){abort=null;if(active())action.disabled=false;else retire();}}
+ });
+ return Object.freeze({panel,provider:'apple_health',active,clear,retire});
+}
+
 export function createWearableController({
   root,
   store,
@@ -410,6 +580,10 @@ export function createWearableController({
   getToken,
   refreshState=async()=>{},
   isOnline=()=>globalThis.navigator?.onLine!==false,
+  productionHistoryEnabled=false,
+  getCoachActivityScope=()=>null,
+  readCoachActivity=null,
+  documentConsentApi=null,
 }={}){
   if(
     !root?.addEventListener
@@ -428,6 +602,14 @@ export function createWearableController({
   let lastOnline=null;
   let nativeIdentityEpoch=0;
   let productionSummaryEpoch=0;
+  let productionHistoryMutationDepth=0;
+  let productionHistoryRetired=false;
+  let coachActivityPanel=null;
+  let documentConsentPanel=null;
+  const retireDocumentConsent=()=>{const item=documentConsentPanel;documentConsentPanel=null;item?.retire();};
+  const coachSharingPanels=new Set();
+  const retireCoachSharingPanels=()=>{for(const item of coachSharingPanels)item.retire();coachSharingPanels.clear();};
+  const productionSummaryReader=createConnected360SummaryReader();
 
   const tasks=createLatestTaskCoordinator();
 
@@ -899,31 +1081,293 @@ export function createWearableController({
       endDate:resolvedEndDate,
     });
   }
-  async function refreshProductionSummary(wrap){
-    if(!productionSync||!wrap?.isConnected)return;
+  // Reading already saved records is separate from permission prompts and
+  // native acquisition. The visible route reads asynchronously, not in the login gate.
+  const canReadProductionHistory=()=>!productionHistoryRetired&&Boolean(productionSync||productionHistoryEnabled===true)
+    &&typeof transport.connected360ProductionSummary==='function';
+  function clearProductionHistorySurface(){
+    retireDocumentConsent();
+    retireCoachSharingPanels();
+    coachActivityPanel?.clear();
+    productionSummaryEpoch+=1;
+    productionSummaryReader.clear();
+    root.querySelectorAll?.('[data-prod-connected360-summary]')?.forEach?.(node=>{node.textContent='';});
+    root.querySelectorAll?.('[data-prod-connected360-workouts]')?.forEach?.(node=>{node.replaceChildren();node.hidden=true;});
+    root.querySelectorAll?.('[data-prod-connected360-coach-sharing]')?.forEach?.(node=>node.remove());
+    root.querySelectorAll?.('[data-wearable-action="prod-connected360-history"]')?.forEach?.(button=>{button.disabled=false;});
+    root.querySelectorAll?.('[data-prod-connected360-feed]')?.forEach?.(node=>{node.hidden=true;});
+  }
+  function appendProductionHistory(wrap,{native=false,feed=false}={}){
+    const document=wrap.ownerDocument;
+    const results=document.createElement('p');
+    results.dataset.prodConnected360Summary='true';
+    results.setAttribute('role','status');
+    results.textContent=feed?'Datos de salud: consultando registros disponibles…':native?'Datos de salud: consultando registros disponibles…':'Consulta las actividades guardadas en tu cuenta, sin volver a conectar el dispositivo.';
+    const workoutHistory=document.createElement('section');
+    workoutHistory.dataset.prodConnected360Workouts='true';
+    workoutHistory.hidden=true;
+    workoutHistory.setAttribute('aria-label','Entrenamientos importados de Health Connect');
+    const refresh=document.createElement('button');
+    refresh.type='button';
+    refresh.dataset.wearableAction='prod-connected360-history';
+    refresh.textContent='Consultar actividad guardada';
+    wrap.append(refresh,results,workoutHistory);
+  }
+  function recentConfirmedTrainingRows(clientId,now){
+    // Reuse the same reconciled ownership/confirmation truth as Progress.
+    // Explicit completion is required; never show an optimistic or dated-only draft.
+    const confirmed=confirmedSessionExecutionsForClient(store.getState(),clientId,{requireCompleted:true})
+      .filter(record=>sessionExecutionIsCompleted(record,{allowDatedFallback:false}))
+      .map(record=>{
+        const item=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)
+          ?{...record,...record.body}:record;
+        return {completedAt:sessionExecutionCompletionDate(record),
+          title:item?.title||item?.sessionTitle||item?.session_title};
+      });
+    return connected360RecentTrainingRows(confirmed,{now});
+  }
+  function renderProductionWorkoutDays(document,rows,beforeStartedAt=null){
+    return connected360WorkoutDays(rows,{beforeStartedAt}).map(day=>{
+      const group=document.createElement('section');
+      group.dataset.prodConnected360Day=day.dayKey;
+      const heading=document.createElement('h5');
+      heading.textContent=day.label+(day.continued?' · continuación':'');
+      const list=document.createElement('ul');
+      for(const row of day.rows){
+        const item=document.createElement('li');
+        const label=document.createElement('strong');
+        label.textContent=row.label;
+        const source=document.createElement('small');
+        source.textContent=row.source==='iberfit'?'Entrenamiento IBERFIT confirmado':'Actividad importada · Health Connect';
+        item.append(label,document.createTextNode(' · '+row.dayDetail+' · '),source);
+        if(row.authorizationState==='retained'){
+          const historical=document.createElement('small');
+          historical.textContent='Registro conservado de una autorización anterior';
+          item.append(document.createTextNode(' · '),historical);
+        }
+        list.append(item);
+      }
+      group.append(heading,list);
+      return group;
+    });
+  }
+  function appendCoachSharing(wrap,{clientId,stillCurrent,provider='health_connect',longitudinal=false}){
+    const item=mountConnected360CoachSharingPanel(wrap,{clientId,stillCurrent,provider,getToken,transport,longitudinal});
+    coachSharingPanels.add(item);
+  }
+  async function refreshProductionSummary(wrap,{supersede=false}={}){
+    if(!mounted||!canReadProductionHistory()||!wrap?.isConnected||productionHistoryMutationDepth>0
+      ||root.ownerDocument?.visibilityState==='hidden')return;
     const target=wrap.querySelector?.('[data-prod-connected360-summary]');
     if(!target)return;
+    const refresh=wrap.querySelector?.('[data-wearable-action="prod-connected360-history"]');
+    if(refresh?.disabled&&!supersede)return;
     const requestEpoch=++productionSummaryEpoch;
+    wrap.querySelector?.('[data-prod-connected360-coach-sharing]')?.remove();
     const identityEpoch=nativeIdentityEpoch;
+    const feed=wrap.closest?.('[data-prod-connected360-feed]')||null;
     const expected=qaClientIdentity();
     if(expected.role!=='client'||!expected.ownerId||!expected.clientId)return;
-    const stillCurrent=()=>{
+    const stillOwner=()=>{
       const current=qaClientIdentity();
-      return mounted&&wrap.isConnected&&requestEpoch===productionSummaryEpoch
-        &&identityEpoch===nativeIdentityEpoch&&current.role==='client'
+      return mounted&&!productionHistoryRetired&&productionHistoryMutationDepth===0&&isOnline()
+        &&root.ownerDocument?.visibilityState!=='hidden'&&identityEpoch===nativeIdentityEpoch&&current.role==='client'
         &&expected.ownerId===current.ownerId&&expected.clientId===current.clientId;
     };
+    const stillCurrent=()=>stillOwner()&&wrap.isConnected&&requestEpoch===productionSummaryEpoch;
+    if(!isOnline()){
+      target.textContent='Necesitas conexión para consultar la actividad guardada.';
+      if(feed)feed.hidden=feed.dataset.prodConnected360Feed!=='full';
+      return;
+    }
+    if(feed?.dataset.prodConnected360Feed==='full')feed.hidden=false;
+    if(refresh)refresh.disabled=true;
+    target.textContent='Datos de salud: consultando registros disponibles…';
     try{
-      const token=await getToken();
-      if(!stillCurrent())return;
-      const response=await transport.connected360ProductionSummary(token);
-      if(stillCurrent())target.textContent=formatConnected360ProductionSummary(response);
+      const key=JSON.stringify([expected.ownerId,expected.clientId,identityEpoch]);
+      const response=await productionSummaryReader.read(key,async()=>{
+        const token=await getToken();
+        if(!stillOwner())throw new Error('M26_V46_PROD_OWNER_CHANGED');
+        return transport.connected360ProductionSummary(token);
+      },{force:supersede});
+      if(stillCurrent()){
+        target.textContent=formatConnected360ProductionSummary(response,{nativeAvailable:Boolean(productionSync)});
+        // No owner consent surface or request until the server explicitly
+        // advertises the certified recipient/read/write capability.
+        if(!feed&&response.coachConsentAvailable===true
+          &&typeof transport.connected360ProductionCoachRecipients==='function'
+          &&typeof transport.setConnected360ProductionCoachConsent==='function'){
+          appendCoachSharing(wrap,{clientId:expected.clientId,stillCurrent});
+        }
+        const history=wrap.querySelector?.('[data-prod-connected360-workouts]');
+        if(history){
+          const document=history.ownerDocument;
+          const now=new Date();
+          const allRows=connected360WorkoutHistory(response,{now});
+          const rows=feed?.dataset.prodConnected360Feed==='compact'?allRows.slice(0,3):allRows;
+          const combined=feed?.dataset.prodConnected360Feed==='full';
+          const timelineRows=combined?connected360RecentTimeline(rows,recentConfirmedTrainingRows(expected.clientId,now)):rows;
+          if(feed){
+            target.textContent=timelineRows.length?'':combined?'No hay registros deportivos recientes disponibles.':'No hay actividades deportivas recientes importadas.';
+            // Do not add another empty panel to Hoy if the owner has no workouts.
+            feed.hidden=feed.dataset.prodConnected360Feed!=='full'&&!rows.length;
+          }
+          const children=[];
+          // Reuse the already authorized owner-scoped observations. No extra
+          // sync, polling, writes, or inference about missing rest days.
+          if(combined){
+            const continuity=connected360ActivityContinuity(timelineRows,{now});
+            if(continuity){
+              const context=document.createElement('section');
+              context.className='m26-notice';
+              context.dataset.prodConnected360Continuity='true';
+              const title=document.createElement('h4');
+              title.textContent='Continuidad de actividad';
+              const count=document.createElement('p');
+              const label=document.createElement('strong');
+              label.textContent=continuity.discipline==='running'?'Días consecutivos con carrera registrada':'Días consecutivos con actividad registrada';
+              count.append(label,document.createTextNode(': '+continuity.days));
+              const period=document.createElement('p');
+              const periodLabel=document.createElement('span');
+              periodLabel.textContent='Periodo observado';
+              period.append(periodLabel,document.createTextNode(': '+continuity.periodStart+' — '+continuity.periodEnd));
+              const next=document.createElement('p');
+              next.textContent='Comenta con tu entrenador cómo te encuentras antes de la próxima sesión.';
+              const boundary=document.createElement('small');
+              boundary.textContent='Los registros disponibles no permiten determinar si descansaste ni si necesitas cambiar el entrenamiento.';
+              context.append(title,count,period,next,boundary);
+              children.push(context);
+            }
+          }
+          if(timelineRows.length){
+            const heading=document.createElement('h4');
+            const evolution=feed?.dataset.prodConnected360Feed==='evolution';
+            heading.textContent=evolution?'Actividad deportiva complementaria':combined?'Tu actividad por días':'Últimos entrenamientos importados';
+            const note=document.createElement('p');
+            note.textContent=feed?.dataset.prodConnected360Feed==='compact'
+              ?'Últimas actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.'
+              :'Hasta 10 actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.';
+            if(combined)note.textContent='Últimos registros disponibles de 7 días: hasta 20 entrenamientos IBERFIT confirmados y 10 actividades importadas. Los registros de dos fuentes pueden corresponder a una misma sesión; no se suman ni modifican la adherencia. Los entrenamientos IBERFIT se muestran por fecha de finalización.';
+            const list=document.createElement('ul');
+            if(evolution){
+              note.textContent='Último registro disponible por deporte (hasta 10 actividades de los últimos 7 días). No mide el cumplimiento del plan.';
+              for(const row of connected360WorkoutMix(rows)){
+                const item=document.createElement('li');
+                const label=document.createElement('strong');
+                label.textContent=row.label;
+                item.append(label,document.createTextNode(' · '+row.detail));
+                if(row.observedDays!==null){
+                  const coverage=document.createElement('small');
+                  const labelDays=document.createElement('span');
+                  labelDays.textContent='Días con registros de este deporte';
+                  coverage.append(document.createTextNode(' · '),labelDays,document.createTextNode(': '+row.observedDays));
+                  item.append(coverage);
+                }
+                if(row.ranges?.length){
+                  const ranges=document.createElement('details');
+                  const title=document.createElement('summary');
+                  title.textContent='Variación observada';
+                  const details=document.createElement('ul');
+                  for(const range of row.ranges){
+                    const metric=document.createElement('li');
+                    const name=document.createElement('span');
+                    name.textContent=range.label;
+                    metric.append(name,document.createTextNode(': '+range.text+' · '));
+                    const days=document.createElement('span');
+                    days.textContent='Días con medición';
+                    metric.append(days,document.createTextNode(': '+range.observedDays));
+                    details.append(metric);
+                  }
+                  const caveat=document.createElement('small');
+                  caveat.textContent='Rangos de los registros disponibles; no acreditan mejora ni condiciones comparables.';
+                  ranges.append(title,details,caveat);
+                  item.append(ranges);
+                }
+                list.append(item);
+              }
+              const action=document.createElement('button');
+              action.type='button';action.dataset.m26Area='actividad';
+              action.textContent='Ver mi actividad';
+              children.push(heading,note,list,action);
+            }else{
+              children.push(heading,note,...renderProductionWorkoutDays(document,timelineRows));
+            }
+          }
+          // The server must explicitly advertise the V48 read model. Older
+          // deployments keep the existing recent history without a failed RPC.
+          const fullHistory=feed?.dataset.prodConnected360Feed==='full'
+            &&response.activityHistoryAvailable===true
+            &&typeof transport.connected360ProductionActivityPage==='function';
+          if(fullHistory){
+            const action=document.createElement('button');
+            action.type='button';
+            action.textContent='Consultar historial de actividades importadas';
+            action.addEventListener('click',async()=>{
+              if(!stillCurrent()||action.disabled)return;
+              action.disabled=true;
+              await renderActivityPage(null,[]);
+            });
+            children.push(action);
+          }
+          history.replaceChildren(...children);
+          history.hidden=!timelineRows.length&&!fullHistory;
+
+          async function renderActivityPage(cursor,previousCursors){
+            if(!stillCurrent()||!history.isConnected)return;
+            const heading=document.createElement('h4');
+            heading.textContent='Historial de actividad importada';
+            const status=document.createElement('p');
+            status.setAttribute('role','status');
+            status.textContent='Consultando actividades…';
+            history.replaceChildren(heading,status);
+            const makeAction=(label,handler)=>{
+              const button=document.createElement('button');
+              button.type='button';button.textContent=label;
+              button.addEventListener('click',()=>{
+                if(!stillCurrent()||!button.isConnected||button.disabled)return;
+                button.disabled=true;void handler();
+              });
+              return button;
+            };
+            try{
+              const token=await getToken();
+              if(!stillCurrent()||!history.isConnected)return;
+              const page=await transport.connected360ProductionActivityPage(token,cursor);
+              if(!stillCurrent()||!history.isConnected)return;
+              status.textContent=page.rows.length
+                ?'Página '+(previousCursors.length+1)+' · Actividades importadas de Health Connect; no equivalen a sesiones confirmadas.'
+                :'No hay más actividades autorizadas.';
+              const groups=renderProductionWorkoutDays(document,page.rows,cursor?.startedAt??null);
+              const controls=[];
+              if(previousCursors.length)controls.push(makeAction('Anterior',()=>
+                renderActivityPage(previousCursors.at(-1),previousCursors.slice(0,-1))));
+              if(page.nextCursor)controls.push(makeAction('Siguiente',()=>
+                renderActivityPage(page.nextCursor,[...previousCursors,cursor])));
+              controls.push(makeAction('Volver al resumen',()=>refreshProductionSummary(wrap,{supersede:true})));
+              history.replaceChildren(heading,status,...groups,...controls);
+            }catch{
+              if(!stillCurrent()||!history.isConnected)return;
+              status.textContent='No se pudo consultar el historial autorizado. Puedes reintentar.';
+              history.replaceChildren(heading,status,
+                makeAction('Reintentar',()=>renderActivityPage(cursor,previousCursors)),
+                makeAction('Volver al resumen',()=>refreshProductionSummary(wrap,{supersede:true})));
+            }
+          }
+        }
+      }
     }catch{
-      if(stillCurrent())target.textContent='No se ha podido actualizar el historial. '+
-        'Los datos existentes se conservan y se reintentará al volver a abrir IBERFIT.';
+      if(stillCurrent()){
+        if(feed)feed.hidden=false;
+        target.textContent='No se ha podido actualizar el historial. '+
+          'Los datos existentes se conservan y se reintentará al volver a abrir IBERFIT.';
+        const history=wrap.querySelector?.('[data-prod-connected360-workouts]');
+        if(history){history.replaceChildren();history.hidden=true;}
+      }
+    }finally{
+      if(stillCurrent()&&refresh)refresh.disabled=false;
     }
   }
-  async function autoSyncNativeProviders({signal=null}={}){
+  async function autoSyncNativeProviders({signal=null,markRetry=()=>{}}={}){
     const session=context(store);
     if(signal?.aborted||session.role!=='client'||!session.ownerId||
       String(session.ownerId)!==String(ownerId)||!isOnline())return [];
@@ -931,22 +1375,47 @@ export function createWearableController({
     const providers=[...new Set(rows.filter(isCertifiedNativeAutoSyncSource).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&wearableZeroCostPolicy(provider)?.productionAllowed&&bridge.isAvailable(provider)))];
     const results=[];
     if(productionSync&&!signal?.aborted){
+      let savedPage=false,pendingPage=false;
+      const canContinue=()=>{
+        const doc=root.ownerDocument||globalThis.document;
+        if(!mounted||productionHistoryRetired||productionHistoryMutationDepth>0||!isOnline()
+          ||doc?.visibilityState==='hidden')return false;
+        try{return assertWearableClientContinuity(session,context(store));}catch{return false;}
+      };
       try{
-        const result=await productionSync.sync({signal});
-        if(!signal?.aborted){
+        const result=await runConnected360ForegroundPages({
+          runPage:()=>productionSync.sync({signal}),canRun:canContinue,signal,
+          onPage:page=>{
+            savedPage=savedPage||page?.ok===true;
+            pendingPage=page?.workoutHistoryPending===true;
+          },
+        });
+        if(signal?.aborted||!canContinue())return results;
+        {
           results.push(result);
-          if(result?.ok===true){
+          if(result?.ok===true||(savedPage&&result?.skipped==='no-recent-observations')){
             const wrap=root.querySelector?.('[data-prod-connected360]');
             if(wrap?.isConnected){
-              const status=wrap.querySelector?.('[data-prod-connected360-status]');
-              if(status)status.textContent='Sincronización automática completada. '+
-                'Actualizando las mediciones disponibles…';
-              void refreshProductionSummary(wrap);
+              const status=root.querySelector?.('[data-prod-connected360-status]');
+              if(status)status.textContent=result.workoutHistoryPending===true
+                ?'Actividades guardadas. La recuperación del historial continuará al volver a sincronizar.'
+                :'Sincronización automática completada. '+'Actualizando las mediciones disponibles…';
+              void refreshProductionSummary(wrap,{supersede:true});
             }
+          }else if(result?.workoutHistoryPending===true){
+            const note=root.querySelector?.('[data-prod-connected360-status]');
+            if(note)note.textContent='Recuperación del historial en curso. Quedan páginas por consultar.';
           }
         }
       }catch(error){
-        if(signal?.aborted)return results;
+        if(signal?.aborted||!canContinue())return results;
+        if(pendingPage){
+          const wrap=root.querySelector?.('[data-prod-connected360]');
+          const note=wrap?.querySelector?.('[data-prod-connected360-status]');
+          if(note)note.textContent='La recuperación del historial se ha interrumpido. Continuará en una próxima sincronización.';
+          if(savedPage&&wrap?.isConnected)void refreshProductionSummary(wrap,{supersede:true});
+        }
+        markRetry();
         emitDiagnostic('connected360-prod-foreground',error);
       }
     }
@@ -964,6 +1433,7 @@ export function createWearableController({
         if(signal?.aborted||
           error?.message==='M26_WEARABLE_SYNC_INVALIDATED'||
           error?.message==='M26_WEARABLE_ACCOUNT_CHANGED')break;
+        markRetry();
         emitDiagnostic('wearable-auto-sync',error);
       }
     }
@@ -1000,22 +1470,31 @@ export function createWearableController({
   function onForegroundVisibility(){
     const doc=root.ownerDocument||globalThis.document;
     if(doc?.visibilityState==='hidden'){
+      appleReadEpoch+=1;
+      root.querySelectorAll?.('[data-apple-qa-workouts]')?.forEach?.(node=>node.replaceChildren());
       nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       productionSync?.invalidate();
+      clearProductionHistorySurface();
       return;
     }
     if(doc?.visibilityState==='visible'){
       nativeForegroundHeartbeat.start();
       requestForegroundSync();
+      enhanceControls();
+      const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
+      if(wrap)void refreshProductionSummary(wrap);
     }
   }
 
   function onPageHide(){
     // Background/BFCache must not resume a stale health read or identity lease.
+    appleReadEpoch+=1;
+    root.querySelectorAll?.('[data-apple-qa-workouts]')?.forEach?.(node=>node.replaceChildren());
     nativeForegroundHeartbeat.stop();
     foregroundSync.invalidate();
     productionSync?.invalidate();
+    clearProductionHistorySurface();
   }
 
   function onPageShow(){
@@ -1023,6 +1502,9 @@ export function createWearableController({
     if(doc?.visibilityState!=='hidden'){
       nativeForegroundHeartbeat.start();
       requestForegroundSync();
+      enhanceControls();
+      const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
+      if(wrap)void refreshProductionSummary(wrap);
     }
   }
   function onNativeHealthPermissionsReturned(){
@@ -1133,7 +1615,10 @@ export function createWearableController({
     appleReadEpoch+=1;
     qaImporter.clear();
     productionSync?.invalidate();
-    await remoteSync.deleteAll();
+    productionHistoryMutationDepth+=1;
+    clearProductionHistorySurface();
+    foregroundSync.invalidate();
+    try{await remoteSync.deleteAll();}finally{productionHistoryMutationDepth-=1;}
     clearPreview(false);
 
     setStatus(
@@ -1173,6 +1658,8 @@ export function createWearableController({
   }
 
   function clearQaSensitiveSurface(){
+    for(const item of coachSharingPanels){if(item.provider==='apple_health'){item.retire();coachSharingPanels.delete(item);}}
+    root.querySelectorAll?.('[data-apple-qa-workouts]')?.forEach?.(node=>node.replaceChildren());
     root.querySelectorAll?.('[data-apple-qa-status]')?.forEach?.(node=>{
       node.textContent='';
     });
@@ -1318,12 +1805,129 @@ export function createWearableController({
     );
   }
 
+  // Demand-only display. A render/route/session change, background, offline
+  // or the short display lease retires the result; no refresh timer or cache.
+  function enhanceCoachActivity(){
+    const host=root.querySelector?.('[data-connected360-coach-activity]');
+    const scope=host&&mounted&&!productionHistoryRetired&&typeof readCoachActivity==='function'
+      ?getCoachActivityScope():null;
+    if(coachActivityPanel&&(!host||host!==coachActivityPanel.host
+      ||!sameConnected360CoachScope(scope,coachActivityPanel.scope))){
+      coachActivityPanel.retire();coachActivityPanel=null;
+    }
+    if(!host||!scope||scope.actorId!==String(ownerId)||coachActivityPanel)return;
+    const document=host.ownerDocument;
+    const title=document.createElement('h3');title.textContent='Actividad externa compartida';
+    const note=document.createElement('p');
+    note.textContent='Días y deportes autorizados por el cliente. No sustituyen las sesiones confirmadas ni determinan su recuperación.';
+    const action=document.createElement('button');action.type='button';action.textContent='Consultar actividad compartida';
+    const status=document.createElement('p');status.setAttribute('role','status');
+    const body=document.createElement('div');
+    let epoch=0,timer=null,abort=null,trendPanel=null;
+    const clear=()=>{
+      trendPanel?.clear();
+      abort?.abort();abort=null;
+      epoch+=1;if(timer!==null){clearTimeout(timer);timer=null;}
+      body.replaceChildren();status.textContent='';action.disabled=false;
+    };
+    const retire=()=>{clear();host.hidden=true;host.replaceChildren();};
+    const active=()=>mounted&&!productionHistoryRetired&&host.isConnected&&isOnline()
+      &&document.visibilityState!=='hidden'&&sameConnected360CoachScope(scope,getCoachActivityScope());
+    action.addEventListener('click',async()=>{
+      if(!active()||action.disabled)return;
+      clear();const request=epoch;abort=new AbortController();action.disabled=true;
+      status.textContent='Consultando actividad compartida…';
+      const stillCurrent=()=>request===epoch&&active();
+      try{
+        const result=await readCoachActivity(scope,stillCurrent,{signal:abort.signal});
+        if(!stillCurrent())return;
+        status.textContent=result.days.length?'Registros disponibles de los últimos 7 días.':'No hay actividad compartida disponible en esta ventana.';
+        const continuity=result.continuityCues??(result.cue?[result.cue]:[]);
+        for(const observation of continuity){
+          const cue=document.createElement('p');cue.className='m26-notice';
+          const source=observation.basis==='combined'?' (IBERFIT y actividad compartida)':
+            observation.basis==='external'?' (actividad compartida)':'';
+          const period=observation.periodStart&&observation.periodEnd
+            ?' · '+observation.periodStart+' — '+observation.periodEnd:'';
+          cue.textContent=observation.days+(observation.discipline==='running'
+            ?' · Días consecutivos con carrera registrada':' · Días consecutivos con actividad registrada')
+            +source+period+'. Revisa la recuperación antes de decidir.';
+          body.append(cue);
+        }
+        for(const observation of result.disciplineCues??[]){
+          const cue=document.createElement('p');cue.className='m26-notice';
+          cue.textContent=observation.label+' · '+observation.days+' · Días consecutivos con actividad registrada. Revisa la recuperación antes de decidir.';
+          body.append(cue);
+        }
+        const list=document.createElement('ul');
+        for(const day of result.days){
+          const item=document.createElement('li'),date=document.createElement('strong');
+          date.textContent=day.date;item.append(date);
+          for(const [index,sport] of day.sports.entries()){
+            const label=document.createElement('span');
+            label.textContent=typeof sport==='string'?sport:sport.label;
+            item.append(document.createTextNode(index?', ':' · '),label);
+            if(typeof sport!=='string'&&Array.isArray(sport.providers)){
+              const sources=document.createElement('small');
+              sources.textContent=' ('+sport.providers.map(provider=>provider==='apple_health'?'Apple Salud':'Health Connect').join(' / ')+')';
+              item.append(sources);
+            }
+          }
+          list.append(item);
+        }
+        if(result.days.length)body.append(list);
+        // Drop the displayed evidence after a short lease; never poll.
+        timer=setTimeout(()=>{if(request===epoch)clear();},30000);
+      }catch{
+        if(stillCurrent())status.textContent='No se pudo consultar actividad autorizada. Comprueba el acceso e inténtalo nuevamente.';
+      }finally{
+        if(request===epoch){if(active())action.disabled=false;else clear();}
+      }
+    });
+    coachActivityPanel={host,scope,clear,retire};
+    host.replaceChildren(title,note,action,status,body);host.hidden=false;
+    // Longitudinal reading has its own purpose and action. Keep the live
+    // session cockpit compact: the comparison belongs in the expediente.
+    if(scope.area==='expediente'&&scope.provider==='apple_health'
+      &&transport.connected360AppleCandidateAvailable?.()===true&&typeof transport.connected360AppleCandidateCoachTrends==='function'){
+      trendPanel=mountConnected360AppleTrendsPanel(host,{clientId:scope.clientId,stillCurrent:active,transport,
+        readProfessional:(days,live,{signal})=>readCoachActivity(scope,live,{signal,trendDays:days})});
+    }
+  }
+  function enhanceDocumentConsent(){
+    if(documentConsentPanel&&!documentConsentPanel.active())retireDocumentConsent();
+    if(documentConsentPanel||!mounted||productionHistoryRetired||!isOnline()||documentConsentApi?.available?.()!==true)return;
+    const host=root.querySelector?.('[data-m26-device-hub] .m26-device-data-management .m26-device-hub-body');
+    const expected=qaClientIdentity(),identityEpoch=nativeIdentityEpoch;
+    if(!host||expected.role!=='client'||!expected.ownerId||!expected.clientId||root.ownerDocument?.visibilityState==='hidden')return;
+    documentConsentPanel=mountDocumentConsentPanel(host,{clientId:expected.clientId,api:documentConsentApi,stillCurrent:()=>{
+      const current=qaClientIdentity();
+      return mounted&&!productionHistoryRetired&&isOnline()&&identityEpoch===nativeIdentityEpoch&&host.isConnected
+        &&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;
+    }});
+  }
   function enhanceControls(){
+    enhanceDocumentConsent();
+    for(const item of coachSharingPanels){if(!item.active()){item.retire();coachSharingPanels.delete(item);}}
+    enhanceCoachActivity();
     const {
       role,
     }=context(store);
 
     if(role!=='client')return;
+
+    const feed=root.querySelector?.('[data-prod-connected360-feed]');
+    if(feed&&canReadProductionHistory()&&productionHistoryMutationDepth===0&&!feed.querySelector?.('[data-prod-connected360]')){
+      const expected=qaClientIdentity();
+      if(expected.ownerId&&expected.clientId){
+        const wrap=feed.ownerDocument.createElement('section');
+        wrap.dataset.prodConnected360='true';
+        wrap.className='m26-wearable-native-connect';
+        appendProductionHistory(wrap,{feed:true});
+        feed.append(wrap);
+        void refreshProductionSummary(wrap);
+      }
+    }
 
     const form=root.querySelector?.(
       '[data-wearable-import]',
@@ -1437,7 +2041,7 @@ export function createWearableController({
           ['sleepMinutes','Compartir mi duración de sueño'],
           ['restingHeartRate','Compartir mi frecuencia cardíaca en reposo'],
           ['generalHeartRate','Compartir mi frecuencia cardíaca general (no FC en reposo)'],
-          ['exerciseSessions','Compartir mis actividades y entrenamientos observados'],
+          ['exerciseSessions','Compartir mis actividades y entrenamientos observados (lectura inicial de hasta 30 días)'],
         ]){
           const label=document.createElement('label');
           label.className='m26-wearable-qa-consent';
@@ -1454,19 +2058,16 @@ export function createWearableController({
         const connect=document.createElement('button');
         connect.type='button';
         connect.dataset.wearableAction='prod-connected360-connect';
-        connect.textContent='Conectar mi reloj a IBERFIT';
+        connect.textContent='Conectar mi actividad a IBERFIT';
         const note=document.createElement('p');
         note.dataset.prodConnected360Status='true';
         note.setAttribute('role','status');
         note.textContent='Verificando disponibilidad segura…';
-        const results=document.createElement('p');
-        results.dataset.prodConnected360Summary='true';
-        results.setAttribute('role','status');
-        results.textContent='Datos de salud: consultando registros disponibles…';
-        wrap.append(intro,consentArea,permissions,connect,note,results);
+        wrap.append(intro,consentArea,permissions,connect,note);
+        if(!feed)appendProductionHistory(wrap,{native:true});
         nativeCard.append(wrap);
         const generation=nativeIdentityEpoch;
-        void refreshProductionSummary(wrap);
+        if(!feed)void refreshProductionSummary(wrap);
         void productionSync.availability().then(flags=>{
           if(generation!==nativeIdentityEpoch||!wrap.isConnected)return;
           const enabled=flags.serverEnabled===true;
@@ -1480,6 +2081,14 @@ export function createWearableController({
             'No se ha podido verificar la conexión de salud. Reintenta al recuperar la red.';
         });
       }
+    }
+
+    if(!productionSync&&canReadProductionHistory()&&healthConnectCard&&!feed&&!healthConnectCard.querySelector?.('[data-prod-connected360]')){
+      const wrap=document.createElement('section');
+      wrap.dataset.prodConnected360='true';
+      wrap.className='m26-wearable-native-connect';
+      appendProductionHistory(wrap);
+      healthConnectCard.append(wrap);
     }
 
     // Show only inside the Android Canary QA container. Never create a
@@ -1575,6 +2184,50 @@ export function createWearableController({
       }
     }
 
+    // Explicit QA harness only: a provider card or native bridge alone
+    // never enables the Apple professional sharing surface.
+    const appleSharingCard=root.querySelector?.('[data-provider="apple_health"]');
+    if(appleSharingCard&&mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+      &&transport.connected360AppleCandidateAvailable?.()===true&&!appleSharingCard.querySelector?.('[data-qa-apple-coach-sharing]')){
+      const expected=qaClientIdentity(),identityEpoch=nativeIdentityEpoch;
+      if(expected.role==='client'&&expected.ownerId&&expected.clientId){
+        appendCoachSharing(appleSharingCard,{clientId:expected.clientId,provider:'apple_health',stillCurrent:()=>{
+          const current=qaClientIdentity();
+          return mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+            &&identityEpoch===nativeIdentityEpoch&&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;
+        }});
+      }
+    }
+
+    if(appleSharingCard&&mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+      &&transport.connected360AppleCandidateAvailable?.()===true
+      &&typeof transport.connected360AppleCandidateCoachTrendRecipients==='function'
+      &&typeof transport.setConnected360AppleCandidateCoachTrendConsent==='function'
+      &&!appleSharingCard.querySelector?.('[data-qa-apple-coach-trend-sharing]')){
+      const expected=qaClientIdentity(),identityEpoch=nativeIdentityEpoch;
+      if(expected.role==='client'&&expected.ownerId&&expected.clientId){
+        appendCoachSharing(appleSharingCard,{clientId:expected.clientId,provider:'apple_health',longitudinal:true,stillCurrent:()=>{
+          const current=qaClientIdentity();
+          return mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+            &&identityEpoch===nativeIdentityEpoch&&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;
+        }});
+      }
+    }
+
+    if(appleSharingCard&&mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+      &&transport.connected360AppleCandidateAvailable?.()===true
+      &&typeof transport.connected360AppleCandidateOwnerTrends==='function'&&!appleSharingCard.querySelector?.('[data-qa-apple-trends]')){
+      const expected=qaClientIdentity(),identityEpoch=nativeIdentityEpoch;
+      if(expected.role==='client'&&expected.ownerId&&expected.clientId){
+        const item=mountConnected360AppleTrendsPanel(appleSharingCard,{clientId:expected.clientId,getToken,transport,stillCurrent:()=>{
+          const current=qaClientIdentity();
+          return mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+            &&identityEpoch===nativeIdentityEpoch&&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;
+        }});
+        coachSharingPanels.add(item);
+      }
+    }
+
     // Signed iPhone DEBUG QA: local data only, no watch linkage or upload.
     if(isAppleHealthQaNativeAvailable(globalThis)){
       const appleCard=root.querySelector?.('[data-provider="apple_health"]');
@@ -1587,7 +2240,11 @@ export function createWearableController({
         note.dataset.appleQaStatus='true';
         note.setAttribute('role','status');
         note.textContent='Autoriza una lectura local desde la app iPhone QA. No se guardarán ni sincronizarán registros.';
-        appleCard.append(button,note);
+        const workouts=document.createElement('button');workouts.type='button';
+        workouts.dataset.wearableAction='qa-apple-workouts-read';
+        workouts.textContent='Consultar actividades de Apple Salud (QA)';
+        const workoutList=document.createElement('div');workoutList.dataset.appleQaWorkouts='true';
+        appleCard.append(button,note,workouts,workoutList);
       }
     }
 
@@ -1644,6 +2301,8 @@ export function createWearableController({
         await confirmImport();
       }else if(action==='sync-pending'){
         await syncPending();
+      }else if(action==='prod-connected360-history'){
+        await refreshProductionSummary(button.closest?.('[data-prod-connected360]'),{supersede:true});
       }else if(action==='prod-connected360-permissions'){
         if(!productionNative)throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
         productionNative.requestPermissions();
@@ -1668,6 +2327,42 @@ export function createWearableController({
           if(note)note.textContent='No se pudo completar la conexión. Tu autorización existente se conserva; puedes reintentar.';
           throw error;
         }finally{button.disabled=false;}
+      }else if(action==='qa-apple-workouts-read'){
+        const epoch=++appleReadEpoch,identityEpoch=nativeIdentityEpoch;
+        const card=button.closest?.('[data-provider="apple_health"]');
+        const list=card?.querySelector?.('[data-apple-qa-workouts]');
+        if(!list||button.disabled)return;
+        button.disabled=true;list.textContent='Consultando actividades de Apple Salud…';
+        const current=()=>mounted&&epoch===appleReadEpoch&&identityEpoch===nativeIdentityEpoch
+          &&button.isConnected&&list.isConnected&&root.ownerDocument?.visibilityState!=='hidden';
+        try{
+          const result=await appleQaNative.readWorkouts({days:30});
+          if(!current())return;
+          const document=list.ownerDocument;
+          const notice=document.createElement('p');
+          notice.textContent=result.mayHaveMore?'Vista local parcial: hasta 60 actividades de los últimos 30 días.':'Vista local de actividades de los últimos 30 días. No sincronizada.';
+          list.replaceChildren(notice);
+          if(!result.rows.length){
+            const empty=document.createElement('p');empty.textContent='Sin actividades disponibles o permiso no concedido.';list.append(empty);
+          }
+          let day=null,group=null;
+          for(const row of result.rows){
+            if(row.day!==day){
+              day=row.day;const heading=document.createElement('h5');heading.textContent=day;
+              group=document.createElement('ul');list.append(heading,group);
+            }
+            const item=document.createElement('li');
+            const details=[row.time,row.label,Math.round(row.activeSeconds/60)+' min activos'];
+            if(row.distanceMeters!==null)details.push((row.distanceMeters/1000).toFixed(2)+' km');
+            if(row.activePaceSeconds!==null){
+              const pace=Math.floor(row.activePaceSeconds/60)+':'+String(row.activePaceSeconds%60).padStart(2,'0');
+              details.push(pace+(row.paceUnitMeters===100?' min/100 m':' min/km'));
+            }
+            item.textContent=details.join(' · ');group.append(item);
+          }
+        }catch{
+          if(current())list.textContent='No se pudo consultar las actividades. Autoriza otra lectura local y reintenta.';
+        }finally{if(button.isConnected)button.disabled=false;}
       }else if(action==='qa-apple-health-read'){
         const epoch=++appleReadEpoch;
         const card=button.closest?.('[data-provider="apple_health"]');
@@ -1857,7 +2552,14 @@ export function createWearableController({
         qaReadEpoch+=1;
         appleReadEpoch+=1;
         qaImporter.clear();
-        await remoteSync.revoke({provider,deleteData:erase});
+        if(provider==='health_connect'){
+          productionHistoryMutationDepth+=1;
+          clearProductionHistorySurface();
+          productionSync?.invalidate();
+          foregroundSync.invalidate();
+          try{await remoteSync.revoke({provider,deleteData:erase});}
+          finally{productionHistoryMutationDepth-=1;}
+        }else await remoteSync.revoke({provider,deleteData:erase});
         clearPreview(false);
         setStatus(root,erase?'Fuente desconectada y datos retirados.':'Fuente desconectada. Puedes borrar los datos guardados cuando quieras.','success');
       }else if(action==='delete-all'){
@@ -1916,15 +2618,24 @@ export function createWearableController({
         error,
       );
     });
+    enhanceControls();
     nativeForegroundHeartbeat.start();
     requestForegroundSync({force:true});
+    const wrap=root.querySelector?.('[data-prod-connected360-feed] [data-prod-connected360]');
+    if(wrap)void refreshProductionSummary(wrap);
   }
 
   function onOffline(){
+    appleReadEpoch+=1;
+    root.querySelectorAll?.('[data-apple-qa-workouts]')?.forEach?.(node=>node.replaceChildren());
     lastOnline=false;
     // A network loss must retire in-flight native reads and any old grant lease.
     nativeForegroundHeartbeat.stop();
     foregroundSync.invalidate();
+    productionSync?.invalidate();
+    clearProductionHistorySurface();
+    const wrap=root.querySelector?.('[data-prod-connected360-feed="full"] [data-prod-connected360]');
+    if(wrap)void refreshProductionSummary(wrap);
   }
 
   return Object.freeze({
@@ -1974,8 +2685,8 @@ export function createWearableController({
         );
       }
 
-      enhanceControls();
       mounted=true;
+      enhanceControls();
       nativeForegroundHeartbeat.start();
 
       if(syncInitial){
@@ -1998,7 +2709,8 @@ export function createWearableController({
     destroy(){
       if(!mounted)return;
       nativeIdentityEpoch+=1;
-      productionSummaryEpoch+=1;
+      clearProductionHistorySurface();
+      coachActivityPanel?.retire();coachActivityPanel=null;
       nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       mounted=false;
@@ -2062,8 +2774,10 @@ export function createWearableController({
     },
     pendingCount:()=>remoteSync.pendingCount(),
     clearOwner:()=>{
+      productionHistoryRetired=true;
       nativeIdentityEpoch+=1;
-      productionSummaryEpoch+=1;
+      clearProductionHistorySurface();
+      coachActivityPanel?.retire();coachActivityPanel=null;
       nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       qaReadEpoch+=1;

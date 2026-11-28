@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderEvolutionReportPdf,M44_PDF_TEMPLATE,validateOfficialActivitySeries} from '../supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js';
+import {renderEvolutionReportPdf,M44_PDF_TEMPLATE,validateOfficialActivitySeries,validateOfficialReassessmentSource} from '../supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js';
 test('M44 server PDF renderer rejects unsigned input and missing execution evidence',async()=>{
  assert.equal(M44_PDF_TEMPLATE,'iberfit-evolution-a4-brand-v3');
  await assert.rejects(()=>renderEvolutionReportPdf({}),/M44_PDF_RENDER_INPUT_INVALID/);
@@ -83,4 +83,26 @@ test('GX05 official report uses public labels, civil dates and bounded chart/tit
 test('Signature V3 keeps all report modes, verified activity and no private Coach comment',async()=>{
  const {M44_ACCEPTED_REPLAY_TEMPLATES}=await import('../supabase/functions/iberfit-evolution-report-emission-v1/pdf-renderer.js');
  assert.deepEqual(M44_ACCEPTED_REPLAY_TEMPLATES,['iberfit-evolution-a4-brand-v2','iberfit-evolution-a4-brand-v3']);
+});
+
+const reevaluationSource={reportId:'11111111-1111-4111-8111-111111111111',reportType:'reassessment',periodStart:'2026-10-01',periodEnd:'2026-11-20',
+ clientName:'Cliente sintético',summary:'Comparación revisada',conclusions:'Interpretación profesional',recommendations:'Revisar próximos pasos',
+ evidence:[{label:'Movilidad de cadena posterior · izquierda',text:'2026-10-01: -8 cm · 2026-11-20: -3 cm. Comparación profesional revisada; no acredita por sí sola un logro.',source:'gx-professional:22222222-2222-4222-8222-222222222222:1',quality:'revisada'}],activitySeries:[]};
+test('reevaluation renderer requires the exact reviewed comparison shape and full envelope',async()=>{
+ const src=reevaluationSource,row=src.evidence[0],pdfLib={PDFDocument:{},StandardFonts:{},rgb:()=>{}};
+ assert.equal(validateOfficialReassessmentSource(src),true);
+ for(const bad of [{...src,periodStart:'2026-09-30'},{...src,assessmentRevision:1},{...src,activitySeries:[{from:src.periodStart,to:src.periodEnd,count:1}]},{...src,evidence:[{...row,quality:'confirmada'}]},{...src,evidence:[{...row,text:row.text.replace('-3 cm','-3 kg')}]},{...src,evidence:[{...row,source:'gx-professional:22222222-2222-4222-8222-222222222222:2147483648'}]},{...src,evidence:[row,{...row,label:'Otro indicador'}]},{...src,evidence:[{...row,privateNote:'secret'}]}]){
+  assert.equal(validateOfficialReassessmentSource(bad),false);
+  await assert.rejects(()=>renderEvolutionReportPdf({source:bad,pdfLib}),/M44_PDF_REASSESSMENT_SOURCE_INVALID/);
+ }
+ for(const source of ['connected360:apple-coach-trends','  CONNECTED360:future-source '])await assert.rejects(()=>renderEvolutionReportPdf({source:{...src,reportType:'monthly',evidence:[{...row,source}]},pdfLib}),/M44_PDF_DEVICE_PUBLICATION_NOT_AUTHORIZED/);
+});
+test('reevaluation PDF uses public vocabulary and does not print internal publication UUID or private note',async()=>{
+ const calls=[],font={widthOfTextAtSize:(t,size)=>t.length*size*.55};
+ const pdfLib={PDFDocument:{create:async()=>({registerFontkit(){},embedFont:async()=>font,addPage:()=>({drawRectangle(){},drawLine(){},drawText(t){calls.push(t);}}),setTitle(){},setCreator(){},setProducer(){},setSubject(){},setCreationDate(){},save:async()=>new Uint8Array(2048)})},StandardFonts:{},rgb:()=>0};
+ const staticFont=new Uint8Array(1001);staticFont[1]=1;
+ await renderEvolutionReportPdf({source:{...reevaluationSource,coachComment:'PRIVATE-DO-NOT-EMIT'},pdfLib,brandFonts:{inter:staticFont,serif:staticFont,interBold:staticFont,serifBold:staticFont},fontkit:{},generatedAt:'2026-11-28'});
+ const text=calls.join(' ');
+ for(const label of ['Informe de reevaluación','Comparaciones revisadas','Comparación profesional contrastada','-8 cm','-3 cm'])assert.ok(text.includes(label),label);
+ assert.doesNotMatch(text,/22222222|gx-professional:|PRIVATE-DO-NOT-EMIT/u);
 });

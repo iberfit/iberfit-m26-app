@@ -7,6 +7,7 @@ const TYPES=Object.freeze({
   monthly:'Informe mensual',
   quarterly:'Informe trimestral',
   'year-in-iberfit':'Tu año en IBERFIT',
+  reassessment:'Informe de reevaluación',
 });
 const EDITORIAL=Object.freeze({
   'post-session':['Tu sesión en perspectiva','Resultados registrados y contexto para preparar el siguiente entrenamiento.'],
@@ -14,6 +15,7 @@ const EDITORIAL=Object.freeze({
   monthly:['Un mes de seguimiento','Los registros del periodo, sus comparaciones y las decisiones que merecen una revisión profesional.'],
   quarterly:['El ciclo en perspectiva','Continuidad, evidencia comparable y prioridades para la siguiente etapa.'],
   'year-in-iberfit':['Tu recorrido, tus resultados','El entrenamiento realizado, los cambios observados y las prioridades de la siguiente etapa.'],
+  reassessment:['Cambios observados, con criterio','Mediciones comparables y revisadas para orientar el seguimiento profesional.'],
 });
 const TRUSTED_SOURCES=Object.freeze({
   sessionExecutions:'Sesiones IBERFIT confirmadas',
@@ -24,6 +26,7 @@ const TRUSTED_SOURCES=Object.freeze({
   checkins:'Registros de bienestar',
   trainingCycles:'Planificación publicada IBERFIT',
   'canonical-store':'Historial canónico IBERFIT',
+  professional_followup:'Seguimiento profesional contrastado',
   wearableDailySummaries:'Datos de dispositivo, solo contexto',
 });
 function esc(value){
@@ -95,7 +98,7 @@ function chunkEditorial(value,firstLimit,nextLimit=firstLimit){
 }
 function evidenceList(rows,offset=0){
   return rows.map((item,index)=>{
-    const source=TRUSTED_SOURCES[item.source]||clean(item.source,100);
+    const source=/^gx-professional:[0-9a-f-]{36}:[1-9][0-9]*$/u.test(item.source)?'Comparación profesional contrastada':TRUSTED_SOURCES[item.source]||clean(item.source,100);
     return '<li class="m44-evidence-item"><div class="m44-evidence-number">'+String(offset+index+1).padStart(2,'0')+'</div><div><h3>'+esc(clean(item.label,120))+'</h3><p>'+esc(clean(item.text,500))+'</p><small>Fuente: '+esc(source)+
       (item.quality?' · Calidad declarada: '+esc(clean(item.quality,60)):'')+'</small></div></li>';
   }).join('');
@@ -191,8 +194,12 @@ function page(index,total,eyebrow,title,inner){
   return '<section class="m44-sheet m44-interior" aria-label="Página '+index+' de '+total+'"><header class="m44-page-head"><span class="m44-page-index">'+String(index-1).padStart(2,'0')+'</span><div><p class="m44-kicker">'+esc(eyebrow)+'</p><h2>'+esc(title)+'</h2></div></header><main class="m44-page-content">'+inner+'</main>'+footer(index,total)+'</section>';
 }
 export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',coachName='Equipo IBERFIT',stylesheetHref='/m26/evolution-report.css?v=m44-elite-5',publicationStatus='draft',audience='internal',technicalDetail=null}={}){
-  if(!report||report.ready!==true||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
+  const reassessment=report?.id==='reassessment';
+  const privateReassessment=reassessment&&report.ready===false&&report.previewOnly===true&&report.official===false&&publicationStatus==='draft'&&audience==='internal'&&technicalDetail===null&&report.sourceType==='professional_followup';
+  if(!report||!(reassessment?privateReassessment:report.ready===true)||!Object.hasOwn(TYPES,report.id)||!Array.isArray(report.evidence)||!report.evidence.length)
     throw new Error('M44_REPORT_PREVIEW_EVIDENCE_REQUIRED');
+  if(reassessment&&(report.periodStart>=report.periodEnd||report.activitySeries?.length!==0||new Set(report.evidence.map(r=>r?.label)).size!==report.evidence.length||report.evidence.some(r=>r?.quality!=='revisada'||!/^gx-professional:[0-9a-f-]{36}:[1-9][0-9]*$/u.test(r?.source??''))))
+    throw new Error('M44_REPORT_PREVIEW_EVIDENCE_INVALID');
   if(!report.periodStart||!report.periodEnd||dateLabel(report.periodStart)==='Fecha pendiente'||dateLabel(report.periodEnd)==='Fecha pendiente'||report.periodStart>report.periodEnd)
     throw new Error('M44_REPORT_PREVIEW_PERIOD_INVALID');
   if(!String(stylesheetHref).startsWith('/m26/evolution-report.css?')&&!/^https:\/\/[a-z0-9.-]+\/m26\/evolution-report\.css\?/i.test(String(stylesheetHref)))
@@ -252,6 +259,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
   const pages=[];
   const decisionEnd=total-technicalPages.length;
   const summaryMetrics=[];
+  if(reassessment)summaryMetrics.push([String(lines.length),'Comparaciones seleccionadas']);
   const countEvidence=(labels,source)=>lines.find(item=>labels.includes(item.label)&&item.source===source&&/^\d+$/u.test(item.text));
   const sessionCount=countEvidence(['Sesiones confirmadas','Sesiones ejecutadas','Sesiones del último año'],'sessionExecutions');
   const trainingDays=countEvidence(['Días con entrenamiento confirmado'],'sessionExecutions');
@@ -279,7 +287,7 @@ export function buildEvolutionReportHtml({report,clientName='Cliente IBERFIT',co
     '<div class="m44-cover-rule" aria-hidden="true"></div>'+
     '<div class="m44-cover-meta"><div><span>Preparado para</span><strong>'+esc(name)+'</strong></div><div><span>Periodo analizado</span><strong>'+esc(dateLabel(report.periodStart))+' — '+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Revisión profesional</span><strong>'+esc(coach)+'</strong></div></div>'+
     '<div class="m44-cover-bottom"><span>'+(published?'CONSULTA DE INFORME PUBLICADO EN PLATAFORMA':clientView?'BORRADOR PRIVADO · VERSIÓN CLIENTE SIN PUBLICAR':'BORRADOR PRIVADO · USO INTERNO · NO ENVIAR AL CLIENTE')+'</span><span>IBERFIT · INFORME DE EVOLUCIÓN</span></div></section>');
-  pages.push(page(2,total,'01 · LA LECTURA','Qué hemos hecho',
+  pages.push(page(2,total,'01 · LA LECTURA',reassessment?'Qué hemos reevaluado':'Qué hemos hecho',
     '<p class="m44-section-lead">'+esc(title===TYPES[report.id]?'El periodo en contexto':title)+'</p>'+summaryBand+
     '<div class="m44-prose m44-report-summary">'+paragraphs(summaryChunks[0],2500)+'</div>'+
     '<div class="m44-period-line"><div><span>Desde</span><strong>'+esc(dateLabel(report.periodStart))+'</strong></div><div><span>Hasta</span><strong>'+esc(dateLabel(report.periodEnd))+'</strong></div><div><span>Tipo de seguimiento</span><strong>'+esc(TYPES[report.id])+'</strong></div></div>'+

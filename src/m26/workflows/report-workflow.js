@@ -1,11 +1,12 @@
 import {buildPeriodProgressEvidence} from '../engagement/progress-hub.js';
-import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
+import {reportCivilDate,isWithinCivilPeriod,parseDateValue,observedCivilDayRuns} from '../domain/civil-date.js';
+import {resolveSantiagoLocalInstant} from '../domain/dated-training-occurrences.js';
 import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {buildPrivateReportDetail,buildStrengthHistoryIndex,strengthPeriodEvidence} from './report-private-detail.js';
 import {buildTrainingCalendarEvidence,readDatedTrends,buildWellbeingBundle,WELLBEING_BUNDLE_LABEL,wellbeingBundleDescription} from './report-trend-contract.js';
 import {buildReportCycleObjective,cycleObjectiveEvidence,cycleMeasuredGoalEvidence,cycleGoalReviewEvidence} from './report-cycle-objective.js';
 import {buildReassessmentReview,reassessmentReviewEvidence} from './report-reassessment-evidence.js';
-import {PROFESSIONAL_REPORT_SELECTION_MARKER,PROFESSIONAL_REPORT_TYPES,professionalReportSelectionSnapshot,professionalReportSelectionRows,clearProfessionalReportSelection} from '../domain/professional-followup.js';
+import {PROFESSIONAL_REPORT_SELECTION_MARKER,PROFESSIONAL_REPORT_TYPES,professionalReportSelectionSnapshot,professionalReportSelectionRows,professionalReassessmentSelectionPreview,buildProfessionalReassessmentDraftPreview,clearProfessionalReportSelection} from '../domain/professional-followup.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND,selectInitialIriBaseline,initialIriMeasurementDate} from './iri-2-longitudinal.js';
@@ -83,7 +84,11 @@ function elitePeriodEvidence(rows,signals,sessions,start,clientId,objective,stre
   const annual=rows.some(row=>row.label==='Sesiones del último año');
   const calendar=annual&&days.length?buildTrainingCalendarEvidence(days,start,new Date(timestamp(start)+364*DAY_MS).toISOString().slice(0,10)):null;
   if(calendar&&result.length<12)result.push(calendar);
-  else if(days.length&&result.length<12)result.push(evidence('Hitos de continuidad',weeks.length+' bloques semanales con entrenamiento confirmado; '+longest+' consecutivos. Primer día: '+days[0]+'; último: '+days.at(-1)+'. Bloques de hasta 7 días desde el inicio del periodo; el último puede ser parcial.','sessionExecutions'));
+  else if(days.length&&result.length<12){
+    const dailyRun=observedCivilDayRuns(days).reduce((best,run)=>!best||run.days>best.days?run:best,null);
+    const dailyText=dailyRun&&dailyRun.days>=5?' Secuencia observada: '+dailyRun.days+' días consecutivos con entrenamiento confirmado ('+dailyRun.periodStart+' a '+dailyRun.periodEnd+'). Revisar recuperación; los registros no demuestran ausencia de descanso.':'';
+    result.push(evidence('Hitos de continuidad',weeks.length+' bloques semanales con entrenamiento confirmado; '+longest+' consecutivos. Primer día: '+days[0]+'; último: '+days.at(-1)+'. Bloques de hasta 7 días desde el inicio del periodo; el último puede ser parcial.'+dailyText,'sessionExecutions'));
+  }
   const rawTrends=signals[0]?.trends??[];
   const bundle=end?buildWellbeingBundle(rawTrends,start,end):null;
   const trends=bundle?[bundle,...rawTrends.filter(row=>row.source!=='checkins')]:rawTrends;
@@ -232,6 +237,26 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
 }
 
 export function premiumReportByType(state,clientId,type,options={}){return buildPremiumReportPortfolio(state,clientId,options).find((report)=>report.id===String(type||''))||null;}
+// Explicit document workflow: reuse the complete weekly evidence builder at
+// the last instant of a closed Santiago civil day, not a shortened UI range.
+// The ordinary weekly portfolio keeps its existing current-day semantics.
+export function closedWeeklyReportCandidate(state,clientId,{now=new Date(),periodEnd=null}={}){
+ const today=reportCivilDate(now),end=periodEnd??dateOffset(today,2);
+ if(!today||!validDate(end)||end>=today)return null;
+ try{
+  const lastMinute=resolveSantiagoLocalInstant(end,'23:59',{disambiguation:'later'});
+  return premiumReportByType(state,clientId,'weekly',{now:new Date(Date.parse(lastMinute)+59_999)});
+ }catch{return null;}
+}
+function editorReportCandidate(form,context,type,{now=new Date(),fallback=null}={}){
+ if(!type)return null;
+ const end=reportFormValue(form,'periodEnd');
+ // A recovered historical weekly draft is eligible only if the exact
+ // regenerated evidence signature and dates also pass the existing fences.
+ if(type==='weekly'&&validDate(end)&&end<reportCivilDate(now))return closedWeeklyReportCandidate(context.state,context.clientId,{now,periodEnd:end});
+ return fallback??premiumReportByType(context.state,context.clientId,type,{now});
+}
+
 export function premiumReportUiCandidates(state,role,clientId,options={}){const normalizedRole=String(role||'').trim().toLowerCase();if(!['coach','admin'].includes(normalizedRole)||!clientId)return Object.freeze([]);return buildPremiumReportPortfolio(state,clientId,options);}
 
 function premiumEvidenceSignature(candidate){return JSON.stringify({modelVersion:PREMIUM_REPORT_MODEL_VERSION,id:candidate?.id||null,assessmentId:candidate?.id==='iri'?(candidate?.assessmentId||null):null,assessmentRevision:candidate?.id==='iri'?normalizedRevision(candidate?.assessmentRevision):null,sourceType:candidate?.sourceType||null,sourceId:candidate?.sourceId||null,periodStart:candidate?.periodStart||null,periodEnd:candidate?.periodEnd||null,evidence:(candidate?.evidence||[]).map((row)=>[row.label,row.text,row.source,row.quality]),activitySeries:(candidate?.activitySeries||[]).map(row=>[row.from,row.to,row.count])});}
@@ -294,7 +319,7 @@ function premiumMetadataFromActiveEditor(draft,scope=globalThis){
   const document=scope?.document;if(!document?.querySelector)return null;const form=document.querySelector('[data-workflow-form="report-approval"]');if(!form)return null;
   const type=reportType(reportFormValue(form,'reportType'));if(!type)return null;
   const context=browserReportContext(scope);if(!context.state||!['coach','admin'].includes(context.role)||context.clientId!==String(draft?.clientId||'')){if(gxMarked(reportFormValue(form,'premiumEvidenceSignature')))throw Error('M26_REPORT_DRAFT_INVALID:professional-selection-stale');return null;}
-  const candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});const expectedSignature=reportFormValue(form,'premiumEvidenceSignature');const evidenceSignature=premiumEvidenceSignature(candidate);
+  const candidate=editorReportCandidate(form,context,type);const expectedSignature=reportFormValue(form,'premiumEvidenceSignature');const evidenceSignature=premiumEvidenceSignature(candidate);
   const sameEvidence=Boolean(candidate?.ready&&(candidate.assessmentId||'')===String(draft?.assessmentId||'')&&candidate.periodStart===String(draft?.periodStart||'')&&candidate.periodEnd===String(draft?.periodEnd||'')&&expectedSignature&&evidenceSignature===gxBaseSignature(expectedSignature));
   if(!sameEvidence)throw new Error('M26_REPORT_DRAFT_INVALID:premium-evidence-stale');
   const selected=gxEditorCandidate(form,form.closest?.('#app')??document.querySelector('#app'),context,candidate);
@@ -344,10 +369,26 @@ function ensurePremiumEditorFields(form,document){
     const actions=form.querySelector?.('.m26-inline-actions');if(actions)actions.append(button);else form.append(button);
   }
 }
-function renderPremiumReportCards(host,portfolio,document){
+function renderPremiumReportCards(host,portfolio,document,reassessmentSelection=null){
   host.replaceChildren();const intro=document.createElement('div');intro.className='m26-panel-heading';const copy=document.createElement('div');copy.append(createTextElement(document,'p','Informes automáticos','m26-eyebrow'),createTextElement(document,'h2','Preparar desde evidencia real'),createTextElement(document,'p','Selecciona un formato disponible. IBERFIT prepara únicamente datos confirmados; el entrenador revisa y aprueba antes de cualquier publicación.'));intro.append(copy);host.append(intro);
   const availability=portfolio.filter(candidate=>candidate.ready).length;copy.append(createTextElement(document,'p',`${availability} de ${portfolio.length} informes disponibles para revisar. Los demás explican qué evidencia falta.`,'m26-premium-report-availability'));const grid=document.createElement('div');grid.className='m26-premium-report-grid';
-  for(const candidate of portfolio){const card=document.createElement('article');card.className='m26-premium-report-card';card.dataset.ready=candidate.ready?'true':'false';card.append(createTextElement(document,'span',candidate.ready?'Listo para revisar':candidate.reviewEvidence?.length?'Revisión profesional disponible':'Datos insuficientes','m26-premium-report-state'),createTextElement(document,'h3',candidate.label));const period=candidate.periodStart&&candidate.periodEnd?`${candidate.periodStart} → ${candidate.periodEnd}`:candidate.reason;card.append(createTextElement(document,'p',period||'Sin periodo disponible'));if(candidate.ready&&candidate.evidence.length){const list=document.createElement('ul');list.className='m26-premium-report-evidence';for(const row of candidate.evidence.slice(0,3))list.append(createTextElement(document,'li',row.label+': '+(row.label===WELLBEING_BUNDLE_LABEL?wellbeingBundleDescription(candidate.evidence,candidate.periodStart,candidate.periodEnd):row.text)));card.append(list);}if(candidate.ready){const button=document.createElement('button');button.type='button';button.dataset.premiumReportType=candidate.id;button.textContent='Preparar borrador';card.append(button);}else{card.append(createTextElement(document,'p',candidate.reason||'Todavía no hay evidencia suficiente.'));if(candidate.reviewEvidence?.length){const details=document.createElement('details');details.append(createTextElement(document,'summary','Mediciones comparables para revisión'));const list=document.createElement('ul');for(const row of candidate.reviewEvidence)list.append(createTextElement(document,'li',row.label+': '+row.text));details.append(list);card.append(details);}}grid.append(card);}
+  for(const candidate of portfolio){const card=document.createElement('article');card.className='m26-premium-report-card';card.dataset.ready=candidate.ready?'true':'false';card.append(createTextElement(document,'span',candidate.ready?'Listo para revisar':candidate.reviewEvidence?.length?'Revisión profesional disponible':'Datos insuficientes','m26-premium-report-state'),createTextElement(document,'h3',candidate.label));const period=candidate.periodStart&&candidate.periodEnd?`${candidate.periodStart} → ${candidate.periodEnd}`:candidate.reason;card.append(createTextElement(document,'p',period||'Sin periodo disponible'));if(candidate.ready&&candidate.evidence.length){const list=document.createElement('ul');list.className='m26-premium-report-evidence';for(const row of candidate.evidence.slice(0,3))list.append(createTextElement(document,'li',row.label+': '+(row.label===WELLBEING_BUNDLE_LABEL?wellbeingBundleDescription(candidate.evidence,candidate.periodStart,candidate.periodEnd):row.text)));card.append(list);}if(candidate.ready){const button=document.createElement('button');button.type='button';button.dataset.premiumReportType=candidate.id;button.textContent='Preparar borrador';card.append(button);}else{card.append(createTextElement(document,'p',candidate.reason||'Todavía no hay evidencia suficiente.'));if(candidate.reviewEvidence?.length){const details=document.createElement('details');details.append(createTextElement(document,'summary','Mediciones comparables para revisión'));const list=document.createElement('ul');for(const row of candidate.reviewEvidence)list.append(createTextElement(document,'li',row.label+': '+row.text));details.append(list);card.append(details);}
+    if(candidate.id==='reassessment'&&reassessmentSelection?.comparisonCount){
+      const details=document.createElement('details');details.dataset.gxReassessmentReview='true';
+      details.append(createTextElement(document,'summary','Comparaciones profesionales contrastadas ('+reassessmentSelection.comparisonCount+')'));
+      details.append(createTextElement(document,'p','Selección temporal de esta sesión. Cada comparación conserva sus propias fechas. No constituye un informe aprobado ni publicado.'));
+      if(reassessmentSelection.ambiguousMetrics)details.append(createTextElement(document,'p','Hay más de una comparación para el mismo indicador y lado. Selecciona explícitamente la evidencia antes de una futura emisión oficial.'));
+      const list=document.createElement('ul');
+      for(const row of reassessmentSelection.rows){
+        const li=document.createElement('li'),label=document.createElement('label'),check=document.createElement('input');
+        check.type='checkbox';check.dataset.gxReassessmentSource=row.source;
+        label.append(check,document.createTextNode(' '+row.label+': '+row.text));li.append(label);list.append(li);
+      }
+      details.append(list);
+      const button=document.createElement('button');button.type='button';button.dataset.gxReassessmentPreview='true';
+      button.textContent='Previsualizar selección A4 privada';details.append(button);card.append(details);
+    }
+  }grid.append(card);}
   host.append(grid);
 }
 function prefillPremiumReport(form,candidate){
@@ -367,20 +408,40 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     if(destroyed)return false;const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)return false;const context=browserReportContext(scope);
     if(!context.state||!['coach','admin'].includes(context.role)||!context.clientId){root.querySelector?.('[data-premium-report-candidates]')?.remove?.();form.querySelector?.('[data-gx-report-selection]')?.remove?.();return false;}
     ensurePremiumEditorFields(form,document);let host=root.querySelector?.('[data-premium-report-candidates]');if(!host){host=document.createElement('section');host.className='m26-panel m26-panel-soft';host.dataset.premiumReportCandidates='true';form.before(host);}
-    const portfolio=premiumReportUiCandidates(context.state,context.role,context.clientId,{now:new Date()});const signature=JSON.stringify([context.role,context.clientId,premiumPortfolioSignature(portfolio)]);if(host.dataset.premiumReportSignature!==signature){renderPremiumReportCards(host,portfolio,document);host.dataset.premiumReportSignature=signature;}const selectedType=reportType(reportFormValue(form,'reportType'));gxRenderEditorSelection(form,root,context,portfolio.find(x=>x.id===selectedType),document);return true;
+    const portfolio=premiumReportUiCandidates(context.state,context.role,context.clientId,{now:new Date()});const reassessmentSelection=context.role==='coach'?professionalReassessmentSelectionPreview(root,context.clientId):null;const signature=JSON.stringify([context.role,context.clientId,premiumPortfolioSignature(portfolio),reassessmentSelection]);if(host.dataset.premiumReportSignature!==signature){renderPremiumReportCards(host,portfolio,document,reassessmentSelection);host.dataset.premiumReportSignature=signature;}const selectedType=reportType(reportFormValue(form,'reportType'));gxRenderEditorSelection(form,root,context,editorReportCandidate(form,context,selectedType,{fallback:portfolio.find(x=>x.id===selectedType)}),document);return true;
   }
   async function onClick(event){
+    const reassessment=event.target?.closest?.('[data-gx-reassessment-preview]');
+    if(reassessment&&root.contains?.(reassessment)){
+      event.preventDefault?.();
+      const context=browserReportContext(scope),details=reassessment.closest?.('[data-gx-reassessment-review]');
+      const status=root.querySelector?.('[data-workflow-status="report"]');
+      const message=(text,tone='error')=>{if(status){status.textContent=text;status.dataset.status=tone;}};
+      if(context.role!=='coach'||!context.clientId||!details)return;
+      try{
+        const sources=[...details.querySelectorAll('[data-gx-reassessment-source]:checked')].map(x=>x.dataset.gxReassessmentSource);
+        const report=buildProfessionalReassessmentDraftPreview(root,context.clientId,sources);
+        const client=(context.state?.collections?.clients||[]).find(item=>String(recordValue(item,'id')||'')===context.clientId);
+        const actor=context.state.identity||{};
+        openEvolutionReportPreview({report,clientName:cleanText(recordValue(client,'displayName','fullName','name','nombre')||'Cliente IBERFIT',130),
+          coachName:cleanText(actor.fullName||actor.name||'Equipo IBERFIT',130),publicationStatus:'draft',audience:'internal',scope});
+        message('Vista previa privada de reevaluación abierta. No se ha emitido ni publicado ningún documento.','info');
+      }catch(error){
+        message(error?.message==='M44_REPORT_PREVIEW_POPUP_BLOCKED'?'Permite ventanas de IBERFIT para abrir la vista previa.':'Selecciona comparaciones vigentes, una por indicador y lado, dentro de un periodo de hasta 366 días.');
+      }
+      return;
+    }
     const professional=event.target?.closest?.('[data-gx-report-evidence],[data-gx-report-reset],[data-gx-report-clear]');
     if(professional&&root.contains?.(professional)){
       event.preventDefault?.();const form=professional.closest?.('[data-workflow-form="report-approval"]');const context=browserReportContext(scope);
       if(!form||context.role!=='coach'||!context.clientId)return;
-      const type=reportType(reportFormValue(form,'reportType')),candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});
+      const type=reportType(reportFormValue(form,'reportType')),candidate=editorReportCandidate(form,context,type);
       try{
         if(professional.dataset.gxReportReset)gxResetEditorSelection(form);
         else if(professional.dataset.gxReportClear){clearProfessionalReportSelection(root);gxResetReview(form);}
         else gxToggleEditorSelection(form,root,context,candidate,professional.dataset.gxReportEvidence);
       }catch{const status=root.querySelector?.('[data-workflow-status="report"]');if(status){status.textContent='No se pudo incorporar la evidencia. Comprueba la selección y el periodo.';status.dataset.status='error';}}
-      gxRenderEditorSelection(form,root,context,candidate,document);return;
+      enhance();return;
     }
     const preview=event.target?.closest?.('[data-m44-report-preview]');
     if(preview&&root.contains?.(preview)){
@@ -398,7 +459,7 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
       if(!type||type==='iri'||type==='reassessment'){
         message('Elige primero un informe de entrenamiento con evidencia confirmada. El IRI y la reevaluación tienen circuitos propios.','info');return;
       }
-      const candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});
+      const candidate=editorReportCandidate(form,context,type);
       if(!candidate?.ready||!candidate.evidence?.length){
         message('No existe evidencia suficiente para preparar este informe.');return;
       }
@@ -442,8 +503,10 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     if(!form)return;
     const context=browserReportContext(scope);
     if(!context.state||!['coach','admin'].includes(context.role))return;
-    const candidate=premiumReportByType(context.state,context.clientId,button.dataset.premiumReportType,{now:new Date()});
-    if(!candidate?.ready)return;
+    const closed=button.dataset.documentClosedWeek==='true'&&button.dataset.premiumReportType==='weekly';
+    if(closed&&context.role!=='coach')return;
+    const candidate=closed?closedWeeklyReportCandidate(context.state,context.clientId):premiumReportByType(context.state,context.clientId,button.dataset.premiumReportType,{now:new Date()});
+    if(!candidate?.ready){if(closed){const status=root.querySelector?.('[data-workflow-status="report"]');if(status){status.textContent='No hay sesiones confirmadas en la última semana cerrada.';status.dataset.status='info';}}return;}
     const selection=++selectionVersion;
     const pending={wait:null},EventType=scope.CustomEvent||globalThis.CustomEvent;
     if(typeof EventType==='function')root.dispatchEvent(new EventType('m26:report-before-switch',{detail:pending}));
@@ -455,7 +518,7 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     }
     const current=browserReportContext(scope);
     if(destroyed||selection!==selectionVersion||!root.contains?.(form)||current.clientId!==context.clientId||current.role!==context.role)return;
-    const fresh=premiumReportByType(current.state,current.clientId,candidate.id,{now:new Date()});
+    const fresh=closed?closedWeeklyReportCandidate(current.state,current.clientId):premiumReportByType(current.state,current.clientId,candidate.id,{now:new Date()});
     if(!fresh?.ready||premiumEvidenceSignature(fresh)!==premiumEvidenceSignature(candidate)){
       const status=root.querySelector?.('[data-workflow-status="report"]');
       if(status){status.textContent='La evidencia ha cambiado. Selecciona nuevamente el formato.';status.dataset.status='info';}
@@ -489,11 +552,23 @@ export function validateReportDraft(draft={}){
   if(!cleanText(draft.conclusions,2500))errors.push('conclusions');
   if(!cleanText(draft.recommendations,2500))errors.push('recommendations');
   if(draft.reportType!=null&&!reportType(draft.reportType))errors.push('reportType');
+  // Review consent for Connected360 is not consent to an official report.
+  // Inspect the complete input before evidenceRows can clip or clean it.
+  if(Array.isArray(draft.evidence)&&draft.evidence.some(row=>typeof row?.source==='string'&&row.source.trim().toLowerCase().startsWith('connected360:')))errors.push('device-publication-not-authorized');
+  // The current reassessment workflow is a private preview only. A direct
+  // command must not bypass the unavailable official approval surface.
+  if(type==='reassessment')errors.push('reassessment-preview-only');
   if(draft.reviewAccepted!==true)errors.push('reviewAccepted');
   return {ok:errors.length===0,errors:[...new Set(errors)]};
 }
 export function normalizeReportDraft(draft={}){
-  const check=validateReportDraft(draft);if(!check.ok)throw new Error(`M26_REPORT_DRAFT_INVALID:${check.errors.join(',')}`);
+  const check=validateReportDraft(draft);
+  if(!check.ok){
+    const error=new Error(`M26_REPORT_DRAFT_INVALID:${check.errors.join(',')}`);
+    if(check.errors.includes('device-publication-not-authorized'))error.userMessage='La consulta de actividad compartida no autoriza su publicación. Conserva el borrador y revisa las evidencias.';
+    else if(check.errors.includes('reassessment-preview-only'))error.userMessage='La reevaluación está disponible como vista previa privada. La emisión oficial requiere certificación adicional.';
+    throw error;
+  }
   const normalized={id:safeId(draft.id)||createM26Id(),clientId:safeId(draft.clientId),assessmentId:reportType(draft.reportType)==='iri'||draft.reportType==null?safeId(draft.assessmentId):null,title:cleanText(draft.title,140),periodStart:draft.periodStart,periodEnd:draft.periodEnd,summary:cleanText(draft.summary,2500),conclusions:cleanText(draft.conclusions,2500),recommendations:cleanText(draft.recommendations,2500),format:'a4-premium',visibility:'coach',singleReport:true,status:'aprobado',visibleToClient:false};
   const type=reportType(draft.reportType);if(type)normalized.reportType=type;
   const coachComment=cleanText(draft.coachComment,2500);if(coachComment)normalized.coachComment=coachComment;

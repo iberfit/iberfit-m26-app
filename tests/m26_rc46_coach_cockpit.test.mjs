@@ -351,3 +351,17 @@ test(
     );
   }
 );
+
+test('confirmed critical warning wins over adaptive warning; selected action agrees with evidence',()=>{
+  const c={id:'c1',name:'Ana',experience:{stage:'active'},nextAction:{key:'prepare_plan',label:'Preparar plan',area:'planificacion'},adaptiveExperience:{kind:'warning',coachReviewRequired:true,label:'Contexto adaptativo',reason:'Revisar contexto',action:{key:'review_session_adjustment',label:'Revisar esfuerzo',area:'expediente',reason:'Revisar contexto'}}};
+  const critical={severity:'critical',title:'Dolor registrado',detail:'Requiere revisión',source:'feedback',decision:{recommendedActions:[{key:'review_feedback',label:'Revisar dolor',area:'expediente',reason:'Dolor registrado'}]}};
+  const risk=deriveCoachCockpit([{client:c,alerts:[critical]}]).items[0];
+  assert.equal(risk.kind,'critical');
+  assert.equal(risk.reason,'Dolor registrado');
+  assert.equal(risk.nextAction.key,'review_feedback');
+  const adaptive=deriveCoachCockpit([{client:c,alerts:[]}]).items[0];
+  assert.equal(adaptive.kind,'warning');
+  assert.equal(adaptive.nextAction.key,'review_session_adjustment');
+  assert.equal(adaptive.nextAction.label,'Revisar esfuerzo');
+  assert.equal(adaptive.nextAction.area,'expediente');
+});

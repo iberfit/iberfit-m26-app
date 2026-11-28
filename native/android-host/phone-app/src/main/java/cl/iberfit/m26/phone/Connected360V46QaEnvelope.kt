@@ -47,7 +47,10 @@ internal object Connected360V46QaEnvelope {
         workouts: List<Connected360WorkoutReadOnlyQa.LocalWorkout>,
         aggregationZone: ZoneId,
         acquiredAt: Instant,
+        maxWorkouts: Int = Connected360WorkoutReadOnlyQa.MAX_WORKOUTS,
+        includeSwimming: Boolean = false,
     ): Map<String, Any> {
+        require(maxWorkouts in 1..Connected360WorkoutReadOnlyQa.PRODUCTION_MAX_WORKOUTS) { "M26_HEALTH_WORKOUT_BATCH_INVALID" }
         require(validZone(aggregationZone)) { "M26_V46_QA_INVALID_IANA_ZONE" }
         val today = acquiredAt.atZone(aggregationZone).toLocalDate()
         val oldestDay = today.minusDays(6)
@@ -83,7 +86,6 @@ internal object Connected360V46QaEnvelope {
             }.toList()
 
         val exercises = workouts.asSequence()
-            .take(10)
             .mapNotNull { w ->
                 val key = w.observationKey ?: return@mapNotNull null
                 if (!hashPattern.matches(key)) return@mapNotNull null
@@ -101,7 +103,10 @@ internal object Connected360V46QaEnvelope {
                 val avg = bpm(w.heartRateAverage)?.takeIf {
                     (lo == null || it >= lo) && (hi == null || it <= hi)
                 }
-                val mode = w.sport.takeIf { it in sports } ?: "other"
+                // V46 backend only accepts the legacy vocabulary. Swimming
+                // is classified locally, but the wire contract must remain
+                // unchanged until a new coordinated release is certified.
+                val mode = w.sport.takeIf { it in sports || (includeSwimming && it == "swimming") } ?: "other"
                 mutableMapOf<String, Any>(
                     "observationKey" to key,
                     "sport" to mode,
@@ -126,6 +131,7 @@ internal object Connected360V46QaEnvelope {
             }
             // Invalid or future observations must not reserve the duplicate key.
             .distinctBy { it["observationKey"] }
+            .take(maxWorkouts)
             .toList()
 
         return mapOf(
