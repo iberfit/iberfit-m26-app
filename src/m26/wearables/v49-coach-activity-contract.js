@@ -62,3 +62,34 @@ export function verifyConnected360CoachExerciseDays(value,{clientId,now=new Date
   });
   return Object.freeze({...value,days:Object.freeze(days)});
 }
+
+
+// Recipient discovery is a separate owner-scoped capability. Never derive
+// sharing eligibility from a generic list of coaches or client assignments.
+export function verifyConnected360CoachRecipients(value,{clientId}={}){
+  if(!uuid(clientId)||!exact(value,['ok','schema','clientId','purpose','recipients'])
+    ||value.ok!==true||value.schema!=='iberfit.connected360.coach-recipients.v1'
+    ||value.clientId!==clientId||value.purpose!==PURPOSE
+    ||!Array.isArray(value.recipients)||value.recipients.length>20)fail();
+  const seen=new Set();
+  const recipients=value.recipients.map(row=>{
+    if(!exact(row,['coachId','assignmentId','displayName','eligible','recorded','effective','revision'])
+      ||!uuid(row.coachId)||seen.has(row.coachId)||typeof row.displayName!=='string'
+      ||!row.displayName.trim()||row.displayName.length>160||/[\u0000-\u001f\u007f]/u.test(row.displayName)
+      ||typeof row.eligible!=='boolean'||typeof row.recorded!=='boolean'||typeof row.effective!=='boolean'
+      ||!revision(row.revision)||(row.recorded&&row.revision===0)
+      ||(row.eligible?!uuid(row.assignmentId):row.assignmentId!==null)
+      ||(row.effective&&(!row.eligible||!row.recorded))
+      ||(!row.eligible&&!row.recorded))fail();
+    seen.add(row.coachId);return Object.freeze({...row});
+  });
+  return Object.freeze({...value,recipients:Object.freeze(recipients)});
+}
+export function connected360RecipientDecision(recipient,allow,{confirmed=false}={}){
+  if(typeof allow!=='boolean'||confirmed!==true||!recipient
+    ||(allow?(recipient.eligible!==true||recipient.effective===true):recipient.recorded!==true))fail();
+  const decision={coachId:recipient.coachId,assignmentId:allow?recipient.assignmentId:null,
+    expectedRevision:recipient.revision,allow};
+  connected360CoachConsentParams(decision);
+  return Object.freeze(decision);
+}

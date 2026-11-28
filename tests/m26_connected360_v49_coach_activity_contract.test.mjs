@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt} from '../src/m26/wearables/v49-coach-activity-contract.js';
+import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,connected360RecipientDecision} from '../src/m26/wearables/v49-coach-activity-contract.js';
 import {connected360ObservedDayContinuity} from '../src/m26/wearables/v46-production-summary.js';
 
 const clientId='11111111-1111-4111-8111-111111111111',coachId='22222222-2222-4222-8222-222222222222',assignmentId='33333333-3333-4333-8333-333333333333';
@@ -44,4 +44,25 @@ test('shared distinct-day continuity has no synthesized activity or automatic pl
   assert.equal(result.interpretation,'presence_only');
   observed.delete('2026-11-25');
   assert.equal(connected360ObservedDayContinuity(observed,new Set(observed),{now,source:'coach_authorized_activity'}),null);
+});
+
+test('recipient list is exact, owner-bound and does not imply effective permission',()=>{
+  const row={coachId,assignmentId,displayName:'Coach de prueba',eligible:true,recorded:false,effective:false,revision:0};
+  const payload={ok:true,schema:'iberfit.connected360.coach-recipients.v1',clientId,purpose:'coaching-exercise-days-v1',recipients:[row]};
+  const value=verifyConnected360CoachRecipients(payload,{clientId});
+  assert.ok(Object.isFrozen(value.recipients[0]));
+  assert.throws(()=>connected360RecipientDecision(value.recipients[0],true),/M26_V49/);
+  assert.deepEqual(connected360RecipientDecision(value.recipients[0],true,{confirmed:true}),{coachId,assignmentId,expectedRevision:0,allow:true});
+  assert.throws(()=>connected360RecipientDecision(value.recipients[0],false,{confirmed:true}),/M26_V49/);
+  const retired={...row,assignmentId:null,eligible:false,recorded:true,revision:2};
+  const old=verifyConnected360CoachRecipients({...payload,recipients:[retired]},{clientId});
+  assert.equal(connected360RecipientDecision(old.recipients[0],false,{confirmed:true}).expectedRevision,2);
+  assert.throws(()=>connected360RecipientDecision(old.recipients[0],true,{confirmed:true}),/M26_V49/);
+  for(const invalid of [
+    {...payload,clientId:coachId},{...payload,recipients:[row,row]},
+    {...payload,recipients:[{...row,effective:true}]},
+    {...payload,recipients:[{...retired,assignmentId}]},
+    {...payload,recipients:[{...row,recorded:true}]},
+    {...payload,recipients:[{...row,ownerUserId:clientId}]},
+  ])assert.throws(()=>verifyConnected360CoachRecipients(invalid,{clientId}),/M26_V49/);
 });
