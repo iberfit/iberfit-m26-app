@@ -472,3 +472,18 @@ test('retained and legacy activity stays visible without producing current devic
   assert.equal(connected360ActivityContinuity(rows,{now}).days,5);
   assert.ok(rows.every(row=>row.authorizationState==='current'));
 });
+
+test('V48 owner history preserves older stored sessions independently of recent query or acquisition windows',()=>{
+  const recent=pageRow(2);
+  const historical={...pageRow(1,'2024-01-15T10:00:00.000000Z'),
+    endedAt:'2024-01-15T10:40:00.000000Z',authorizationState:'retained'};
+  const result=connected360ActivityPage(pageDto([recent,historical]),{now:pageNow});
+  assert.equal(result.rows.length,2);
+  assert.equal(result.rows[1].dayKey,'2024-01-15');
+  assert.equal(result.rows[1].authorizationState,'retained');
+  assert.equal(result.rows[1].measurements.averageBpm,null);
+  const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v48_owner_activity_history_v1.sql',import.meta.url),'utf8');
+  const page=sql.slice(sql.indexOf('WITH candidates AS ('),sql.indexOf('CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()'));
+  assert.match(page,/LIMIT 21/u);
+  assert.doesNotMatch(page,/observed_started_at\s*>=|interval\s*'\d+ days'|\bDELETE FROM\b/iu);
+});
