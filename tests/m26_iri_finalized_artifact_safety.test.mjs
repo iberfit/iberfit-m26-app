@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {finishIriArtifactDelivery} from '../supabase/functions/iberfit-iri-report-emission-v1/finalized-artifact.js';
+import {finishIriArtifactDelivery,authorizeIriArtifactDownload} from '../supabase/functions/iberfit-iri-report-emission-v1/finalized-artifact.js';
 const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
 const expected={issueRequestId:id(1),issuanceId:id(2),clientId:id(3),assessmentId:id(4),audience:'cliente',artifactHash:'a'.repeat(64),sourceHash:'b'.repeat(64)};
 const path=issuance=>[expected.clientId,expected.assessmentId,expected.audience,issuance,'report.pdf'].join('/');
@@ -11,7 +11,9 @@ function fixture({signError=false,removeError=false,emptyUrl=false}={}){
  const calls=[];
  const storage={remove:async paths=>{calls.push(['remove',paths]);if(removeError)throw Error('cleanup failed');return {error:null};},
  createSignedUrl:async(p,seconds)=>{calls.push(['sign',p,seconds]);return signError?{error:Error('network')}:{data:{signedUrl:emptyUrl?null:'https://example.invalid/signed'}};}};
- return {calls,run:final=>finishIriArtifactDelivery({final,storage,expected})};
+ return {calls,run:final=>finishIriArtifactDelivery({final,storage,expected,
+  authorizeArtifact:async()=>({data:{...final.data,artifactBucket:'iberfit-iri-issued-reports',artifactSizeBytes:2000,withdrawn:false}}),
+ })};
 }
 test('IRI committed PDF survives failed signed URL, including empty URL',async()=>{
  for(const options of [{signError:true},{emptyUrl:true}]){
@@ -41,4 +43,25 @@ test('IRI normal issuance and same canonical replay never delete the committed P
  const source=readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
  assert.match(source,/return finishIriArtifactDelivery\(\{/u);
  assert.doesNotMatch(source,/remove\(\[artifactPath\]\)/u);
+});
+
+test('IRI download authorization is user scoped, denies changed metadata and preserves legitimate withdrawn manager access',async()=>{
+ const authorized={...row,artifactBucket:'iberfit-iri-issued-reports',artifactSizeBytes:2000,withdrawn:false};
+ const run=data=>authorizeIriArtifactDownload({issuanceId:row.issuanceId,authorizeArtifact:async id=>{
+  assert.equal(id,row.issuanceId);return {data};
+ },expected:row});
+ assert.equal((await run(authorized)).artifactPath,row.artifactPath);
+ assert.equal((await run({...authorized,withdrawn:true})).withdrawn,true);
+ for(const invalid of [{...authorized,artifactBucket:'other'},{...authorized,artifactPath:path(id(7))},{...authorized,artifactSha256:'c'.repeat(64)},{...authorized,version:2},{...authorized,withdrawn:undefined}]){
+  await assert.rejects(run(invalid));
+ }
+ await assert.rejects(authorizeIriArtifactDownload({issuanceId:row.issuanceId,authorizeArtifact:async()=>({error:Error('permission denied')})}),/permission denied/);
+});
+test('IRI loss of permission after finalization cannot sign or remove the committed PDF',async()=>{
+ const calls=[];
+ await assert.rejects(finishIriArtifactDelivery({final:{data:row},expected,
+  storage:{remove:async()=>calls.push('remove'),createSignedUrl:async()=>calls.push('sign')},
+  authorizeArtifact:async()=>({error:Error('permission revoked')}),
+ }),/permission revoked/);
+ assert.deepEqual(calls,[]);
 });

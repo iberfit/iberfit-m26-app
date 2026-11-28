@@ -3,7 +3,29 @@
 // acknowledged idempotent replay can prove the newly uploaded object is unused.
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const SHA=/^[0-9a-f]{64}$/u;
-export async function finishIriArtifactDelivery({final,storage,expected}){
+const BUCKET='iberfit-iri-issued-reports';
+// The user-scoped RPC is authoritative for both normal and withdrawn manager
+// access. Never infer an entitlement from the service-role finalizer receipt.
+export async function authorizeIriArtifactDownload({issuanceId,authorizeArtifact,expected=null}){
+  if(!UUID.test(issuanceId||'')||typeof authorizeArtifact!=='function')
+    throw Error('IRI_REPORT_ARTIFACT_NOT_AUTHORIZED');
+  const result=await authorizeArtifact(issuanceId);
+  if(result?.error)throw result.error;
+  const row=result?.data;
+  if(row?.ok!==true||row.issuanceId!==issuanceId
+    ||!UUID.test(row.documentId||'')||!UUID.test(row.clientId||'')||!UUID.test(row.assessmentId||'')
+    ||!['cliente','coach'].includes(row.audience)||row.artifactBucket!==BUCKET
+    ||row.artifactPath!==[row.clientId,row.assessmentId,row.audience,issuanceId,'report.pdf'].join('/')
+    ||!SHA.test(row.artifactSha256||'')||!Number.isSafeInteger(row.version)||row.version<1
+    ||!Number.isSafeInteger(row.artifactSizeBytes)||row.artifactSizeBytes<1||row.artifactSizeBytes>78643200
+    ||typeof row.withdrawn!=='boolean')
+    throw Error('IRI_REPORT_ARTIFACT_NOT_AUTHORIZED');
+  if(expected&&['issuanceId','documentId','clientId','assessmentId','audience','artifactPath','artifactSha256','version'].some(key=>row[key]!==expected[key]))
+    throw Error('IRI_REPORT_ARTIFACT_AUTHORIZATION_CHANGED');
+  return Object.freeze({...row});
+}
+
+export async function finishIriArtifactDelivery({final,storage,expected,authorizeArtifact}){
   if(final?.error)throw final.error;
   const row=final?.data;
   if(row?.ok!==true||typeof row.reused!=='boolean'
@@ -22,6 +44,7 @@ export async function finishIriArtifactDelivery({final,storage,expected}){
     // A cleanup failure does not invalidate the already committed report.
     try{await storage.remove([expected.artifactPath]);}catch{}
   }
+  await authorizeIriArtifactDownload({issuanceId:row.issuanceId,authorizeArtifact,expected:row});
   const signed=await storage.createSignedUrl(canonicalPath,120);
   if(signed?.error)throw signed.error;
   if(typeof signed?.data?.signedUrl!=='string'||!signed.data.signedUrl)

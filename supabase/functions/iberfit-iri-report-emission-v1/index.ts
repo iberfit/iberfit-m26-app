@@ -1,5 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
-import {finishIriArtifactDelivery} from './finalized-artifact.js';
+import {finishIriArtifactDelivery,authorizeIriArtifactDownload} from './finalized-artifact.js';
 import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
 import {recoveryObservations,bodyMeasurements} from './vendor/workflows/iri-report-measurements.js';
 import {confirmedFirstSessionDraft,firstSessionCompletion,validateFirstSessionDraft} from './vendor/workflows/iri-first-session.js';
@@ -1434,6 +1434,7 @@ async function issueReport({userClient,service,actorUserId,actorEmail,assessment
   });
   return finishIriArtifactDelivery({
     final, storage:service.storage.from(ISSUED_BUCKET),
+    authorizeArtifact:(issuanceId:string)=>userClient.rpc('iberfit_authorize_iri_report_artifact_v1',{p_issuance_id:issuanceId}),
     expected:{issueRequestId,issuanceId,clientId:assessment.client_id,assessmentId:assessment.id,
       audience,artifactPath,artifactHash,sourceHash},
   });
@@ -1445,12 +1446,13 @@ async function safeHistory(userClient:any,assessmentId:string){
   return result.data;
 }
 async function openIssued(userClient:any,service:any,issuanceId:string){
-  const authz=await userClient.rpc('iberfit_authorize_iri_report_artifact_v1',{p_issuance_id:issuanceId});
-  if(authz.error)throw authz.error;
-  if(!authz.data?.ok)throw new Error('IRI_REPORT_ARTIFACT_NOT_AUTHORIZED');
-  const signed=await service.storage.from(authz.data.artifactBucket).createSignedUrl(authz.data.artifactPath,120);
+  const row=await authorizeIriArtifactDownload({
+    issuanceId,authorizeArtifact:(id:string)=>userClient.rpc('iberfit_authorize_iri_report_artifact_v1',{p_issuance_id:id}),
+  });
+  const signed=await service.storage.from(ISSUED_BUCKET).createSignedUrl(row.artifactPath,120);
   if(signed.error)throw signed.error;
-  return {...authz.data,signedUrl:signed.data?.signedUrl||null,expiresIn:120};
+  if(typeof signed.data?.signedUrl!=='string'||!signed.data.signedUrl)throw new Error('IRI_REPORT_SIGNED_URL_INVALID');
+  return {...row,signedUrl:signed.data.signedUrl,expiresIn:120};
 }
 
 Deno.serve(async(req:Request)=>{
