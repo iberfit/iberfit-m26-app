@@ -10,12 +10,20 @@ test('professional ledger separates provider grants and never inherits Health Co
  assert.match(v49,/PRIMARY KEY\(owner_user_id,client_id,coach_user_id,provider,purpose\)/u);
  assert.match(v49,/\(provider='apple_health' AND purpose IN \('coaching-apple-exercise-days-v1','coaching-apple-trends-v1'\)\)/u);
  const set=fn(v49,'m26_v49_set_coach_consent'),status=fn(v49,'m26_v49_my_coach_consent_status'),recipients=fn(v49,'m26_v49_my_coach_recipients'),read=fn(v49,'m26_v49_coach_exercise_days');
- for(const body of [set,status,recipients,read])assert.match(body,/g\.provider='health_connect' AND g\.purpose='coaching-exercise-days-v1'/u);
+ for(const body of [set,status,read])assert.match(body,/g\.provider='health_connect' AND g\.purpose='coaching-exercise-days-v1'/u);
+ assert.match(recipients,/m26_v49_project_recipients\(v_owner,v_client,v_context,v_auth,v_enabled,v_day,'health_connect','coaching-exercise-days-v1'\)/u);
  assert.match(set,/coach_user_id=p_coach AND provider='health_connect'/u);
  assert.match(set,/ON CONFLICT\(owner_user_id,client_id,coach_user_id,provider,purpose\)/u);
  assert.match(set,/'health_connect','coaching-exercise-days-v1'/u);
  assert.match(read,/s\.provider='health_connect'/u);
- assert.match(read,/w\.provider='health_connect'/u);
+ assert.match(read,/m26_v49_project_exercise_days\(v_g,v_day\)/u);
+ const shared=fn(v49,'m26_v49_project_exercise_days');
+ assert.match(shared,/w\.provider=v_g\.provider/u);
+ assert.match(shared,/v_g\.provider='health_connect' AND v_g\.purpose='coaching-exercise-days-v1'/u);
+ for(const helper of ['m26_v49_project_recipients','m26_v49_project_exercise_days']){
+  assert.match(fn(v49,helper),/SECURITY INVOKER SET search_path TO ''/u);
+  assert.doesNotMatch(v49,new RegExp('GRANT EXECUTE ON FUNCTION private\\.'+helper+'\\('));
+ }
  const trigger=fn(v49,'m26_v49_invalidate_assignment');
  assert.doesNotMatch(trigger,/provider='health_connect'/u);
  assert.match(v49,/FORCE ROW LEVEL SECURITY/u);

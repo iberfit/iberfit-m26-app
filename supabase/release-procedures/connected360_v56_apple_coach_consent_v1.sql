@@ -2,7 +2,9 @@
 BEGIN;
 SET LOCAL lock_timeout='3s';
 DO $guard$ BEGIN
- IF to_regprocedure('private.m26_v53_apple_exercise_source_state(uuid,uuid,boolean)') IS NULL
+ IF to_regprocedure('private.m26_v49_project_recipients(uuid,uuid,jsonb,jsonb,boolean,date,text,text)') IS NULL
+ OR to_regprocedure('private.m26_v49_project_exercise_days(private.m26_wearable_coach_consent_v49,date)') IS NULL
+ OR to_regprocedure('private.m26_v53_apple_exercise_source_state(uuid,uuid,boolean)') IS NULL
  OR to_regprocedure('public.m26_wearable_v55_apple_owner_history_v1(timestamptz,uuid)') IS NULL
  OR NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='private.m26_wearable_coach_consent_v49'::regclass AND conname='m26_v49_consent_provider_purpose_check' AND convalidated)
  OR NOT EXISTS(SELECT 1 FROM pg_class WHERE oid='private.m26_wearable_coach_consent_v49'::regclass AND relrowsecurity AND relforcerowsecurity)
@@ -120,35 +122,7 @@ BEGIN
    AND EXISTS(SELECT 1 FROM public.m26_wearable_v46_release_control_prod WHERE id=true AND enabled=true)
    AND coalesce(v_auth->>'authorized'='true',false)
    AND coalesce((v_auth->'scopes')?'exerciseSessions',false);
- -- BEGIN RECIPIENT PROJECTION
- WITH eligible AS (
-   SELECT e.* FROM private.m26_v49_eligible_assignments(v_client,(v_context->>'organizationId')::uuid,v_day) e
-   WHERE v_enabled AND e.coach_id<>v_owner
- ), decisions AS (
-   SELECT g.* FROM private.m26_wearable_coach_consent_v49 g
-   WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.provider='apple_health' AND g.purpose=p_purpose
- ), recipients AS (
-   SELECT coalesce(e.coach_id,g.coach_user_id) AS coach_id,e.assignment_id,
-     coalesce(nullif(pg_catalog.btrim(pg_catalog.left(pg_catalog.regexp_replace(p.display_name,'[[:cntrl:]]','','g'),160)),''),'Entrenador') AS display_name,
-     e.coach_id IS NOT NULL AS eligible,
-     g.consent_revision IS NOT NULL AND g.revoked_at IS NULL AS recorded,
-     coalesce(e.coach_id IS NOT NULL AND g.revoked_at IS NULL
-       AND g.assignment_id=e.assignment_id AND g.assignment_revision=e.assignment_revision
-       AND g.legacy_assignment_created_at=e.legacy_created_at
-       AND g.source_grant_id=(v_auth->>'grantId')::uuid
-       AND g.source_cursor=(v_auth->>'revocationCursor')::bigint,false) AS effective,
-     coalesce(g.consent_revision,0) AS revision
-   FROM eligible e FULL JOIN decisions g ON g.coach_user_id=e.coach_id
-   LEFT JOIN public.user_profiles p ON p.user_id=coalesce(e.coach_id,g.coach_user_id)
-   WHERE e.coach_id IS NOT NULL OR (g.consent_revision IS NOT NULL AND g.revoked_at IS NULL)
- ), bounded AS (
-   SELECT * FROM recipients ORDER BY recorded DESC,coach_id LIMIT 21
- )
- SELECT coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
-   'coachId',coach_id,'assignmentId',assignment_id,'displayName',display_name,
-   'eligible',eligible,'recorded',recorded,'effective',effective,'revision',revision)
-   ORDER BY recorded DESC,coach_id),'[]'::jsonb) INTO v_rows FROM bounded;
- -- END RECIPIENT PROJECTION
+ v_rows:=private.m26_v49_project_recipients(v_owner,v_client,v_context,v_auth,v_enabled,v_day,'apple_health',p_purpose);
  IF pg_catalog.jsonb_array_length(v_rows)>20 THEN
    RAISE EXCEPTION USING ERRCODE='54000',MESSAGE='M26_V56_RECIPIENT_LIMIT';
  END IF;
@@ -231,27 +205,11 @@ RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
 AS $f$
 DECLARE
  v_g private.m26_wearable_coach_consent_v49%rowtype;
- v_owner uuid;
  v_day date:=(pg_catalog.now() AT TIME ZONE 'America/Santiago')::date;
  v_rows jsonb;
 BEGIN
  v_g:=private.m26_v56_apple_coach_access(p_client,'coaching-apple-exercise-days-v1');
- v_owner:=v_g.owner_user_id;
- -- BEGIN MINIMAL PROJECTION
- WITH observed AS (
-   SELECT DISTINCT (w.observed_started_at AT TIME ZONE 'America/Santiago')::date AS day,w.sport
-   FROM public.m26_wearable_exercise_evidence_v46 w
-   WHERE w.owner_user_id=v_owner AND w.client_id=p_client AND w.provider='apple_health'
-     AND w.grant_id=v_g.source_grant_id AND w.revocation_cursor=v_g.source_cursor AND w.link_status='unlinked'
-     AND w.observed_started_at>=((v_day-6)::timestamp AT TIME ZONE 'America/Santiago')
-     AND w.observed_ended_at<=pg_catalog.now()
- ), by_day AS (
-   SELECT day,pg_catalog.jsonb_agg(sport ORDER BY sport) sports FROM observed
-   WHERE day BETWEEN v_day-6 AND v_day GROUP BY day
- )
- SELECT coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('date',day,'sports',sports) ORDER BY day DESC),'[]'::jsonb)
- INTO v_rows FROM by_day;
- -- END MINIMAL PROJECTION
+ v_rows:=private.m26_v49_project_exercise_days(v_g,v_day);
  RETURN pg_catalog.jsonb_build_object('ok',true,'schema','iberfit.connected360.apple-coach-exercise-days.v1',
    'clientId',p_client,'provider','apple_health','coverage','partial','periodStart',v_day-6,'periodEnd',v_day,'days',v_rows);
 END;
