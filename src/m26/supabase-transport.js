@@ -1,4 +1,5 @@
 import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
+import {CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT} from './wearables/measurement-capability-contract.js';
 import {verifyInvitationReceipt} from './workflows/coach-invitation-outcome.js';
 import {createQaInFlightReadGate} from './domain/qa-inflight-read-gate.js';
 import {compactQaCanonicalExecutionSummaries} from './domain/qa-canonical-summary-transport.js';
@@ -1835,7 +1836,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     const hr=payload?.heartRateDaily,ex=payload?.exerciseEvidence;
     if(!token||!UUID_PATTERN.test(String(grantId||''))
       ||payload?.schema!=='iberfit.connected360.v46.ingest.v1'
-      ||!Array.isArray(hr)||!Array.isArray(ex)||hr.length>7||ex.length>10
+      ||!Array.isArray(hr)||!Array.isArray(ex)||hr.length>7||ex.length>CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT
       ||(hr.length+ex.length)<1)
       throw new Error('M26_V46_PRODUCTION_PAYLOAD_INVALID');
     const body=JSON.stringify({p_grant_id:grantId,p_payload:{

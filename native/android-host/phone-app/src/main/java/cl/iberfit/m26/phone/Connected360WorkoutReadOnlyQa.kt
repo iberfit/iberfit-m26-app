@@ -46,6 +46,7 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
     companion object {
         const val DAYS = 7
         const val MAX_WORKOUTS = 10
+        const val PRODUCTION_MAX_WORKOUTS = 20
         private const val PAGE_SIZE = 50
         val requiredPermission = HealthPermission.getReadPermission(ExerciseSessionRecord::class)
         val permissions = linkedMapOf(
@@ -111,7 +112,8 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
         }
     }
 
-    suspend fun read(includeHeartRate: Boolean = true): ReadResult {
+    suspend fun read(includeHeartRate: Boolean = true, maxWorkouts: Int = MAX_WORKOUTS): ReadResult {
+        require(maxWorkouts in 1..PRODUCTION_MAX_WORKOUTS) { "M26_HEALTH_WORKOUT_BATCH_INVALID" }
         val granted = client.permissionController.getGrantedPermissions()
         check(requiredPermission in granted) { "M26_HEALTH_EXERCISE_PERMISSION_REQUIRED" }
         // A separate remote grant is still required to export pulse data: never read
@@ -136,9 +138,9 @@ internal class Connected360WorkoutReadOnlyQa(private val client: HealthConnectCl
                 Duration.between(it.startTime,it.endTime) <= Duration.ofHours(24) &&
                 opaqueRecordKey(it.metadata.id) != null }
             .sortedByDescending { it.endTime }
-        val truncated=page.pageToken!=null||exercises.size>MAX_WORKOUTS
+        val truncated=!page.pageToken.isNullOrEmpty()||exercises.size>maxWorkouts
         val found=mutableListOf<LocalWorkout>()
-        for(exercise in exercises.take(MAX_WORKOUTS)){
+        for(exercise in exercises.distinctBy { it.metadata.id }.take(maxWorkouts)){
             val elapsed=Duration.between(exercise.startTime,exercise.endTime)
             if(elapsed.isZero||elapsed.isNegative||elapsed.toHours()>24L)continue
             val fields=buildSet<androidx.health.connect.client.aggregate.AggregateMetric<*>> {

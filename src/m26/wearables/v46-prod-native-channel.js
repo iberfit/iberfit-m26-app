@@ -1,4 +1,4 @@
-import {CONNECTED360_PRODUCTION_SCOPES} from './measurement-capability-contract.js';
+import {CONNECTED360_PRODUCTION_SCOPES,CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT} from './measurement-capability-contract.js';
 // Production channel: native Health Connect read-only IPC with strict website pinning.
 
 // Release Android only: Health Connect read locally, authenticated web backend controls persistence.
@@ -38,10 +38,11 @@ function checkPulse(row,enabled,{samples='heartRateSamples',avg='avgBpm',min='mi
   if(row[avg]!==undefined&&row[min]!==undefined
     &&(row[avg]<row[min]||row[avg]>row[max]))fail();
 }
-function cleanEnvelope(raw,granted,at){
+function cleanEnvelope(raw,granted,at,{maxWorkouts=10}={}){
+  if(!Number.isInteger(maxWorkouts)||maxWorkouts<1||maxWorkouts>CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT)fail();
   if(!raw||typeof raw!=='object'||Array.isArray(raw)||!keys(raw,['schema','heartRateDaily','exerciseEvidence','dailyHealth'])
     ||raw.schema!==DATA_SCHEMA||!Array.isArray(raw.heartRateDaily)||!Array.isArray(raw.exerciseEvidence)
-    ||raw.heartRateDaily.length>7||raw.exerciseEvidence.length>10
+    ||raw.heartRateDaily.length>7||raw.exerciseEvidence.length>maxWorkouts
     ||(raw.dailyHealth!==undefined&&(!Array.isArray(raw.dailyHealth)||raw.dailyHealth.length>7)))fail();
   if(!granted.includes('generalHeartRate')&&raw.heartRateDaily.length)fail();
   if(!granted.includes('exerciseSessions')&&raw.exerciseEvidence.length)fail();
@@ -180,7 +181,7 @@ export function createConnected360V46ProdNativeChannel({
             finish(new Error('M26_V46_PROD_RESPONSE_INVALID'));return;
           }
           try{finish(null,{metrics:[...value.grantedMetrics],envelope:cleanEnvelope(
-            value.envelope,value.grantedMetrics,now()
+            value.envelope,value.grantedMetrics,now(),{maxWorkouts:requested.includes('exerciseSessions')?CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT:10}
           )});}catch(e){finish(e);}
         };
         rejectPending=()=>finish(new Error('M26_V46_PROD_INVALIDATED'));
@@ -188,7 +189,8 @@ export function createConnected360V46ProdNativeChannel({
         if(handle===undefined){finish(new Error('M26_V46_PROD_CLOCK_UNAVAILABLE'));return;}
         channel.addEventListener('message',onMessage);
         try{channel.postMessage(JSON.stringify({schema:REQUEST_SCHEMA,requestId,
-          action:'health.readV46',days:7,metrics:requested}));}
+          action:'health.readV46',days:7,metrics:requested,
+          ...(requested.includes('exerciseSessions')?{maxWorkouts:CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT}:{})}));}
         catch{finish(new Error('M26_V46_PROD_CHANNEL_UNAVAILABLE'));}
       });
       const latest=await identity();

@@ -1,4 +1,11 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  ["Otro entrenamiento","Other workout","Autre entraînement","Outro treino"],
+  ["Carrera por intervalos","Interval running","Course par intervalles","Corrida intervalada"],
+  ["Últimos entrenamientos importados","Latest imported workouts","Derniers entraînements importés","Últimos treinos importados"],
+  ["Hasta 10 actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.","Up to 10 activities from the last 7 days. Source: Health Connect. They are not sessions confirmed by your Coach.","Jusqu’à 10 activités des 7 derniers jours. Source : Health Connect. Elles ne correspondent pas à des séances confirmées par votre Coach.","Até 10 atividades dos últimos 7 dias. Fonte: Health Connect. Não equivalem a sessões confirmadas pelo seu Coach."],
+  ["Entrenamientos importados de Health Connect","Workouts imported from Health Connect","Entraînements importés depuis Health Connect","Treinos importados do Health Connect"],
+  ["Conectar mi actividad a IBERFIT","Connect my activity to IBERFIT","Connecter mon activité à IBERFIT","Ligar a minha atividade à IBERFIT"],
+  ["Menos de 1 s","Less than 1 s","Moins de 1 s","Inferior a 1 s"],
   // UNIVERSAL 360: stale samples are not a confirmed automatic link.
   ["Datos de salud recibidos · enlace automático no confirmado","Health data received · automatic connection not confirmed","Données de santé reçues · connexion automatique non confirmée","Dados de saúde recebidos · ligação automática não confirmada"],
   ["· enlace automático no confirmado","· automatic connection not confirmed","· connexion automatique non confirmée","· ligação automática não confirmada"],

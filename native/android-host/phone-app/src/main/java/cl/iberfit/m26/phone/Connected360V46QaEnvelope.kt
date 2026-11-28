@@ -47,7 +47,9 @@ internal object Connected360V46QaEnvelope {
         workouts: List<Connected360WorkoutReadOnlyQa.LocalWorkout>,
         aggregationZone: ZoneId,
         acquiredAt: Instant,
+        maxWorkouts: Int = Connected360WorkoutReadOnlyQa.MAX_WORKOUTS,
     ): Map<String, Any> {
+        require(maxWorkouts in 1..Connected360WorkoutReadOnlyQa.PRODUCTION_MAX_WORKOUTS) { "M26_HEALTH_WORKOUT_BATCH_INVALID" }
         require(validZone(aggregationZone)) { "M26_V46_QA_INVALID_IANA_ZONE" }
         val today = acquiredAt.atZone(aggregationZone).toLocalDate()
         val oldestDay = today.minusDays(6)
@@ -83,7 +85,6 @@ internal object Connected360V46QaEnvelope {
             }.toList()
 
         val exercises = workouts.asSequence()
-            .take(10)
             .mapNotNull { w ->
                 val key = w.observationKey ?: return@mapNotNull null
                 if (!hashPattern.matches(key)) return@mapNotNull null
@@ -126,6 +127,7 @@ internal object Connected360V46QaEnvelope {
             }
             // Invalid or future observations must not reserve the duplicate key.
             .distinctBy { it["observationKey"] }
+            .take(maxWorkouts)
             .toList()
 
         return mapOf(

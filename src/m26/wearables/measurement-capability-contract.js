@@ -1,5 +1,8 @@
 // Forward-compatible metadata; never a source of permission or clinical truth.
 // New entries stay future-only until independent native, server and user consent gates pass.
+// The existing production RPC accepts 20 workout observations per atomic batch.
+// The independent read-model and legacy QA preview remain bounded to ten.
+export const CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT=20;
 export const CONNECTED360_RELEASED_V46_SCOPES=Object.freeze([
   'generalHeartRate','exerciseSessions',
 ]);

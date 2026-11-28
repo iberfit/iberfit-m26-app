@@ -388,7 +388,11 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                     requestedArray.optString(it).takeIf { value -> value.isNotBlank() }
                                 }.toSet()
                             } else emptySet()
-                            if (request.optInt("days", -1) != 7 ||
+                            val maxWorkouts = if (production) request.optInt("maxWorkouts", Connected360WorkoutReadOnlyQa.MAX_WORKOUTS)
+                                else Connected360WorkoutReadOnlyQa.MAX_WORKOUTS
+                            if (maxWorkouts !in setOf(Connected360WorkoutReadOnlyQa.MAX_WORKOUTS, Connected360WorkoutReadOnlyQa.PRODUCTION_MAX_WORKOUTS) ||
+                                (!production && request.has("maxWorkouts")) ||
+                                request.optInt("days", -1) != 7 ||
                                 requested.isEmpty() || requested.size > 5 ||
                                 requested.any { it !in setOf("generalHeartRate", "exerciseSessions",
                                     "steps", "sleepMinutes", "restingHeartRate") }
@@ -430,7 +434,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         } else emptyList()
                                         val sports = if ("exerciseSessions" in allowed) {
                                             Connected360WorkoutReadOnlyQa(client)
-                                                .read(includeHeartRate = "generalHeartRate" in allowed)
+                                                .read(includeHeartRate = "generalHeartRate" in allowed, maxWorkouts = maxWorkouts)
                                                 .workouts
                                         } else emptyList()
                                         val healthDaily = if (allowed.any {
@@ -441,7 +445,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         } else emptyList()
                                         val data = Connected360V46QaEnvelope.build(
                                             daily, sports, java.time.ZoneId.systemDefault(),
-                                            java.time.Instant.now()
+                                            java.time.Instant.now(), maxWorkouts = maxWorkouts
                                         )
                                         Triple(allowed, data, healthDaily)
                                     }

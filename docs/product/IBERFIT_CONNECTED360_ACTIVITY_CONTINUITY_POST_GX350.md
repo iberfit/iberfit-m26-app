@@ -24,3 +24,6 @@ Referencias oficiales:
 - https://developer.android.com/health-and-fitness/health-connect/read-data
 - https://developer.apple.com/documentation/healthkit/hkanchoredobjectquery
 - https://developer.apple.com/documentation/healthkit/executing-observer-queries
+
+## Ampliación de lote (siguiente commit)
+El contrato de escritura productivo V46 admite 20 observaciones por lote (verificado mediante metadatos SQL, sin leer datos de salud). El canal nativo firmado y el transporte aceptan ese límite mediante petición explícita; el protocolo anterior y QA conservan diez. Se conserva la ventana de siete días, el límite de tamaño del mensaje, el presupuesto de lectura nativa y todas las comprobaciones de consentimiento. La consulta visible continúa mostrando un máximo de diez; esta ampliación no constituye adquisición histórica completa ni certificación física. Próximo paso: paginación con continuidad tras ACK y un read model de historial, sin duplicar tablas.

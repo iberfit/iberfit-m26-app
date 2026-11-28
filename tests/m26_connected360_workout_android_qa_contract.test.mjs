@@ -24,7 +24,7 @@ test('exercise, general HR, distance and calories remain explicit read-only Andr
 test('workout read is local-only, bounded, original-source scoped and never treats HR as resting',()=>{
   assert.match(android,/const val DAYS = 7/u);
   assert.match(android,/const val MAX_WORKOUTS = 10/u);
-  assert.match(android,/page.pageToken!=null/u);
+  assert.match(android,/!page\.pageToken\.isNullOrEmpty\(\)/u);
   assert.match(android,/dataOriginFilter=setOf\(exercise.metadata.dataOrigin\)/u);
   assert.match(android,/FC general NO es FC en reposo/u);
   assert.doesNotMatch(android,/RestingHeartRateRecord::class|WRITE_|insertRecords\(|readRecords\(\s*ReadRecordsRequest<HeartRateRecord>|supabase\.co|service_role/u);
@@ -50,4 +50,14 @@ test('bounded native workout read prioritizes recent completed records before ta
   assert.match(reader,/!it\.endTime\.isAfter\(end\)/u);
   assert.match(reader,/Duration\.between\(it\.startTime,it\.endTime\) <= Duration\.ofHours\(24\)/u);
   assert.match(reader,/opaqueRecordKey\(it\.metadata\.id\) != null/u);
+});
+
+test('production requests a larger bounded batch without changing the QA default or granting extra scopes',()=>{
+  const native=readFileSync(new URL(base+'src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt',import.meta.url),'utf8');
+  assert.match(android,/const val PRODUCTION_MAX_WORKOUTS = 20/u);
+  assert.match(android,/maxWorkouts: Int = MAX_WORKOUTS/u);
+  assert.match(native,/val maxWorkouts = if \(production\)/u);
+  assert.match(native,/!production && request.has\("maxWorkouts"\)/u);
+  assert.match(native,/\.read\(includeHeartRate = "generalHeartRate" in allowed, maxWorkouts = maxWorkouts\)/u);
+  assert.match(native,/request.optInt\("days", -1\) != 7/u);
 });
