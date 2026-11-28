@@ -70,7 +70,7 @@ const metricLabel=(label,side)=>label+(side==='left'?' · izquierda':side==='rig
 const metricId=(p,field)=>p.testId+':'+p.side+':'+field;
 // Only the real initial confirmed diagnosis may supply these optional anchors.
 // The selector never passes notes, full protocol records or clinical scores.
-export function buildGoalBaselineOptions(state,clientId,{now=new Date()}={}){
+function buildInitialBaselineOptions(state,clientId,{now=new Date(),allowSigned=false}={}){
  const owner=safe(clientId);if(!owner||!reportCivilDate(now))return [];
  const records=canonical(state?.collections?.iriAssessments,owner),baseline=selectInitialIriBaseline(records,owner,{now});
  if(!baseline||!isInitialIriAssessment(baseline)||!confirmed(baseline,owner,now,blockedIds(state)))return [];
@@ -80,11 +80,19 @@ export function buildGoalBaselineOptions(state,clientId,{now=new Date()}={}){
   if(!p)continue;
   for(const [field,label,unit,min,max] of metrics[p.testId]){
    const value=protocolOutcome(p,field,min,max,context),metric=metricLabel(label,p.side);
-   if(value===null||value<0||metric.length>80)continue;
+   if(value===null||(!allowSigned&&value<0)||metric.length>80)continue;
    result.push(Object.freeze({ref:id+'|'+rev+'|'+metricId(p,field),metric,unit:goalUnit(unit),value,date}));
   }
  }
  return Object.freeze(result.sort((a,b)=>a.metric.localeCompare(b.metric,'es')||a.ref.localeCompare(b.ref)));
+}
+// Goal schema v1 intentionally permits only nonnegative values. Preserve its
+// current contract; signed mobility results are separate professional evidence.
+export function buildGoalBaselineOptions(state,clientId,{now=new Date()}={}){
+ return buildInitialBaselineOptions(state,clientId,{now});
+}
+export function buildProfessionalBaselineOptions(state,clientId,{now=new Date()}={}){
+ return buildInitialBaselineOptions(state,clientId,{now,allowSigned:true});
 }
 // Map ONLY explicit initial protocol setup, never copy the current measurement
 // into the baseline. Missing historical setup remains non-comparable.
@@ -110,7 +118,7 @@ function professionalBaselineSetup(p,field,ctx){
 export function buildProfessionalReassessmentComparison(state,clientId,evidenceRef,observation,{now=new Date()}={}){
  let o;try{o=readProfessionalFollowupHistoryItem(observation,{now});}catch{return null;}
  if(o.rectification||o.clientId!==clientId)return null;
- const option=buildGoalBaselineOptions(state,clientId,{now}).find(x=>x.ref===evidenceRef);if(!option)return null;
+ const option=buildProfessionalBaselineOptions(state,clientId,{now}).find(x=>x.ref===evidenceRef);if(!option)return null;
  const baseline=selectInitialIriBaseline(canonical(state?.collections?.iriAssessments,clientId),clientId,{now});if(!baseline)return null;
  const metric=o.protocol.testId+':'+o.protocol.side+':'+o.protocol.field;
  if(evidenceRef!==idOf(baseline)+'|'+revisionOf(baseline)+'|'+metric||o.unit!==option.unit)return null;

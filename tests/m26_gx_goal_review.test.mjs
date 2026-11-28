@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildGoalBaselineOptions,buildReassessmentReview} from '../src/m26/workflows/report-reassessment-evidence.js';
+import {buildGoalBaselineOptions,buildProfessionalBaselineOptions,buildProfessionalReassessmentComparison,buildReassessmentReview} from '../src/m26/workflows/report-reassessment-evidence.js';
 import {validateGoalMeasurement,goalMeasurementFormFields,goalMeasurementFromForm} from '../src/m26/planning/goal-measurement.js';
 import {validateGoalEvidenceAnchor,buildGoalMeasurementReview,buildProfessionalGoalMeasurementReview,goalReviewText} from '../src/m26/planning/goal-review.js';
 import {buildReportCycleObjective,cycleGoalReviewEvidence} from '../src/m26/workflows/report-cycle-objective.js';
@@ -60,4 +60,34 @@ test('GX meta profesional: excluye anulaciones, cambios de protocolo, fecha, pro
  for(const observation of [{...professionalObservation,rectification:{id:'00000000-0000-4000-8000-000000000004',targetId:professionalId,reason:'measurement_error',voidedAt:'2026-11-26T12:00:00Z'}},{...professionalObservation,clientId:'00000000-0000-4000-8000-000000000002'},{...professionalObservation,protocol:{...professionalObservation.protocol,setup:{chairHeightCm:50}}},{...professionalObservation,protocol:{...professionalObservation.protocol,configuration:'otra silla'}},{...professionalObservation,measuredAt:'2026-11-01T12:00:00Z'},{...professionalObservation,revision:2}])assert.equal(buildProfessionalGoalMeasurementReview(professionalState,professionalClient,professionalCycle,observation,{now}),null);
  assert.equal(buildProfessionalGoalMeasurementReview(state([{...professionalBaseline,revision:2}]),professionalClient,professionalCycle,professionalObservation,{now}),null);
  assert.equal(buildProfessionalGoalMeasurementReview(professionalState,professionalClient,{...professionalCycle,status:'borrador'},professionalObservation,{now}),null);
+});
+
+const mobilityProtocol={schemaVersion:1,testId:'back-saver',field:'bestCm',side:'left',variant:'box-standard',protocolVersion:'iri-protocols-2026.10-v3',configuration:'cajón 30 cm · cero en planta del pie',adaptationReason:'',setup:{trialCount:3}};
+const mobilityRef='a|1|back-saver:left:bestCm';
+const mobilityBaseline={...professionalBaseline,protocolRecords:[{...professionalBaseline.protocolRecords[0],testId:mobilityProtocol.testId,side:mobilityProtocol.side,variant:mobilityProtocol.variant,configuration:mobilityProtocol.configuration,result:{bestCm:-8,trials:[-10,-8,-9],valid:true}}]};
+const mobilityObservation={...professionalObservation,protocol:mobilityProtocol,unit:'cm',value:-3};
+test('GX reevaluación: movilidad con signo conserva medida real sin cambiar metas v1',()=>{
+ const s=state([mobilityBaseline]);
+ assert.equal(buildGoalBaselineOptions(s,professionalClient,{now}).length,0);
+ const options=buildProfessionalBaselineOptions(s,professionalClient,{now});
+ assert.equal(options.length,1);assert.equal(options[0].ref,mobilityRef);assert.equal(options[0].value,-8);
+ const r=buildProfessionalReassessmentComparison(s,professionalClient,mobilityRef,mobilityObservation,{now});
+ assert.equal(r.comparisons[0].previous,-8);assert.equal(r.comparisons[0].value,-3);assert.equal(r.comparisons[0].delta,5);
+ assert.equal(r.reviewRequired,true);assert.equal(r.comparisonScope,'selected-observation');
+ const crossing=buildProfessionalReassessmentComparison(s,professionalClient,mobilityRef,{...mobilityObservation,value:0},{now});
+ assert.equal(crossing.comparisons[0].delta,8);
+ const signedGoal={...goal,metric:options[0].metric,unit:'cm',baseline:-8,target:0,evidenceRef:mobilityRef};
+ assert.equal(validateGoalMeasurement(signedGoal,{...cycle,now}).ok,false);
+});
+test('GX reevaluación: valores con signo mantienen restricciones de identidad, revisión, lado y protocolo',()=>{
+ const s=state([mobilityBaseline]);
+ for(const o of [{...mobilityObservation,clientId:'00000000-0000-4000-8000-000000000002'},
+  {...mobilityObservation,protocol:{...mobilityProtocol,side:'right'}},
+  {...mobilityObservation,protocol:{...mobilityProtocol,setup:{trialCount:2}}},
+  {...mobilityObservation,measuredAt:'2026-10-01T14:00:00Z'},
+  {...mobilityObservation,value:-101},
+  {...mobilityObservation,rectification:{id:'00000000-0000-4000-8000-000000000004',targetId:professionalId,reason:'measurement_error',voidedAt:'2026-11-26T12:00:00Z'}}])
+   assert.equal(buildProfessionalReassessmentComparison(s,professionalClient,mobilityRef,o,{now}),null);
+ assert.equal(buildProfessionalReassessmentComparison(state([{...mobilityBaseline,revision:2}]),professionalClient,mobilityRef,mobilityObservation,{now}),null);
+ assert.equal(buildProfessionalReassessmentComparison({...s,pendingOperations:[{entityId:'a'}]},professionalClient,mobilityRef,mobilityObservation,{now}),null);
 });
