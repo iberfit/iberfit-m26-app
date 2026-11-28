@@ -466,3 +466,25 @@ test('Coach preparation ignores acknowledgement-only and future executions and r
   assert.equal(review.confirmedSessions,2);
   assert.equal(review.latestSessionAt,'2026-09-12');
 });
+
+test('Coach preparation rejects malformed, pending and explicitly incomplete series instead of counting them as observed',()=>{
+  const item={sessionId:'session-published',status:'completed',syncStatus:'clean',
+    planSnapshot:{sessionId:'session-published',queue:[{blockId:'b1',exerciseId:'squat',sets:3}]},
+    queue:[{blockId:'b1',exerciseId:'squat',sets:3}],
+    results:{'b1:squat:1':{reps:'0x10'},'b1:squat:2':{reps:8,serverConfirmed:false},
+      'b1:squat:3':{reps:8,completed:false}}};
+  assert.equal(summarizeConfirmedSessionSets(item)?.recordedSets,0);
+  item.results['b1:squat:1']={reps:'8'};
+  item.results['b1:squat:2']={reps:1.5};
+  item.results['b1:squat:3']={seconds:0};
+  assert.equal(summarizeConfirmedSessionSets(item)?.recordedSets,2);
+  item.results['b1:squat:1']={reps:8,status:'pending'};
+  item.results['b1:squat:2']={intervalsCompleted:'0b10'};
+  assert.equal(summarizeConfirmedSessionSets(item)?.recordedSets,1);
+  item.planSnapshot.queue[0].sets=true;
+  assert.equal(summarizeConfirmedSessionSets(item),null);
+  item.planSnapshot.queue[0].sets='0x3';
+  assert.equal(summarizeConfirmedSessionSets(item),null);
+  item.planSnapshot.queue[0].sets='3';
+  assert.equal(summarizeConfirmedSessionSets(item)?.plannedSets,3);
+});

@@ -53,7 +53,10 @@ test('invalid server summary fails closed instead of showing a healthy sync',()=
 
 test('post-sync Client history refresh fences stale owner and older responses',()=>{
   const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
-  assert.match(controller,/if\(result\?\.ok===true\)\{/u);
+  const sync=controller.slice(controller.indexOf('async function autoSyncNativeProviders'),controller.indexOf('const foregroundSync=createWearableForegroundSync'));
+  assert.match(sync,/savedPage=savedPage\|\|page\?\.ok===true/u);
+  assert.match(sync,/if\(signal\?\.aborted\|\|!canContinue\(\)\)return results;/u);
+  assert.match(sync,/if\(result\?\.ok===true\|\|\(savedPage&&result\?\.skipped==='no-recent-observations'\)\)\{[\s\S]*?void refreshProductionSummary\(wrap,\{supersede:true\}\)/u);
   assert.match(controller,/void refreshProductionSummary\(wrap\)/u);
   assert.match(controller,/const requestEpoch=\+\+productionSummaryEpoch/u);
   assert.match(controller,/requestEpoch===productionSummaryEpoch/u);

@@ -6,7 +6,7 @@ import {listExercisePerformanceMemories} from '../engagement/exercise-performanc
 import {confirmedSessionExecutionsForClient,sessionExecutionCompletionDate,sessionExecutionId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
 import {selectInitialIriBaseline,initialIriMeasurementDate} from '../workflows/iri-2-longitudinal.js';
-import {evidenceNumber,currentWearableEvidence} from '../domain/evidence-signal.js';
+import {evidenceNumber,currentWearableEvidence,observedSet} from '../domain/evidence-signal.js';
 import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -38,8 +38,8 @@ export function summarizeConfirmedSessionSets(execution){
     let total=0;
     if(queue.length>200)return null;
     for(const item of queue){
-      const sets=Number(item?.sets);
-      if(!item?.exerciseId||!Number.isInteger(sets)||sets<1||sets>100)return null;
+      const sets=evidenceNumber(item?.sets,{min:1,max:100,integer:true});
+      if(!item?.exerciseId||sets===null)return null;
       total+=sets;
       if(total>2500)return null;
     }
@@ -49,11 +49,10 @@ export function summarizeConfirmedSessionSets(execution){
   const executionSets=sumSets(item.queue);
   if(plannedSets===null||executionSets===null)return null;
   let recordedSets=0,skippedSets=0;
-  const hasRecordedMetric=result=>result&&typeof result==='object'&&[
-    result.reps,result.seconds,result.distanceKm,result.distanceM,
-    result.intervalsCompleted,
-  ].some(value=>(typeof value==='number'||typeof value==='string')&&
-    String(value).trim()!==''&&Number.isFinite(Number(value))&&Number(value)>=0);
+  const hasRecordedMetric=result=>observedSet(result)&&[
+    ['reps',true],['seconds',false],['distanceKm',false],['distanceM',false],
+    ['intervalsCompleted',true],
+  ].some(([key,integer])=>evidenceNumber(result[key],{min:0,integer})!==null);
   for(const block of item.queue){
     for(let setNumber=1;setNumber<=block.sets;setNumber++){
       const step={...block,setNumber,totalSets:block.sets};
