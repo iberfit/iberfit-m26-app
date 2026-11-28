@@ -1058,6 +1058,13 @@ export function createWearableController({
                 const label=document.createElement('strong');
                 label.textContent=row.label;
                 item.append(label,document.createTextNode(' · '+row.detail));
+                if(row.observedDays!==null){
+                  const coverage=document.createElement('small');
+                  const labelDays=document.createElement('span');
+                  labelDays.textContent='Días con registros de este deporte';
+                  coverage.append(document.createTextNode(' · '),labelDays,document.createTextNode(': '+row.observedDays));
+                  item.append(coverage);
+                }
                 list.append(item);
               }
               const action=document.createElement('button');
