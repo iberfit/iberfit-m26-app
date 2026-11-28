@@ -26,6 +26,8 @@ import {createEngagementDraftRepository} from '../engagement/activity-drafts.js'
 import {createEngagementCommandService} from '../engagement/command-service.js';
 import {createEngagementController} from '../engagement/engagement-controller.js';
 import {createWearableController} from '../wearables/controller.js';
+import {connected360CoachActivityView,sameConnected360CoachScope} from '../wearables/v49-coach-activity-contract.js';
+import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js';
 import {mergeV47DailyIntoClientProgress} from '../wearables/v47-progress-bridge.js';
 import {buildWearableViewModel} from '../wearables/view-model.js';
 import {recordsForClient} from '../modules/domain-selectors.js';
@@ -1748,6 +1750,27 @@ export async function createM26Application({root=document.querySelector('#app'),
       const auth=professionalFollowupSession();
       return auth&&client&&hasTrainingService(client)?{...auth,clientId}:null;
     }
+    // Release switch is deliberately absent from current deployment config.
+    // Enable only after V49 server capability, authenticated and physical QA.
+    // This UI gate is not authorization; RPC repeats live session/consent checks.
+    function coachActivityScope(){
+      if(runtimeConfig?.connected360CoachActivityCertified!==true
+        ||runtime.environment!=='production'||runtime.qaOnly!==false)return null;
+      const area=store.getRouteAuthorizationSnapshot().activeArea;
+      const auth=professionalReportSelectionScope();
+      return auth&&['expediente','sesion'].includes(area)?{...auth,area}:null;
+    }
+    async function readCoachActivity(scope,stillCurrent){
+      const check=()=>{if(!stillCurrent()||!sameConnected360CoachScope(scope,coachActivityScope()))
+        throw Error('M26_V49_STALE_COACH_SCOPE');};
+      check();await refreshSessionIfNeeded();check();
+      const token=currentToken();
+      await ensurePrivilegedActionAssurance({transport,token,userId:scope.actorId,friendlyName:'IBERFIT · seguimiento profesional'});check();
+      const payload=await transport.connected360ProductionCoachExerciseDays(token,scope.clientId);check();
+      const now=new Date();
+      const prep=buildNextSessionPreparation(store.getRenderSnapshot(),scope.clientId,{now,authorizedCoachDays:payload});
+      check();return connected360CoachActivityView(payload,{clientId:scope.clientId,now,continuity:prep?.activityContinuity});
+    }
     function professionalFollowupScope(){
       if(store.getRouteAuthorizationSnapshot().activeArea!=='expediente')return null;
       return professionalReportSelectionScope();
@@ -1803,7 +1826,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       const verified=await waitForCreatedClient({result,payload,fetchSnapshot:async()=>{assertCurrent();const snapshot=await transport.bootstrap(token);assertCurrent();return snapshot;}});
       assertCurrent();await hydrate({reason:'client-created'});assertCurrent();return verified;
     }});
-    engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store,ownerId,transport,productionHistoryEnabled:runtime.environment==='production'&&runtime.qaOnly===false,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:({reason}={})=>hydrate({reason:reason||'wearables-refresh'}),isOnline:()=>navigator.onLine!==false});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
+    engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store,ownerId,transport,productionHistoryEnabled:runtime.environment==='production'&&runtime.qaOnly===false,getCoachActivityScope:coachActivityScope,readCoachActivity,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:({reason}={})=>hydrate({reason:reason||'wearables-refresh'}),isOnline:()=>navigator.onLine!==false});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
     admin=createAdminController({root,store,service:adminService,render,getSessionLease:()=>hydrationLeaseFor(session)});

@@ -93,3 +93,23 @@ export function connected360RecipientDecision(recipient,allow,{confirmed=false}=
   connected360CoachConsentParams(decision);
   return Object.freeze(decision);
 }
+
+
+// Opaque lease and route must match before AND after a demand read.
+export function sameConnected360CoachScope(a,b){
+  return Boolean(a&&b&&a.lease&&a.lease===b.lease&&uuid(a.clientId)
+    &&a.clientId===b.clientId&&a.actorId&&a.actorId===b.actorId
+    &&['expediente','sesion'].includes(a.area)&&a.area===b.area);
+}
+export function connected360CoachActivityView(payload,{clientId,now=new Date(),continuity=null}={}){
+  const verified=verifyConnected360CoachExerciseDays(payload,{clientId,now});
+  const labels=Object.freeze({running:'Carrera',interval_running:'Carrera por intervalos',
+    hiit:'HIIT',cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',other:'Otro entrenamiento'});
+  const days=verified.days.map(row=>Object.freeze({date:row.date,sports:Object.freeze(row.sports.map(s=>labels[s]))}));
+  // Never promote external rows into adherence, diagnosis or report evidence.
+  const cue=continuity?.source==='coach_authorized_activity'
+    &&continuity?.automaticPlanChange===false&&Number.isInteger(continuity.days)
+    &&continuity.days>=5&&continuity.days<=7
+    ?Object.freeze({days:continuity.days,discipline:continuity.discipline==='running'?'running':'mixed'}):null;
+  return Object.freeze({days:Object.freeze(days),cue});
+}

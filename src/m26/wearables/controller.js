@@ -28,7 +28,7 @@ import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable
 import {createConnected360ProductionSync} from './v46-production-sync.js';
 import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline,connected360ActivityContinuity} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
-import {connected360RecipientDecision,verifyConnected360CoachRecipients} from './v49-coach-activity-contract.js';
+import {connected360RecipientDecision,verifyConnected360CoachRecipients,sameConnected360CoachScope} from './v49-coach-activity-contract.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionIsCompleted,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {
   createLatestTaskCoordinator,
@@ -413,6 +413,8 @@ export function createWearableController({
   refreshState=async()=>{},
   isOnline=()=>globalThis.navigator?.onLine!==false,
   productionHistoryEnabled=false,
+  getCoachActivityScope=()=>null,
+  readCoachActivity=null,
 }={}){
   if(
     !root?.addEventListener
@@ -433,6 +435,7 @@ export function createWearableController({
   let productionSummaryEpoch=0;
   let productionHistoryMutationDepth=0;
   let productionHistoryRetired=false;
+  let coachActivityPanel=null;
   const productionSummaryReader=createConnected360SummaryReader();
 
   const tasks=createLatestTaskCoordinator();
@@ -910,6 +913,7 @@ export function createWearableController({
   const canReadProductionHistory=()=>!productionHistoryRetired&&Boolean(productionSync||productionHistoryEnabled===true)
     &&typeof transport.connected360ProductionSummary==='function';
   function clearProductionHistorySurface(){
+    coachActivityPanel?.clear();
     productionSummaryEpoch+=1;
     productionSummaryReader.clear();
     root.querySelectorAll?.('[data-prod-connected360-summary]')?.forEach?.(node=>{node.textContent='';});
@@ -1678,7 +1682,64 @@ export function createWearableController({
     );
   }
 
+  // Demand-only display. A render/route/session change, background, offline
+  // or the short display lease retires the result; no refresh timer or cache.
+  function enhanceCoachActivity(){
+    const host=root.querySelector?.('[data-connected360-coach-activity]');
+    const scope=host&&mounted&&!productionHistoryRetired&&typeof readCoachActivity==='function'
+      ?getCoachActivityScope():null;
+    if(coachActivityPanel&&(!host||host!==coachActivityPanel.host
+      ||!sameConnected360CoachScope(scope,coachActivityPanel.scope))){
+      coachActivityPanel.clear();coachActivityPanel=null;
+    }
+    if(!host||!scope||scope.actorId!==String(ownerId)||coachActivityPanel)return;
+    const document=host.ownerDocument;
+    const title=document.createElement('h3');title.textContent='Actividad externa compartida';
+    const note=document.createElement('p');
+    note.textContent='Días y deportes autorizados por el cliente. No sustituyen las sesiones confirmadas ni determinan su recuperación.';
+    const action=document.createElement('button');action.type='button';action.textContent='Consultar actividad compartida';
+    const status=document.createElement('p');status.setAttribute('role','status');
+    const body=document.createElement('div');
+    let epoch=0,timer=null;
+    const clear=()=>{
+      epoch+=1;if(timer!==null){clearTimeout(timer);timer=null;}
+      body.replaceChildren();status.textContent='';action.disabled=false;
+    };
+    const active=()=>mounted&&!productionHistoryRetired&&host.isConnected&&isOnline()
+      &&document.visibilityState!=='hidden'&&sameConnected360CoachScope(scope,getCoachActivityScope());
+    action.addEventListener('click',async()=>{
+      if(!active()||action.disabled)return;
+      clear();const request=epoch;action.disabled=true;
+      status.textContent='Consultando actividad compartida…';
+      const stillCurrent=()=>request===epoch&&active();
+      try{
+        const result=await readCoachActivity(scope,stillCurrent);
+        if(!stillCurrent())return;
+        status.textContent=result.days.length?'Registros disponibles de los últimos 7 días.':'No hay actividad compartida disponible en esta ventana.';
+        if(result.cue){
+          const cue=document.createElement('p');cue.className='m26-notice';
+          cue.textContent=result.cue.days+(result.cue.discipline==='running'
+            ?' · Días consecutivos con carrera registrada y compartida. Revisa la recuperación antes de decidir.'
+            :' · Días consecutivos con actividad registrada. Revisa la recuperación antes de decidir.');
+          body.append(cue);
+        }
+        const list=document.createElement('ul');
+        for(const day of result.days){
+          const item=document.createElement('li'),date=document.createElement('strong');
+          date.textContent=day.date;item.append(date,document.createTextNode(' · '+day.sports.join(', ')));list.append(item);
+        }
+        if(result.days.length)body.append(list);
+        // Drop the displayed evidence after a short lease; never poll.
+        timer=setTimeout(()=>{if(request===epoch)clear();},30000);
+      }catch{
+        if(stillCurrent())status.textContent='No se pudo consultar actividad autorizada. Comprueba el acceso e inténtalo nuevamente.';
+      }finally{if(stillCurrent())action.disabled=false;}
+    });
+    coachActivityPanel={host,scope,clear};
+    host.replaceChildren(title,note,action,status,body);host.hidden=false;
+  }
   function enhanceControls(){
+    enhanceCoachActivity();
     const {
       role,
     }=context(store);

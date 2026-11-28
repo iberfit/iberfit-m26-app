@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,connected360RecipientDecision} from '../src/m26/wearables/v49-coach-activity-contract.js';
+import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,connected360RecipientDecision,sameConnected360CoachScope,connected360CoachActivityView} from '../src/m26/wearables/v49-coach-activity-contract.js';
 import {connected360ObservedDayContinuity} from '../src/m26/wearables/v46-production-summary.js';
 
 const clientId='11111111-1111-4111-8111-111111111111',coachId='22222222-2222-4222-8222-222222222222',assignmentId='33333333-3333-4333-8333-333333333333';
@@ -65,4 +65,17 @@ test('recipient list is exact, owner-bound and does not imply effective permissi
     {...payload,recipients:[{...row,recorded:true}]},
     {...payload,recipients:[{...row,ownerUserId:clientId}]},
   ])assert.throws(()=>verifyConnected360CoachRecipients(invalid,{clientId}),/M26_V49/);
+});
+
+test('Coach demand-only view binds scope to the same actor, client, route and session lease',()=>{
+  const lease={};
+  const scope={actorId:coachId,clientId,area:'expediente',lease};
+  assert.equal(sameConnected360CoachScope(scope,{...scope}),true);
+  for(const other of [null,{...scope,lease:{}},{...scope,actorId:'other'},{...scope,clientId:coachId},{...scope,area:'sesion'},{...scope,area:'hoy'}])
+    assert.equal(sameConnected360CoachScope(scope,other),false);
+  const view=connected360CoachActivityView(valid(),{clientId,now,continuity:{source:'coach_authorized_activity',days:5,discipline:'running',automaticPlanChange:false}});
+  assert.deepEqual(view.days[0],{date:'2026-11-28',sports:['Carrera','Fuerza']});
+  assert.deepEqual(view.cue,{days:5,discipline:'running'});
+  assert.equal(connected360CoachActivityView(valid(),{clientId,now,continuity:{source:'confirmed_iberfit_execution',days:5,automaticPlanChange:false}}).cue,null);
+  assert.throws(()=>connected360CoachActivityView(valid(),{clientId:coachId,now}),/M26_V49/);
 });
