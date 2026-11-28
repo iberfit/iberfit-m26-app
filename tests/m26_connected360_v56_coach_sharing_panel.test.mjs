@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mountConnected360CoachSharingPanel} from '../src/m26/wearables/controller.js';
+import {mountConnected360CoachSharingPanel,mountConnected360AppleTrendsPanel} from '../src/m26/wearables/controller.js';
 const clientId='11111111-1111-4111-8111-111111111111',coachId='22222222-2222-4222-8222-222222222222',assignmentId='33333333-3333-4333-8333-333333333333';
 class Node{
  constructor(document,tag){this.ownerDocument=document;this.tag=tag;this.children=[];this.parent=null;this.dataset={};this.textContent='';this.events={};this.disabled=false;}
@@ -41,4 +41,33 @@ test('shared panel withdraws only its provider and retires delayed reads',async(
  let resolve;const gate=new Promise(r=>{resolve=r;});const y=fixture({readGate:gate}),stale=y.mount();
  y.root.find('Gestionar permisos del entrenador').click();await flush();assert.equal(y.calls.length,1);
  y.expire();stale.retire();assert.equal(y.calls[0].signal.aborted,true);resolve();await flush();assert.equal(y.root.children.length,0);
+});
+
+function trendsFixture({enabled=true}={}){
+ const doc={createElement:tag=>new Node(doc,tag)},root=new Node(doc,'root'),calls=[];
+ let current=true;
+ const transport={connected360AppleCandidateAvailable:()=>enabled,connected360AppleCandidateOwnerTrends:(token,client,days,{signal})=>new Promise((resolve,reject)=>calls.push({token,client,days,signal,resolve,reject}))};
+ const mount=()=>mountConnected360AppleTrendsPanel(root,{clientId,stillCurrent:()=>current,getToken:async()=>'token',transport});
+ const result=(days,observedDays=3)=>({provider:'apple_health',windowDays:days,coverage:'observed-only',automaticPlanChange:false,periods:[
+ {periodStart:'2026-11-01',periodEnd:'2026-11-27',observedDays,currentOnlyDays:1,retainedOnlyDays:1,mixedDays:1,disciplines:[{sport:'running',observedDays}]},
+ {periodStart:'2026-10-04',periodEnd:'2026-10-31',observedDays:1,currentOnlyDays:0,retainedOnlyDays:1,mixedDays:0,disciplines:[{sport:'swimming',observedDays:1}]}]});
+ return {root,calls,mount,result,expire:()=>{current=false;}};
+}
+test('Apple longitudinal panel is demand-only, compares observations and invalidates changed windows',async()=>{
+ const denied=trendsFixture({enabled:false});assert.throws(()=>denied.mount());assert.equal(denied.calls.length,0);
+ const x=trendsFixture(),view=x.mount(),action=x.root.find('Consultar tendencias');
+ assert.equal(x.calls.length,0);action.click();await flush();assert.equal(x.calls.length,1);assert.equal(x.calls[0].days,28);
+ const select=view.panel.children.find(n=>n.tag==='label').children[0];
+ select.value='90';select.events.change();assert.equal(x.calls[0].signal.aborted,true);
+ action.click();await flush();assert.equal(x.calls.length,2);assert.equal(x.calls[1].days,90);
+ x.calls[0].resolve(x.result(28));await flush();assert.equal(x.root.find('Actividad registrada por disciplina'),undefined);
+ x.calls[1].resolve(x.result(90));await flush();assert.ok(x.root.find('Actividad registrada por disciplina'));
+ assert.ok(x.root.find('Solo registros de autorizaciones anteriores'));assert.ok(x.root.find('Natación'));view.retire();
+});
+test('Apple longitudinal panel does not expose a failed or retired result and allows explicit retry',async()=>{
+ const x=trendsFixture(),view=x.mount(),action=x.root.find('Consultar tendencias');
+ action.click();await flush();x.calls[0].reject(Error('network'));await flush();
+ assert.ok(x.root.find('No se pudieron consultar las tendencias. Puedes reintentar.'));assert.equal(action.disabled,false);
+ action.click();await flush();x.expire();view.retire();assert.equal(x.calls[1].signal.aborted,true);
+ x.calls[1].resolve(x.result(28));await flush();assert.equal(x.root.children.length,0);
 });

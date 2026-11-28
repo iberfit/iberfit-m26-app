@@ -479,6 +479,86 @@ export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,still
     return Object.freeze({panel,provider,active,retire});
   }
 
+// Owner-only longitudinal view. One bounded read per deliberate action.
+// Do not turn historical observations into current readiness or coach consent.
+export function mountConnected360AppleTrendsPanel(wrap,{clientId,stillCurrent,getToken,transport}={}){
+ if(transport?.connected360AppleCandidateAvailable?.()!==true||typeof transport.connected360AppleCandidateOwnerTrends!=='function')
+  throw Error('M26_V57_CANDIDATE_DISABLED');
+ const document=wrap.ownerDocument,panel=document.createElement('section');
+ panel.dataset.qaAppleTrends='true';
+ const element=(tag,copy)=>{const node=document.createElement(tag);node.textContent=copy;return node;};
+ const title=element('h4','Tendencias de Apple Salud · QA');
+ const intro=element('p','Compara días con actividad registrada en periodos de igual duración. No se incluye el día de hoy.');
+ const label=element('label','Elige el periodo de comparación');
+ const select=document.createElement('select');
+ for(const [days,copy] of [[7,'7 días'],[28,'28 días'],[90,'90 días'],[365,'365 días']]){
+  const option=element('option',copy);option.value=String(days);select.append(option);
+ }
+ select.value='28';label.append(select);
+ const action=element('button','Consultar tendencias');action.type='button';
+ const status=element('p','');status.setAttribute('role','status');
+ const content=document.createElement('div');
+ const boundary=element('small','Los días sin registros no demuestran descanso. Estas tendencias son privadas y no se comparten con tu entrenador.');
+ panel.append(title,intro,label,action,status,content,boundary);wrap.append(panel);
+ let retired=false,epoch=0,abort=null;
+ const active=()=>!retired&&panel.isConnected&&stillCurrent()&&transport.connected360AppleCandidateAvailable?.()===true;
+ function clear(){
+  epoch++;abort?.abort();abort=null;content.replaceChildren();status.textContent='';action.disabled=false;
+ }
+ function retire(){if(retired)return;retired=true;clear();panel.remove();}
+ function metric(parent,caption,count){
+  const row=document.createElement('p');row.append(element('span',caption),element('strong',': '+String(count)));parent.append(row);
+ }
+ function render(view,days){
+  if(view?.provider!=='apple_health'||view.windowDays!==days||view.coverage!=='observed-only'||view.automaticPlanChange!==false||view.periods?.length!==2)throw Error('M26_V57_VIEW_INVALID');
+  const [recent,previous]=view.periods;
+  for(const [period,heading] of [[recent,'Periodo reciente'],[previous,'Periodo anterior']]){
+   const section=document.createElement('section');
+   section.append(element('h5',heading),element('p',period.periodStart+' — '+period.periodEnd));
+   metric(section,'Días con actividad registrada',period.observedDays);
+   metric(section,'Solo registros de autorización vigente',period.currentOnlyDays);
+   metric(section,'Solo registros de autorizaciones anteriores',period.retainedOnlyDays);
+   metric(section,'Registros de ambas autorizaciones',period.mixedDays);
+   content.append(section);
+  }
+  const sports=new Map();
+  for(const [index,period] of view.periods.entries())for(const row of period.disciplines){
+   if(!sports.has(row.sport))sports.set(row.sport,[0,0]);
+   sports.get(row.sport)[index]=row.observedDays;
+  }
+  if(!sports.size){status.textContent='Sin registros en los periodos consultados.';return;}
+  const names={running:'Carrera',cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',hiit:'HIIT',swimming:'Natación',other:'Otro entrenamiento'};
+  const table=document.createElement('table');
+  table.append(element('caption','Actividad registrada por disciplina'));
+  const head=document.createElement('thead'),header=document.createElement('tr');
+  for(const copy of ['Disciplina','Periodo reciente','Periodo anterior']){
+   const cell=element('th',copy);cell.setAttribute('scope','col');header.append(cell);
+  }
+  head.append(header);table.append(head);
+  const body=document.createElement('tbody');
+  for(const [sport,counts] of sports){
+   const row=document.createElement('tr'),name=element('th',names[sport]);name.setAttribute('scope','row');
+   row.append(name,...counts.map(count=>element('td',String(count))));body.append(row);
+  }
+  table.append(body);content.append(table);status.textContent='';
+ }
+ select.addEventListener('change',clear);
+ action.addEventListener('click',async()=>{
+  if(!active()||action.disabled)return;
+  clear();const request=epoch,days=Number(select.value),controller=new AbortController();abort=controller;
+  const live=()=>active()&&request===epoch&&!controller.signal.aborted;
+  action.disabled=true;status.textContent='Consultando tendencias…';
+  try{
+   if(![7,28,90,365].includes(days))throw Error('M26_V57_PERIOD_INVALID');
+   const token=await getToken();if(!live())return;
+   const view=await transport.connected360AppleCandidateOwnerTrends(token,clientId,days,{signal:controller.signal});
+   if(live())render(view,days);
+  }catch{if(live()){content.replaceChildren();status.textContent='No se pudieron consultar las tendencias. Puedes reintentar.';}}
+  finally{if(request===epoch){abort=null;if(active())action.disabled=false;else retire();}}
+ });
+ return Object.freeze({panel,provider:'apple_health',active,retire});
+}
+
 export function createWearableController({
   root,
   store,
@@ -2071,6 +2151,20 @@ export function createWearableController({
           return mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
             &&identityEpoch===nativeIdentityEpoch&&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;
         }});
+      }
+    }
+
+    if(appleSharingCard&&mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+      &&transport.connected360AppleCandidateAvailable?.()===true
+      &&typeof transport.connected360AppleCandidateOwnerTrends==='function'&&!appleSharingCard.querySelector?.('[data-qa-apple-trends]')){
+      const expected=qaClientIdentity(),identityEpoch=nativeIdentityEpoch;
+      if(expected.role==='client'&&expected.ownerId&&expected.clientId){
+        const item=mountConnected360AppleTrendsPanel(appleSharingCard,{clientId:expected.clientId,getToken,transport,stillCurrent:()=>{
+          const current=qaClientIdentity();
+          return mounted&&!productionHistoryRetired&&isOnline()&&root.ownerDocument?.visibilityState!=='hidden'
+            &&identityEpoch===nativeIdentityEpoch&&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;
+        }});
+        coachSharingPanels.add(item);
       }
     }
 
