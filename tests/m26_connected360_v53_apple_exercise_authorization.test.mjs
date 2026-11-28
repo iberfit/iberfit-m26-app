@@ -9,3 +9,10 @@ test('Apple workout consent is separate, disabled and bound to client/session an
   assert.match(rollback,/M26_V53_ROLLBACK_REQUIRES_DATA_PRESERVATION/u);
   assert.doesNotMatch(rollback,/DELETE FROM|TRUNCATE|DROP TABLE/u);
 });
+
+test('passive Apple authorization status never renews a grant and retains CAS inputs',()=>{
+ const status=sql.slice(sql.indexOf('CREATE FUNCTION private.m26_v53_apple_exercise_status()'),sql.indexOf('CREATE FUNCTION private.m26_v53_authorize_apple_exercise('));
+ for(const p of [/pg_try_advisory_xact_lock/u,/private\.m26_v53_apple_client_context\(\)/u,/v_old_cursor=v_cursor/u,/v_ledger/u,/connection-blocked/u,/scope-conflict/u,/consent-required/u,/release-disabled/u,/provider='apple_health'/u])assert.match(status,p);
+ assert.doesNotMatch(status,/\bINSERT INTO\b|\bUPDATE public\b|\bDELETE FROM\b|gen_random_uuid/u);
+ assert.match(rollback,/DROP FUNCTION public\.m26_wearable_v53_apple_exercise_status_v1\(\)/u);
+});
