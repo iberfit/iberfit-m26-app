@@ -94,6 +94,24 @@ export function compareProfessionalFollowupPair(previous,current,{now=new Date()
  if(a.rectification||b.rectification||a.clientId!==b.clientId||a.id===b.id||!start||!end||end<=start||a.unit!==b.unit||stableEvidenceJson(a.protocol)!==stableEvidenceJson(b.protocol))return null;
  return Object.freeze({clientId:a.clientId,previousId:a.id,currentId:b.id,periodStart:start,periodEnd:end,previous:a.value,value:b.value,unit:a.unit,delta:Math.round((b.value-a.value)*100)/100,deltaUnit:a.unit==='percent'?'p. p.':a.unit,reviewRequired:true});
 }
+// History arrives newest first from verifyProfessionalFollowupPage. Pair only
+// the immediately preceding loaded observation of the same subject, test,
+// field and side. An incompatible, same-day or voided predecessor blocks
+// automatic comparison; do not search back for an older favorable result.
+// Keep this projection local to the current render or explicit review action.
+export function professionalFollowupHistoryComparisons(items,{now=new Date()}={}){
+ const result=new Map(),nextByMetric=new Map();
+ if(!Array.isArray(items))return result;
+ for(let i=items.length-1;i>=0;i--){
+  const row=items[i],p=row?.protocol;
+  if(!row?.id||!row.clientId||!p?.testId||!p.field||!p.side)continue;
+  const key=JSON.stringify([row.clientId,p.testId,p.field,p.side]);
+  const previous=nextByMetric.get(key);
+  if(previous)result.set(row.id,Object.freeze({previous,comparison:compareProfessionalFollowupPair(previous,row,{now})}));
+  nextByMetric.set(key,row);
+ }
+ return result;
+}
 export function professionalFollowupPageParams(clientId,{limit=30,cursor=null}={}){
  const owner=id(clientId);if(!owner||!Number.isInteger(limit)||limit<1||limit>50||(cursor!==null&&(!shape(cursor,['measuredAt','id'])||instant(cursor.measuredAt)===null||!id(cursor.id))))throw Error('M26_GX_FOLLOWUP_PAGE_INVALID');
  return Object.freeze({p_client_id:owner,p_limit:limit,p_cursor_at:cursor?.measuredAt??null,p_cursor_id:cursor?id(cursor.id):null});
