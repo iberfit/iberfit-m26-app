@@ -59,7 +59,7 @@ test('post-sync Client history refresh fences stale owner and older responses',(
   assert.match(controller,/requestEpoch===productionSummaryEpoch/u);
   assert.match(controller,/expected\.ownerId===current\.ownerId&&expected\.clientId===current\.clientId/u);
   assert.match(controller,/productionSummaryEpoch\+=1/u);
-  assert.match(controller,/target\.textContent=formatConnected360ProductionSummary\(response\)/u);
+  assert.match(controller,/target\.textContent=formatConnected360ProductionSummary\(response,\{nativeAvailable:Boolean\(productionSync\)\}\)/u);
   assert.match(controller,/Datos existentes se conservan|Los datos existentes se conservan/u);
 });
 
@@ -97,4 +97,31 @@ test('history shares the fenced production read, uses safe text nodes and never 
   assert.match(section,/Hasta 10 actividades de los últimos 7 días/u);
   assert.doesNotMatch(section,/innerHTML|insertAdjacentHTML/u);
   assert.match(section,/history\.replaceChildren\(\);history\.hidden=true/u);
+});
+
+test('browser empty history does not imply native access or a future browser sync',()=>{
+  const message=formatConnected360ProductionSummary(empty(),{nativeAvailable:false});
+  assert.match(message,/aplicación Android compatible/u);
+  assert.doesNotMatch(message,/se intentará sincronizar automáticamente/u);
+});
+test('browser and native history reuse one owner-scoped read with no browser login request',()=>{
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const app=readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  assert.match(app,/productionHistoryEnabled:runtime\.environment==='production'&&runtime\.qaOnly===false/u);
+  assert.match(controller,/function appendProductionHistory\(/u);
+  const browser=controller.slice(controller.indexOf('if(!productionSync&&canReadProductionHistory()'),controller.indexOf('// Show only inside the Android Canary QA container.'));
+  assert.match(browser,/appendProductionHistory\(wrap\)/u);
+  assert.doesNotMatch(browser,/refreshProductionSummary|requestPermissions|authorize\(/u);
+  assert.match(controller,/action==='prod-connected360-history'[\s\S]{0,150}await refreshProductionSummary/u);
+  assert.match(controller,/productionHistoryMutationDepth===0&&wrap.isConnected/u);
+  assert.match(controller,/clearProductionHistorySurface\(\);\s*try\{await remoteSync.deleteAll/u);
+  assert.match(controller,/clearProductionHistorySurface\(\);\s*productionSync\?\.invalidate\(\);\s*try\{await remoteSync.revoke/u);
+});
+
+test('post-import refresh supersedes an older summary and retired owner cannot reopen it',()=>{
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  assert.match(controller,/refreshProductionSummary\(wrap,\{supersede:true\}\)/u);
+  assert.match(controller,/if\(refresh\?\.disabled&&!supersede\)return/u);
+  assert.match(controller,/canReadProductionHistory=\(\)=>!productionHistoryRetired/u);
+  assert.match(controller,/clearOwner:\(\)=>\{\s*productionHistoryRetired=true/u);
 });

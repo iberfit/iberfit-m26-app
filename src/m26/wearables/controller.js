@@ -410,6 +410,7 @@ export function createWearableController({
   getToken,
   refreshState=async()=>{},
   isOnline=()=>globalThis.navigator?.onLine!==false,
+  productionHistoryEnabled=false,
 }={}){
   if(
     !root?.addEventListener
@@ -428,6 +429,8 @@ export function createWearableController({
   let lastOnline=null;
   let nativeIdentityEpoch=0;
   let productionSummaryEpoch=0;
+  let productionHistoryMutationDepth=0;
+  let productionHistoryRetired=false;
 
   const tasks=createLatestTaskCoordinator();
 
@@ -899,26 +902,60 @@ export function createWearableController({
       endDate:resolvedEndDate,
     });
   }
-  async function refreshProductionSummary(wrap){
-    if(!productionSync||!wrap?.isConnected)return;
+  // Reading already saved records is separate from permission prompts and
+  // native acquisition. Browser history is opt-in per view, not a login RPC.
+  const canReadProductionHistory=()=>!productionHistoryRetired&&Boolean(productionSync||productionHistoryEnabled===true)
+    &&typeof transport.connected360ProductionSummary==='function';
+  function clearProductionHistorySurface(){
+    productionSummaryEpoch+=1;
+    root.querySelectorAll?.('[data-prod-connected360-summary]')?.forEach?.(node=>{node.textContent='';});
+    root.querySelectorAll?.('[data-prod-connected360-workouts]')?.forEach?.(node=>{node.replaceChildren();node.hidden=true;});
+    root.querySelectorAll?.('[data-wearable-action="prod-connected360-history"]')?.forEach?.(button=>{button.disabled=false;});
+  }
+  function appendProductionHistory(wrap,{native=false}={}){
+    const document=wrap.ownerDocument;
+    const results=document.createElement('p');
+    results.dataset.prodConnected360Summary='true';
+    results.setAttribute('role','status');
+    results.textContent=native?'Datos de salud: consultando registros disponibles…':'Consulta las actividades guardadas en tu cuenta, sin volver a conectar el dispositivo.';
+    const workoutHistory=document.createElement('section');
+    workoutHistory.dataset.prodConnected360Workouts='true';
+    workoutHistory.hidden=true;
+    workoutHistory.setAttribute('aria-label','Entrenamientos importados de Health Connect');
+    const refresh=document.createElement('button');
+    refresh.type='button';
+    refresh.dataset.wearableAction='prod-connected360-history';
+    refresh.textContent='Consultar actividad guardada';
+    wrap.append(refresh,results,workoutHistory);
+  }
+  async function refreshProductionSummary(wrap,{supersede=false}={}){
+    if(!mounted||!canReadProductionHistory()||!wrap?.isConnected||productionHistoryMutationDepth>0)return;
     const target=wrap.querySelector?.('[data-prod-connected360-summary]');
     if(!target)return;
+    const refresh=wrap.querySelector?.('[data-wearable-action="prod-connected360-history"]');
+    if(refresh?.disabled&&!supersede)return;
     const requestEpoch=++productionSummaryEpoch;
     const identityEpoch=nativeIdentityEpoch;
     const expected=qaClientIdentity();
     if(expected.role!=='client'||!expected.ownerId||!expected.clientId)return;
     const stillCurrent=()=>{
       const current=qaClientIdentity();
-      return mounted&&wrap.isConnected&&requestEpoch===productionSummaryEpoch
+      return mounted&&!productionHistoryRetired&&productionHistoryMutationDepth===0&&wrap.isConnected&&requestEpoch===productionSummaryEpoch
         &&identityEpoch===nativeIdentityEpoch&&current.role==='client'
         &&expected.ownerId===current.ownerId&&expected.clientId===current.clientId;
     };
+    if(!isOnline()){
+      target.textContent='Necesitas conexión para consultar la actividad guardada.';
+      return;
+    }
+    if(refresh)refresh.disabled=true;
+    target.textContent='Datos de salud: consultando registros disponibles…';
     try{
       const token=await getToken();
       if(!stillCurrent())return;
       const response=await transport.connected360ProductionSummary(token);
       if(stillCurrent()){
-        target.textContent=formatConnected360ProductionSummary(response);
+        target.textContent=formatConnected360ProductionSummary(response,{nativeAvailable:Boolean(productionSync)});
         const history=wrap.querySelector?.('[data-prod-connected360-workouts]');
         if(history){
           const document=history.ownerDocument;
@@ -950,6 +987,8 @@ export function createWearableController({
         const history=wrap.querySelector?.('[data-prod-connected360-workouts]');
         if(history){history.replaceChildren();history.hidden=true;}
       }
+    }finally{
+      if(stillCurrent()&&refresh)refresh.disabled=false;
     }
   }
   async function autoSyncNativeProviders({signal=null}={}){
@@ -970,7 +1009,7 @@ export function createWearableController({
               const status=wrap.querySelector?.('[data-prod-connected360-status]');
               if(status)status.textContent='Sincronización automática completada. '+
                 'Actualizando las mediciones disponibles…';
-              void refreshProductionSummary(wrap);
+              void refreshProductionSummary(wrap,{supersede:true});
             }
           }
         }
@@ -1162,7 +1201,9 @@ export function createWearableController({
     appleReadEpoch+=1;
     qaImporter.clear();
     productionSync?.invalidate();
-    await remoteSync.deleteAll();
+    productionHistoryMutationDepth+=1;
+    clearProductionHistorySurface();
+    try{await remoteSync.deleteAll();}finally{productionHistoryMutationDepth-=1;}
     clearPreview(false);
 
     setStatus(
@@ -1488,15 +1529,8 @@ export function createWearableController({
         note.dataset.prodConnected360Status='true';
         note.setAttribute('role','status');
         note.textContent='Verificando disponibilidad segura…';
-        const results=document.createElement('p');
-        results.dataset.prodConnected360Summary='true';
-        results.setAttribute('role','status');
-        results.textContent='Datos de salud: consultando registros disponibles…';
-        const workoutHistory=document.createElement('section');
-        workoutHistory.dataset.prodConnected360Workouts='true';
-        workoutHistory.hidden=true;
-        workoutHistory.setAttribute('aria-label','Entrenamientos importados de Health Connect');
-        wrap.append(intro,consentArea,permissions,connect,note,results,workoutHistory);
+        wrap.append(intro,consentArea,permissions,connect,note);
+        appendProductionHistory(wrap,{native:true});
         nativeCard.append(wrap);
         const generation=nativeIdentityEpoch;
         void refreshProductionSummary(wrap);
@@ -1513,6 +1547,14 @@ export function createWearableController({
             'No se ha podido verificar la conexión de salud. Reintenta al recuperar la red.';
         });
       }
+    }
+
+    if(!productionSync&&canReadProductionHistory()&&healthConnectCard&&!healthConnectCard.querySelector?.('[data-prod-connected360]')){
+      const wrap=document.createElement('section');
+      wrap.dataset.prodConnected360='true';
+      wrap.className='m26-wearable-native-connect';
+      appendProductionHistory(wrap);
+      healthConnectCard.append(wrap);
     }
 
     // Show only inside the Android Canary QA container. Never create a
@@ -1677,6 +1719,8 @@ export function createWearableController({
         await confirmImport();
       }else if(action==='sync-pending'){
         await syncPending();
+      }else if(action==='prod-connected360-history'){
+        await refreshProductionSummary(button.closest?.('[data-prod-connected360]'));
       }else if(action==='prod-connected360-permissions'){
         if(!productionNative)throw new Error('M26_V46_PROD_NATIVE_REQUIRED');
         productionNative.requestPermissions();
@@ -1890,7 +1934,13 @@ export function createWearableController({
         qaReadEpoch+=1;
         appleReadEpoch+=1;
         qaImporter.clear();
-        await remoteSync.revoke({provider,deleteData:erase});
+        if(provider==='health_connect'){
+          productionHistoryMutationDepth+=1;
+          clearProductionHistorySurface();
+          productionSync?.invalidate();
+          try{await remoteSync.revoke({provider,deleteData:erase});}
+          finally{productionHistoryMutationDepth-=1;}
+        }else await remoteSync.revoke({provider,deleteData:erase});
         clearPreview(false);
         setStatus(root,erase?'Fuente desconectada y datos retirados.':'Fuente desconectada. Puedes borrar los datos guardados cuando quieras.','success');
       }else if(action==='delete-all'){
@@ -2007,8 +2057,8 @@ export function createWearableController({
         );
       }
 
-      enhanceControls();
       mounted=true;
+      enhanceControls();
       nativeForegroundHeartbeat.start();
 
       if(syncInitial){
@@ -2031,7 +2081,7 @@ export function createWearableController({
     destroy(){
       if(!mounted)return;
       nativeIdentityEpoch+=1;
-      productionSummaryEpoch+=1;
+      clearProductionHistorySurface();
       nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       mounted=false;
@@ -2095,8 +2145,9 @@ export function createWearableController({
     },
     pendingCount:()=>remoteSync.pendingCount(),
     clearOwner:()=>{
+      productionHistoryRetired=true;
       nativeIdentityEpoch+=1;
-      productionSummaryEpoch+=1;
+      clearProductionHistorySurface();
       nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       qaReadEpoch+=1;

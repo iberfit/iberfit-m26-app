@@ -34,7 +34,7 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
   }
   return Object.freeze(rows.sort((a,b)=>b.start-a.start).map(({label,detail})=>Object.freeze({label,detail})));
 }
-export function formatConnected360ProductionSummary(p){
+export function formatConnected360ProductionSummary(p,{nativeAvailable=true}={}){
   if(!p||p.ok!==true||p.provider!=='health_connect'||
     !Array.isArray(p.heartRateDaily)||!Array.isArray(p.exerciseEvidence)
     ||(p.dailyHealth!==undefined&&!Array.isArray(p.dailyHealth)))
@@ -45,7 +45,7 @@ export function formatConnected360ProductionSummary(p){
   const daily=(p.dailyHealth||[]).slice(0,7).filter(x=>DAY.test(String(x?.date||'')))
     .sort((a,b)=>b.date.localeCompare(a.date));
   const latest=daily[0];
-  if(!day&&activities===0&&!latest)return 'Todavía no hay mediciones sincronizadas en IBERFIT. Comprueba los permisos de Android. Al volver a abrir IBERFIT se intentará sincronizar automáticamente.';
+  if(!day&&activities===0&&!latest)return nativeAvailable?'Todavía no hay mediciones sincronizadas en IBERFIT. Comprueba los permisos de Android. Al volver a abrir IBERFIT se intentará sincronizar automáticamente.':'Todavía no hay mediciones sincronizadas en IBERFIT. Conecta tu actividad desde la aplicación Android compatible si deseas importarla.';
   const minimum=bpm(day?.minBpm),maximum=bpm(day?.maxBpm);
   const count=Number.isSafeInteger(day?.samples)&&day.samples>=0&&day.samples<=200000?day.samples:null;
   const general=day?'FC general del '+day.date+(count!==null?' · '+count+' mediciones':'')+

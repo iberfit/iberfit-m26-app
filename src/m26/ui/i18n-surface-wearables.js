@@ -1,4 +1,8 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  ["Consultar actividad guardada","View saved activity","Consulter l’activité enregistrée","Consultar atividade guardada"],
+  ["Consulta las actividades guardadas en tu cuenta, sin volver a conectar el dispositivo.","View activity saved in your account without reconnecting your device.","Consultez les activités enregistrées dans votre compte sans reconnecter votre appareil.","Consulte as atividades guardadas na sua conta sem voltar a ligar o dispositivo."],
+  ["Necesitas conexión para consultar la actividad guardada.","Connect to the internet to view saved activity.","Une connexion Internet est nécessaire pour consulter l’activité enregistrée.","É necessária uma ligação à Internet para consultar a atividade guardada."],
+  ["Todavía no hay mediciones sincronizadas en IBERFIT. Conecta tu actividad desde la aplicación Android compatible si deseas importarla.","No readings have been synced to IBERFIT yet. Connect your activity from the compatible Android app to import it.","Aucune mesure n’a encore été synchronisée dans IBERFIT. Connectez votre activité depuis l’application Android compatible pour l’importer.","Ainda não há medições sincronizadas na IBERFIT. Ligue a sua atividade na aplicação Android compatível se pretender importá-la."],
   ["Otro entrenamiento","Other workout","Autre entraînement","Outro treino"],
   ["Carrera por intervalos","Interval running","Course par intervalles","Corrida intervalada"],
   ["Últimos entrenamientos importados","Latest imported workouts","Derniers entraînements importés","Últimos treinos importados"],
