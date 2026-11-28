@@ -1,5 +1,5 @@
 import {buildPeriodProgressEvidence} from '../engagement/progress-hub.js';
-import {reportCivilDate,isWithinCivilPeriod,parseDateValue} from '../domain/civil-date.js';
+import {reportCivilDate,isWithinCivilPeriod,parseDateValue,observedCivilDayRuns} from '../domain/civil-date.js';
 import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {buildPrivateReportDetail,buildStrengthHistoryIndex,strengthPeriodEvidence} from './report-private-detail.js';
 import {buildTrainingCalendarEvidence,readDatedTrends,buildWellbeingBundle,WELLBEING_BUNDLE_LABEL,wellbeingBundleDescription} from './report-trend-contract.js';
@@ -83,7 +83,11 @@ function elitePeriodEvidence(rows,signals,sessions,start,clientId,objective,stre
   const annual=rows.some(row=>row.label==='Sesiones del último año');
   const calendar=annual&&days.length?buildTrainingCalendarEvidence(days,start,new Date(timestamp(start)+364*DAY_MS).toISOString().slice(0,10)):null;
   if(calendar&&result.length<12)result.push(calendar);
-  else if(days.length&&result.length<12)result.push(evidence('Hitos de continuidad',weeks.length+' bloques semanales con entrenamiento confirmado; '+longest+' consecutivos. Primer día: '+days[0]+'; último: '+days.at(-1)+'. Bloques de hasta 7 días desde el inicio del periodo; el último puede ser parcial.','sessionExecutions'));
+  else if(days.length&&result.length<12){
+    const dailyRun=observedCivilDayRuns(days).reduce((best,run)=>!best||run.days>best.days?run:best,null);
+    const dailyText=dailyRun&&dailyRun.days>=5?' Secuencia observada: '+dailyRun.days+' días consecutivos con entrenamiento confirmado ('+dailyRun.periodStart+' a '+dailyRun.periodEnd+'). Revisar recuperación; los registros no demuestran ausencia de descanso.':'';
+    result.push(evidence('Hitos de continuidad',weeks.length+' bloques semanales con entrenamiento confirmado; '+longest+' consecutivos. Primer día: '+days[0]+'; último: '+days.at(-1)+'. Bloques de hasta 7 días desde el inicio del periodo; el último puede ser parcial.'+dailyText,'sessionExecutions'));
+  }
   const rawTrends=signals[0]?.trends??[];
   const bundle=end?buildWellbeingBundle(rawTrends,start,end):null;
   const trends=bundle?[bundle,...rawTrends.filter(row=>row.source!=='checkins')]:rawTrends;

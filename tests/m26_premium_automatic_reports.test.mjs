@@ -454,3 +454,25 @@ test('GX46 annual report uses the approved Spanish name without changing its typ
  assert.equal(report.title,'Tu año en IBERFIT');
  assert.equal(report.label,'Tu año en IBERFIT');
 });
+
+
+test('weekly report describes confirmed consecutive training days without inferring lack of recovery',()=>{
+  const now=new Date('2026-09-06T18:00:00Z');
+  const state=stateWithHistory();
+  state.collections.sessionExecutions=Array.from({length:5},(_,i)=>({
+    id:'daily-'+i,clientId:'c1',sessionId:'s1',status:'completed',syncStatus:'clean',
+    completedAt:'2026-09-'+String(i+1).padStart(2,'0')+'T12:00:00Z',
+  }));
+  state.collections.sessionExecutions.push(
+    {...state.collections.sessionExecutions[0],id:'same-date'},
+    {...state.collections.sessionExecutions[0],id:'pending',syncStatus:'pending',completedAt:'2026-09-06T12:00:00Z'},
+    {...state.collections.sessionExecutions[0],id:'foreign',clientId:'c2',completedAt:'2026-09-06T12:00:00Z'}
+  );
+  const weekly=buildPremiumReportPortfolio(state,'c1',{now}).find(r=>r.id==='weekly');
+  assert.equal(weekly.evidence.find(r=>r.label==='Días con entrenamiento confirmado').text,'5');
+  const continuity=weekly.evidence.find(r=>r.label==='Hitos de continuidad');
+  assert.match(continuity.text,/5 días consecutivos con entrenamiento confirmado/u);
+  assert.match(continuity.text,/no demuestran ausencia de descanso/u);
+  assert.equal(continuity.source,'sessionExecutions');
+  assert.ok(continuity.text.length<=500);
+});

@@ -1065,6 +1065,26 @@ export function createWearableController({
                   coverage.append(document.createTextNode(' · '),labelDays,document.createTextNode(': '+row.observedDays));
                   item.append(coverage);
                 }
+                if(row.ranges?.length){
+                  const ranges=document.createElement('details');
+                  const title=document.createElement('summary');
+                  title.textContent='Variación observada';
+                  const details=document.createElement('ul');
+                  for(const range of row.ranges){
+                    const metric=document.createElement('li');
+                    const name=document.createElement('span');
+                    name.textContent=range.label;
+                    metric.append(name,document.createTextNode(': '+range.text+' · '));
+                    const days=document.createElement('span');
+                    days.textContent='Días con medición';
+                    metric.append(days,document.createTextNode(': '+range.observedDays));
+                    details.append(metric);
+                  }
+                  const caveat=document.createElement('small');
+                  caveat.textContent='Rangos de los registros disponibles; no acreditan mejora ni condiciones comparables.';
+                  ranges.append(title,details,caveat);
+                  item.append(ranges);
+                }
                 list.append(item);
               }
               const action=document.createElement('button');

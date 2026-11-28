@@ -1,4 +1,11 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  ["Variación observada","Observed variation","Variation observée","Variação observada"],
+  ["Días con medición","Days with measurements","Jours avec des mesures","Dias com medições"],
+  ["Distancia registrada","Recorded distance","Distance enregistrée","Distância registada"],
+  ["Duración total registrada","Recorded elapsed duration","Durée totale enregistrée","Duração total registada"],
+  ["Ritmo total estimado","Estimated elapsed pace","Allure totale estimée","Ritmo total estimado"],
+  ["FC media registrada","Recorded average heart rate","Fréquence cardiaque moyenne enregistrée","FC média registada"],
+  ["Rangos de los registros disponibles; no acreditan mejora ni condiciones comparables.","Ranges of available records; they do not establish improvement or comparable conditions.","Plages des données disponibles ; elles ne prouvent ni amélioration ni conditions comparables.","Intervalos dos registos disponíveis; não demonstram melhoria nem condições comparáveis."],
   ["Días con registros de este deporte","Days with records for this sport","Jours avec des données pour ce sport","Dias com registos deste desporto"],
   [" · Días consecutivos con entrenamiento IBERFIT confirmado. Revisa la recuperación antes de decidir."," · Consecutive days with confirmed IBERFIT training. Review recovery before deciding."," · Jours consécutifs avec entraînement IBERFIT confirmé. Examinez la récupération avant de décider."," · Dias consecutivos com treino IBERFIT confirmado. Revê a recuperação antes de decidir."],
   [" · Ejecución confirmada"," · Confirmed workout"," · Séance confirmée"," · Treino confirmado"],

@@ -1,4 +1,5 @@
 import {formatSleepDuration} from './duration-format.js';
+import {observedCivilDayRuns} from '../domain/civil-date.js';
 const DAY=/^\d{4}-\d\d-\d\d$/u;
 const bpm=n=>typeof n==='number'&&Number.isFinite(n)&&n>=25&&n<=240?n:null;
 const WORKOUT_SPORTS=Object.freeze({
@@ -31,13 +32,15 @@ function observedDuration(ms){
 // Health Connect V46 reports elapsed timestamps and distance aggregated from
 // the same data origin. Neither proves moving time or a device-reported pace.
 // Keep an explicitly estimated, total-time pace separate from active pace.
-function observedElapsedRunningPace(sport,ms,meters){
+function observedElapsedRunningPaceSeconds(sport,ms,meters){
   if(!['running','interval_running'].includes(sport)||typeof meters!=='number'
     ||!Number.isFinite(meters)||meters<100||meters>500000)return null;
   const secondsPerKm=Math.round(ms/meters);
   if(!Number.isSafeInteger(secondsPerKm)||secondsPerKm<60||secondsPerKm>3600)return null;
-  const minutes=Math.floor(secondsPerKm/60),seconds=String(secondsPerKm%60).padStart(2,'0');
-  return 'Ritmo total estimado '+minutes+':'+seconds+' min/km';
+  return secondsPerKm;
+}
+function formatPace(secondsPerKm){
+  return Math.floor(secondsPerKm/60)+':'+String(secondsPerKm%60).padStart(2,'0');
 }
 // Only the current owner-scoped server response feeds this list. The contract
 // contains up to ten observations, not a complete historical activity feed.
@@ -58,9 +61,13 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
     const average=bpm(row.avgBpm);
     const averageLabel=average!==null&&Number.isSafeInteger(row.heartRateSamples)&&row.heartRateSamples>0&&row.heartRateSamples<=200000
       ?'FC media '+decimal.format(average)+' lpm':null;
+    const elapsedPaceSecondsPerKm=observedElapsedRunningPaceSeconds(row.sport,end-start,d);
     const metrics=[observedDuration(end-start),distance,averageLabel,
-      observedElapsedRunningPace(row.sport,end-start,d)].filter(Boolean);
+      elapsedPaceSecondsPerKm===null?null:'Ritmo total estimado '+formatPace(elapsedPaceSecondsPerKm)+' min/km'].filter(Boolean);
     rows.push({start,orderAt:start,source:'imported',label:WORKOUT_SPORTS[row.sport],
+      measurements:Object.freeze({elapsedSeconds:(end-start)/1000,
+        distanceMeters:distance===null?null:d,averageBpm:averageLabel===null?null:average,
+        elapsedPaceSecondsPerKm}),
       dayKey:localWorkoutDay(start),dayLabel:workoutDayLabel.format(start),
       dayDetail:[workoutTime.format(start),...metrics].join(' · '),
       detail:[workoutDate.format(start),...metrics].join(' · ')});
@@ -138,14 +145,10 @@ export function connected360ActivityContinuity(rows,{now=new Date()}={}){
   function streak(days){
     const end=days.has(today)?today:days.has(yesterday)?yesterday:null;
     if(!end)return null;
-    let day=end,count=0;
-    while(count<7&&days.has(day)){count++;day=previousCivilDay(day);}
-    if(count<5)return null;
-    return {days:count,periodStart:previousCivilDayOffset(end,count-1),periodEnd:end};
-  }
-  function previousCivilDayOffset(day,offset){
-    for(let i=0;i<offset;i++)day=previousCivilDay(day);
-    return day;
+    let start=end;
+    for(let i=0;i<6;i++)start=previousCivilDay(start);
+    const run=observedCivilDayRuns([...days].filter(day=>day>=start&&day<=end)).at(-1);
+    return run&&run.days>=5&&run.periodEnd===end?run:null;
   }
   const any=streak(observed),run=streak(running);
   if(!any&&!run)return null;
@@ -209,17 +212,34 @@ export function connected360ActivityPage(p,{cursor=null,now=new Date()}={}){
 export function connected360WorkoutMix(rows){
   if(!Array.isArray(rows)||rows.length>10)return Object.freeze([]);
   const sports=new Map(),allowed=new Set(Object.values(WORKOUT_SPORTS));
-  // Input is already ordered newest first. A sport appears only once,
-  // regardless of duplicate observations or overlapping device sources.
-  // Distinct observed days are a lower bound, never total sessions or load.
+  // Count observed dates and retain ranges only. No combined totals, averages
+  // across sources, or claims of comparable performance.
+  const fields=[
+    ['distanceMeters','Distancia registrada',0,500000,v=>decimal.format(v/1000)+' km'],
+    ['elapsedSeconds','Duración total registrada',0.001,86400,v=>observedDuration(v*1000)],
+    ['elapsedPaceSecondsPerKm','Ritmo total estimado',60,3600,v=>formatPace(v)+' min/km'],
+    ['averageBpm','FC media registrada',25,240,v=>decimal.format(v)+' lpm'],
+  ];
   for(const row of rows){
     if(!allowed.has(row?.label)||typeof row.detail!=='string'||!row.detail)return Object.freeze([]);
-    if(!sports.has(row.label))sports.set(row.label,{label:row.label,detail:row.detail,days:new Set()});
-    if(row.source==='imported'&&Number.isFinite(row.orderAt)
-      &&row.dayKey===localWorkoutDay(row.orderAt))sports.get(row.label).days.add(row.dayKey);
+    if(!sports.has(row.label))sports.set(row.label,{label:row.label,detail:row.detail,days:new Set(),measures:new Map()});
+    if(row.source!=='imported'||!Number.isFinite(row.orderAt)||row.dayKey!==localWorkoutDay(row.orderAt))continue;
+    const group=sports.get(row.label);group.days.add(row.dayKey);
+    for(const [key,label,min,max,format] of fields){
+      const value=row.measurements?.[key];
+      if(typeof value!=='number'||!Number.isFinite(value)||value<min||value>max)continue;
+      if(key==='elapsedPaceSecondsPerKm'&&(!['Carrera','Carrera por intervalos'].includes(row.label)||!Number.isSafeInteger(value)))continue;
+      if(!group.measures.has(key))group.measures.set(key,{label,min:value,max:value,days:new Set(),format});
+      const metric=group.measures.get(key);
+      metric.min=Math.min(metric.min,value);metric.max=Math.max(metric.max,value);metric.days.add(row.dayKey);
+    }
   }
-  return Object.freeze([...sports.values()].map(({days,...row})=>Object.freeze({
+  return Object.freeze([...sports.values()].map(({days,measures,...row})=>Object.freeze({
     ...row,observedDays:days.size||null,
+    ranges:Object.freeze([...measures].filter(([,metric])=>metric.days.size>=2)
+      .map(([key,metric])=>Object.freeze({key,label:metric.label,
+        min:metric.min,max:metric.max,observedDays:metric.days.size,
+        text:metric.min===metric.max?metric.format(metric.min):metric.format(metric.min)+' — '+metric.format(metric.max)}))),
   })));
 }
 export function formatConnected360ProductionSummary(p,{nativeAvailable=true}={}){

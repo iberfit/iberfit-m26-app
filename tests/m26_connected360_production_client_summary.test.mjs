@@ -419,3 +419,23 @@ test('sport coverage counts unique observed civil days, never number of workouts
   assert.ok(mix.every(r=>!Object.hasOwn(r,'totalLoad')&&!Object.hasOwn(r,'totalDistance')));
   assert.equal(connected360WorkoutMix([{label:'Carrera',detail:'Registro'}])[0].observedDays,null);
 });
+
+
+test('observed sport ranges retain per-metric day coverage and never imply comparable performance',()=>{
+  const now=new Date('2026-11-28T18:00:00Z');
+  const row=(day,hour,d,avg,hr=20)=>({sport:'running',startedAt:'2026-11-'+day+'T'+hour+':00:00Z',endedAt:'2026-11-'+day+'T'+hour+':30:00Z',distanceMeters:d,avgBpm:avg,heartRateSamples:hr});
+  const records=connected360WorkoutHistory({...empty(),exerciseEvidence:[
+    row(28,12,5000,150),row(28,13,4000,152),row(27,12,6000,140,0),row(26,12,null,130,0)
+  ]},{now});
+  const mix=connected360WorkoutMix(records)[0];
+  assert.equal(mix.observedDays,3);
+  assert.equal(mix.ranges.find(r=>r.key==='distanceMeters').observedDays,2);
+  assert.equal(mix.ranges.find(r=>r.key==='distanceMeters').min,4000);
+  assert.equal(mix.ranges.find(r=>r.key==='distanceMeters').max,6000);
+  assert.equal(mix.ranges.find(r=>r.key==='elapsedPaceSecondsPerKm').min,300);
+  assert.equal(mix.ranges.find(r=>r.key==='elapsedPaceSecondsPerKm').max,450);
+  assert.equal(mix.ranges.find(r=>r.key==='elapsedSeconds').observedDays,3);
+  assert.equal(mix.ranges.some(r=>r.key==='averageBpm'),false);
+  assert.ok(Object.isFrozen(mix.ranges));
+  assert.equal(connected360WorkoutMix(records.slice(0,2))[0].ranges.length,0);
+});
