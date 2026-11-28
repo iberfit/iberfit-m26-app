@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader} from '../src/m26/wearables/v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix} from '../src/m26/wearables/v46-production-summary.js';
 
 const empty=()=>({ok:true,provider:'health_connect',heartRateDaily:[],exerciseEvidence:[]});
 
@@ -175,4 +175,36 @@ test('privacy retirement before a queued summary read prevents unnecessary remot
   reader.clear();
   await assert.rejects(pending,/SUMMARY_READ_RETIRED/u);
   assert.equal(calls,0);
+});
+
+test('Evolución shows a bounded activity mix, never a training completion or total workload',()=>{
+  const now=new Date('2026-10-13T12:00:00Z');
+  const row=(sport,startedAt,endedAt)=>({sport,startedAt,endedAt,linkedToTraining:false});
+  const observations=[
+    row('running','2026-10-12T10:00:00Z','2026-10-12T10:30:00Z'),
+    row('running','2026-10-12T10:00:00Z','2026-10-12T10:30:00Z'),
+    row('strength','2026-10-11T10:00:00Z','2026-10-11T10:30:00Z'),
+  ];
+  const mix=connected360WorkoutMix(connected360WorkoutHistory({...empty(),exerciseEvidence:observations},{now}));
+  assert.deepEqual(mix.map(row=>row.label),['Carrera','Fuerza']);
+  assert.ok(mix.every(row=>row.detail.includes('30 min')&&!Object.hasOwn(row,'count')));
+  assert.deepEqual(connected360WorkoutMix([{label:'<script>'}]),[]);
+  assert.ok(Object.isFrozen(mix)&&mix.every(Object.isFrozen));
+  const routes=readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  const progress=routes.slice(routes.indexOf('export function renderProgressRoute(vm)'),routes.indexOf('export function renderActivityRoute(vm)'));
+  assert.match(progress,/if\(vm\.role==='client'\)\{[\s\S]*data-prod-connected360-feed="evolution" hidden/u);
+  const inactive=routes.slice(routes.indexOf('export function renderActivityRoute(vm)'),routes.indexOf('// The newest confirmed wellbeing check-in'));
+  assert.match(inactive,/vm\.role==='client'\?'<section class="m26-panel" data-prod-connected360-feed="full" hidden/u);
+  assert.match(controller,/connected360WorkoutMix\(rows\)/u);
+  assert.match(controller,/No mide el cumplimiento del plan/u);
+});
+test('invalid civil dates and rolled-over 24h timestamps are never rendered as observations',()=>{
+  const now=new Date('2026-03-04T12:00:00Z');
+  const exerciseEvidence=[
+    {sport:'running',startedAt:'2026-02-30T10:00:00Z',endedAt:'2026-03-02T10:30:00Z'},
+    {sport:'running',startedAt:'2026-03-02T24:00:00Z',endedAt:'2026-03-03T00:30:00Z'},
+    {sport:'cycling',startedAt:'2026-03-03T10:00:00-03:00',endedAt:'2026-03-03T10:30:00-03:00'},
+  ];
+  assert.deepEqual(connected360WorkoutHistory({...empty(),exerciseEvidence},{now}).map(row=>row.label),['Ciclismo']);
 });

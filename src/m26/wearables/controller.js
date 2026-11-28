@@ -26,7 +26,7 @@ import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {createConnected360ProductionSync} from './v46-production-sync.js';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader} from './v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {
   createLatestTaskCoordinator,
@@ -952,7 +952,7 @@ export function createWearableController({
     const stillCurrent=()=>stillOwner()&&wrap.isConnected&&requestEpoch===productionSummaryEpoch;
     if(!isOnline()){
       target.textContent='Necesitas conexión para consultar la actividad guardada.';
-      if(feed)feed.hidden=feed.dataset.prodConnected360Feed==='compact';
+      if(feed)feed.hidden=feed.dataset.prodConnected360Feed!=='full';
       return;
     }
     if(feed?.dataset.prodConnected360Feed==='full')feed.hidden=false;
@@ -975,25 +975,41 @@ export function createWearableController({
           if(feed){
             target.textContent=rows.length?'':'No hay actividades deportivas recientes importadas.';
             // Do not add another empty panel to Hoy if the owner has no workouts.
-            feed.hidden=feed.dataset.prodConnected360Feed==='compact'&&!rows.length;
+            feed.hidden=feed.dataset.prodConnected360Feed!=='full'&&!rows.length;
           }
           const children=[];
           if(rows.length){
             const heading=document.createElement('h4');
-            heading.textContent='Últimos entrenamientos importados';
+            const evolution=feed?.dataset.prodConnected360Feed==='evolution';
+            heading.textContent=evolution?'Actividad deportiva complementaria':'Últimos entrenamientos importados';
             const note=document.createElement('p');
             note.textContent=feed?.dataset.prodConnected360Feed==='compact'
               ?'Últimas actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.'
               :'Hasta 10 actividades de los últimos 7 días. Fuente: Health Connect. No equivalen a sesiones confirmadas por tu Coach.';
             const list=document.createElement('ul');
-            for(const row of rows){
-              const item=document.createElement('li');
-              const label=document.createElement('strong');
-              label.textContent=row.label;
-              item.append(label,document.createTextNode(' · '+row.detail));
-              list.append(item);
+            if(evolution){
+              note.textContent='Último registro disponible por deporte (hasta 10 actividades de los últimos 7 días). No mide el cumplimiento del plan.';
+              for(const row of connected360WorkoutMix(rows)){
+                const item=document.createElement('li');
+                const label=document.createElement('strong');
+                label.textContent=row.label;
+                item.append(label,document.createTextNode(' · '+row.detail));
+                list.append(item);
+              }
+              const action=document.createElement('button');
+              action.type='button';action.dataset.m26Area='actividad';
+              action.textContent='Ver mi actividad';
+              children.push(heading,note,list,action);
+            }else{
+              for(const row of rows){
+                const item=document.createElement('li');
+                const label=document.createElement('strong');
+                label.textContent=row.label;
+                item.append(label,document.createTextNode(' · '+row.detail));
+                list.append(item);
+              }
+              children.push(heading,note,list);
             }
-            children.push(heading,note,list);
           }
           history.replaceChildren(...children);
           history.hidden=!rows.length;

@@ -9,6 +9,12 @@ const workoutDate=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',y
 const decimal=new Intl.NumberFormat('es-CL',{maximumFractionDigits:2});
 function observedInstant(value){
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/u.test(value))return null;
+  // Date.parse normalizes dates such as 30 February; reject those before
+  // applying the offset, so malformed observations cannot become real workouts.
+  const day=value.slice(0,10),civil=new Date(day+'T00:00:00Z');
+  if(!Number.isFinite(civil.getTime())||civil.toISOString().slice(0,10)!==day)return null;
+  const hour=Number(value.slice(11,13)),minute=Number(value.slice(14,16)),second=Number(value.slice(17,19));
+  if(hour>23||minute>59||second>59)return null;
   const stamp=Date.parse(value);return Number.isFinite(stamp)?stamp:null;
 }
 function observedDuration(ms){
@@ -33,6 +39,19 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
       detail:[workoutDate.format(start),observedDuration(end-start),distance].filter(Boolean).join(' · ')});
   }
   return Object.freeze(rows.sort((a,b)=>b.start-a.start).map(({label,detail})=>Object.freeze({label,detail})));
+}
+// Describe only the bounded list received from the server, not the user's
+// total activity. Do not sum durations or distances across potential overlaps.
+export function connected360WorkoutMix(rows){
+  if(!Array.isArray(rows)||rows.length>10)return Object.freeze([]);
+  const sports=new Map(),allowed=new Set(Object.values(WORKOUT_SPORTS));
+  // Input is already ordered newest first. A sport appears only once,
+  // regardless of duplicate observations or overlapping device sources.
+  for(const row of rows){
+    if(!allowed.has(row?.label)||typeof row.detail!=='string'||!row.detail)return Object.freeze([]);
+    if(!sports.has(row.label))sports.set(row.label,Object.freeze({label:row.label,detail:row.detail}));
+  }
+  return Object.freeze([...sports.values()]);
 }
 export function formatConnected360ProductionSummary(p,{nativeAvailable=true}={}){
   if(!p||p.ok!==true||p.provider!=='health_connect'||

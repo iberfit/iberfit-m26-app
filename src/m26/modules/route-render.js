@@ -3925,6 +3925,7 @@ export function renderProgressRoute(vm){
       ${stageMarkup}
       ${renderClientCycleGoal(vm.periodization)}
       ${primaryEvidence}
+      <section class="m26-panel" data-prod-connected360-feed="evolution" hidden></section>
       ${detailed}
     </div>`;
   }
@@ -3994,6 +3995,7 @@ export function renderActivityRoute(vm){
     const ownedHealth=vm.role==='client'&&(confirmedDays||historicalDays)
       ?renderClientDeviceHub(vm.wearables,{dailyRecords:healthHistoryCards}):'';
     return `<div class="m26-route" data-service-kind="none">
+      ${vm.role==='client'?'<section class="m26-panel" data-prod-connected360-feed="full" hidden></section>':''}
       ${ownedHealth}
       <section class="m26-route-intro"><div><p class="m26-eyebrow">Sin entrenamiento activo</p><h2>Seguimiento diario no activado</h2><p>Hábitos, adherencia, wearables y check-ins longitudinales pertenecen al acompañamiento posterior, no al diagnóstico IRI inicial.</p></div>${badge('IRI separado del seguimiento','neutral')}</section>
       <section class="m26-panel m26-panel-soft"><p>La información necesaria para interpretar la evaluación se registra dentro del propio IRI. No se crean obligaciones de seguimiento por contratar únicamente la evaluación.</p><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-m26-area="iri">Volver al IRI</button><button type="button" data-m26-area="informes">Abrir informes</button></div></section>
