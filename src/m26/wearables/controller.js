@@ -26,7 +26,7 @@ import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
 import {createConnected360ProductionSync} from './v46-production-sync.js';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix} from './v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
 import {
   createLatestTaskCoordinator,
@@ -931,6 +931,24 @@ export function createWearableController({
     refresh.textContent='Consultar actividad guardada';
     wrap.append(refresh,results,workoutHistory);
   }
+  function renderProductionWorkoutDays(document,rows,beforeStartedAt=null){
+    return connected360WorkoutDays(rows,{beforeStartedAt}).map(day=>{
+      const group=document.createElement('section');
+      group.dataset.prodConnected360Day=day.dayKey;
+      const heading=document.createElement('h5');
+      heading.textContent=day.label+(day.continued?' · continuación':'');
+      const list=document.createElement('ul');
+      for(const row of day.rows){
+        const item=document.createElement('li');
+        const label=document.createElement('strong');
+        label.textContent=row.label;
+        item.append(label,document.createTextNode(' · '+row.dayDetail));
+        list.append(item);
+      }
+      group.append(heading,list);
+      return group;
+    });
+  }
   async function refreshProductionSummary(wrap,{supersede=false}={}){
     if(!mounted||!canReadProductionHistory()||!wrap?.isConnected||productionHistoryMutationDepth>0
       ||root.ownerDocument?.visibilityState==='hidden')return;
@@ -1001,14 +1019,7 @@ export function createWearableController({
               action.textContent='Ver mi actividad';
               children.push(heading,note,list,action);
             }else{
-              for(const row of rows){
-                const item=document.createElement('li');
-                const label=document.createElement('strong');
-                label.textContent=row.label;
-                item.append(label,document.createTextNode(' · '+row.detail));
-                list.append(item);
-              }
-              children.push(heading,note,list);
+              children.push(heading,note,...renderProductionWorkoutDays(document,rows));
             }
           }
           // The server must explicitly advertise the V48 read model. Older
@@ -1055,20 +1066,14 @@ export function createWearableController({
               status.textContent=page.rows.length
                 ?'Página '+(previousCursors.length+1)+' · Actividades importadas de Health Connect; no equivalen a sesiones confirmadas.'
                 :'No hay más actividades autorizadas.';
-              const list=document.createElement('ul');
-              for(const row of page.rows){
-                const item=document.createElement('li'),label=document.createElement('strong');
-                label.textContent=row.label;
-                item.append(label,document.createTextNode(' · '+row.detail));
-                list.append(item);
-              }
+              const groups=renderProductionWorkoutDays(document,page.rows,cursor?.startedAt??null);
               const controls=[];
               if(previousCursors.length)controls.push(makeAction('Anterior',()=>
                 renderActivityPage(previousCursors.at(-1),previousCursors.slice(0,-1))));
               if(page.nextCursor)controls.push(makeAction('Siguiente',()=>
                 renderActivityPage(page.nextCursor,[...previousCursors,cursor])));
               controls.push(makeAction('Volver al resumen',()=>refreshProductionSummary(wrap,{supersede:true})));
-              history.replaceChildren(heading,status,list,...controls);
+              history.replaceChildren(heading,status,...groups,...controls);
             }catch{
               if(!stillCurrent()||!history.isConnected)return;
               status.textContent='No se pudo consultar el historial autorizado. Puedes reintentar.';
