@@ -9,6 +9,7 @@ BEGIN
  OR EXISTS(SELECT 1 FROM public.m26_wearable_v46_consents_prod WHERE provider='apple_health')
  OR EXISTS(SELECT 1 FROM public.m26_wearable_exercise_evidence_v46 WHERE provider='apple_health')
  OR to_regprocedure('public.m26_wearable_v54_import_apple_exercise_v1(uuid,jsonb)') IS NOT NULL
+ OR to_regprocedure('private.m26_v56_set_apple_coach_consent(uuid,uuid,integer,boolean)') IS NOT NULL
  THEN RAISE EXCEPTION 'M26_V53_ROLLBACK_REQUIRES_DATA_PRESERVATION'; END IF;
 END $guard$;
 DROP FUNCTION public.m26_wearable_v53_apple_exercise_status_v1();
