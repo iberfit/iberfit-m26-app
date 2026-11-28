@@ -1,4 +1,5 @@
 import {createPrivilegedHistoryAssembler,__u36HistoryInternals} from './domain/privileged-history-assembler.js';
+import {verifyAppleExerciseStatus,appleExerciseConsentParams,verifyAppleExerciseConsentReceipt,appleExerciseImportParams,verifyAppleExerciseImportReceipt} from './wearables/v53-apple-authorization-contract.js';
 import {CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT} from './wearables/measurement-capability-contract.js';
 import {connected360ActivityPage,connected360ActivityPageParams} from './wearables/v46-production-summary.js';
 import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients} from './wearables/v49-coach-activity-contract.js';
@@ -1745,6 +1746,32 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
        runtime.environment!=='production')
       throw new Error('M26_V46_PRODUCTION_RUNTIME_REQUIRED');
   }
+  // Only an explicitly enabled certification harness on the exact QA project
+  // can invoke candidate Apple RPCs. No UI, production or automatic retry.
+  function assertAppleExerciseCandidate(token){
+    if(dependencies.connected360AppleCandidate!==true||runtime.qaOnly!==true||runtime.canary!==true
+      ||runtime.projectRef!==M26_QA_PROJECT_REF||runtime.url!==M26_QA_SUPABASE_ORIGIN)
+      throw Error('M26_V54_APPLE_CANDIDATE_QA_ONLY');
+    if(typeof token!=='string'||!token)throw Error('M26_AUTH_REQUIRED');
+  }
+  function appleCandidateResponse(raw){
+    if(Array.isArray(raw)){if(raw.length!==1)throw Error('M26_V54_APPLE_IMPORT_CONTRACT_INVALID');return raw[0];}
+    return raw;
+  }
+  async function connected360AppleCandidateStatus(token,{signal}={}){
+    assertAppleExerciseCandidate(token);
+    return verifyAppleExerciseStatus(appleCandidateResponse(await request('/rest/v1/rpc/m26_wearable_v53_apple_exercise_status_v1',{method:'POST',token,body:'{}',signal})));
+  }
+  async function authorizeConnected360AppleCandidate(token,status,{confirmed=false,signal}={}){
+    assertAppleExerciseCandidate(token);
+    const params=appleExerciseConsentParams(status,{confirmed});
+    return verifyAppleExerciseConsentReceipt(appleCandidateResponse(await request('/rest/v1/rpc/m26_wearable_v53_authorize_apple_exercise_v1',{method:'POST',token,body:JSON.stringify(params),signal})),params);
+  }
+  async function importConnected360AppleCandidate(token,status,payload,{signal}={}){
+    assertAppleExerciseCandidate(token);
+    const params=appleExerciseImportParams(status,payload);
+    return verifyAppleExerciseImportReceipt(appleCandidateResponse(await request('/rest/v1/rpc/m26_wearable_v54_import_apple_exercise_v1',{method:'POST',token,body:JSON.stringify(params),signal})),params);
+  }
   async function connected360DailyProduction(token){
     assertConnected360Production();
     if(!token)throw new Error('M26_AUTH_REQUIRED');
@@ -2286,6 +2313,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     importConnected360QaV45,
     importConnected360QaV46,
     extendConnected360QaV46Grant,
+    connected360AppleCandidateStatus,
+    authorizeConnected360AppleCandidate,
+    importConnected360AppleCandidate,
     connected360ProductionCapabilities,
     connected360ProductionAuthorizationStatus,
     connected360ProductionSummary,

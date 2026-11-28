@@ -30,3 +30,39 @@ export function verifyAppleExerciseConsentReceipt(v,params){
  ||(v.alreadyAuthorized?v.grantId!==params.p_expected_grant:v.grantId===params.p_expected_grant))fail();
  return Object.freeze({...v,scopes:Object.freeze([...v.scopes])});
 }
+
+// Candidate workout-only transport. No native/UI caller or automatic retry.
+const workoutSports=new Set(['running','cycling','walking','strength','hiit','swimming','other']);
+const key=/^[0-9a-f]{64}$/u;
+function instant(v){
+ if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{3})?Z$/u.test(v))return NaN;
+ const n=Date.parse(v);
+ return Number.isFinite(n)&&new Date(n).toISOString()===(v.length===20?v.slice(0,-1)+'.000Z':v)?n:NaN;
+}
+const importFail=()=>{throw Error('M26_V54_APPLE_IMPORT_CONTRACT_INVALID');};
+export function appleExerciseImportParams(status,payload,{at=Date.now()}={}){
+ const v=verifyAppleExerciseStatus(status);
+ if(!v.authorized||!Number.isFinite(at)||!shape(payload,['schema','acquiredAt','exerciseEvidence'])
+ ||payload.schema!=='iberfit.connected360.v54.apple.ingest.v1'||!Array.isArray(payload.exerciseEvidence)
+ ||payload.exerciseEvidence.length<1||payload.exerciseEvidence.length>20)importFail();
+ const acquired=instant(payload.acquiredAt);
+ if(!Number.isFinite(acquired)||acquired<at-1200000||acquired>at+300000)importFail();
+ const seen=new Set();
+ const rows=payload.exerciseEvidence.map(r=>{
+  if(!shape(r,['observationKey','sport','startedAt','endedAt','activeSeconds','distanceMeters'])
+  ||typeof r.observationKey!=='string'||!key.test(r.observationKey)||seen.has(r.observationKey)||!workoutSports.has(r.sport))importFail();
+  const start=instant(r.startedAt),end=instant(r.endedAt),elapsed=(end-start)/1000;
+  if(!Number.isFinite(start)||!Number.isFinite(end)||start<acquired-31*86400000||end>acquired+5000||elapsed<=0||elapsed>86400
+  ||typeof r.activeSeconds!=='number'||!Number.isFinite(r.activeSeconds)||r.activeSeconds<=0||r.activeSeconds>elapsed+1
+  ||(r.distanceMeters!==null&&(typeof r.distanceMeters!=='number'||!Number.isFinite(r.distanceMeters)||r.distanceMeters<0||r.distanceMeters>500000)))importFail();
+  seen.add(r.observationKey);return Object.freeze({...r});
+ });
+ return Object.freeze({p_grant_id:v.grantId,p_payload:Object.freeze({...payload,exerciseEvidence:Object.freeze(rows)})});
+}
+export function verifyAppleExerciseImportReceipt(v,params){
+ const count=params?.p_payload?.exerciseEvidence?.length;
+ if(!Number.isInteger(count)||count<1||count>20||!shape(v,['ok','provider','persisted','inserted','updated','unchanged','sourceIdentityVerified','automaticSyncCertified'])
+ ||v.ok!==true||v.provider!=='apple_health'||v.persisted!==true||v.sourceIdentityVerified!==false||v.automaticSyncCertified!==false
+ ||![v.inserted,v.updated,v.unchanged].every(n=>Number.isSafeInteger(n)&&n>=0)||v.inserted+v.updated+v.unchanged!==count)importFail();
+ return Object.freeze({...v});
+}
