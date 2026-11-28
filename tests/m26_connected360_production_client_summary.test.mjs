@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360ActivityPage,connected360ActivityPageParams} from '../src/m26/wearables/v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360ActivityPage,connected360ActivityPageParams,connected360WorkoutDays} from '../src/m26/wearables/v46-production-summary.js';
 
 const empty=()=>({ok:true,provider:'health_connect',heartRateDaily:[],exerciseEvidence:[]});
 
@@ -281,4 +281,39 @@ test('full activity UI is explicit, capability-gated and fenced on owner changes
   assert.match(controller,/async function renderActivityPage/u);
   assert.match(controller,/const page=await transport\.connected360ProductionActivityPage\(token,cursor\);\s*if\(!stillCurrent\(\)\|\|!history\.isConnected\)return/u);
   assert.match(controller,/button\.isConnected/u);
+});
+
+test('imported workouts group by Chilean start day, not UTC, preserving each separate session',()=>{
+  const now=new Date('2026-11-28T12:00:00Z');
+  const workout=(sport,startedAt,endedAt)=>({sport,startedAt,endedAt,linkedToTraining:false});
+  const rows=connected360WorkoutHistory({...empty(),exerciseEvidence:[
+    workout('running','2026-11-28T00:30:00Z','2026-11-28T01:00:00Z'),
+    workout('strength','2026-11-27T12:00:00Z','2026-11-27T12:45:00Z'),
+    workout('cycling','2026-11-28T03:15:00Z','2026-11-28T04:00:00Z'),
+    workout('running','2026-11-27T02:45:00Z','2026-11-27T03:15:00Z'),
+    workout('running','2026-11-27T13:00:00Z','2026-11-27T13:30:00Z'),
+  ]},{now});
+  const days=connected360WorkoutDays(rows);
+  assert.deepEqual(days.map(d=>d.dayKey),['2026-11-28','2026-11-27','2026-11-26']);
+  assert.deepEqual(days.map(d=>d.rows.map(row=>row.label)),[['Ciclismo'],['Carrera','Carrera','Fuerza'],['Carrera']]);
+  assert.match(days[1].rows[0].dayDetail,/21:30/u);
+  assert.match(days[2].rows[0].dayDetail,/23:45/u);
+  assert.ok(Object.isFrozen(days)&&days.every(d=>Object.isFrozen(d)&&Object.isFrozen(d.rows)));
+  assert.equal(days.flatMap(d=>d.rows).length,5);
+});
+test('a day crossing a page boundary is explicitly continued, never merged or dropped',()=>{
+  const items=[pageRow(3),pageRow(2)];
+  const page=connected360ActivityPage(pageDto(items),{now:pageNow});
+  const days=connected360WorkoutDays(page.rows,{beforeStartedAt:'2026-10-12T11:00:00.000000Z'});
+  assert.equal(days.length,1);assert.equal(days[0].continued,true);assert.equal(days[0].rows.length,2);
+  assert.equal(connected360WorkoutDays(page.rows)[0].continued,false);
+  assert.equal(connected360WorkoutDays(page.rows,{beforeStartedAt:'2026-10-13T11:00:00.000000Z'})[0].continued,false);
+  assert.deepEqual(connected360WorkoutDays([]),[]);
+});
+test('recent and paginated activity UI reuse the day renderer, preserving the separate Evolution overview',()=>{
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  assert.match(controller,/children\.push\(heading,note,\.\.\.renderProductionWorkoutDays\(document,rows\)\)/u);
+  assert.match(controller,/renderProductionWorkoutDays\(document,page\.rows,cursor\?\.startedAt\?\?null\)/u);
+  assert.match(controller,/group\.dataset\.prodConnected360Day=day\.dayKey/u);
+  assert.match(controller,/connected360WorkoutMix\(rows\)/u);
 });
