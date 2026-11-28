@@ -1761,12 +1761,17 @@ export async function createM26Application({root=document.querySelector('#app'),
       const auth=professionalReportSelectionScope();
       return auth&&['expediente','sesion'].includes(area)?{...auth,area,provider:apple?'apple_health':'health_connect'}:null;
     }
-    async function readCoachActivity(scope,stillCurrent,{signal}={}){
+    async function readCoachActivity(scope,stillCurrent,{signal,trendDays=null}={}){
       const check=()=>{if(signal?.aborted||!stillCurrent()||!sameConnected360CoachScope(scope,coachActivityScope()))
         throw Error('M26_V49_STALE_COACH_SCOPE');};
-      check();await refreshSessionIfNeeded();check();
+      check();
+      if(trendDays!==null&&(scope.area!=='expediente'||scope.provider!=='apple_health'||![7,28,90,365].includes(trendDays)))throw Error('M26_V58_SCOPE_INVALID');
+      await refreshSessionIfNeeded();check();
       const token=currentToken();
       await ensurePrivilegedActionAssurance({transport,token,userId:scope.actorId,friendlyName:'IBERFIT · seguimiento profesional'});check();
+      if(trendDays!==null){
+        const result=await transport.connected360AppleCandidateCoachTrends(token,scope.clientId,trendDays,{signal});check();return result;
+      }
       if(scope.provider==='apple_health'){
         const payload=await transport.connected360AppleCandidateCoachExerciseDays(token,scope.clientId,{signal});check();
         const now=new Date(),confirmedRows=confirmedCoachTrainingRows(store.getRenderSnapshot(),scope.clientId,{now});

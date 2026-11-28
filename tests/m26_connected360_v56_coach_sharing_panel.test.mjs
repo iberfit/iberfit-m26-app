@@ -83,3 +83,27 @@ test('longitudinal consent panel is a separate explicit decision and never calls
  assert.ok(root.find("Confirma el acceso de este entrenador a las comparaciones de Apple Salud de hasta 730 días. El permiso semanal no cambia."));root.find('Confirmar permiso').click();await flush();
  assert.equal(calls.length,1);assert.equal(calls[0].opts.confirmed,true);view.retire();
 });
+
+test('Coach longitudinal view uses its own reader, no private counts, and a 30-second display lease',async()=>{
+ const doc={createElement:tag=>new Node(doc,tag)},root=new Node(doc,'root'),calls=[];
+ let current=true,expire=null,cleared=0;
+ const transport={connected360AppleCandidateAvailable:()=>true,connected360AppleCandidateCoachTrends:()=>{throw Error('must go through application assurance');},connected360AppleCandidateOwnerTrends:()=>{throw Error('private owner read');}};
+ const readProfessional=(days,live,{signal})=>new Promise(resolve=>calls.push({days,live,signal,resolve}));
+ const view=mountConnected360AppleTrendsPanel(root,{clientId,stillCurrent:()=>current,transport,readProfessional,
+ setTimer:(fn,ms)=>{assert.equal(ms,30000);expire=fn;return 0;},clearTimer:id=>{assert.equal(id,0);cleared++;}});
+ const action=root.find('Consultar tendencias');assert.equal(calls.length,0);action.click();await flush();
+ assert.equal(calls[0].days,28);assert.equal(calls[0].live(),true);
+ const result={provider:'apple_health',purpose:'coaching-apple-trends-v1',windowDays:28,coverage:'observed-only',automaticPlanChange:false,periods:[
+ {periodStart:'2026-10-31',periodEnd:'2026-11-27',observedDays:3,disciplines:[{sport:'running',observedDays:3}]},
+ {periodStart:'2026-10-03',periodEnd:'2026-10-30',observedDays:1,disciplines:[{sport:'swimming',observedDays:1}]}]};
+ calls[0].resolve(result);await flush();
+ assert.ok(root.find('Actividad registrada por disciplina'));assert.equal(root.find('Solo registros de autorizaciones anteriores'),undefined);
+ expire();assert.equal(cleared,1);assert.equal(root.find('Actividad registrada por disciplina'),undefined);
+ action.click();await flush();current=false;view.clear();assert.equal(calls[1].signal.aborted,true);calls[1].resolve(result);await flush();assert.equal(root.find('Actividad registrada por disciplina'),undefined);view.retire();
+});
+test('Coach longitudinal view rejects an owner response and does not display private history',async()=>{
+ const doc={createElement:tag=>new Node(doc,tag)},root=new Node(doc,'root');
+ const transport={connected360AppleCandidateAvailable:()=>true,connected360AppleCandidateCoachTrends:()=>{}};
+ const view=mountConnected360AppleTrendsPanel(root,{clientId,stillCurrent:()=>true,transport,readProfessional:async()=>({provider:'apple_health',windowDays:28,coverage:'observed-only',automaticPlanChange:false,periods:[{},{}]})});
+ root.find('Consultar tendencias').click();await flush();assert.ok(root.find("No se pudieron consultar las tendencias autorizadas. Comprueba el permiso específico y vuelve a intentarlo."));assert.equal(root.find('Actividad registrada por disciplina'),undefined);view.retire();
+});

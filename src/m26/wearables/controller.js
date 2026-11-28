@@ -482,13 +482,15 @@ export function mountConnected360CoachSharingPanel(wrap,{provider,clientId,still
 
 // Owner-only longitudinal view. One bounded read per deliberate action.
 // Do not turn historical observations into current readiness or coach consent.
-export function mountConnected360AppleTrendsPanel(wrap,{clientId,stillCurrent,getToken,transport}={}){
- if(transport?.connected360AppleCandidateAvailable?.()!==true||typeof transport.connected360AppleCandidateOwnerTrends!=='function')
+export function mountConnected360AppleTrendsPanel(wrap,{clientId,stillCurrent,getToken,transport,readProfessional=null,setTimer=setTimeout,clearTimer=clearTimeout}={}){
+ const professional=typeof readProfessional==='function';
+ if(transport?.connected360AppleCandidateAvailable?.()!==true
+  ||(professional?typeof transport.connected360AppleCandidateCoachTrends!=='function':typeof transport.connected360AppleCandidateOwnerTrends!=='function'))
   throw Error('M26_V57_CANDIDATE_DISABLED');
  const document=wrap.ownerDocument,panel=document.createElement('section');
- panel.dataset.qaAppleTrends='true';
+ if(professional)panel.dataset.qaAppleCoachTrends='true';else panel.dataset.qaAppleTrends='true';
  const element=(tag,copy)=>{const node=document.createElement(tag);node.textContent=copy;return node;};
- const title=element('h4','Tendencias de Apple Salud · QA');
+ const title=element('h4',professional?"Tendencias deportivas compartidas · Apple Salud (QA)":'Tendencias de Apple Salud · QA');
  const intro=element('p','Compara días con actividad registrada en periodos de igual duración. No se incluye el día de hoy.');
  const label=element('label','Elige el periodo de comparación');
  const select=document.createElement('select');
@@ -499,27 +501,29 @@ export function mountConnected360AppleTrendsPanel(wrap,{clientId,stillCurrent,ge
  const action=element('button','Consultar tendencias');action.type='button';
  const status=element('p','');status.setAttribute('role','status');
  const content=document.createElement('div');
- const boundary=element('small','Los días sin registros no demuestran descanso. Estas tendencias son privadas y no se comparten con tu entrenador.');
+ const boundary=element('small',professional?"Los días sin registros no demuestran descanso. Solo se muestran observaciones autorizadas de la conexión vigente; no son sesiones confirmadas ni un diagnóstico de recuperación.":"Esta vista del historial es privada. Los días sin registros no demuestran descanso.");
  panel.append(title,intro,label,action,status,content,boundary);wrap.append(panel);
- let retired=false,epoch=0,abort=null;
+ let retired=false,epoch=0,abort=null,leaseTimer=null;
  const active=()=>!retired&&panel.isConnected&&stillCurrent()&&transport.connected360AppleCandidateAvailable?.()===true;
  function clear(){
-  epoch++;abort?.abort();abort=null;content.replaceChildren();status.textContent='';action.disabled=false;
+  epoch++;abort?.abort();abort=null;if(leaseTimer!==null){clearTimer(leaseTimer);leaseTimer=null;}content.replaceChildren();status.textContent='';action.disabled=false;
  }
  function retire(){if(retired)return;retired=true;clear();panel.remove();}
  function metric(parent,caption,count){
   const row=document.createElement('p');row.append(element('span',caption),element('strong',': '+String(count)));parent.append(row);
  }
  function render(view,days){
-  if(view?.provider!=='apple_health'||view.windowDays!==days||view.coverage!=='observed-only'||view.automaticPlanChange!==false||view.periods?.length!==2)throw Error('M26_V57_VIEW_INVALID');
+  if(view?.provider!=='apple_health'||view.windowDays!==days||view.coverage!=='observed-only'||view.automaticPlanChange!==false||view.periods?.length!==2||(professional?view.purpose!=='coaching-apple-trends-v1':Object.hasOwn(view,'purpose')))throw Error('M26_V57_VIEW_INVALID');
   const [recent,previous]=view.periods;
   for(const [period,heading] of [[recent,'Periodo reciente'],[previous,'Periodo anterior']]){
    const section=document.createElement('section');
    section.append(element('h5',heading),element('p',period.periodStart+' — '+period.periodEnd));
    metric(section,'Días con actividad registrada',period.observedDays);
-   metric(section,'Solo registros de autorización vigente',period.currentOnlyDays);
-   metric(section,'Solo registros de autorizaciones anteriores',period.retainedOnlyDays);
-   metric(section,'Registros de ambas autorizaciones',period.mixedDays);
+   if(!professional){
+    metric(section,'Solo registros de autorización vigente',period.currentOnlyDays);
+    metric(section,'Solo registros de autorizaciones anteriores',period.retainedOnlyDays);
+    metric(section,'Registros de ambas autorizaciones',period.mixedDays);
+   }
    content.append(section);
   }
   const sports=new Map();
@@ -551,13 +555,20 @@ export function mountConnected360AppleTrendsPanel(wrap,{clientId,stillCurrent,ge
   action.disabled=true;status.textContent='Consultando tendencias…';
   try{
    if(![7,28,90,365].includes(days))throw Error('M26_V57_PERIOD_INVALID');
-   const token=await getToken();if(!live())return;
-   const view=await transport.connected360AppleCandidateOwnerTrends(token,clientId,days,{signal:controller.signal});
-   if(live())render(view,days);
-  }catch{if(live()){content.replaceChildren();status.textContent='No se pudieron consultar las tendencias. Puedes reintentar.';}}
+   let view;
+   if(professional)view=await readProfessional(days,live,{signal:controller.signal});
+   else{
+    const token=await getToken();if(!live())return;
+    view=await transport.connected360AppleCandidateOwnerTrends(token,clientId,days,{signal:controller.signal});
+   }
+   if(live()){
+    render(view,days);
+    if(professional)leaseTimer=setTimer(()=>{if(request===epoch)clear();},30000);
+   }
+  }catch{if(live()){content.replaceChildren();status.textContent=professional?"No se pudieron consultar las tendencias autorizadas. Comprueba el permiso específico y vuelve a intentarlo.":'No se pudieron consultar las tendencias. Puedes reintentar.';}}
   finally{if(request===epoch){abort=null;if(active())action.disabled=false;else retire();}}
  });
- return Object.freeze({panel,provider:'apple_health',active,retire});
+ return Object.freeze({panel,provider:'apple_health',active,clear,retire});
 }
 
 export function createWearableController({
@@ -1805,8 +1816,9 @@ export function createWearableController({
     const action=document.createElement('button');action.type='button';action.textContent='Consultar actividad compartida';
     const status=document.createElement('p');status.setAttribute('role','status');
     const body=document.createElement('div');
-    let epoch=0,timer=null,abort=null;
+    let epoch=0,timer=null,abort=null,trendPanel=null;
     const clear=()=>{
+      trendPanel?.clear();
       abort?.abort();abort=null;
       epoch+=1;if(timer!==null){clearTimeout(timer);timer=null;}
       body.replaceChildren();status.textContent='';action.disabled=false;
@@ -1862,6 +1874,13 @@ export function createWearableController({
     });
     coachActivityPanel={host,scope,clear,retire};
     host.replaceChildren(title,note,action,status,body);host.hidden=false;
+    // Longitudinal reading has its own purpose and action. Keep the live
+    // session cockpit compact: the comparison belongs in the expediente.
+    if(scope.area==='expediente'&&scope.provider==='apple_health'
+      &&transport.connected360AppleCandidateAvailable?.()===true&&typeof transport.connected360AppleCandidateCoachTrends==='function'){
+      trendPanel=mountConnected360AppleTrendsPanel(host,{clientId:scope.clientId,stillCurrent:active,transport,
+        readProfessional:(days,live,{signal})=>readCoachActivity(scope,live,{signal,trendDays:days})});
+    }
   }
   function enhanceControls(){
     for(const item of coachSharingPanels){if(!item.active()){item.retire();coachSharingPanels.delete(item);}}
