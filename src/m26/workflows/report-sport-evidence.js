@@ -1,5 +1,6 @@
 // Life & Performance 360: conservative, owner-scoped workout evidence.
 import {exerciseMeasurementProfile,EXERCISE_METRIC_FIELDS} from '../exercises/measurement-profiles.js';
+import {reportResultCollection,verifiedSportCoordinates} from './report-result-coordinates.js';
 import {reportCivilDate} from '../domain/civil-date.js';
 import {observedSet,observedLoadKg,evidenceNumber,observedLoadBasisLabel} from '../domain/evidence-signal.js';
 import {sessionExecutionId,sessionExecutionClientId,sessionExecutionIsCompleted,sessionExecutionIsConfirmed,sessionExecutionCompletionDate,readOriginalExecutionPrescription} from '../domain/session-execution-truth.js';
@@ -61,22 +62,10 @@ function exerciseRows(record){
 }
 // Real M26 executions store observed measurements inside results per set.
 // The original prescription classifies exercises; measurements come only from results.
-function classifiedResultRows(source,{limit=16,strict=false,snapshot=null}={}){
-  if(!snapshot)return [];
-  const results=source?.results;
-  const observed=Array.isArray(results)?results:
-    results&&typeof results==='object'?Object.values(results):[];
+function classifiedResultRows(record,{limit=16,snapshot=null}={}){
   const rows=[];
-  for(const row of observed){
-    if(!observedSet(row))continue;
-    const exerciseId=clean(row.exerciseId||row.exercise_id,160);
-    if(!exerciseId)continue;
-    const matching=snapshot.blocks.filter(block=>(block?.type==='exercise'
-      &&String(block.exerciseId||'')===exerciseId)
-      ||(Array.isArray(block?.exerciseIds)&&block.exerciseIds.some(id=>String(id)===exerciseId)));
-    if(strict&&matching.length!==1)continue;
-    const block=matching[0];
-    if(!block)continue; // no valid prescription/exercise identity
+  for(const entry of verifiedSportCoordinates(record,snapshot)){
+    const {row,exerciseId,block,blockIndex,repeated}=entry;
     const grouped=block?.prescriptions?.[exerciseId]||{};
     const raw=block.type==='exercise'?block:grouped;
     const originalQueue=Array.isArray(snapshot.queue)?snapshot.queue:[];
@@ -86,8 +75,8 @@ function classifiedResultRows(source,{limit=16,strict=false,snapshot=null}={}){
       name_es:raw.name||raw.name_es||raw.exerciseName||block.name||'',
       measurementProfile:raw.measurementProfile||queue?.prescription?.measurementProfile,
     });
-    rows.push({row,exerciseId,profile,block,prescription:raw,
-      name:clean(raw.name||raw.exerciseName||block.name||'Ejercicio',65)});
+    const name=clean(raw.name||raw.exerciseName||block.name||'Ejercicio',65)+(repeated?' · Bloque '+(blockIndex+1):'');
+    rows.push({...entry,profile,prescription:raw,name});
     if(rows.length>=limit)break;
   }
   return rows;
@@ -95,17 +84,10 @@ function classifiedResultRows(source,{limit=16,strict=false,snapshot=null}={}){
 function measuredLoad(row){return observedLoadKg(row,{max:1500});}
 
 function verifiedSetEvidence(source,snapshot){
-  const rows=classifiedResultRows(source,{strict:true,limit:Infinity,snapshot});
-  const coordinates=new Map();
-  for(const {row,exerciseId} of rows){const number=row.setNumber??row.set_number;if(!Number.isSafeInteger(number)||number<1)continue;const key=JSON.stringify([exerciseId,number]);coordinates.set(key,(coordinates.get(key)||0)+1);}
+  const rows=classifiedResultRows(source,{limit:Infinity,snapshot});
   const result=[];
-  for(const {row,exerciseId,profile,name} of rows){
-    const number=row.setNumber??row.set_number;
-    if(Number.isSafeInteger(number)&&number>0&&coordinates.get(JSON.stringify([exerciseId,number]))!==1)continue;
-    if(row.exerciseId!=null&&row.exercise_id!=null&&String(row.exerciseId)!==String(row.exercise_id))continue;
-    if(row.setNumber!=null&&row.set_number!=null&&row.setNumber!==row.set_number)continue;
-    const set=Number.isSafeInteger(row.setNumber)&&row.setNumber>0
-      ?' · Serie '+row.setNumber:'';
+  for(const {row,profile,name,setNumber} of rows){
+    const set=' · Serie '+setNumber;
     const label=rows.length>1?name+set+' · ':'';
     const duration=finite(row.seconds,0,86400);
     if(profile.sport==='running'){
@@ -164,9 +146,11 @@ export function buildPostSessionSportEvidence(record,{clientId}={}){
   if(!id||owner!==id||owners.some(v=>typeof v!=='string'||v.trim()!==id))return Object.freeze([]);
   const original=readOriginalExecutionPrescription(record);
   if(original.kind==='invalid')return Object.freeze([]);
-  const canonicalSetRows=verifiedSetEvidence(source,original.snapshot);
+  const collection=reportResultCollection(record);
+  if(collection.conflict)return Object.freeze([]);
+  const canonicalSetRows=verifiedSetEvidence(record,original.snapshot);
   if(canonicalSetRows.length)return canonicalSetRows;
-  const raw=source.results??source.setResults??source.set_results;
+  const raw=collection.raw;
   const hasRows=Array.isArray(raw)?raw.length>0:raw&&typeof raw==='object'&&Object.keys(raw).length>0;
   if(hasRows&&original.kind!=='absent')return Object.freeze([]);
   // Legacy completed summaries with explicitly recorded top-level measurements.
@@ -198,7 +182,7 @@ export function buildPostSessionSportEvidence(record,{clientId}={}){
   }
   // A mixed session cannot inherit pace or distance without a specific sport leg.
   // A load is never automatically multiplied by dumbbells or summed with bodyweight.
-  if(sport==='strength'||sport==='mixed'||sport==='unknown')output.push(...exerciseRows(source));
+  if(sport==='strength'||sport==='mixed'||sport==='unknown')output.push(...exerciseRows({...source,results:raw}));
   return Object.freeze(output.slice(0,8));
 }
 
@@ -263,22 +247,13 @@ export function buildPeriodSportProjection(executions,{clientId}={}){
   seen.add(id);
   const historical=readOriginalExecutionPrescription(record);
   if(historical.kind==='invalid')continue;
-  const raw=source.results??source.setResults??source.set_results;
+  const collection=reportResultCollection(record);if(collection.conflict)continue;
+  const raw=collection.raw;
   const hasRows=Array.isArray(raw)?raw.length>0:raw&&typeof raw==='object'&&Object.keys(raw).length>0;
   if(hasRows){
-   // Only unambiguous snapshot-classified, explicitly numbered sets.
-   // Duplicate exercise/set coordinates are excluded rather than summed.
-   const coordinates=new Map();
-   for(const row of Array.isArray(raw)?raw:Object.values(raw)){
-    if(!row||typeof row!=='object')continue;
-    const key=JSON.stringify([String(row.exerciseId??row.exercise_id??''),row.setNumber??row.set_number]);
-    coordinates.set(key,(coordinates.get(key)||0)+1);
-   }
-   for(const entry of classifiedResultRows({...source,results:raw},{limit:Infinity,strict:true,snapshot:historical.snapshot})){
-    const {row,profile,exerciseId,name}=entry;
-    const number=row.setNumber??row.set_number;
-    const key=JSON.stringify([String(row.exerciseId??row.exercise_id??''),number]);
-    if(!Number.isSafeInteger(number)||number<1||coordinates.get(key)!==1)continue;
+   // The same coordinate verification drives post-session and period evidence.
+   for(const entry of classifiedResultRows(record,{limit:Infinity,snapshot:historical.snapshot})){
+    const {row,profile,exerciseId,name,setNumber:number,repeated,blockId,blockIndex}=entry;
     const km=finite(row.distanceKm,0,1000),m=finite(row.distanceM,0,100000);
     if((row.distanceKm!=null&&km===null)||(row.distanceM!=null&&m===null))continue;
     const distance=pairedDistance(km,m),seconds=finite(row.seconds,0,86400);
@@ -294,7 +269,8 @@ export function buildPeriodSportProjection(executions,{clientId}={}){
     if(!date||!source.sessionId||distance===null||distance<=0||seconds===null||seconds<=0||row.setNumber!==number)continue;
     const protocol=enduranceProtocol(entry,distance);
     if(!protocol)continue;
-    const comparisonKey=JSON.stringify([exerciseId,protocol.key]);
+    if(repeated&&!blockId)continue;
+    const comparisonKey=JSON.stringify([exerciseId,protocol.key,repeated?[blockId,blockIndex]:null]);
     let g=comparisonGroups.get(comparisonKey);
     if(!g){g={context:{sport:profile.sport,exercise:name,metres:distance,setNumber:number,kind:protocol.kind,sets:protocol.sets,rest:protocol.rest,intervals:protocol.intervals,pool:protocol.pool,protocolKey:protocol.key},days:new Map()};comparisonGroups.set(comparisonKey,g);}
     const d=g.days.get(date)||{seconds:0,count:0};d.seconds+=seconds;d.count++;g.days.set(date,d);
