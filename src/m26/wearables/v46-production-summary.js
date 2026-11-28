@@ -7,6 +7,13 @@ const WORKOUT_SPORTS=Object.freeze({
 });
 const workoutDate=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/Santiago'});
 const decimal=new Intl.NumberFormat('es-CL',{maximumFractionDigits:2});
+const workoutDayKey=new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'America/Santiago'});
+const workoutDayLabel=new Intl.DateTimeFormat('es-CL',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'});
+const workoutTime=new Intl.DateTimeFormat('es-CL',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'America/Santiago'});
+function localWorkoutDay(stamp){
+  const parts=Object.fromEntries(workoutDayKey.formatToParts(stamp).map(({type,value})=>[type,value]));
+  return parts.year+'-'+parts.month+'-'+parts.day;
+}
 function observedInstant(value){
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/u.test(value))return null;
   // Date.parse normalizes dates such as 30 February; reject those before
@@ -51,11 +58,33 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
     const average=bpm(row.avgBpm);
     const averageLabel=average!==null&&Number.isSafeInteger(row.heartRateSamples)&&row.heartRateSamples>0&&row.heartRateSamples<=200000
       ?'FC media '+decimal.format(average)+' lpm':null;
+    const metrics=[observedDuration(end-start),distance,averageLabel,
+      observedElapsedRunningPace(row.sport,end-start,d)].filter(Boolean);
     rows.push({start,label:WORKOUT_SPORTS[row.sport],
-      detail:[workoutDate.format(start),observedDuration(end-start),distance,averageLabel,
-        observedElapsedRunningPace(row.sport,end-start,d)].filter(Boolean).join(' · ')});
+      dayKey:localWorkoutDay(start),dayLabel:workoutDayLabel.format(start),
+      dayDetail:[workoutTime.format(start),...metrics].join(' · '),
+      detail:[workoutDate.format(start),...metrics].join(' · ')});
   }
-  return Object.freeze(rows.sort((a,b)=>b.start-a.start).map(({label,detail})=>Object.freeze({label,detail})));
+  return Object.freeze(rows.sort((a,b)=>b.start-a.start).map(({start,...row})=>Object.freeze(row)));
+}
+// Group by the same Chilean civil date used for visible training timestamps.
+// A session spanning midnight belongs to its start day; never combine sessions.
+export function connected360WorkoutDays(rows,{beforeStartedAt=null}={}){
+  if(!Array.isArray(rows)||rows.length>20)return Object.freeze([]);
+  const groups=new Map();
+  const before=observedInstant(beforeStartedAt);
+  const continuedDay=before===null?null:localWorkoutDay(before);
+  for(const row of rows){
+    if(!DAY.test(row?.dayKey||'')||typeof row.dayLabel!=='string'
+      ||typeof row.dayDetail!=='string'||!row.dayDetail
+      ||!Object.values(WORKOUT_SPORTS).includes(row.label))return Object.freeze([]);
+    if(!groups.has(row.dayKey))groups.set(row.dayKey,{
+      dayKey:row.dayKey,label:row.dayLabel,continued:row.dayKey===continuedDay,rows:[],
+    });
+    groups.get(row.dayKey).rows.push(row);
+  }
+  return Object.freeze([...groups.values()].sort((a,b)=>b.dayKey.localeCompare(a.dayKey))
+    .map(day=>Object.freeze({...day,rows:Object.freeze(day.rows)})));
 }
 // V48 page contract: keyset pagination, no raw source keys or device IDs.
 // Keep the legacy seven-day summary bounded at ten; a history page is separate.
