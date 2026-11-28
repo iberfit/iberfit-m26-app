@@ -8,8 +8,8 @@ import {summarizeActionOutcomes} from './action-outcome.js';
 import {selectInitialIriBaseline,initialIriMeasurementDate} from '../workflows/iri-2-longitudinal.js';
 import {evidenceNumber,currentWearableEvidence,observedSet} from '../domain/evidence-signal.js';
 import {executionResultForStep,skippedSetForStep} from '../workflows/session-execution.js';
-import {connected360RecentTrainingRows,connected360ActivityContinuity,connected360ObservedDayContinuity} from '../wearables/v46-production-summary.js';
-import {verifyConnected360CoachExerciseDays} from '../wearables/v49-coach-activity-contract.js';
+import {connected360RecentTrainingRows,connected360ActivityContinuity} from '../wearables/v46-production-summary.js';
+import {connected360CoachContinuity} from '../wearables/v49-coach-activity-contract.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record||{};}
@@ -383,6 +383,11 @@ export function buildTrainingSinceLastCoachReview(state,clientId,{now=new Date()
   });
 }
 
+export function confirmedCoachTrainingRows(state,clientId,{now=new Date()}={}){
+ return connected360RecentTrainingRows(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true})
+  .filter(record=>sessionExecutionIsCompleted(record,{allowDatedFallback:false}))
+  .map(record=>({completedAt:sessionExecutionCompletionDate(record)})),{now});
+}
 export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerciseName=null,summary=null,authorizedCoachDays=null}={}){
   const safeClientId=String(clientId||'').trim();
   if(!safeClientId)return null;
@@ -403,27 +408,12 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   // Canonical executions remain independently usable. External context is
   // an explicit, freshly authorized per-render transport response only,
   // never sourced from the generic state collection or owner-private data.
-  const trainingRows=connected360RecentTrainingRows(
-    confirmedSessionExecutionsForClient(state,safeClientId,{requireCompleted:true})
-      .filter(record=>sessionExecutionIsCompleted(record,{allowDatedFallback:false}))
-      .map(record=>({completedAt:sessionExecutionCompletionDate(record)})),{now});
+  const trainingRows=confirmedCoachTrainingRows(state,safeClientId,{now});
   const canonicalContinuity=connected360ActivityContinuity(trainingRows,{now});
   let activityContinuity=canonicalContinuity;
   if(authorizedCoachDays!==null&&state?.identity?.role==='coach'){
-    try{
-      const authorized=verifyConnected360CoachExerciseDays(authorizedCoachDays,{clientId:safeClientId,now});
-      const observed=new Set(trainingRows.map(row=>row.dayKey));
-      const running=new Set();
-      for(const row of authorized.days){
-        observed.add(row.date);
-        if(row.sports.includes('running')||row.sports.includes('interval_running'))running.add(row.date);
-      }
-      const external=connected360ObservedDayContinuity(observed,running,{now,source:'coach_authorized_activity'});
-      // Avoid duplicating an identical canonical cue. A specific running
-      // observation or a longer mixed sequence adds context without totals.
-      if(external&&(external.runningDays!==null||!canonicalContinuity||external.days>canonicalContinuity.days))
-        activityContinuity=external;
-    }catch{/* Invalid, stale or cross-client device context is discarded. */}
+    try{activityContinuity=connected360CoachContinuity(authorizedCoachDays,{clientId:safeClientId,now,confirmedRows:trainingRows});}
+    catch{/* Invalid, stale or cross-client device context is discarded. */}
   }
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
   const reasons=[...reviewReasons({progress,outcomes,feedback,session,wellbeingTrend})];

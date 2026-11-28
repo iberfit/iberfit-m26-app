@@ -76,7 +76,7 @@ test('Coach demand-only view binds scope to the same actor, client, route and se
     assert.equal(sameConnected360CoachScope(scope,other),false);
   const view=connected360CoachActivityView(valid(),{clientId,now,continuity:{source:'coach_authorized_activity',days:5,discipline:'running',automaticPlanChange:false}});
   assert.deepEqual(view.days[0],{date:'2026-11-28',sports:['Carrera','Fuerza']});
-  assert.deepEqual(view.cue,{days:5,discipline:'running'});
+  assert.equal(view.cue,null); // Two observed days cannot substantiate a five-day cue.
   assert.equal(connected360CoachActivityView(valid(),{clientId,now,continuity:{source:'confirmed_iberfit_execution',days:5,automaticPlanChange:false}}).cue,null);
   assert.throws(()=>connected360CoachActivityView(valid(),{clientId:coachId,now}),/M26_V49/);
 });
@@ -91,4 +91,21 @@ test('professional activity panel remains gated, demand-only and retired with th
   assert.match(controller,/coachActivityPanel\?\.retire\(\);coachActivityPanel=null/u);
   assert.match(controller,/timer=setTimeout\(\(\)=>\{if\(request===epoch\)clear\(\);\},30000\)/u);
   assert.match(route,/data-connected360-coach-activity hidden/u);
+});
+
+test('coach continuity is calculated from exact dates, groups running variants and handles other sports',()=>{
+ const days=Array.from({length:5},(_,i)=>({date:'2026-11-'+(28-i),sports:[i%2?'running':'interval_running','swimming','cycling','strength']}));
+ const view=connected360CoachActivityView({...valid(),days},{clientId,now});
+ assert.deepEqual(view.cue,{days:5,discipline:'running'});assert.equal(view.cueBasis,'external');
+ assert.deepEqual(view.disciplineCues.map(x=>[x.sport,x.days]),[['cycling',5],['swimming',5],['strength',5]]);
+ assert.equal(connected360CoachActivityView({...valid(),days:days.filter(x=>x.date!=='2026-11-26')},{clientId,now}).cue,null);
+ assert.equal(connected360CoachActivityView({...valid(),days:days.slice(0,4)},{clientId,now}).disciplineCues.length,0);
+});
+test('coach continuity combines confirmed IBERFIT days without counting two records as two days',()=>{
+ const rows=['2026-11-26','2026-11-25','2026-11-24','2026-11-24'].map(day=>({source:'iberfit',orderAt:Date.parse(day+'T12:00:00Z'),dayKey:day}));
+ const view=connected360CoachActivityView(valid(),{clientId,now,confirmedRows:rows});
+ assert.deepEqual(view.cue,{days:5,discipline:'mixed'});assert.equal(view.cueBasis,'combined');
+ assert.equal(connected360CoachActivityView({...valid(),days:[]},{clientId,now,confirmedRows:rows}).cue,null);
+ assert.throws(()=>connected360CoachActivityView(valid(),{clientId,now,confirmedRows:[{...rows[0],source:'imported'}]}));
+ assert.throws(()=>connected360CoachActivityView(valid(),{clientId,now,confirmedRows:[{...rows[0],dayKey:'2026-11-27'}]}));
 });

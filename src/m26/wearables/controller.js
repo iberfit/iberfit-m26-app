@@ -1729,6 +1729,11 @@ export function createWearableController({
             :' · Días consecutivos con actividad registrada. Revisa la recuperación antes de decidir.');
           body.append(cue);
         }
+        for(const observation of result.disciplineCues??[]){
+          const cue=document.createElement('p');cue.className='m26-notice';
+          cue.textContent=observation.label+' · '+observation.days+' · Días consecutivos con actividad registrada. Revisa la recuperación antes de decidir.';
+          body.append(cue);
+        }
         const list=document.createElement('ul');
         for(const day of result.days){
           const item=document.createElement('li'),date=document.createElement('strong');

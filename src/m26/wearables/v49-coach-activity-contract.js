@@ -1,4 +1,5 @@
 import {reportCivilDate,parseCivilDate} from '../domain/civil-date.js';
+import {connected360ActivityContinuity,connected360ObservedDayContinuity} from './v46-production-summary.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const SPORTS=new Set(['running','interval_running','hiit','cycling','walking','strength','swimming','other']);
@@ -101,15 +102,51 @@ export function sameConnected360CoachScope(a,b){
     &&a.clientId===b.clientId&&a.actorId&&a.actorId===b.actorId
     &&['expediente','sesion'].includes(a.area)&&a.area===b.area);
 }
-export function connected360CoachActivityView(payload,{clientId,now=new Date(),continuity=null}={}){
-  const verified=verifyConnected360CoachExerciseDays(payload,{clientId,now});
-  const labels=Object.freeze({running:'Carrera',interval_running:'Carrera por intervalos',
-    hiit:'HIIT',cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',swimming:'Natación',other:'Otro entrenamiento'});
-  const days=verified.days.map(row=>Object.freeze({date:row.date,sports:Object.freeze(row.sports.map(s=>labels[s]))}));
-  // Never promote external rows into adherence, diagnosis or report evidence.
-  const cue=continuity?.source==='coach_authorized_activity'
-    &&continuity?.automaticPlanChange===false&&Number.isInteger(continuity.days)
-    &&continuity.days>=5&&continuity.days<=7
-    ?Object.freeze({days:continuity.days,discipline:continuity.discipline==='running'?'running':'mixed'}):null;
-  return Object.freeze({days:Object.freeze(days),cue});
+const labels=Object.freeze({running:'Carrera',interval_running:'Carrera por intervalos',
+ hiit:'HIIT',cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',swimming:'Natación',other:'Otro entrenamiento'});
+// Combine positive observations only. Canonical input is a bounded local
+// projection of confirmed executions; external input is the exact V49 DTO.
+function continuityFromVerified(verified,confirmedRows,now){
+ if(!Array.isArray(confirmedRows)||confirmedRows.length>20||confirmedRows.some(r=>r?.source!=='iberfit'||!Number.isFinite(r.orderAt)||r.orderAt>now.getTime()||reportCivilDate(new Date(r.orderAt))!==r.dayKey))fail();
+ const canonical=connected360ActivityContinuity(confirmedRows,{now});
+ const observed=new Set(confirmedRows.map(r=>r.dayKey)),running=new Set(),externalDays=new Set();
+ const bySport=new Map();
+ for(const day of verified.days){
+  observed.add(day.date);externalDays.add(day.date);
+  for(const sport of day.sports){
+   const key=sport==='interval_running'?'running':sport;
+   if(!bySport.has(key))bySport.set(key,new Set());
+   bySport.get(key).add(day.date);
+   if(key==='running')running.add(day.date);
+  }
+ }
+ const combined=connected360ObservedDayContinuity(observed,running,{now,source:'coach_authorized_activity'});
+ // A combined cue must add evidence over the canonical cue, not merely
+ // re-label it. A running streak is supported only by external observations.
+ const activity=combined&&(combined.runningDays!==null||!canonical||combined.days>canonical.days)?combined:canonical;
+ const external=connected360ObservedDayContinuity(externalDays,running,{now,source:'coach_authorized_activity'});
+ const disciplineCues=[];
+ for(const sport of ['cycling','swimming','strength','hiit','walking']){
+  const days=bySport.get(sport);
+  if(!days)continue;
+  const run=connected360ObservedDayContinuity(days,new Set(),{now,source:'coach_authorized_activity'});
+  if(run)disciplineCues.push(Object.freeze({sport,label:labels[sport],days:run.days,periodStart:run.periodStart,periodEnd:run.periodEnd}));
+ }
+ return {activity,external,disciplineCues:Object.freeze(disciplineCues)};
+}
+export function connected360CoachContinuity(payload,{clientId,now=new Date(),confirmedRows=[]}={}){
+ const verified=verifyConnected360CoachExerciseDays(payload,{clientId,now});
+ return continuityFromVerified(verified,confirmedRows,now).activity;
+}
+export function connected360CoachActivityView(payload,{clientId,now=new Date(),confirmedRows=[]}={}){
+ const verified=verifyConnected360CoachExerciseDays(payload,{clientId,now});
+ const days=verified.days.map(row=>Object.freeze({date:row.date,sports:Object.freeze(row.sports.map(s=>labels[s]))}));
+ const context=continuityFromVerified(verified,confirmedRows,now);
+ const activity=context.activity;
+ const cue=activity?.source==='coach_authorized_activity'
+  ?Object.freeze({days:activity.days,discipline:activity.discipline}):null;
+ // Distinguish union from an external-only sequence; never sum sessions,
+ // infer inactivity or diagnose inadequate recovery from partial coverage.
+ const cueBasis=cue?(activity.discipline==='running'||(context.external?.days===activity.days&&context.external?.periodEnd===activity.periodEnd)?'external':'combined'):null;
+ return Object.freeze({days:Object.freeze(days),cue,cueBasis,disciplineCues:context.disciplineCues});
 }

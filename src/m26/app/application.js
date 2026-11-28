@@ -27,7 +27,7 @@ import {createEngagementCommandService} from '../engagement/command-service.js';
 import {createEngagementController} from '../engagement/engagement-controller.js';
 import {createWearableController} from '../wearables/controller.js';
 import {connected360CoachActivityView,sameConnected360CoachScope} from '../wearables/v49-coach-activity-contract.js';
-import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js';
+import {confirmedCoachTrainingRows} from '../intelligence/next-session-prep.js';
 import {mergeV47DailyIntoClientProgress} from '../wearables/v47-progress-bridge.js';
 import {buildWearableViewModel} from '../wearables/view-model.js';
 import {recordsForClient} from '../modules/domain-selectors.js';
@@ -1768,8 +1768,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       await ensurePrivilegedActionAssurance({transport,token,userId:scope.actorId,friendlyName:'IBERFIT · seguimiento profesional'});check();
       const payload=await transport.connected360ProductionCoachExerciseDays(token,scope.clientId);check();
       const now=new Date();
-      const prep=buildNextSessionPreparation(store.getRenderSnapshot(),scope.clientId,{now,authorizedCoachDays:payload});
-      check();return connected360CoachActivityView(payload,{clientId:scope.clientId,now,continuity:prep?.activityContinuity});
+      const confirmedRows=confirmedCoachTrainingRows(store.getRenderSnapshot(),scope.clientId,{now});
+      check();return connected360CoachActivityView(payload,{clientId:scope.clientId,now,confirmedRows});
     }
     function professionalFollowupScope(){
       if(store.getRouteAuthorizationSnapshot().activeArea!=='expediente')return null;
