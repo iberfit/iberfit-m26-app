@@ -188,7 +188,13 @@ test('emission broker renders immutable PDFs inside Supabase with IBERFIT tokens
   assert.match(source,/artifact_sha256/u);
   assert.match(source,/iberfit_finalize_iri_report_issue_v2/u);
   assert.match(source,/issueRequestId/u);
-  assert.match(source,/reused===true/u);
+  const delivery=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/finalized-artifact.js',import.meta.url),'utf8');
+  assert.match(source,/import \{finishIriArtifactDelivery\} from '\.\/finalized-artifact\.js'/u);
+  assert.match(source,/return finishIriArtifactDelivery\(\{/u);
+  assert.match(delivery,/typeof row\.reused!=='boolean'/u);
+  assert.match(delivery,/row\.reused===true&&canonicalPath!==expected\.artifactPath/u);
+  assert.match(delivery,/storage\.remove\(\[expected\.artifactPath\]\)/u);
+  assert.doesNotMatch(source,/remove\(\[artifactPath\]\)/u);
   assert.match(source,/source_sha256/u);
   assert.match(source,/assessmentMeta\?\.protocolVersion/u);
   assert.match(source,/assessmentMeta\?\.completedAt/u);

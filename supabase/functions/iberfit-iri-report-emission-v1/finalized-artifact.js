@@ -17,7 +17,7 @@ export async function finishIriArtifactDelivery({final,storage,expected}){
     ||(!row.reused&&(row.issuanceId!==expected.issuanceId||row.artifactSha256!==expected.artifactHash))
     ||(row.reused&&canonicalPath===expected.artifactPath&&row.artifactSha256!==expected.artifactHash))
     throw Error('IRI_REPORT_FINALIZE_ARTIFACT_PATH_INVALID');
-  if(row.reused&&canonicalPath!==expected.artifactPath){
+  if(row.reused===true&&canonicalPath!==expected.artifactPath){
     // Only this request's unique, noncanonical upload may be removed.
     // A cleanup failure does not invalidate the already committed report.
     try{await storage.remove([expected.artifactPath]);}catch{}
