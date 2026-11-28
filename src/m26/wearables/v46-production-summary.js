@@ -21,6 +21,17 @@ function observedDuration(ms){
   const seconds=Math.floor(ms/1000),hours=Math.floor(seconds/3600),minutes=Math.floor((seconds%3600)/60);
   return [hours?hours+' h':'',minutes?minutes+' min':'',!hours&&seconds%60?seconds%60+' s':''].filter(Boolean).join(' ')||'Menos de 1 s';
 }
+// Health Connect V46 reports elapsed timestamps and distance aggregated from
+// the same data origin. Neither proves moving time or a device-reported pace.
+// Keep an explicitly estimated, total-time pace separate from active pace.
+function observedElapsedRunningPace(sport,ms,meters){
+  if(!['running','interval_running'].includes(sport)||typeof meters!=='number'
+    ||!Number.isFinite(meters)||meters<100||meters>500000)return null;
+  const secondsPerKm=Math.round(ms/meters);
+  if(!Number.isSafeInteger(secondsPerKm)||secondsPerKm<60||secondsPerKm>3600)return null;
+  const minutes=Math.floor(secondsPerKm/60),seconds=String(secondsPerKm%60).padStart(2,'0');
+  return 'Ritmo total estimado '+minutes+':'+seconds+' min/km';
+}
 // Only the current owner-scoped server response feeds this list. The contract
 // contains up to ten observations, not a complete historical activity feed.
 // Do not infer physical watch identity or completed IBERFIT training.
@@ -41,7 +52,8 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
     const averageLabel=average!==null&&Number.isSafeInteger(row.heartRateSamples)&&row.heartRateSamples>0&&row.heartRateSamples<=200000
       ?'FC media '+decimal.format(average)+' lpm':null;
     rows.push({start,label:WORKOUT_SPORTS[row.sport],
-      detail:[workoutDate.format(start),observedDuration(end-start),distance,averageLabel].filter(Boolean).join(' · ')});
+      detail:[workoutDate.format(start),observedDuration(end-start),distance,averageLabel,
+        observedElapsedRunningPace(row.sport,end-start,d)].filter(Boolean).join(' · ')});
   }
   return Object.freeze(rows.sort((a,b)=>b.start-a.start).map(({label,detail})=>Object.freeze({label,detail})));
 }
