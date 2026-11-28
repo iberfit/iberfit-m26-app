@@ -516,3 +516,28 @@ test('Coach wellbeing and evolution use one confirmed revision of each check-in,
   state.collections.checkins.push({...recent,revision:2,status:'anulado'});
   assert.equal(buildNextSessionPreparation(state,clientId,{now}).wellbeingShift.available,false);
 });
+
+test('Coach reviews a sequence of confirmed training days without counting duplicated or unconfirmed records',()=>{
+  const state=baseState();
+  state.collections.sessionExecutions=Array.from({length:5},(_,i)=>({
+    id:'sequence-'+i,clientId,status:'completed',syncStatus:'clean',sessionId:'session-published',
+    completedAt:'2026-09-'+String(8+i).padStart(2,'0')+'T14:00:00Z',
+  }));
+  state.collections.sessionExecutions.push(
+    {...state.collections.sessionExecutions[0],id:'same-day'},
+    {...state.collections.sessionExecutions[0],id:'foreign',clientId:'another-client',completedAt:'2026-09-07T14:00:00Z'},
+    {...state.collections.sessionExecutions[0],id:'pending',syncStatus:'pending',completedAt:'2026-09-13T14:00:00Z'},
+  );
+  const prep=buildNextSessionPreparation(state,clientId,{now});
+  assert.equal(prep.activityContinuity.days,5);
+  assert.equal(prep.activityContinuity.source,'confirmed_iberfit_execution');
+  assert.equal(prep.activityContinuity.periodEnd,'2026-09-12');
+  assert.equal(prep.activityContinuity.runningDays,null);
+  assert.equal(prep.activityContinuity.automaticPlanChange,false);
+  assert.ok(prep.reviewReasons.some(reason=>reason.kind==='activity-continuity'));
+  assert.equal(prep.reviewReasons.filter(reason=>reason.kind==='activity-continuity').length,1);
+  assert.equal(prep.session.startable,true);
+  assert.equal(prep.safety.automaticLoadChange,false);
+  state.collections.sessionExecutions=state.collections.sessionExecutions.filter(row=>row.id!=='sequence-2');
+  assert.equal(buildNextSessionPreparation(state,clientId,{now}).activityContinuity,null);
+});
