@@ -124,3 +124,25 @@ test('Coach device context and dated evidence translate into EN, FR and PT',()=>
     }
   }
 });
+
+
+test('V49 candidate professional sharing is owner-decided, recipient-specific and generation-bound',()=>{
+  const sql=readFileSync(new URL('../supabase/release-procedures/connected360_v49_coach_activity_consent_v1.sql',import.meta.url),'utf8');
+  const rollback=readFileSync(new URL('../supabase/release-procedures/connected360_v49_coach_activity_consent_v1.rollback.sql',import.meta.url),'utf8');
+  for(const term of [
+    'ENABLE ROW LEVEL SECURITY','FORCE ROW LEVEL SECURITY',
+    'FROM PUBLIC,anon,authenticated,service_role','private.m26_v49_live_session()',
+    "p.role::text='client'",'p_expected_revision',
+    'M26_V49_CONSENT_STALE','m26_v49_invalidate_legacy_assignment','m26_v49_invalidate_versioned_assignment',
+    'a.active AND a.created_at=g.legacy_assignment_created_at',
+    'b.revision=g.assignment_revision','g.coach_user_id=v_coach AND g.revoked_at IS NULL',
+    's.grant_id=g.source_grant_id AND s.revocation_cursor=g.source_cursor',
+    'iberfit_require_privileged_assurance_v65d()',
+    "coalesce((v_context->'roles')?'admin',false)",
+    'SELECT DISTINCT (w.observed_started_at AT TIME ZONE',
+    'w.grant_id=v_g.source_grant_id AND w.revocation_cursor=v_g.source_cursor',
+    'LANGUAGE sql SECURITY INVOKER','coaching-exercise-days-v1',
+  ])assert.ok(sql.includes(term),term);
+  assert.doesNotMatch(sql,/GRANT SELECT ON TABLE|source_record_key|source_app_key|heart_rate_avg|distance_meters/iu);
+  assert.doesNotMatch(rollback,/DROP TABLE|DELETE FROM|TRUNCATE/iu);
+});
