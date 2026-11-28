@@ -5,7 +5,7 @@ import {buildPrivateReportDetail,buildStrengthHistoryIndex,strengthPeriodEvidenc
 import {buildTrainingCalendarEvidence,readDatedTrends,buildWellbeingBundle,WELLBEING_BUNDLE_LABEL,wellbeingBundleDescription} from './report-trend-contract.js';
 import {buildReportCycleObjective,cycleObjectiveEvidence,cycleMeasuredGoalEvidence,cycleGoalReviewEvidence} from './report-cycle-objective.js';
 import {buildReassessmentReview,reassessmentReviewEvidence} from './report-reassessment-evidence.js';
-import {PROFESSIONAL_REPORT_SELECTION_MARKER,PROFESSIONAL_REPORT_TYPES,professionalReportSelectionSnapshot,professionalReportSelectionRows,professionalReassessmentSelectionPreview,clearProfessionalReportSelection} from '../domain/professional-followup.js';
+import {PROFESSIONAL_REPORT_SELECTION_MARKER,PROFESSIONAL_REPORT_TYPES,professionalReportSelectionSnapshot,professionalReportSelectionRows,professionalReassessmentSelectionPreview,buildProfessionalReassessmentDraftPreview,clearProfessionalReportSelection} from '../domain/professional-followup.js';
 import {createM26Id} from '../platform/id.js';
 import {confirmedSessionExecutionsForClient,sessionExecutionId,sessionExecutionCompletionDate} from '../domain/session-execution-truth.js';
 import {IRI_INITIAL_DIAGNOSTIC_KIND,selectInitialIriBaseline,initialIriMeasurementDate} from './iri-2-longitudinal.js';
@@ -357,7 +357,15 @@ function renderPremiumReportCards(host,portfolio,document,reassessmentSelection=
       details.append(createTextElement(document,'summary','Comparaciones profesionales contrastadas ('+reassessmentSelection.comparisonCount+')'));
       details.append(createTextElement(document,'p','Selección temporal de esta sesión. Cada comparación conserva sus propias fechas. No constituye un informe aprobado ni publicado.'));
       if(reassessmentSelection.ambiguousMetrics)details.append(createTextElement(document,'p','Hay más de una comparación para el mismo indicador y lado. Selecciona explícitamente la evidencia antes de una futura emisión oficial.'));
-      const list=document.createElement('ul');for(const row of reassessmentSelection.rows)list.append(createTextElement(document,'li',row.label+': '+row.text));details.append(list);card.append(details);
+      const list=document.createElement('ul');
+      for(const row of reassessmentSelection.rows){
+        const li=document.createElement('li'),label=document.createElement('label'),check=document.createElement('input');
+        check.type='checkbox';check.dataset.gxReassessmentSource=row.source;
+        label.append(check,document.createTextNode(' '+row.label+': '+row.text));li.append(label);list.append(li);
+      }
+      details.append(list);
+      const button=document.createElement('button');button.type='button';button.dataset.gxReassessmentPreview='true';
+      button.textContent='Previsualizar selección A4 privada';details.append(button);card.append(details);
     }
   }grid.append(card);}
   host.append(grid);
@@ -382,6 +390,26 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     const portfolio=premiumReportUiCandidates(context.state,context.role,context.clientId,{now:new Date()});const reassessmentSelection=context.role==='coach'?professionalReassessmentSelectionPreview(root,context.clientId):null;const signature=JSON.stringify([context.role,context.clientId,premiumPortfolioSignature(portfolio),reassessmentSelection]);if(host.dataset.premiumReportSignature!==signature){renderPremiumReportCards(host,portfolio,document,reassessmentSelection);host.dataset.premiumReportSignature=signature;}const selectedType=reportType(reportFormValue(form,'reportType'));gxRenderEditorSelection(form,root,context,portfolio.find(x=>x.id===selectedType),document);return true;
   }
   async function onClick(event){
+    const reassessment=event.target?.closest?.('[data-gx-reassessment-preview]');
+    if(reassessment&&root.contains?.(reassessment)){
+      event.preventDefault?.();
+      const context=browserReportContext(scope),details=reassessment.closest?.('[data-gx-reassessment-review]');
+      const status=root.querySelector?.('[data-workflow-status="report"]');
+      const message=(text,tone='error')=>{if(status){status.textContent=text;status.dataset.status=tone;}};
+      if(context.role!=='coach'||!context.clientId||!details)return;
+      try{
+        const sources=[...details.querySelectorAll('[data-gx-reassessment-source]:checked')].map(x=>x.dataset.gxReassessmentSource);
+        const report=buildProfessionalReassessmentDraftPreview(root,context.clientId,sources);
+        const client=(context.state?.collections?.clients||[]).find(item=>String(recordValue(item,'id')||'')===context.clientId);
+        const actor=context.state.identity||{};
+        openEvolutionReportPreview({report,clientName:cleanText(recordValue(client,'displayName','fullName','name','nombre')||'Cliente IBERFIT',130),
+          coachName:cleanText(actor.fullName||actor.name||'Equipo IBERFIT',130),publicationStatus:'draft',audience:'internal',scope});
+        message('Vista previa privada de reevaluación abierta. No se ha emitido ni publicado ningún documento.','info');
+      }catch(error){
+        message(error?.message==='M44_REPORT_PREVIEW_POPUP_BLOCKED'?'Permite ventanas de IBERFIT para abrir la vista previa.':'Selecciona comparaciones vigentes, una por indicador y lado, dentro de un periodo de hasta 366 días.');
+      }
+      return;
+    }
     const professional=event.target?.closest?.('[data-gx-report-evidence],[data-gx-report-reset],[data-gx-report-clear]');
     if(professional&&root.contains?.(professional)){
       event.preventDefault?.();const form=professional.closest?.('[data-workflow-form="report-approval"]');const context=browserReportContext(scope);

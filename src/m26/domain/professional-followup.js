@@ -412,6 +412,29 @@ export function professionalReassessmentSelectionPreview(root,clientId){
  const rows=snapshot.items.map(item=>item.row);
  return Object.freeze({official:false,ready:false,rows:Object.freeze(rows),comparisonCount:rows.length,ambiguousMetrics});
 }
+// Explicitly selected, session-local comparisons. The envelope is derived
+// from the actual pair dates, not the date of review or the training calendar.
+// This model cannot enter the official editor/approval path (ready:false).
+export function buildProfessionalReassessmentDraftPreview(root,clientId,sources,{now=new Date()}={}){
+ const fail=()=>{throw Error('M26_GX_REASSESSMENT_SELECTION_INVALID');};
+ const snapshot=professionalReportSelectionSnapshot(root,clientId),today=reportCivilDate(now);
+ if(!snapshot?.token||!today||!Array.isArray(sources)||sources.length<1||sources.length>12||new Set(sources).size!==sources.length)fail();
+ const selected=sources.map(source=>{
+  const item=snapshot.items.find(x=>x.row.source===source);
+  if(!item||item.periodStart>=item.periodEnd||item.periodEnd>today)fail();
+  return item;
+ });
+ if(new Set(selected.map(x=>x.row.label)).size!==selected.length||new Set(selected.map(x=>x.publicationId)).size!==selected.length)fail();
+ const start=selected.map(x=>x.periodStart).sort()[0],end=selected.map(x=>x.periodEnd).sort().at(-1);
+ if((Date.parse(end)-Date.parse(start))/86400000>366)fail();
+ const evidence=Object.freeze(selected.map(x=>x.row));
+ return Object.freeze({id:'reassessment',ready:false,previewOnly:true,official:false,
+  title:'Informe de reevaluación',periodStart:start,periodEnd:end,sourceType:'professional_followup',
+  summary: 'Comparaciones seleccionadas: '+evidence.length+'. Cada resultado conserva las fechas y el protocolo de su revisión profesional.',
+  conclusions:'La variación observada requiere interpretación individual. No acredita por sí sola un logro ni una mejora clínica.',
+  recommendations:'Revisar las comparaciones con el entrenador y acordar los próximos pasos antes de una eventual emisión oficial.',
+  evidence,activitySeries:Object.freeze([]),coachComment:'',dataPolicy:'canonical-only'});
+}
 export function professionalReportSelectionRows(candidate,snapshot,sources){
  if(!candidate?.ready||!PROFESSIONAL_REPORT_TYPES.includes(candidate.id)||!Array.isArray(candidate.evidence)||candidate.evidence.length<1||candidate.evidence.length>12||candidate.evidence.some(x=>String(x?.source??'').toLowerCase().startsWith('gx-professional:'))||!snapshot?.token||!Array.isArray(snapshot.items)||!Array.isArray(sources)||!sources.length||new Set(sources).size!==sources.length||candidate.evidence.length+sources.length>12)throw Error('M26_GX_REPORT_SELECTION_INVALID');
  const extra=sources.map(source=>{const entry=snapshot.items.find(x=>x.row.source===source);if(!entry||entry.periodEnd<candidate.periodStart||entry.periodEnd>candidate.periodEnd)throw Error('M26_GX_REPORT_SELECTION_STALE');return entry.row;});

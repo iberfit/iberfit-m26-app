@@ -119,7 +119,7 @@ const evidence326=()=>{const h=head324(),{p,result}=proof325(h),x=result.items[0
 test('GX326 canonical report evidence has exact lineage, text, zero and no private protocol',()=>{const {h,p,result}=evidence326();const r=verifyProfessionalReportEvidence(result,p,[h],{now});assert.equal(r.official,false);assert.equal(r.evidence[0].source,'gx-professional:'+h.id+':1');assert.match(r.evidence[0].text,/0 rep/);assert.ok(Object.isFrozen(r.evidence[0]));assert.doesNotMatch(JSON.stringify(r),/configuration|chairHeightCm|adaptationReason/);});
 test('GX326 rejects forged evidence and mismatched references',()=>{const {h,p,result}=evidence326();for(const bad of [{...result,evidence:[]},{...result,evidence:[{...result.evidence[0],text:'Logro garantizado'}]},{...result,evidence:[{...result.evidence[0],source:'gx-professional:'+h.id+':2'}]},{...result,evidence:[{...result.evidence[0],quality:'verified'}]},{...result,evidence:[{...result.evidence[0],privateNote:'secret'}]},{...result,official:true}])assert.throws(()=>verifyProfessionalReportEvidence(bad,p,[h],{now}),/EVIDENCE_RESPONSE_INVALID/);});
 
-import {bindProfessionalReportSelection,professionalReassessmentSelectionPreview,professionalReportSelectionSnapshot,professionalReportSelectionRows,PROFESSIONAL_REPORT_SELECTION_MARKER,clearProfessionalReportSelection} from '../src/m26/domain/professional-followup.js';
+import {bindProfessionalReportSelection,professionalReassessmentSelectionPreview,buildProfessionalReassessmentDraftPreview,professionalReportSelectionSnapshot,professionalReportSelectionRows,PROFESSIONAL_REPORT_SELECTION_MARKER,clearProfessionalReportSelection} from '../src/m26/domain/professional-followup.js';
 const receipt327=(h=head324())=>{const {p,result}=proof325(h),x=result.items[0];const row={...evidence326().result.evidence[0],source:'gx-professional:'+h.id+':'+h.revision};return verifyProfessionalReportEvidence({...result,evidence:[row]},p,[h],{now});};
 const candidate327=(overrides={})=>({id:'monthly',ready:true,periodStart:'2026-11-01',periodEnd:'2026-11-26',evidence:[{label:'Entrenamientos',text:'2 sesiones confirmadas.',source:'sessionExecutions',quality:''}],...overrides});
 function selection327(){const root={},lease={};let scope={actorId:operation324,clientId:client,lease};const api=bindProfessionalReportSelection(root,()=>scope);return {root,api,get snapshot(){return professionalReportSelectionSnapshot(root,client)},switchClient(v){scope={...scope,clientId:v};api.prune();},newLease(){scope={...scope,lease:{}};api.prune();},signOut(){scope=null;api.prune();}};}
@@ -153,5 +153,34 @@ test('post GX350: reassessment preview is private, non-issuable and flags repeat
  assert.equal(professionalReassessmentSelectionPreview(x.root,client).ambiguousMetrics,1);
  assert.equal(professionalReassessmentSelectionPreview(x.root,other),null);
  x.newLease();assert.equal(professionalReassessmentSelectionPreview(x.root,client),null);
+ x.api.destroy();
+});
+
+import {buildEvolutionReportHtml} from '../src/m26/workflows/evolution-report-document.js';
+
+test('post GX350: reevaluation A4 draft derives exact dates and stays outside official approval',()=>{
+ const x=selection327(),h=head324();x.api.stage(h,receipt327(h),proofOpts325);
+ const source=x.snapshot.items[0].row.source;
+ const draft=buildProfessionalReassessmentDraftPreview(x.root,client,[source],{now});
+ assert.equal(draft.id,'reassessment');assert.equal(draft.ready,false);assert.equal(draft.official,false);assert.equal(draft.previewOnly,true);
+ assert.equal(draft.periodStart,'2026-11-25');assert.equal(draft.periodEnd,'2026-11-26');
+ assert.deepEqual(draft.evidence,[x.snapshot.items[0].row]);assert.deepEqual(draft.activitySeries,[]);
+ assert.throws(()=>buildProfessionalReassessmentDraftPreview(x.root,client,[],{now}));
+ assert.throws(()=>buildProfessionalReassessmentDraftPreview(x.root,client,[source,source],{now}));
+ assert.throws(()=>buildProfessionalReassessmentDraftPreview(x.root,other,[source],{now}));
+ const another={...h,id:'44444444-4444-4444-8444-000000000123'};x.api.stage(another,receipt327(another),proofOpts325);
+ assert.throws(()=>buildProfessionalReassessmentDraftPreview(x.root,client,x.snapshot.items.map(i=>i.row.source),{now}));
+ x.newLease();assert.throws(()=>buildProfessionalReassessmentDraftPreview(x.root,client,[source],{now}));x.api.destroy();
+});
+test('post GX350: reevaluation A4 rendering is internal only, without source UUID or activity claims',()=>{
+ const x=selection327(),h=head324();x.api.stage(h,receipt327(h),proofOpts325);
+ const draft=buildProfessionalReassessmentDraftPreview(x.root,client,[x.snapshot.items[0].row.source],{now});
+ const html=buildEvolutionReportHtml({report:draft,clientName:'Cliente prueba'});
+ assert.match(html,/Informe de reevaluación/u);assert.match(html,/BORRADOR PRIVADO · USO INTERNO · NO ENVIAR AL CLIENTE/u);
+ assert.match(html,/Comparación profesional contrastada/u);assert.match(html,/Comparaciones seleccionadas/u);
+ assert.ok(!html.includes(h.id));assert.ok(!html.includes('Sesiones IBERFIT completadas y confirmadas'));
+ assert.throws(()=>buildEvolutionReportHtml({report:draft,audience:'client'}));
+ assert.throws(()=>buildEvolutionReportHtml({report:draft,publicationStatus:'published'}));
+ assert.throws(()=>buildEvolutionReportHtml({report:{...draft,ready:true}}));
  x.api.destroy();
 });
