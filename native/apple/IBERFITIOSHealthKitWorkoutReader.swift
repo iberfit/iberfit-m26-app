@@ -44,6 +44,62 @@ public struct IBERFITLocalWorkoutPreview: Sendable {
     }
 }
 
+// Separate candidate projection for V54. It is NOT used by the one-shot
+// preview, does not send data, does not assert source identity, and contains
+// no biometric data or raw HealthKit identifier. Persist only after a
+// certified account-scoped consent and native import channel exist.
+#if canImport(CryptoKit)
+import CryptoKit
+
+public struct IBERFITAppleWorkoutImportRow: Encodable, Sendable {
+    public let observationKey: String
+    public let sport: String
+    public let startedAt: String
+    public let endedAt: String
+    public let activeSeconds: Double
+    public let distanceMeters: Double?
+
+    // Domain-separated stable pseudonym; not an anonymous identifier or
+    // a cryptographic attestation of the device. No device-specific salt:
+    // a retry or another phone reading the same HK UUID must not duplicate it.
+    public init?(workout: IBERFITLocalWorkout) {
+        let material = "iberfit:apple-health:exercise:v54:" + workout.id.uuidString.lowercased()
+        self.observationKey = SHA256.hash(data: Data(material.utf8)).map {
+            String(format: "%02x", Int($0))
+        }.joined()
+        let iso = ISO8601DateFormatter()
+        iso.timeZone = TimeZone(secondsFromGMT: 0)
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let start = iso.string(from: workout.start)
+        let end = iso.string(from: workout.end)
+        guard let parsedStart = iso.date(from: start), let parsedEnd = iso.date(from: end),
+              parsedEnd > parsedStart,
+              parsedEnd.timeIntervalSince(parsedStart) <= 86_400,
+              workout.activeSeconds <= parsedEnd.timeIntervalSince(parsedStart) + 1 else { return nil }
+        self.sport = workout.sport
+        self.startedAt = start
+        self.endedAt = end
+        self.activeSeconds = workout.activeSeconds
+        self.distanceMeters = workout.distanceMeters
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case observationKey, sport, startedAt, endedAt, activeSeconds, distanceMeters
+    }
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(observationKey, forKey: .observationKey)
+        try c.encode(sport, forKey: .sport)
+        try c.encode(startedAt, forKey: .startedAt)
+        try c.encode(endedAt, forKey: .endedAt)
+        try c.encode(activeSeconds, forKey: .activeSeconds)
+        // V54 requires an explicit null instead of omitting the unknown field.
+        if let distanceMeters { try c.encode(distanceMeters, forKey: .distanceMeters) }
+        else { try c.encodeNil(forKey: .distanceMeters) }
+    }
+}
+#endif
+
 #if canImport(HealthKit) && os(iOS)
 import HealthKit
 

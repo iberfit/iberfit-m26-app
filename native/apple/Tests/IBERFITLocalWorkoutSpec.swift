@@ -32,6 +32,32 @@ struct IBERFITLocalWorkoutSpec {
         precondition(preview.workouts.map(\.id) == [b.id,a.id] && !preview.mayHaveMore)
         let full = IBERFITLocalWorkoutPreview(workouts: (0..<61).map {_ in row()!}, returnedCount: 61)
         precondition(full.workouts.count == 60 && full.mayHaveMore)
+        #if canImport(CryptoKit)
+        let fixtureID = UUID(uuidString: "00000000-0000-4000-8000-000000000001")!
+        let first = row(fixtureID, distance: nil, heartRate: 148, sport: "swimming")!
+        let projected = IBERFITAppleWorkoutImportRow(workout: first)!
+        precondition(projected.observationKey == "3bc39891501187450d804a033f044fc03ba2f293b659a487173aa525bdc309ad")
+        let replay = IBERFITAppleWorkoutImportRow(workout: row(fixtureID, distance: 1500, sport: "swimming")!)!
+        precondition(projected.observationKey == replay.observationKey)
+        let secondID = UUID(uuidString: "00000000-0000-4000-8000-000000000002")!
+        let other = IBERFITAppleWorkoutImportRow(workout: row(secondID)!)!
+        precondition(other.observationKey == "4416e103f9613bee48714d0d0f0bf6a3755d8e0a0f2fa3a249de4a297d236f19")
+        precondition(projected.observationKey != other.observationKey)
+        let data = try! JSONEncoder().encode(projected)
+        let json = try! JSONSerialization.jsonObject(with: data) as! [String: Any]
+        precondition(Set(json.keys) == Set(["observationKey","sport","startedAt","endedAt","activeSeconds","distanceMeters"]))
+        precondition(json["distanceMeters"] is NSNull)
+        precondition(json["sport"] as? String == "swimming")
+        precondition(json["activeSeconds"] as? Double == 1500)
+        precondition(projected.startedAt.hasSuffix(".000Z") && projected.endedAt.hasSuffix(".000Z"))
+        let zeroData = try! JSONEncoder().encode(IBERFITAppleWorkoutImportRow(workout: row(distance: 0)!)!)
+        let zero = try! JSONSerialization.jsonObject(with: zeroData) as! [String: Any]
+        precondition(zero["distanceMeters"] as? Double == 0)
+        precondition(IBERFITAppleWorkoutImportRow(workout: row(start: -0.0002, end: -0.0001, active: 0.0001)!) == nil)
+        let text = String(decoding: data, as: UTF8.self)
+        precondition(!text.contains(fixtureID.uuidString) && !text.contains("averageHeartRate"))
+        print("IBERFIT_APPLE_V54_CANDIDATE_PROJECTION_OK")
+        #endif
         print("IBERFIT_LOCAL_WORKOUT_PREVIEW_OK")
     }
 }
