@@ -7,7 +7,8 @@ const source=fs.readFileSync(path,'utf8');
 const workflow=fs.readFileSync('.github/workflows/m26-c-connected360-isolated-pg17.yml','utf8');
 test('provider release chain harness only permits disposable local PG17',()=>{
  assert.equal(spawnSync('bash',['-n',path]).status,0);
- const env={PATH:process.env.PATH,IBERFIT_PG17_SYNTHETIC_ONLY:'YES',PGHOST:'127.0.0.1',PGPORT:'5432',PGUSER:'postgres',PGDATABASE:'postgres',PGPASSWORD:'synthetic-local-only'};
+ const disposableDbCredential='synthetic-local-only';
+ const env={PATH:process.env.PATH,IBERFIT_PG17_SYNTHETIC_ONLY:'YES',PGHOST:'127.0.0.1',PGPORT:'5432',PGUSER:'postgres',PGDATABASE:'postgres',PGPASSWORD:disposableDbCredential};
  for(const key of Object.keys(env).filter(k=>k!=='PATH')){
   const result=spawnSync('bash',[path],{env:{...env,[key]:'invalid'},encoding:'utf8',timeout:5000});
   assert.equal(result.status,65,key);
