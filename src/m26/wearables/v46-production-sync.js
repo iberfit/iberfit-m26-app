@@ -121,6 +121,10 @@ export function createConnected360ProductionSync({
       };
       const dailyHealth=read.envelope.dailyHealth||[];
       const page=exEnabled&&sweep?read.workoutPage:null;
+      // Continuation only exists after the first page (including daily metrics)
+      // was acknowledged. Do not send repeated daily rows from a later page.
+      if(sweep?.cursor&&page&&(rows.heartRateDaily.length||dailyHealth.length))
+        throw new Error('M26_V46_PROD_HISTORY_DAILY_REPEAT');
       if(!exEnabled)resetWorkoutSweep();
       if(page&&(![7,30].includes(page.days)||page.days!==sweep.days||
         !Object.hasOwn(page,'nextCursor')||(page.nextCursor!==null&&
@@ -165,7 +169,10 @@ export function createConnected360ProductionSync({
         days:page.nextCursor===null?7:sweep.days,cursor:page.nextCursor,failures:0};
       if(!results.length)return Object.freeze({skipped:'no-recent-observations',workoutHistoryPending:Boolean(page?.nextCursor)});
       lastSuccess=now();
-      await refreshState({reason:'connected360-prod-foreground'});
+      // A replayed workout-only page with zero changes does not require
+      // rehydrating the entire app. The visible summary has its own owner-fenced read.
+      const unchangedContinuation=Boolean(page&&sweep?.cursor)&&results.every(r=>r.inserted===0&&r.updated===0);
+      if(!unchangedContinuation)await refreshState({reason:'connected360-prod-foreground'});
       assertCurrent(expected,version,signal);
       return Object.freeze({ok:true,automatic:true,workoutHistoryPending:Boolean(page?.nextCursor),
         inserted:results.reduce((n,r)=>n+r.inserted,0),

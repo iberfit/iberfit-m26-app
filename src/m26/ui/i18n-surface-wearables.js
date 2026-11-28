@@ -1,4 +1,5 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  ["Recuperación del historial en curso. Quedan páginas por consultar.","History recovery in progress. More pages remain to be checked.","Récupération de l’historique en cours. Il reste des pages à consulter.","Recuperação do histórico em curso. Ainda há páginas a consultar."],
   ["Actividades guardadas. La recuperación del historial continuará al volver a sincronizar.","Activities saved. History recovery will continue on the next sync.","Activités enregistrées. La récupération de l’historique continuera lors de la prochaine synchronisation.","Atividades guardadas. A recuperação do histórico continuará na próxima sincronização."],
   ["Compartir mis actividades y entrenamientos observados (lectura inicial de hasta 30 días)","Share my observed activities and workouts (initial read of up to 30 days)","Partager mes activités et entraînements observés (lecture initiale de 30 jours maximum)","Partilhar as minhas atividades e treinos observados (leitura inicial de até 30 dias)"],
   ["Consultar actividad guardada","View saved activity","Consulter l’activité enregistrée","Consultar atividade guardada"],

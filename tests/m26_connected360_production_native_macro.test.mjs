@@ -427,3 +427,47 @@ test('native history extension accepts legacy initial replies but rejects mismat
   await assert.rejects(channel.readLocal({metrics:['steps'],workoutHistoryDays:30}),/HISTORY_REQUEST_INVALID/u);
   channel.destroy();
 });
+
+test('workout-only continuation never rereads daily observations or rehydrates for an unchanged replay',async()=>{
+  const cursor='11111111-aaaa-4aaa-8aaa-111111111111';
+  const scopes=['generalHeartRate','exerciseSessions','steps'];
+  let dailyWrites=0,exerciseWrites=0,refreshes=0,repeatDaily=false;
+  const nativeSource=readFileSync(new URL('../native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt',import.meta.url),'utf8');
+  assert.match(nativeSource,/val includeDaily = cursorHandle == null/u);
+  assert.match(nativeSource,/val daily = if \(includeDaily && "generalHeartRate" in allowed\)/u);
+  assert.match(nativeSource,/val healthDaily = if \(includeDaily && allowed.any/u);
+  assert.match(nativeSource,/includeHeartRate = "generalHeartRate" in allowed/u);
+  const api=createConnected360ProductionSync({
+    transport:{connected360ProductionCapabilities:async()=>({serverEnabled:true}),
+      connected360ProductionAuthorizationStatus:async()=>({authorized:true,grantId:GRANT,revocationCursor:0,scopes}),
+      importConnected360Production:async(_token,_grant,rows)=>{
+        exerciseWrites++;
+        const n=rows.heartRateDaily.length+rows.exerciseEvidence.length;
+        return {ok:true,persisted:true,inserted:exerciseWrites===1?n:0,updated:0,unchanged:exerciseWrites===1?0:n};
+      },
+      importConnected360DailyProduction:async(_token,_grant,rows)=>{
+        dailyWrites++;return {ok:true,persisted:true,inserted:rows.length,updated:0,unchanged:0};
+      }},
+    native:{readLocal:async options=>{
+      const daily=!options.workoutCursor||repeatDaily;
+      return {provider:'health_connect',ownerId:OWNER,clientId:CLIENT,persisted:false,metrics:scopes,
+        envelope:{schema:'iberfit.connected360.v46.ingest.v1',
+          heartRateDaily:daily?[{date:'2026-10-12'}]:[],
+          exerciseEvidence:[{observationKey:'a'.repeat(64)}],
+          dailyHealth:daily?[{date:'2026-10-12',steps:123}]:[]},
+        workoutPage:{days:options.workoutHistoryDays,nextCursor:options.workoutCursor?null:cursor}};
+    },invalidate(){}},
+    getIdentity:()=>({role:'client',ownerId:OWNER,clientId:CLIENT}),
+    getToken:async()=> 'synthetic-token-for-test',now:()=>clock,isOnline:()=>true,
+    refreshState:async()=>{refreshes++},
+  });
+  assert.equal((await api.sync()).workoutHistoryPending,true);
+  assert.deepEqual([dailyWrites,exerciseWrites,refreshes],[1,1,1]);
+  repeatDaily=true;
+  await assert.rejects(api.sync(),/HISTORY_DAILY_REPEAT/u);
+  assert.deepEqual([dailyWrites,exerciseWrites,refreshes],[1,1,1]);
+  repeatDaily=false;
+  assert.equal((await api.sync()).workoutHistoryPending,false);
+  assert.deepEqual([dailyWrites,exerciseWrites,refreshes],[1,2,1]);
+  api.destroy();
+});

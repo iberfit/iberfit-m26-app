@@ -1014,7 +1014,7 @@ export function createWearableController({
             }
           }else if(result?.workoutHistoryPending===true){
             const note=root.querySelector?.('[data-prod-connected360-status]');
-            if(note)note.textContent='Actividades guardadas. La recuperación del historial continuará al volver a sincronizar.';
+            if(note)note.textContent='Recuperación del historial en curso. Quedan páginas por consultar.';
           }
         }
       }catch(error){

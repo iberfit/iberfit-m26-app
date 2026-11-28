@@ -462,7 +462,11 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         }
                                         if (historyLease != null && historyLease.allowed != allowed)
                                             throw IllegalStateException("M26_HEALTH_V46_CURSOR_INVALID")
-                                        val daily = if ("generalHeartRate" in allowed) {
+                                        // The first page includes daily observations. Continuing an
+                                        // acknowledged workout page must not reread or reupload them.
+                                        // Workout-specific pulse still uses the separately allowed scope.
+                                        val includeDaily = cursorHandle == null
+                                        val daily = if (includeDaily && "generalHeartRate" in allowed) {
                                             Connected360GeneralHeartRateDiagnostic(client)
                                                 .readDailyRanges()
                                         } else emptyList()
@@ -473,7 +477,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                                 historyDays=historyDays, continuation=historyLease?.page)
                                         } else null
                                         val sports=workoutRead?.workouts ?: emptyList()
-                                        val healthDaily = if (allowed.any {
+                                        val healthDaily = if (includeDaily && allowed.any {
                                             it in IberfitHealthConnectReader.supportedMetrics
                                         }) {
                                             IberfitHealthConnectReader(client).readDaily(
