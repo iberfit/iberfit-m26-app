@@ -11,6 +11,8 @@ const EVENT='iberfit:connected360-apple-qa';
 const REQUEST='iberfit.connected360.apple.qa.request.v1';
 const RESPONSE='iberfit.connected360.apple.qa.read.v1';
 const WORKOUT_RESPONSE='iberfit.connected360.apple.qa.workouts.v1';
+const CANDIDATE_RESPONSE='iberfit.connected360.apple.qa.candidate.v1';
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const ERROR='iberfit.connected360.apple.qa.error.v1';
 const METRICS=Object.freeze(['steps','sleepMinutes','restingHeartRate']);
 const ID=/^[A-Za-z0-9_-]{8,72}$/u;
@@ -116,6 +118,35 @@ export function normalizeAppleQaWorkouts(value,{at=Date.now(),days=30}={}){
   return Object.freeze({rows:Object.freeze(rows),mayHaveMore:value.mayHaveMore,provider:'apple_health',
     persisted:false,linked:false,readPermissionStatus:'not_disclosed'});
 }
+// Candidate-only QA adapter. The existing V54 coordinator independently
+// validates row contents, current consent and ACK before any server import.
+// No candidate caller is mounted in the application.
+export function normalizeAppleQaCandidatePage(value,{days,cursor,at=Date.now()}={}){
+  const exact=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));
+  if(!exact(value,['schema','requestId','page'])||value.schema!==CANDIDATE_RESPONSE||!ID.test(value.requestId||''))workoutFail();
+  const p=value.page;
+  if(!exact(p,['schema','provider','days','cursor','nextCursor','acquiredAt','records','readPermissionStatus','persisted'])
+    ||p.schema!=='iberfit.connected360.v54.apple.page.v1'||p.provider!=='apple_health'||p.days!==days
+    ||![7,30].includes(days)||p.cursor!==cursor||p.persisted!==false||p.readPermissionStatus!=='not_disclosed'
+    ||(p.nextCursor!==null&&(!UUID.test(p.nextCursor||'')||p.nextCursor===cursor))
+    ||!Array.isArray(p.records)||p.records.length>20)workoutFail();
+  const acquired=workoutInstant(p.acquiredAt);
+  if(!Number.isFinite(at)||!Number.isFinite(acquired)||acquired<at-1200000||acquired>at+5000)workoutFail();
+  const seen=new Set();
+  const records=p.records.map(r=>{
+    if(!exact(r,['observationKey','sport','startedAt','endedAt','activeSeconds','distanceMeters'])
+      ||typeof r.observationKey!=='string'||!(/^[0-9a-f]{64}$/u).test(r.observationKey)||seen.has(r.observationKey)
+      ||!Object.hasOwn(WORKOUT_SPORTS,r.sport))workoutFail();
+    const start=workoutInstant(r.startedAt),end=workoutInstant(r.endedAt),elapsed=(end-start)/1000;
+    if(!Number.isFinite(start)||!Number.isFinite(end)||start<acquired-days*86400000-1000||end>acquired+1000
+      ||elapsed<=0||elapsed>86400||typeof r.activeSeconds!=='number'||!Number.isFinite(r.activeSeconds)
+      ||r.activeSeconds<=0||r.activeSeconds>elapsed+1
+      ||(r.distanceMeters!==null&&(typeof r.distanceMeters!=='number'||!Number.isFinite(r.distanceMeters)||r.distanceMeters<0||r.distanceMeters>500000)))workoutFail();
+    seen.add(r.observationKey);
+    return Object.freeze({...r});
+  });
+  return Object.freeze({...p,records:Object.freeze(records)});
+}
 export function createAppleHealthQaNativeChannel({
   scope=globalThis,
   getIdentity,
@@ -127,7 +158,7 @@ export function createAppleHealthQaNativeChannel({
     throw Error('M26_APPLE_QA_AUTH_REQUIRED');
   if(!Number.isInteger(timeoutMs)||timeoutMs<100||timeoutMs>30_000)
     throw Error('M26_APPLE_QA_TIMEOUT_INVALID');
-  let disposed=false, running=false, rejectPending=null;
+  let disposed=false, running=false, rejectPending=null, generation=0;
   const sender=scope?.webkit?.messageHandlers?.[HANDLER];
   function identity(){
     if(disposed)throw Error('M26_APPLE_QA_DISPOSED');
@@ -145,14 +176,17 @@ export function createAppleHealthQaNativeChannel({
     if(current.ownerId!==expected.ownerId||current.clientId!==expected.clientId)
       throw Error('M26_APPLE_QA_SESSION_CHANGED');
   }
-  async function read({days=7,workouts=false}={}){
+  async function read({days=7,workouts=false,candidate=false,cursor=null,signal=null}={}){
     if(disposed)throw Error('M26_APPLE_QA_DISPOSED');
     if(running)throw Error('M26_APPLE_QA_BUSY');
-    if(!Number.isInteger(days)||days<1||days>(workouts?30:7))
+    if(signal?.aborted)throw Error('M26_APPLE_QA_DISPOSED');
+    if(!Number.isInteger(days)||days<1||days>(workouts||candidate?30:7)
+      ||(candidate&&(![7,30].includes(days)||(cursor!==null&&(typeof cursor!=='string'||!UUID.test(cursor))))))
       throw Error('M26_APPLE_QA_REQUEST_INVALID');
-    const owner=identity();
+    const owner=identity(),lease=generation;
     const token=await getToken(); // NEVER forwarded to the native host.
     same(owner);
+    if(lease!==generation||signal?.aborted)throw Error('M26_APPLE_QA_DISPOSED');
     if(typeof token!=='string'||token.length<10)
       throw Error('M26_APPLE_QA_SESSION_REQUIRED');
     if(running)throw Error('M26_APPLE_QA_BUSY');
@@ -167,12 +201,14 @@ export function createAppleHealthQaNativeChannel({
           rejectPending=null;
           scope.removeEventListener?.(EVENT,onResponse);
           scope.clearTimeout?.(timeout);
+          signal?.removeEventListener?.('abort',onAbort);
         }
         function finish(error,result){
           if(finished)return;
           finished=true;cleanup();
           if(error)reject(error);else resolve(result);
         }
+        function onAbort(){finish(Error('M26_APPLE_QA_DISPOSED'));}
         function onResponse(event){
           const received=event?.detail;
           const parsed=typeof received==='string'?
@@ -181,6 +217,11 @@ export function createAppleHealthQaNativeChannel({
           if(parsed.schema===ERROR){
             const code=String(parsed.error||'');
             finish(Error(/^M26_[A-Z0-9_]{4,72}$/u.test(code)?code:'M26_APPLE_QA_NATIVE_FAILED'));
+            return;
+          }
+          if(candidate){
+            try{finish(null,normalizeAppleQaCandidatePage(parsed,{at:now(),days,cursor}));}
+            catch(error){finish(error);}
             return;
           }
           if(workouts){
@@ -205,14 +246,16 @@ export function createAppleHealthQaNativeChannel({
           return;
         }
         scope.addEventListener(EVENT,onResponse);
+        signal?.addEventListener?.('abort',onAbort,{once:true});
+        if(signal?.aborted){onAbort();return;}
         try{
           // Never include ownerId, clientId, access token, grant or user email.
-          sender.postMessage({schema:REQUEST,requestId,action:workouts?'health.readWorkouts':'health.readDaily',days});
+          sender.postMessage({schema:REQUEST,requestId,action:candidate?'health.readCandidatePage':workouts?'health.readWorkouts':'health.readDaily',days,...(candidate?{cursor}:{})});
         }catch{finish(Error('M26_APPLE_QA_NATIVE_UNAVAILABLE'));}
       });
       same(owner);
-      if(disposed)throw Error('M26_APPLE_QA_DISPOSED');
-      if(workouts)return response;
+      if(disposed||lease!==generation||signal?.aborted)throw Error('M26_APPLE_QA_DISPOSED');
+      if(workouts||candidate)return response;
       return Object.freeze({
         provider:'apple_health',rows:response,
         requestedMetrics:METRICS,readPermissionStatus:'not_disclosed',
@@ -220,13 +263,8 @@ export function createAppleHealthQaNativeChannel({
       });
     }finally{running=false;}
   }
-  return Object.freeze({
-    readLocal:({days=7}={})=>read({days}),
-    readWorkouts:({days=30}={})=>read({days,workouts:true}),
-    available:()=>!disposed&&isAppleHealthQaNativeAvailable(scope),
-    destroy:()=>{
-      if(disposed)return;
-      disposed=true;
+  function invalidate(){
+      generation++;
       rejectPending?.();
       rejectPending=null;
       // Logout or account replacement MUST also retire the one-shot native
@@ -239,6 +277,17 @@ export function createAppleHealthQaNativeChannel({
           });
         }
       }catch{}
+  }
+  return Object.freeze({
+    readLocal:({days=7}={})=>read({days}),
+    readWorkouts:({days=30}={})=>read({days,workouts:true}),
+    readCandidatePage:({days=30,cursor=null,signal=null}={})=>read({days,candidate:true,cursor,signal}),
+    available:()=>!disposed&&isAppleHealthQaNativeAvailable(scope),
+    invalidate,
+    destroy:()=>{
+      if(disposed)return;
+      invalidate();
+      disposed=true;
     },
   });
 }

@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {
   createAppleHealthQaNativeChannel,
   normalizeAppleQaWorkouts,
+  normalizeAppleQaCandidatePage,
   isAppleHealthQaNativeAvailable,
 } from '../src/m26/wearables/apple-qa-native-channel.js';
 
@@ -215,4 +216,35 @@ test('native workout read uses independent approval and never sends source UUID 
   assert.match(source,/workoutReader.invalidate\(\)/u);
   const read=source.slice(source.indexOf('func receiveWorkouts'),source.indexOf('func receiveRead'));
   assert.doesNotMatch(read,/workout\.id|workout\.averageHeartRate|URLSession/u);
+});
+
+test('Apple QA candidate page requires explicit native result and never forwards token or account identity',async()=>{
+ const cursor='00000000-0000-4000-8000-000000000004';
+ const acquiredAt=new Date().toISOString();
+ const record={observationKey:'a'.repeat(64),sport:'swimming',startedAt:new Date(Date.now()-3600000).toISOString(),endedAt:new Date(Date.now()-1800000).toISOString(),activeSeconds:1500,distanceMeters:null};
+ const page={schema:'iberfit.connected360.v54.apple.page.v1',provider:'apple_health',days:30,cursor:null,nextCursor:cursor,acquiredAt,records:[record],readPermissionStatus:'not_disclosed',persisted:false};
+ const reply=c=>({schema:'iberfit.connected360.apple.qa.candidate.v1',requestId:c.requestId,page:{...page,cursor:c.cursor,nextCursor:c.cursor?null:cursor}});
+ const h=harness({answer:reply});
+ assert.equal((await h.channel.readCandidatePage({days:30,cursor:null})).nextCursor,cursor);
+ assert.equal((await h.channel.readCandidatePage({days:30,cursor})).nextCursor,null);
+ assert.deepEqual(Object.keys(h.sent[0]).sort(),['action','cursor','days','requestId','schema']);
+ assert.doesNotMatch(JSON.stringify(h.sent),/authenticated-owner|qa-client|valid-web-token/u);
+ for(const bad of [{...page,persisted:true},{...page,records:[{...record,avgBpm:148}]},{...page,records:[record,record]},{...page,readPermissionStatus:'granted'}]){
+  assert.throws(()=>normalizeAppleQaCandidatePage({schema:'iberfit.connected360.apple.qa.candidate.v1',requestId:'test-candidate',page:bad},{days:30,cursor:null}),/RESPONSE_INVALID/u);
+ }
+ await assert.rejects(h.channel.readCandidatePage({days:8}),/REQUEST_INVALID/u);
+ h.channel.invalidate();
+ assert.equal(h.sent.at(-1).action,'health.invalidate');
+});
+test('Apple candidate request is retired by abort and account change',async()=>{
+ const h=harness(),controller=new AbortController();
+ const pending=h.channel.readCandidatePage({signal:controller.signal});
+ await new Promise(resolve=>setTimeout(resolve,0));controller.abort();
+ await assert.rejects(pending,/DISPOSED/u);
+ assert.equal(h.listeners.size,0);
+ const h2=harness();
+ const p=h2.channel.readCandidatePage();
+ await new Promise(resolve=>setTimeout(resolve,0));h2.channel.invalidate();
+ await assert.rejects(p,/DISPOSED/u);
+ assert.equal(h2.listeners.size,0);
 });

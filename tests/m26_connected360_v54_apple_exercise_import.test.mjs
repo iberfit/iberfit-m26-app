@@ -22,5 +22,8 @@ test('Apple candidate acquisition requires separate native approval and bounded 
  assert.match(reader,/returnedCount == workouts.count/u);
  assert.match(reader,/project\(rows, workouts.count\)[^]*?guard self.retire\(lease\)/u);
  assert.match(reader,/ReaderError.incompleteSnapshot/u);
- assert.doesNotMatch(host,/readCandidateOnce|requestExplicitCandidateWorkoutAccess/u);
+ assert.match(host,/workoutReader\.requestExplicitCandidateWorkoutAccess/u);
+ assert.match(host,/workoutReader\.readCandidateOnce\(days: days\)/u);
+ assert.match(host,/candidatePager\?\.invalidate\(\)/u);
+ assert.match(host,/case "health.readCandidatePage":/u);
 });
