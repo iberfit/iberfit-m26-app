@@ -313,8 +313,14 @@ export function createConnected360SummaryReader({now=()=>Date.now(),ttlMs=15000}
       if(current!==entry||epoch!==version)throw new Error('M26_V46_SUMMARY_READ_RETIRED');
       return load();
     }).then(value=>{
-      if(current===entry&&epoch===version){entry.value=value;entry.at=now();}
+      // A retired read must not deliver private data even to its original caller.
+      if(current!==entry||epoch!==version)throw new Error('M26_V46_SUMMARY_READ_RETIRED');
+      entry.value=value;entry.at=now();
       return value;
+    },error=>{
+      // Never surface an obsolete account's error payload to a new session.
+      if(current!==entry||epoch!==version)throw new Error('M26_V46_SUMMARY_READ_RETIRED');
+      throw error;
     }).finally(()=>{if(current===entry)entry.pending=null;});
     entry.pending=pending;
     return pending;
@@ -400,11 +406,19 @@ export function connected360AppleOwnerTrends(value,{clientId,days,now=new Date()
   const disciplines=period.disciplines.map(d=>{
    if(!exact(d,['sport',...keys])||!APPLE_TREND_SPORTS.has(d.sport)||seen.has(d.sport)||!d.observedDays)fail();
    seen.add(d.sport);const measures=counts(d,totals.observedDays);
-   if(measures.currentOnlyDays+measures.mixedDays>totals.currentOnlyDays+totals.mixedDays
+   // A mixed day within one discipline must also be mixed globally.
+   // Single-generation discipline days can overlap a globally mixed day.
+   if(measures.mixedDays>totals.mixedDays
+   ||measures.currentOnlyDays+measures.mixedDays>totals.currentOnlyDays+totals.mixedDays
    ||measures.retainedOnlyDays+measures.mixedDays>totals.retainedOnlyDays+totals.mixedDays)fail();
    return Object.freeze({sport:d.sport,...measures});
   });
-  if(disciplines.reduce((sum,d)=>sum+d.observedDays,0)<totals.observedDays)fail();
+  // Each global observed day (including each authorization generation) must
+  // be represented by at least one discipline. Never sum as an activity total:
+  // different disciplines can share a day, including mixed-generation days.
+  if(disciplines.reduce((sum,d)=>sum+d.observedDays,0)<totals.observedDays
+  ||disciplines.reduce((sum,d)=>sum+d.currentOnlyDays+d.mixedDays,0)<totals.currentOnlyDays+totals.mixedDays
+  ||disciplines.reduce((sum,d)=>sum+d.retainedOnlyDays+d.mixedDays,0)<totals.retainedOnlyDays+totals.mixedDays)fail();
   return Object.freeze({kind,periodStart:first,periodEnd:last,...totals,disciplines:Object.freeze(disciplines)});
  });
  return Object.freeze({provider:'apple_health',windowDays:days,coverage:'observed-only',periods:Object.freeze(periods),automaticPlanChange:false});

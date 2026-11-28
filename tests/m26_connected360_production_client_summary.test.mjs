@@ -163,7 +163,8 @@ test('late read after privacy invalidation never becomes reusable',async()=>{
   await Promise.resolve();
   reader.clear();
   const fresh=await reader.read('owner-a',()=> 'fresh');
-  resolve('retired');await pending;
+  const retired=assert.rejects(pending,/SUMMARY_READ_RETIRED/u);
+  resolve('retired');await retired;
   assert.equal(fresh,'fresh');
   assert.equal(await reader.read('owner-a',()=>{throw Error('duplicate');}),'fresh');
 });
@@ -514,4 +515,35 @@ test('swimming history exposes estimated elapsed pace in min/100 m, not min/km',
   assert.match(result[0].detail,/2:00 min\/100 m/u);
   const unknown=connected360WorkoutHistory({ok:true,provider:'health_connect',exerciseEvidence:[{...workout,distanceMeters:null}]},{now});
   assert.equal(unknown[0].measurements.elapsedPaceSecondsPer100m,null);
+});
+
+test('summary retirement: a late successful result cannot cross an owner switch',async()=>{
+ const reader=createConnected360SummaryReader();let resolve;
+ const old=reader.read('owner-a',()=>new Promise(r=>{resolve=r;}));
+ await Promise.resolve();const rejected=assert.rejects(old,/SUMMARY_READ_RETIRED/u);
+ assert.equal(await reader.read('owner-b',()=> 'new'),'new');resolve('private old');await rejected;
+ assert.equal(await reader.read('owner-b',()=>{throw Error('unexpected read');}),'new');
+});
+test('summary retirement: force refresh retires even coalesced consumers',async()=>{
+ const reader=createConnected360SummaryReader();let resolve;
+ const old=reader.read('owner-a',()=>new Promise(r=>{resolve=r;}));
+ const duplicate=reader.read('owner-a',()=>{throw Error('duplicate');});assert.equal(duplicate,old);
+ await Promise.resolve();const rejected=assert.rejects(old,/SUMMARY_READ_RETIRED/u);
+ assert.equal(await reader.read('owner-a',()=> 'updated',{force:true}),'updated');resolve('obsolete');await rejected;
+});
+test('summary retirement: errors from obsolete owner are replaced by generic retirement',async()=>{
+ const reader=createConnected360SummaryReader();let reject;
+ const old=reader.read('owner-a',()=>new Promise((_,r)=>{reject=r;}));await Promise.resolve();
+ const retired=assert.rejects(old,e=>e.message==='M26_V46_SUMMARY_READ_RETIRED');reader.clear();
+ reject(Error('private provider detail'));await retired;
+});
+test('summary retirement: current network errors remain actionable and retryable',async()=>{
+ const reader=createConnected360SummaryReader();
+ await assert.rejects(reader.read('owner-a',()=>{throw Error('network');}),/network/u);
+ assert.equal(await reader.read('owner-a',()=> 'recovered'),'recovered');
+});
+test('summary retirement: queued load is not dispatched after revocation',async()=>{
+ const reader=createConnected360SummaryReader();let calls=0;
+ const old=reader.read('owner-a',()=>{calls++;return 'old';});reader.clear();
+ await assert.rejects(old,/SUMMARY_READ_RETIRED/u);assert.equal(calls,0);
 });

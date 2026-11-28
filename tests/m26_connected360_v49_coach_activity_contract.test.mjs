@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,connected360RecipientDecision,sameConnected360CoachScope,connected360CoachActivityView} from '../src/m26/wearables/v49-coach-activity-contract.js';
+import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,connected360RecipientDecision,sameConnected360CoachScope,connected360CoachActivityView,connected360MultiProviderCoachActivityView} from '../src/m26/wearables/v49-coach-activity-contract.js';
 import {connected360ObservedDayContinuity} from '../src/m26/wearables/v46-production-summary.js';
 
 const clientId='11111111-1111-4111-8111-111111111111',coachId='22222222-2222-4222-8222-222222222222',assignmentId='33333333-3333-4333-8333-333333333333';
@@ -108,4 +108,68 @@ test('coach continuity combines confirmed IBERFIT days without counting two reco
  assert.equal(connected360CoachActivityView({...valid(),days:[]},{clientId,now,confirmedRows:rows}).cue,null);
  assert.throws(()=>connected360CoachActivityView(valid(),{clientId,now,confirmedRows:[{...rows[0],source:'imported'}]}));
  assert.throws(()=>connected360CoachActivityView(valid(),{clientId,now,confirmedRows:[{...rows[0],dayKey:'2026-11-27'}]}));
+});
+
+// Connected360: positive-only, independently authorized provider windows.
+const streakDates=Array.from({length:7},(_,i)=>'2026-11-'+(28-i));
+const externalPayload=(provider,days)=>({...valid(),provider,
+ schema:provider==='apple_health'?'iberfit.connected360.apple-coach-exercise-days.v1':'iberfit.connected360.coach-exercise-days.v1',days});
+const sharedDays=(dates,sport='running')=>dates.map(date=>({date,sports:[sport]}));
+const confirmedDays=dates=>dates.map(day=>({source:'iberfit',orderAt:Date.parse(day+'T12:00:00Z'),dayKey:day}));
+const multi=(payloads,confirmedRows=[])=>connected360MultiProviderCoachActivityView(payloads,{clientId,now,confirmedRows});
+test('Connected360 preserves 7 activity days and 5 running days as different observations',()=>{
+ const health=externalPayload('health_connect',sharedDays(streakDates.slice(0,5),'running'));
+ const apple=externalPayload('apple_health',sharedDays(streakDates.slice(2),'walking'));
+ const view=multi([health,apple]);
+ assert.equal(view.days.length,7);
+ assert.deepEqual(view.continuityCues,[
+  {days:7,discipline:'mixed',periodStart:streakDates[6],periodEnd:streakDates[0],basis:'external'},
+  {days:5,discipline:'running',periodStart:streakDates[4],periodEnd:streakDates[0],basis:'external'},
+ ]);
+ assert.equal(view.automaticPlanChange,false);
+});
+test('Connected360 identical civil dates across providers never inflate the running sequence',()=>{
+ const dates=streakDates.slice(0,5);
+ const view=multi([externalPayload('health_connect',sharedDays(dates)),externalPayload('apple_health',sharedDays(dates,'interval_running'))]);
+ assert.equal(view.days.length,5);
+ assert.deepEqual(view.days[0].sports,[{sport:'running',label:'Carrera',providers:['apple_health','health_connect']}]);
+ assert.equal(view.continuityCues.length,1);
+ assert.equal(view.continuityCues[0].days,5);
+ assert.equal(view.continuityCues[0].discipline,'running');
+});
+test('Connected360 combined cue labels its IBERFIT provenance without manufacturing running days',()=>{
+ const health=externalPayload('health_connect',sharedDays(streakDates.slice(0,5)));
+ const view=multi([health],confirmedDays(streakDates.slice(4)));
+ assert.deepEqual(view.continuityCues.map(x=>[x.discipline,x.days,x.basis]),[['mixed',7,'combined'],['running',5,'external']]);
+ assert.ok(Object.isFrozen(view.continuityCues)&&Object.isFrozen(view.continuityCues[0]));
+});
+test('Connected360 single-provider and multi-provider paths share the exact cue contract',()=>{
+ const health=externalPayload('health_connect',sharedDays(streakDates.slice(0,5)));
+ const confirmedRows=confirmedDays(streakDates.slice(4));
+ assert.deepEqual(connected360CoachActivityView(health,{clientId,now,confirmedRows}).continuityCues,multi([health],confirmedRows).continuityCues);
+});
+test('Connected360 an absent source does not become an empty authorization or a rest day',()=>{
+ const health=externalPayload('health_connect',sharedDays(streakDates.slice(0,4)));
+ const view=multi([health]);
+ assert.deepEqual(view.providers,['health_connect']);assert.deepEqual(view.continuityCues,[]);
+ assert.equal(view.coverage,'partial');
+ assert.throws(()=>multi([health,null]),/M26_V49/);
+ assert.throws(()=>multi([health,health]),/M26_V49/);
+});
+test('Connected360 a canonical-only streak is not relabelled external',()=>{
+ const view=multi([externalPayload('apple_health',[])],confirmedDays(streakDates));
+ assert.deepEqual(view.continuityCues,[]);assert.equal(view.cue,null);
+});
+test('Connected360 newer equally long mixed window is actionable evidence, not an old canonical cue',()=>{
+ const health=externalPayload('health_connect',sharedDays(streakDates.slice(0,1),'walking'));
+ const view=multi([health],confirmedDays(['2026-11-21',...streakDates.slice(1)]));
+ assert.deepEqual(view.continuityCues.map(x=>[x.days,x.periodEnd,x.basis]),[[7,streakDates[0],'combined']]);
+});
+test('Connected360 rejects foreign and expired provider data before merging',()=>{
+ const health=externalPayload('health_connect',sharedDays(streakDates));
+ for(const apple of [
+  {...externalPayload('apple_health',[]),clientId:coachId},
+  {...externalPayload('apple_health',[]),periodEnd:'2026-11-27'},
+  {...externalPayload('apple_health',[]),days:[{date:streakDates[0],sports:['running'],heartRate:145}]},
+ ])assert.throws(()=>multi([health,apple]),/M26_V49/);
 });

@@ -77,7 +77,9 @@ test('M44 byte delivery re-authorizes every request, hashes stored bytes, never 
  const t=await source();
  assert.match(t,/async function downloadVerified/);
  assert.match(t,/callRpc<Access>\(user,'iberfit_m44_authorize_evolution_report_pdf_v1'/);
- assert.match(t,/if\(!row\?\.ok\|\|row\.withdrawn/);
+ const helper=await readFile(new URL('../supabase/functions/iberfit-evolution-report-emission-v1/artifact-authorization.js',import.meta.url),'utf8');
+ assert.match(helper,/if\(!row\|\|row\.ok!==true\|\|row\.withdrawn!==false/);
+ assert.match(t,/import \{authorizedArtifactIdentity,verifyFreshArtifactAuthorization,verifyFreshReportPreparation\} from '\.\/artifact-authorization\.js'/u);
  const download=t.slice(t.indexOf('async function downloadVerified'),t.indexOf('Deno.serve'));
  assert.match(download,/const identity=authorizedArtifactIdentity\(row,id\)/);
  assert.match(download,/bytes.length!==identity.size/);

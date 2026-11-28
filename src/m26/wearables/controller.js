@@ -25,6 +25,7 @@ import {createConnected360QaImporter} from './qa-native-import.js';
 import {createConnected360V46QaImporter} from './v46-qa-import.js';
 import {createConnected360V46QaNativeChannel} from './v46-qa-native-channel.js';
 import {createConnected360V46ProdNativeChannel,isConnected360ProdNativeAvailable} from './v46-prod-native-channel.js';
+import {mountDocumentConsentPanel} from './document-consent-panel.js';
 import {createConnected360ProductionSync} from './v46-production-sync.js';
 import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline,connected360ActivityContinuity} from './v46-production-summary.js';
 import {createAppleHealthQaNativeChannel,isAppleHealthQaNativeAvailable} from './apple-qa-native-channel.js';
@@ -582,6 +583,7 @@ export function createWearableController({
   productionHistoryEnabled=false,
   getCoachActivityScope=()=>null,
   readCoachActivity=null,
+  documentConsentApi=null,
 }={}){
   if(
     !root?.addEventListener
@@ -603,6 +605,8 @@ export function createWearableController({
   let productionHistoryMutationDepth=0;
   let productionHistoryRetired=false;
   let coachActivityPanel=null;
+  let documentConsentPanel=null;
+  const retireDocumentConsent=()=>{const item=documentConsentPanel;documentConsentPanel=null;item?.retire();};
   const coachSharingPanels=new Set();
   const retireCoachSharingPanels=()=>{for(const item of coachSharingPanels)item.retire();coachSharingPanels.clear();};
   const productionSummaryReader=createConnected360SummaryReader();
@@ -1082,6 +1086,7 @@ export function createWearableController({
   const canReadProductionHistory=()=>!productionHistoryRetired&&Boolean(productionSync||productionHistoryEnabled===true)
     &&typeof transport.connected360ProductionSummary==='function';
   function clearProductionHistorySurface(){
+    retireDocumentConsent();
     retireCoachSharingPanels();
     coachActivityPanel?.clear();
     productionSummaryEpoch+=1;
@@ -1362,7 +1367,7 @@ export function createWearableController({
       if(stillCurrent()&&refresh)refresh.disabled=false;
     }
   }
-  async function autoSyncNativeProviders({signal=null}={}){
+  async function autoSyncNativeProviders({signal=null,markRetry=()=>{}}={}){
     const session=context(store);
     if(signal?.aborted||session.role!=='client'||!session.ownerId||
       String(session.ownerId)!==String(ownerId)||!isOnline())return [];
@@ -1410,6 +1415,7 @@ export function createWearableController({
           if(note)note.textContent='La recuperación del historial se ha interrumpido. Continuará en una próxima sincronización.';
           if(savedPage&&wrap?.isConnected)void refreshProductionSummary(wrap,{supersede:true});
         }
+        markRetry();
         emitDiagnostic('connected360-prod-foreground',error);
       }
     }
@@ -1427,6 +1433,7 @@ export function createWearableController({
         if(signal?.aborted||
           error?.message==='M26_WEARABLE_SYNC_INVALIDATED'||
           error?.message==='M26_WEARABLE_ACCOUNT_CHANGED')break;
+        markRetry();
         emitDiagnostic('wearable-auto-sync',error);
       }
     }
@@ -1835,11 +1842,16 @@ export function createWearableController({
         const result=await readCoachActivity(scope,stillCurrent,{signal:abort.signal});
         if(!stillCurrent())return;
         status.textContent=result.days.length?'Registros disponibles de los últimos 7 días.':'No hay actividad compartida disponible en esta ventana.';
-        if(result.cue){
+        const continuity=result.continuityCues??(result.cue?[result.cue]:[]);
+        for(const observation of continuity){
           const cue=document.createElement('p');cue.className='m26-notice';
-          cue.textContent=result.cue.days+(result.cue.discipline==='running'
-            ?' · Días consecutivos con carrera registrada y compartida. Revisa la recuperación antes de decidir.'
-            :' · Días consecutivos con actividad registrada. Revisa la recuperación antes de decidir.');
+          const source=observation.basis==='combined'?' (IBERFIT y actividad compartida)':
+            observation.basis==='external'?' (actividad compartida)':'';
+          const period=observation.periodStart&&observation.periodEnd
+            ?' · '+observation.periodStart+' — '+observation.periodEnd:'';
+          cue.textContent=observation.days+(observation.discipline==='running'
+            ?' · Días consecutivos con carrera registrada':' · Días consecutivos con actividad registrada')
+            +source+period+'. Revisa la recuperación antes de decidir.';
           body.append(cue);
         }
         for(const observation of result.disciplineCues??[]){
@@ -1882,7 +1894,20 @@ export function createWearableController({
         readProfessional:(days,live,{signal})=>readCoachActivity(scope,live,{signal,trendDays:days})});
     }
   }
+  function enhanceDocumentConsent(){
+    if(documentConsentPanel&&!documentConsentPanel.active())retireDocumentConsent();
+    if(documentConsentPanel||!mounted||productionHistoryRetired||!isOnline()||documentConsentApi?.available?.()!==true)return;
+    const host=root.querySelector?.('[data-m26-device-hub] .m26-device-data-management .m26-device-hub-body');
+    const expected=qaClientIdentity(),identityEpoch=nativeIdentityEpoch;
+    if(!host||expected.role!=='client'||!expected.ownerId||!expected.clientId||root.ownerDocument?.visibilityState==='hidden')return;
+    documentConsentPanel=mountDocumentConsentPanel(host,{clientId:expected.clientId,api:documentConsentApi,stillCurrent:()=>{
+      const current=qaClientIdentity();
+      return mounted&&!productionHistoryRetired&&isOnline()&&identityEpoch===nativeIdentityEpoch&&host.isConnected
+        &&current.role==='client'&&current.ownerId===expected.ownerId&&current.clientId===expected.clientId;
+    }});
+  }
   function enhanceControls(){
+    enhanceDocumentConsent();
     for(const item of coachSharingPanels){if(!item.active()){item.retire();coachSharingPanels.delete(item);}}
     enhanceCoachActivity();
     const {

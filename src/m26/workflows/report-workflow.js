@@ -1,5 +1,6 @@
 import {buildPeriodProgressEvidence} from '../engagement/progress-hub.js';
 import {reportCivilDate,isWithinCivilPeriod,parseDateValue,observedCivilDayRuns} from '../domain/civil-date.js';
+import {resolveSantiagoLocalInstant} from '../domain/dated-training-occurrences.js';
 import {openEvolutionReportPreview} from './evolution-report-document.js';
 import {buildPrivateReportDetail,buildStrengthHistoryIndex,strengthPeriodEvidence} from './report-private-detail.js';
 import {buildTrainingCalendarEvidence,readDatedTrends,buildWellbeingBundle,WELLBEING_BUNDLE_LABEL,wellbeingBundleDescription} from './report-trend-contract.js';
@@ -236,6 +237,26 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
 }
 
 export function premiumReportByType(state,clientId,type,options={}){return buildPremiumReportPortfolio(state,clientId,options).find((report)=>report.id===String(type||''))||null;}
+// Explicit document workflow: reuse the complete weekly evidence builder at
+// the last instant of a closed Santiago civil day, not a shortened UI range.
+// The ordinary weekly portfolio keeps its existing current-day semantics.
+export function closedWeeklyReportCandidate(state,clientId,{now=new Date(),periodEnd=null}={}){
+ const today=reportCivilDate(now),end=periodEnd??dateOffset(today,2);
+ if(!today||!validDate(end)||end>=today)return null;
+ try{
+  const lastMinute=resolveSantiagoLocalInstant(end,'23:59',{disambiguation:'later'});
+  return premiumReportByType(state,clientId,'weekly',{now:new Date(Date.parse(lastMinute)+59_999)});
+ }catch{return null;}
+}
+function editorReportCandidate(form,context,type,{now=new Date(),fallback=null}={}){
+ if(!type)return null;
+ const end=reportFormValue(form,'periodEnd');
+ // A recovered historical weekly draft is eligible only if the exact
+ // regenerated evidence signature and dates also pass the existing fences.
+ if(type==='weekly'&&validDate(end)&&end<reportCivilDate(now))return closedWeeklyReportCandidate(context.state,context.clientId,{now,periodEnd:end});
+ return fallback??premiumReportByType(context.state,context.clientId,type,{now});
+}
+
 export function premiumReportUiCandidates(state,role,clientId,options={}){const normalizedRole=String(role||'').trim().toLowerCase();if(!['coach','admin'].includes(normalizedRole)||!clientId)return Object.freeze([]);return buildPremiumReportPortfolio(state,clientId,options);}
 
 function premiumEvidenceSignature(candidate){return JSON.stringify({modelVersion:PREMIUM_REPORT_MODEL_VERSION,id:candidate?.id||null,assessmentId:candidate?.id==='iri'?(candidate?.assessmentId||null):null,assessmentRevision:candidate?.id==='iri'?normalizedRevision(candidate?.assessmentRevision):null,sourceType:candidate?.sourceType||null,sourceId:candidate?.sourceId||null,periodStart:candidate?.periodStart||null,periodEnd:candidate?.periodEnd||null,evidence:(candidate?.evidence||[]).map((row)=>[row.label,row.text,row.source,row.quality]),activitySeries:(candidate?.activitySeries||[]).map(row=>[row.from,row.to,row.count])});}
@@ -298,7 +319,7 @@ function premiumMetadataFromActiveEditor(draft,scope=globalThis){
   const document=scope?.document;if(!document?.querySelector)return null;const form=document.querySelector('[data-workflow-form="report-approval"]');if(!form)return null;
   const type=reportType(reportFormValue(form,'reportType'));if(!type)return null;
   const context=browserReportContext(scope);if(!context.state||!['coach','admin'].includes(context.role)||context.clientId!==String(draft?.clientId||'')){if(gxMarked(reportFormValue(form,'premiumEvidenceSignature')))throw Error('M26_REPORT_DRAFT_INVALID:professional-selection-stale');return null;}
-  const candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});const expectedSignature=reportFormValue(form,'premiumEvidenceSignature');const evidenceSignature=premiumEvidenceSignature(candidate);
+  const candidate=editorReportCandidate(form,context,type);const expectedSignature=reportFormValue(form,'premiumEvidenceSignature');const evidenceSignature=premiumEvidenceSignature(candidate);
   const sameEvidence=Boolean(candidate?.ready&&(candidate.assessmentId||'')===String(draft?.assessmentId||'')&&candidate.periodStart===String(draft?.periodStart||'')&&candidate.periodEnd===String(draft?.periodEnd||'')&&expectedSignature&&evidenceSignature===gxBaseSignature(expectedSignature));
   if(!sameEvidence)throw new Error('M26_REPORT_DRAFT_INVALID:premium-evidence-stale');
   const selected=gxEditorCandidate(form,form.closest?.('#app')??document.querySelector('#app'),context,candidate);
@@ -387,7 +408,7 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     if(destroyed)return false;const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)return false;const context=browserReportContext(scope);
     if(!context.state||!['coach','admin'].includes(context.role)||!context.clientId){root.querySelector?.('[data-premium-report-candidates]')?.remove?.();form.querySelector?.('[data-gx-report-selection]')?.remove?.();return false;}
     ensurePremiumEditorFields(form,document);let host=root.querySelector?.('[data-premium-report-candidates]');if(!host){host=document.createElement('section');host.className='m26-panel m26-panel-soft';host.dataset.premiumReportCandidates='true';form.before(host);}
-    const portfolio=premiumReportUiCandidates(context.state,context.role,context.clientId,{now:new Date()});const reassessmentSelection=context.role==='coach'?professionalReassessmentSelectionPreview(root,context.clientId):null;const signature=JSON.stringify([context.role,context.clientId,premiumPortfolioSignature(portfolio),reassessmentSelection]);if(host.dataset.premiumReportSignature!==signature){renderPremiumReportCards(host,portfolio,document,reassessmentSelection);host.dataset.premiumReportSignature=signature;}const selectedType=reportType(reportFormValue(form,'reportType'));gxRenderEditorSelection(form,root,context,portfolio.find(x=>x.id===selectedType),document);return true;
+    const portfolio=premiumReportUiCandidates(context.state,context.role,context.clientId,{now:new Date()});const reassessmentSelection=context.role==='coach'?professionalReassessmentSelectionPreview(root,context.clientId):null;const signature=JSON.stringify([context.role,context.clientId,premiumPortfolioSignature(portfolio),reassessmentSelection]);if(host.dataset.premiumReportSignature!==signature){renderPremiumReportCards(host,portfolio,document,reassessmentSelection);host.dataset.premiumReportSignature=signature;}const selectedType=reportType(reportFormValue(form,'reportType'));gxRenderEditorSelection(form,root,context,editorReportCandidate(form,context,selectedType,{fallback:portfolio.find(x=>x.id===selectedType)}),document);return true;
   }
   async function onClick(event){
     const reassessment=event.target?.closest?.('[data-gx-reassessment-preview]');
@@ -414,7 +435,7 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     if(professional&&root.contains?.(professional)){
       event.preventDefault?.();const form=professional.closest?.('[data-workflow-form="report-approval"]');const context=browserReportContext(scope);
       if(!form||context.role!=='coach'||!context.clientId)return;
-      const type=reportType(reportFormValue(form,'reportType')),candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});
+      const type=reportType(reportFormValue(form,'reportType')),candidate=editorReportCandidate(form,context,type);
       try{
         if(professional.dataset.gxReportReset)gxResetEditorSelection(form);
         else if(professional.dataset.gxReportClear){clearProfessionalReportSelection(root);gxResetReview(form);}
@@ -438,7 +459,7 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
       if(!type||type==='iri'||type==='reassessment'){
         message('Elige primero un informe de entrenamiento con evidencia confirmada. El IRI y la reevaluación tienen circuitos propios.','info');return;
       }
-      const candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});
+      const candidate=editorReportCandidate(form,context,type);
       if(!candidate?.ready||!candidate.evidence?.length){
         message('No existe evidencia suficiente para preparar este informe.');return;
       }
@@ -482,8 +503,10 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     if(!form)return;
     const context=browserReportContext(scope);
     if(!context.state||!['coach','admin'].includes(context.role))return;
-    const candidate=premiumReportByType(context.state,context.clientId,button.dataset.premiumReportType,{now:new Date()});
-    if(!candidate?.ready)return;
+    const closed=button.dataset.documentClosedWeek==='true'&&button.dataset.premiumReportType==='weekly';
+    if(closed&&context.role!=='coach')return;
+    const candidate=closed?closedWeeklyReportCandidate(context.state,context.clientId):premiumReportByType(context.state,context.clientId,button.dataset.premiumReportType,{now:new Date()});
+    if(!candidate?.ready){if(closed){const status=root.querySelector?.('[data-workflow-status="report"]');if(status){status.textContent='No hay sesiones confirmadas en la última semana cerrada.';status.dataset.status='info';}}return;}
     const selection=++selectionVersion;
     const pending={wait:null},EventType=scope.CustomEvent||globalThis.CustomEvent;
     if(typeof EventType==='function')root.dispatchEvent(new EventType('m26:report-before-switch',{detail:pending}));
@@ -495,7 +518,7 @@ export function installPremiumReportUi({scope=globalThis,root=scope?.document?.q
     }
     const current=browserReportContext(scope);
     if(destroyed||selection!==selectionVersion||!root.contains?.(form)||current.clientId!==context.clientId||current.role!==context.role)return;
-    const fresh=premiumReportByType(current.state,current.clientId,candidate.id,{now:new Date()});
+    const fresh=closed?closedWeeklyReportCandidate(current.state,current.clientId):premiumReportByType(current.state,current.clientId,candidate.id,{now:new Date()});
     if(!fresh?.ready||premiumEvidenceSignature(fresh)!==premiumEvidenceSignature(candidate)){
       const status=root.querySelector?.('[data-workflow-status="report"]');
       if(status){status.textContent='La evidencia ha cambiado. Selecciona nuevamente el formato.';status.dataset.status='info';}
@@ -529,11 +552,23 @@ export function validateReportDraft(draft={}){
   if(!cleanText(draft.conclusions,2500))errors.push('conclusions');
   if(!cleanText(draft.recommendations,2500))errors.push('recommendations');
   if(draft.reportType!=null&&!reportType(draft.reportType))errors.push('reportType');
+  // Review consent for Connected360 is not consent to an official report.
+  // Inspect the complete input before evidenceRows can clip or clean it.
+  if(Array.isArray(draft.evidence)&&draft.evidence.some(row=>typeof row?.source==='string'&&row.source.trim().toLowerCase().startsWith('connected360:')))errors.push('device-publication-not-authorized');
+  // The current reassessment workflow is a private preview only. A direct
+  // command must not bypass the unavailable official approval surface.
+  if(type==='reassessment')errors.push('reassessment-preview-only');
   if(draft.reviewAccepted!==true)errors.push('reviewAccepted');
   return {ok:errors.length===0,errors:[...new Set(errors)]};
 }
 export function normalizeReportDraft(draft={}){
-  const check=validateReportDraft(draft);if(!check.ok)throw new Error(`M26_REPORT_DRAFT_INVALID:${check.errors.join(',')}`);
+  const check=validateReportDraft(draft);
+  if(!check.ok){
+    const error=new Error(`M26_REPORT_DRAFT_INVALID:${check.errors.join(',')}`);
+    if(check.errors.includes('device-publication-not-authorized'))error.userMessage='La consulta de actividad compartida no autoriza su publicación. Conserva el borrador y revisa las evidencias.';
+    else if(check.errors.includes('reassessment-preview-only'))error.userMessage='La reevaluación está disponible como vista previa privada. La emisión oficial requiere certificación adicional.';
+    throw error;
+  }
   const normalized={id:safeId(draft.id)||createM26Id(),clientId:safeId(draft.clientId),assessmentId:reportType(draft.reportType)==='iri'||draft.reportType==null?safeId(draft.assessmentId):null,title:cleanText(draft.title,140),periodStart:draft.periodStart,periodEnd:draft.periodEnd,summary:cleanText(draft.summary,2500),conclusions:cleanText(draft.conclusions,2500),recommendations:cleanText(draft.recommendations,2500),format:'a4-premium',visibility:'coach',singleReport:true,status:'aprobado',visibleToClient:false};
   const type=reportType(draft.reportType);if(type)normalized.reportType=type;
   const coachComment=cleanText(draft.coachComment,2500);if(coachComment)normalized.coachComment=coachComment;

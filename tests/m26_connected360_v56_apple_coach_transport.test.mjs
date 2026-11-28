@@ -21,12 +21,12 @@ function trendDto(days,clock=now){
 const decision={coachId,assignmentId,expectedRevision:0,allow:true};
 const qa={enabled:true,qaOnly:true,host:'m26-canary.iberfit.cl',canary:true,projectRef:M26_QA_PROJECT_REF,url:'https://'+M26_QA_PROJECT_REF+'.supabase.co',publishableKey:'sb_publishable_QA_test_not_a_real_key'};
 const prod={enabled:true,qaOnly:false,host:'app.iberfit.cl',projectRef:M26_PRODUCTION_PROJECT_REF,url:'https://'+M26_PRODUCTION_PROJECT_REF+'.supabase.co',publishableKey:'sb_publishable_PROD_test_not_a_real_key'};
-function fixture(runtime=qa,enabled=true,override=null){
+function fixture(runtime=qa,enabled=true,override=null,dual=false){
  const calls=[];
- const transport=createM26Transport(runtime,{connected360AppleCandidate:enabled,fetchImpl:async(url,init)=>{
+ const transport=createM26Transport(runtime,{connected360AppleCandidate:enabled,connected360DualCoachCandidate:dual,fetchImpl:async(url,init)=>{
   const path=new URL(url).pathname,body=JSON.parse(init.body);
   calls.push({path,body,method:init.method,authorization:init.headers.authorization});
-  let result=path.endsWith('my_apple_coach_trend_recipients_v1')?trendRecipients():path.endsWith('set_apple_coach_trend_consent_v1')?{ok:true,provider:'apple_health',purpose:trendPurpose,shared:body.p_allow,revision:body.p_expected_revision+1}:path.endsWith('apple_coach_trends_v1')?trendDto(body.p_days,new Date()):path.endsWith('my_apple_coach_recipients_v1')?recipients():path.endsWith('set_apple_coach_consent_v1')?{ok:true,provider:'apple_health',shared:body.p_allow,revision:body.p_expected_revision+1}:daysDto('apple_health',[],new Date());
+  let result=path.endsWith('my_apple_coach_trend_recipients_v1')?trendRecipients():path.endsWith('set_apple_coach_trend_consent_v1')?{ok:true,provider:'apple_health',purpose:trendPurpose,shared:body.p_allow,revision:body.p_expected_revision+1}:path.endsWith('apple_coach_trends_v1')?trendDto(body.p_days,new Date()):path.endsWith('my_apple_coach_recipients_v1')?recipients():path.endsWith('set_apple_coach_consent_v1')?{ok:true,provider:'apple_health',shared:body.p_allow,revision:body.p_expected_revision+1}:daysDto(path.endsWith('/m26_wearable_v49_coach_exercise_days_v1')?'health_connect':'apple_health',[],new Date());
   if(override)result=override(result);
   return {ok:true,status:200,headers:{get:k=>k==='content-type'?'application/json':null},json:async()=>result};
  }});
@@ -108,4 +108,41 @@ test('V58 transport uses only explicit QA trend endpoints and confirms purpose-s
   await assert.rejects(y.transport.connected360AppleCandidateCoachTrends(token,clientId,28));
   assert.equal(y.calls.length,0);
  }
+});
+
+test('dual QA requires explicit opt-in for both capabilities and never crosses projects',async()=>{
+ for(const x of [fixture(qa,true,null,false),fixture(qa,false,null,true),fixture(prod,true,null,true),fixture({...qa,canary:false},true,null,true)]){
+  assert.equal(x.transport.connected360DualCoachCandidateAvailable(),false);
+  await assert.rejects(x.transport.connected360DualCoachCandidateDays(token,clientId,{stillCurrent:()=>true}),/QA_ONLY/);
+  assert.equal(x.calls.length,0);
+ }
+ assert.throws(()=>fixture({...qa,projectRef:M26_PRODUCTION_PROJECT_REF},true,null,true));
+ assert.throws(()=>fixture({...qa,url:prod.url},true,null,true));
+});
+test('dual QA reads both independently authorized DTOs once with one owner and bearer',async()=>{
+ const x=fixture(qa,true,null,true);
+ assert.equal(x.transport.connected360DualCoachCandidateAvailable(),true);
+ const pair=await x.transport.connected360DualCoachCandidateDays(token,clientId,{stillCurrent:()=>true});
+ assert.deepEqual(pair.map(x=>x.provider),['health_connect','apple_health']);
+ assert.ok(Object.isFrozen(pair));
+ assert.deepEqual(x.calls.map(x=>x.path).sort(),['/rest/v1/rpc/m26_wearable_v49_coach_exercise_days_v1','/rest/v1/rpc/m26_wearable_v56_apple_coach_exercise_days_v1']);
+ assert.ok(x.calls.every(x=>x.authorization==='Bearer '+token&&x.method==='POST'&&x.body.p_client===clientId));
+});
+test('dual QA never returns a partial result when one provider fails or DTO identity drifts',async()=>{
+ for(const override of [r=>{if(r.provider==='apple_health')throw Error('denied');return r;},r=>r.provider==='apple_health'?{...r,clientId:coachId}:r,r=>r.provider==='apple_health'?{...r,provider:'health_connect'}:r,r=>r.provider==='apple_health'?[r,r]:r]){
+  const x=fixture(qa,true,override,true);
+  await assert.rejects(x.transport.connected360DualCoachCandidateDays(token,clientId,{stillCurrent:()=>true}));
+  assert.equal(x.calls.length,2);
+ }
+});
+test('dual QA does not start with missing scope, token or cancelled request',async()=>{
+ const x=fixture(qa,true,null,true),abort=new AbortController();abort.abort();
+ for(const options of [{},{stillCurrent:()=>false},{stillCurrent:()=>true,signal:abort.signal}])await assert.rejects(x.transport.connected360DualCoachCandidateDays(token,clientId,options));
+ await assert.rejects(x.transport.connected360DualCoachCandidateDays('',clientId,{stillCurrent:()=>true}));
+ assert.equal(x.calls.length,0);
+});
+test('dual QA discards in-flight data when the selected owner changes',async()=>{
+ let live=true;const x=fixture(qa,true,r=>{live=false;return r;},true);
+ await assert.rejects(x.transport.connected360DualCoachCandidateDays(token,clientId,{stillCurrent:()=>live}),/STALE_COACH_SCOPE/);
+ assert.ok(x.calls.length>=1&&x.calls.length<=2);
 });

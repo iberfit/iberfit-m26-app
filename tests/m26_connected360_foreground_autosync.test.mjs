@@ -442,3 +442,43 @@ test('workout backlog: failed page is not retried automatically and previous rec
  assert.equal(calls,2);
  assert.deepEqual(seen,[{ok:true,workoutHistoryPending:true}]);
 });
+
+test('foreground: retry interval starts when a slow read fails',async()=>{
+ let clock=0,calls=0;
+ const sync=createWearableForegroundSync({now:()=>clock,canRun:()=>true,run:async()=>{
+  if(++calls===1){clock=60_000;throw Error('slow-failure');}return 'ok';
+ }});
+ await assert.rejects(sync.trigger(),/slow-failure/);
+ clock=89_999;assert.deepEqual(await sync.trigger(),{skipped:'retry-backoff'});assert.equal(calls,1);
+ clock=90_000;assert.equal(await sync.trigger(),'ok');assert.equal(calls,2);
+});
+test('foreground: partial provider failure preserves successful results and requests bounded retry',async()=>{
+ let clock=0,calls=0;
+ const sync=createWearableForegroundSync({now:()=>clock,canRun:()=>true,run:async({markRetry})=>{
+  if(++calls===1){markRetry();clock=45_000;return [{ok:true}];}return [{ok:true},{ok:true}];
+ }});
+ assert.deepEqual(await sync.trigger(),[{ok:true}]);
+ clock=74_999;assert.deepEqual(await sync.trigger(),{skipped:'retry-backoff'});
+ clock=75_000;assert.deepEqual(await sync.trigger(),[{ok:true},{ok:true}]);
+ clock=75_001;assert.deepEqual(await sync.trigger(),{skipped:'recently-checked'});
+});
+test('foreground: invalidated partial failure cannot contaminate a new account cooldown',async()=>{
+ let clock=0,resolveOld,calls=0;
+ const sync=createWearableForegroundSync({now:()=>clock,canRun:()=>true,run:async({markRetry})=>{
+  if(++calls===1)return new Promise(resolve=>{resolveOld=()=>{markRetry();resolve([]);};});
+  return [{ok:true}];
+ }});
+ const old=sync.trigger();await Promise.resolve();sync.invalidate();
+ assert.deepEqual(await sync.trigger(),[{ok:true}]);resolveOld();
+ assert.deepEqual(await old,{skipped:'invalidated'});
+ clock=30_001;assert.deepEqual(await sync.trigger(),{skipped:'recently-checked'});assert.equal(calls,2);
+});
+test('foreground: forced reconnect and partial failure retain the existing single-flight lock',async()=>{
+ let resolveRead,calls=0;
+ const sync=createWearableForegroundSync({now:()=>100,canRun:()=>true,run:({markRetry})=>{
+  calls++;return new Promise(resolve=>{resolveRead=()=>{markRetry();resolve([]);};});
+ }});
+ const first=sync.trigger();assert.equal(sync.trigger({force:true}),first);await Promise.resolve();
+ resolveRead();assert.deepEqual(await first,[]);assert.equal(calls,1);
+ assert.deepEqual(await sync.trigger(),{skipped:'retry-backoff'});
+});

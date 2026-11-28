@@ -94,6 +94,12 @@ export async function restoreReportDraft(repository,clientId,assessmentId,entity
   return legacy;
 }
 
+// Private draft readback uses the same material comparison as approval replay.
+export function privateReportMaterialMatches(record,draft){
+  return !!record&&!!draft&&FIELDS.every(field=>canonical(value(record,field))===canonical(draft[field]))
+    &&canonical(value(record,'evidence')??[])===canonical(draft.evidence??[]);
+}
+
 export function reportApprovalDecision(reports,clientId,draft){
   const id=String(draft?.id||'').trim(),owner=String(clientId||'').trim();
   if(!SAFE_ID.test(id)||!SAFE_ID.test(owner)||String(draft?.clientId||'')!==owner)
@@ -121,8 +127,7 @@ export function reportApprovalDecision(reports,clientId,draft){
   if(FINAL_STATUSES.has(status)){
     // Authoritative replay must match all authored report material, not just prose.
     // A changed coach annotation or evidence payload is a new version, never an ACK replay.
-    const equal=FIELDS.every(field=>canonical(value(remote,field))===canonical(draft[field]))
-      &&canonical(value(remote,'evidence')??[])===canonical(draft.evidence??[]);
+    const equal=privateReportMaterialMatches(remote,draft);
     return Object.freeze({kind:equal?'already-approved':'new-version-required',baseRevision:revision});
   }
   if(DRAFT_STATUSES.has(status))return Object.freeze({kind:'update-draft',baseRevision:revision});

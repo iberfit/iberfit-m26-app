@@ -3,6 +3,7 @@ import {verifyAppleExerciseStatus,appleExerciseConsentParams,verifyAppleExercise
 import {CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT} from './wearables/measurement-capability-contract.js';
 import {connected360AppleOwnerTrends,connected360AppleOwnerTrendParams,connected360AppleActivityPage,connected360ActivityPage,connected360ActivityPageParams} from './wearables/v46-production-summary.js';
 import {connected360CoachActivityParams,connected360CoachConsentParams,connected360CoachConsentStatusParams,verifyConnected360CoachExerciseDays,verifyConnected360CoachConsentStatus,verifyConnected360CoachConsentReceipt,verifyConnected360CoachRecipients,verifyConnected360AppleCoachExerciseDays,verifyConnected360AppleCoachRecipients,verifyConnected360AppleCoachConsentReceipt,verifyConnected360AppleCoachTrendRecipients,verifyConnected360AppleCoachTrendConsentReceipt,verifyConnected360AppleCoachTrends} from './wearables/v49-coach-activity-contract.js';
+import {verifyConnected360DocumentInbox,verifyConnected360DocumentReview,verifyConnected360DocumentDecisionReceipt,verifyConnected360DocumentCoachReceipt,verifyConnected360DocumentTransitionReceipt} from './wearables/document-consent-contract.js';
 import {verifyInvitationReceipt} from './workflows/coach-invitation-outcome.js';
 import {createQaInFlightReadGate} from './domain/qa-inflight-read-gate.js';
 import {compactQaCanonicalExecutionSummaries} from './domain/qa-canonical-summary-transport.js';
@@ -1752,6 +1753,54 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return dependencies.connected360AppleCandidate===true&&runtime.qaOnly===true&&runtime.canary===true
       &&runtime.projectRef===M26_QA_PROJECT_REF&&runtime.url===M26_QA_SUPABASE_ORIGIN;
   }
+  // An explicit certification harness, never a runtime flag from the browser.
+  function connected360DocumentCandidateAvailable(){
+    return dependencies.connected360DocumentCandidate===true&&runtime.qaOnly===true&&runtime.canary===true
+      &&runtime.projectRef===M26_QA_PROJECT_REF&&runtime.url===M26_QA_SUPABASE_ORIGIN;
+  }
+  const documentUuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value);
+  const documentSha=value=>typeof value==='string'&&/^[0-9a-f]{64}$/u.test(value);
+  function assertDocumentCandidate(token){
+    if(!connected360DocumentCandidateAvailable())throw Error('GX_DOCUMENT_CANDIDATE_QA_ONLY');
+    if(typeof token!=='string'||!token.trim())throw Error('M26_AUTH_REQUIRED');
+  }
+  async function connected360DocumentCandidateRequest(token,{reportId,clientId,reportRevision,provider}={},{signal}={}){
+    assertDocumentCandidate(token);
+    if(!documentUuid(reportId)||!documentUuid(clientId)||!Number.isSafeInteger(reportRevision)||reportRevision<1||reportRevision>2147483647||!['apple_health','health_connect'].includes(provider))throw Error('GX_DOCUMENT_ARGUMENTS_INVALID');
+    const raw=await request('/rest/v1/rpc/iberfit_gx_document_request_v1',{method:'POST',token,body:JSON.stringify({p_report:reportId,p_provider:provider,p_expected_revision:reportRevision}),signal});
+    return verifyConnected360DocumentCoachReceipt(raw,{reportId,clientId,reportRevision,provider});
+  }
+  // Explicit candidate transition only. Never retry an ambiguous write.
+  async function connected360DocumentCandidateTransition(token,{reportId,requestId,operationId,reportRevision,action,previewConfirmed=false}={},{signal}={}){
+    assertDocumentCandidate(token);
+    if(!documentUuid(reportId)||!documentUuid(requestId)||!documentUuid(operationId)||!Number.isSafeInteger(reportRevision)||reportRevision<1||reportRevision>2147483646||!['approve','publish'].includes(action)||typeof previewConfirmed!=='boolean'||(action==='publish'&&previewConfirmed!==true))throw Error('GX_DOCUMENT_ARGUMENTS_INVALID');
+    const raw=await request('/rest/v1/rpc/iberfit_gx_document_transition_v1',{method:'POST',token,body:JSON.stringify({p_report:reportId,p_request:requestId,p_expected_revision:reportRevision,p_operation:operationId,p_action:action,p_preview_confirmed:previewConfirmed}),signal});
+    return verifyConnected360DocumentTransitionReceipt(raw,{reportId,requestId,operationId,reportRevision,action});
+  }
+  async function connected360DocumentCandidateInbox(token,clientId,after=null,{signal}={}){
+    assertDocumentCandidate(token);
+    if(!documentUuid(clientId)||(after!==null&&!documentUuid(after)))throw Error('GX_DOCUMENT_ARGUMENTS_INVALID');
+    const raw=await request('/rest/v1/rpc/iberfit_gx_document_inbox_v1',{method:'POST',token,body:JSON.stringify({p_after:after}),signal});
+    return verifyConnected360DocumentInbox(raw,{clientId,after});
+  }
+  async function connected360DocumentCandidateReview(token,clientId,requestId,preview,{signal}={}){
+    assertDocumentCandidate(token);
+    if(!documentUuid(clientId)||!documentUuid(requestId)||typeof preview!=='boolean')throw Error('GX_DOCUMENT_ARGUMENTS_INVALID');
+    const raw=await request('/rest/v1/rpc/iberfit_gx_document_review_v1',{method:'POST',token,body:JSON.stringify({p_request:requestId,p_preview:preview}),signal});
+    const result=verifyConnected360DocumentReview(raw,{clientId,requestId});
+    if(preview!==(result.preview!==null))throw Error('GX_DOCUMENT_REVIEW_INVALID');
+    return result;
+  }
+  async function connected360DocumentCandidateDecide(token,params,{signal}={}){
+    assertDocumentCandidate(token);
+    const keys=['p_request','p_expected_revision','p_operation','p_decision','p_draft_sha','p_evidence_sha'];
+    if(!params||typeof params!=='object'||Array.isArray(params)||Object.keys(params).length!==keys.length||!keys.every(k=>Object.hasOwn(params,k))
+       ||!documentUuid(params.p_request)||!documentUuid(params.p_operation)||!documentSha(params.p_draft_sha)||!documentSha(params.p_evidence_sha)
+       ||!['accepted','declined','withdrawn'].includes(params.p_decision)||params.p_expected_revision!==(params.p_decision==='withdrawn'?1:0))throw Error('GX_DOCUMENT_ARGUMENTS_INVALID');
+    const command=Object.fromEntries(keys.map(key=>[key,params[key]]));
+    const raw=await request('/rest/v1/rpc/iberfit_gx_document_decide_v1',{method:'POST',token,body:JSON.stringify(command),signal});
+    return verifyConnected360DocumentDecisionReceipt(raw,command);
+  }
   function assertAppleExerciseCandidate(token){
     if(!connected360AppleCandidateAvailable())
       throw Error('M26_V54_APPLE_CANDIDATE_QA_ONLY');
@@ -1805,6 +1854,36 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     const raw=await request('/rest/v1/rpc/m26_wearable_v56_set_apple_coach_consent_v1',{method:'POST',token,body:JSON.stringify(params),signal});
     if(signal?.aborted)throw Error('M26_REQUEST_CANCELLED');
     return verifyConnected360AppleCoachConsentReceipt(appleCandidateResponse(raw),params);
+  }
+  // Explicit, same-project QA certification only. Both RPCs independently
+  // enforce the live Coach, assignment, assurance and source consent.
+  // Never turn a denial or malformed result into an authorized empty feed.
+  function connected360DualCoachCandidateAvailable(){
+    return dependencies.connected360DualCoachCandidate===true&&connected360AppleCandidateAvailable();
+  }
+  async function connected360DualCoachCandidateDays(token,clientId,{signal,stillCurrent}={}){
+    if(!connected360DualCoachCandidateAvailable())throw Error('M26_V56_DUAL_CANDIDATE_QA_ONLY');
+    assertAppleExerciseCandidate(token);
+    const params=connected360CoachActivityParams(clientId);
+    const check=()=>{
+      if(signal?.aborted)throw Error('M26_REQUEST_CANCELLED');
+      if(typeof stillCurrent!=='function'||stillCurrent()!==true)throw Error('M26_V49_STALE_COACH_SCOPE');
+    };
+    check();
+    const read=async(rpc)=>{
+      check();
+      const raw=await request('/rest/v1/rpc/'+rpc,{method:'POST',token,body:JSON.stringify(params),signal});
+      check();return appleCandidateResponse(raw);
+    };
+    const results=await Promise.allSettled([
+      read(CONNECTED360_RPC.prodCoachDays),read('m26_wearable_v56_apple_coach_exercise_days_v1'),
+    ]);
+    check();
+    if(results.some(result=>result.status!=='fulfilled'))throw Error('M26_V56_DUAL_READ_INCOMPLETE');
+    const now=new Date();
+    const verified=[verifyConnected360CoachExerciseDays(results[0].value,{clientId,now}),
+      verifyConnected360AppleCoachExerciseDays(results[1].value,{clientId,now})];
+    check();return Object.freeze(verified);
   }
   async function connected360AppleCandidateCoachExerciseDays(token,clientId,{signal}={}){
     assertAppleExerciseCandidate(token);
@@ -2376,6 +2455,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     importConnected360QaV45,
     importConnected360QaV46,
     extendConnected360QaV46Grant,
+    connected360DocumentCandidateAvailable,
+    connected360DocumentCandidateRequest,
+    connected360DocumentCandidateTransition,
+    connected360DocumentCandidateInbox,
+    connected360DocumentCandidateReview,
+    connected360DocumentCandidateDecide,
     connected360AppleCandidateAvailable,
     connected360AppleCandidateStatus,
     connected360AppleCandidateHistory,
@@ -2383,6 +2468,8 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     connected360AppleCandidateCoachRecipients,
     setConnected360AppleCandidateCoachConsent,
     connected360AppleCandidateCoachExerciseDays,
+    connected360DualCoachCandidateAvailable,
+    connected360DualCoachCandidateDays,
     connected360AppleCandidateCoachTrendRecipients,
     setConnected360AppleCandidateCoachTrendConsent,
     connected360AppleCandidateCoachTrends,

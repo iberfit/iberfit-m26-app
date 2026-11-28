@@ -24,3 +24,32 @@ test('V57 SQL is owner-only, read-only, reuses V53 fence and civil date range',(
  for(const p of [/private\.m26_v53_apple_client_context\(\)/u,/private\.m26_v53_apple_exercise_status\(\)/u,/w\.owner_user_id=v_owner AND w\.client_id=v_client AND w\.provider='apple_health'/u,/GROUPING SETS/u,/p_days NOT IN \(7,28,90,365\)/u,/coverage','observed-only'/u,/SECURITY INVOKER SET search_path TO ''/u])assert.match(s,p);
  assert.doesNotMatch(s,/CREATE TABLE|CREATE INDEX|INSERT INTO|DELETE FROM|UPDATE public|source_record_key|heart_rate|distance_meters/u);
 });
+
+const ownerTrendWith=(totals,disciplines)=>({...payload,periods:[{...payload.periods[0],...totals,disciplines},payload.periods[1]]});
+const counts=(currentOnlyDays,retainedOnlyDays,mixedDays)=>({observedDays:currentOnlyDays+retainedOnlyDays+mixedDays,currentOnlyDays,retainedOnlyDays,mixedDays});
+const verify=p=>connected360AppleOwnerTrends(p,{clientId,days:7,now});
+test('owner trends reject fabricated mixed-generation days and uncovered authorization generations',()=>{
+ const cases=[
+  ownerTrendWith(counts(1,1,0),[{sport:'running',...counts(0,0,1)},{sport:'cycling',...counts(1,0,0)}]),
+  ownerTrendWith(counts(1,1,0),[{sport:'running',...counts(1,0,0)},{sport:'cycling',...counts(1,0,0)}]),
+  ownerTrendWith(counts(1,1,0),[{sport:'running',...counts(0,1,0)},{sport:'cycling',...counts(0,1,0)}]),
+  ownerTrendWith(counts(0,0,2),[{sport:'running',...counts(2,0,0)},{sport:'cycling',...counts(0,1,0)}]),
+ ];
+ for(const dto of cases)assert.throws(()=>verify(dto),/M26_V57_APPLE_TRENDS_INVALID/u);
+});
+test('owner trends accept mixed days spanning different sports without counting them twice',()=>{
+ const result=verify(ownerTrendWith(counts(0,0,1),[{sport:'running',...counts(1,0,0)},{sport:'swimming',...counts(0,1,0)}]));
+ assert.equal(result.periods[0].observedDays,1);assert.equal(result.periods[0].mixedDays,1);
+ assert.equal(result.periods[0].disciplines[0].mixedDays,0);
+});
+test('owner trend authorization invariants accept every valid three-day two-discipline synthetic history',()=>{
+ // Exhaustively enumerate presence flags: none, current, retained, or both.
+ // The total daily state is the OR of the two sport states, as in SQL bool_or.
+ const tally=states=>counts(states.filter(x=>x===1).length,states.filter(x=>x===2).length,states.filter(x=>x===3).length);
+ for(let mask=0;mask<4096;mask++){
+  const a=[0,1,2].map(i=>(mask>>(2*i))&3),b=[3,4,5].map(i=>(mask>>(2*i))&3);
+  const overall=tally(a.map((x,i)=>x|b[i]));
+  const disciplines=[{sport:'running',...tally(a)},{sport:'swimming',...tally(b)}].filter(d=>d.observedDays>0);
+  assert.equal(verify(ownerTrendWith(overall,disciplines)).periods[0].observedDays,overall.observedDays);
+ }
+});

@@ -498,6 +498,21 @@ export function verifyU74DatedReadback(first,future,fixture){
  return true;
 }
 
+export function verifyU74OwnerCoachReadback(owner,coach,fixture){
+ const f=fixture;
+ verifyU74DatedReadback(owner.first,owner.future,f);
+ verifyU74DatedReadback(coach.first,coach.future,f);
+ assert([owner.first.executionBody.revision,coach.first.executionBody.revision]
+   .every(rev=>Number.isSafeInteger(rev)&&rev>=1),'UI_EXECUTION_REVISION_INVALID');
+ // Compare only the shared execution contract, never private role-specific fields.
+ const evidence=d=>({id:d.executionBody.id,revision:d.executionBody.revision,
+   results:d.executionBody.results,skippedSets:d.executionBody.skippedSets,
+   sessionRpe:d.executionBody.feedback.sessionRpe,comment:d.executionBody.feedback.comment});
+ assert(JSON.stringify(canonicalU74(evidence(owner.first)))===JSON.stringify(canonicalU74(evidence(coach.first))),
+   'UI_OWNER_COACH_EXECUTION_DIVERGED');
+ return true;
+}
+
 async function verifyBrowserWorkout(ctx){
  // READ-ONLY after the real Chromium Client workout, never retry its writes.
  const proof=JSON.parse(await readFile(FILE,'utf8')),f=proof.fixture;
@@ -537,16 +552,27 @@ async function verifyBrowserWorkout(ctx){
  const futureDetail=await rpc(ctx,coach.jwt,'iberfit_occurrence_detail_v1',{
   p_client_id:f.clientId,p_occurrence_id:f.futureOccurrenceId});
  assert(futureDetail.status===200,'UI_COACH_FUTURE_DETAIL_UNAVAILABLE');
- verifyU74DatedReadback(detail.body,futureDetail.body,f);
+ // The existing fresh Client A JWT must recover the same durable state as Coach.
+ const ownerDetail=await rpc(ctx,a.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:f.clientId,p_occurrence_id:f.occurrenceId});
+ const ownerFuture=await rpc(ctx,a.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:f.clientId,p_occurrence_id:f.futureOccurrenceId});
+ assert(ownerDetail.status===200&&ownerFuture.status===200,'UI_OWNER_READBACK_UNAVAILABLE');
+ verifyU74OwnerCoachReadback({first:ownerDetail.body,future:ownerFuture.body},
+  {first:detail.body,future:futureDetail.body},f);
  const forbiddenDetail=await rpc(ctx,b.jwt,'iberfit_occurrence_detail_v1',{
   p_client_id:f.clientId,p_occurrence_id:f.occurrenceId});
  assert(denied(forbiddenDetail),'UI_CROSS_CLIENT_EXECUTION_DETAIL_EXPOSED');
+ const forbiddenFuture=await rpc(ctx,b.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:f.clientId,p_occurrence_id:f.futureOccurrenceId});
+ assert(denied(forbiddenFuture),'UI_CROSS_CLIENT_FUTURE_DETAIL_EXPOSED');
  const forbidden=await u60(ctx,b.jwt,'CALENDARIO',{
   clientId:f.clientId,startDate:f.localDate,endDate:f.futureDate,limit:10});
  assert(denied(forbidden),'UI_CROSS_CLIENT_SCOPE_EXPOSED');
  proof.checks.push('real_chromium_u60_client_write_lifecycle',
   'coach_readback_first_complete_second_untouched','other_client_denied',
-  'published_prescriptions_preserved','completion_feedback_persisted','future_detail_no_execution','cross_owner_execution_detail_denied');
+  'published_prescriptions_preserved','completion_feedback_persisted','future_detail_no_execution','cross_owner_execution_detail_denied',
+  'fresh_owner_coach_readback_agree','cross_owner_future_detail_denied');
  proof.status='QA_BROWSER_HOSTED_E2E_SUCCESS';
  await save(proof);
  process.stdout.write('IBERFIT_U74_QA_REAL_BROWSER_WRITE_COACH_READBACK_PASS\n');

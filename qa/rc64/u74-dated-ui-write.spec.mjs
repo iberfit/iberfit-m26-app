@@ -48,13 +48,7 @@ function signedFixture(){
  expect(proof.fixture.stepsExpected).toBeLessThanOrEqual(40);
  return proof.fixture;
 }
-async function login(page,suffix){
- await page.goto(CANARY_ORIGIN+'/',{waitUntil:'domcontentloaded',timeout:30000});
- await page.getByRole('textbox',{name:'Correo',exact:true}).fill(
-  process.env['M26_QA_CLIENT_'+suffix+'_EMAIL']);
- await page.locator('#m26-login-password').fill(
-  process.env['M26_QA_CLIENT_'+suffix+'_PASSWORD']);
- await page.getByRole('button',{name:'Entrar',exact:true}).click();
+async function enterSignedClientSessionArea(page){
  await expect(page.locator('.m26-shell[data-m26-role="client"]')).toBeVisible({timeout:45000});
  await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:25000});
  for(const selector of [
@@ -69,6 +63,15 @@ async function login(page,suffix){
  await expect(page.locator('[data-m26-controllers="ready"]')).toHaveCount(1,{timeout:25000});
  await expect(page.locator('[data-u60-panel]')).toBeVisible({timeout:15000});
 }
+async function login(page,suffix){
+ await page.goto(CANARY_ORIGIN+'/',{waitUntil:'domcontentloaded',timeout:30000});
+ await page.getByRole('textbox',{name:'Correo',exact:true}).fill(
+  process.env['M26_QA_CLIENT_'+suffix+'_EMAIL']);
+ await page.locator('#m26-login-password').fill(
+  process.env['M26_QA_CLIENT_'+suffix+'_PASSWORD']);
+ await page.getByRole('button',{name:'Entrar',exact:true}).click();
+ await enterSignedClientSessionArea(page);
+}
 test.afterEach(async({page},testInfo)=>{
   const result=await releaseQaSessionBeforeContextClose(page);
   console.log('U74_QA_PAGE_AUTH_RELEASE='+result);
@@ -77,7 +80,7 @@ test.afterEach(async({page},testInfo)=>{
 test('U74 real Client touch UI: signed date, pause, resume, each series, finish and cross-owner denial',async({page,context,browser})=>{
  test.setTimeout(420000);
  const f=signedFixture(),blocked=[],errors=[],serverFaults=[],writes=[],acks=[];
- let executionId=null,terminal=false;
+ let executionId=null,terminal=false,firstProgressResults=null,finalResults=null;
  const allowQaSyntheticWrite=request=>{
   if(terminal||!isQaScopedDatedSyntheticWrite(request,f))return false;
   const command=request.postDataJSON().p_payload;
@@ -85,6 +88,10 @@ test('U74 real Client touch UI: signed date, pause, resume, each series, finish 
    if(executionId!==null)return false;
    executionId=command.payload.executionId;
   }else if(executionId===null||executionId!==command.payload.executionId)return false;
+  // Only synthetic signed QA payloads; never persist them in an artifact.
+  if(command.type==='OCURRENCIA_GUARDAR_PROGRESO'&&firstProgressResults===null)
+   firstProgressResults=structuredClone(command.payload.results);
+  if(command.type==='OCURRENCIA_COMPLETAR')finalResults=structuredClone(command.payload.results);
   writes.push({type:command.type,operationId:command.operationId});
   if(command.type==='OCURRENCIA_COMPLETAR')terminal=true;
   return true;
@@ -121,11 +128,43 @@ test('U74 real Client touch UI: signed date, pause, resume, each series, finish 
  await opener.scrollIntoViewIfNeeded();
  await opener.click();
  const player=panel.locator('[data-u60-workout]');
+ // Reopen the same signed date without new training commands. Reuse the
+ // already verified session and the existing scoped network allowlist.
+ const reopenSignedDate=async()=>{
+  await page.reload({waitUntil:'domcontentloaded',timeout:30000});
+  await enterSignedClientSessionArea(page);
+  await expect(panel).toHaveAttribute('data-u60-qa-only','true');
+  await expect(panel.locator('[name="u60Phrase"]')).toBeVisible({timeout:15000});
+  await panel.locator('[name="u60Phrase"]').fill('IBERFIT-U74-SYNTHETIC-KEY-'+process.env.GITHUB_RUN_ID);
+  await panel.locator('[data-iberdates-action="u60-unlock"]').click();
+  await expect(panel).toContainText('Recuperación cifrada desbloqueada',{timeout:15000});
+  await panel.locator('[data-iberdates-action="u60-calendar"]').click();
+  await expect(opener).toHaveCount(1,{timeout:25000});
+  await opener.scrollIntoViewIfNeeded();
+  await opener.click();
+  await expect(player).toHaveAttribute('data-u60-phase','active',{timeout:25000});
+  await expect(player.locator('[data-iberdates-action="u60-start"]')).toHaveCount(0);
+ };
  await expect(player).toHaveAttribute('data-u60-phase','ready',{timeout:25000});
  await player.locator('[data-iberdates-action="u60-start"]').click();
  await expect(player).toHaveAttribute('data-u60-phase','active',{timeout:25000});
  await player.locator('[data-iberdates-action="u60-pause"]').click();
  await expect(player.locator('[data-iberdates-action="u60-resume"]')).toBeVisible({timeout:25000});
+ await expect.poll(()=>acks.slice(),{timeout:30000}).toEqual(['OCURRENCIA_INICIAR','OCURRENCIA_PAUSAR']);
+ await expect(panel).not.toHaveAttribute('aria-busy','true',{timeout:30000});
+ const pausedClock=player.locator('[data-u60-clock-start]');
+ await expect(pausedClock).toHaveAttribute('data-u60-paused','true');
+ const pausedMs=await pausedClock.getAttribute('data-u60-accumulated-ms');
+ expect(pausedMs).toMatch(/^\d+$/u);
+ // Reload the actual authenticated shell. The existing network allowlist
+ // remains installed; any repeated START or extra command fails the gate.
+ await reopenSignedDate();
+ await expect(player.locator('[data-iberdates-action="u60-record"]')).toHaveCount(0);
+ await expect(player.locator('[data-iberdates-action="u60-resume"]')).toBeVisible({timeout:25000});
+ await expect(pausedClock).toHaveAttribute('data-u60-paused','true');
+ await expect(pausedClock).toHaveAttribute('data-u60-accumulated-ms',pausedMs);
+ expect(writes.map(x=>x.type)).toEqual(['OCURRENCIA_INICIAR','OCURRENCIA_PAUSAR']);
+ expect(acks).toEqual(['OCURRENCIA_INICIAR','OCURRENCIA_PAUSAR']);
  await player.locator('[data-iberdates-action="u60-resume"]').click();
  await expect(player.locator('[data-iberdates-action="u60-record"]')).toBeVisible({timeout:25000});
  for(let i=0;i<f.stepsExpected;i++){
@@ -164,6 +203,26 @@ test('U74 real Client touch UI: signed date, pause, resume, each series, finish 
    await expect(next).toBeVisible({timeout:25000});
    await expect(next).toBeEnabled({timeout:25000});
   }
+  if(i===0){
+   // Persisted results must survive refresh without repeating a set or START.
+   const beforeWrites=writes.map(x=>x.operationId),beforeAcks=acks.slice();
+   const nextStep=player.locator('.m26-dated-exercise-context');
+   let expectedStep=null;
+   if(f.stepsExpected>1){
+    await expect(nextStep).toHaveCount(1,{timeout:25000});
+    expectedStep=await nextStep.innerText();
+   }else await expect(player.locator('[name="u60FinalRpe"]')).toBeVisible({timeout:25000});
+   await reopenSignedDate();
+   if(f.stepsExpected>1){
+    await expect(nextStep).toHaveText(expectedStep,{timeout:25000});
+    await expect(player.locator('[data-iberdates-action="u60-record"]')).toBeEnabled({timeout:25000});
+   }else{
+    await expect(player.locator('[name="u60FinalRpe"]')).toBeVisible({timeout:25000});
+    await expect(player.locator('[data-iberdates-action="u60-record"]')).toHaveCount(0);
+   }
+   expect(writes.map(x=>x.operationId)).toEqual(beforeWrites);
+   expect(acks).toEqual(beforeAcks);
+  }
  }
  await expect(player.locator('[name="u60FinalRpe"]')).toBeVisible({timeout:25000});
  await player.locator('[name="u60FinalRpe"]').fill('7');
@@ -176,6 +235,11 @@ test('U74 real Client touch UI: signed date, pause, resume, each series, finish 
  expect(acks).toEqual(expected);
  expect(new Set(writes.map(x=>x.operationId)).size).toBe(writes.length);
  expect(terminal).toBe(true);
+ expect(Object.keys(firstProgressResults||{})).toHaveLength(1);
+ for(const [key,value] of Object.entries(firstProgressResults)){
+  expect(Object.hasOwn(finalResults||{},key)).toBe(true);
+  expect(finalResults[key]).toEqual(value);
+ }
  expect(blocked).toEqual([]);
  expect(serverFaults).toEqual([]);
  expect(errors).toEqual([]);

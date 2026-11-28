@@ -145,11 +145,27 @@ function continuityFromVerified(verified,confirmedRows,now){
    if(key==='running')running.add(day.date);
   }
  }
- const combined=connected360ObservedDayContinuity(observed,running,{now,source:'coach_authorized_activity'});
- // A combined cue must add evidence over the canonical cue, not merely
- // re-label it. A running streak is supported only by external observations.
- const activity=combined&&(combined.runningDays!==null||!canonical||combined.days>canonical.days)?combined:canonical;
- const external=connected360ObservedDayContinuity(externalDays,running,{now,source:'coach_authorized_activity'});
+ const options={now,source:'coach_authorized_activity'};
+ const combined=connected360ObservedDayContinuity(observed,running,options);
+ const external=connected360ObservedDayContinuity(externalDays,running,options);
+ // A running-specific cue must not conceal a longer general activity window.
+ // Both use the same positive-only day engine; never add provider counts.
+ const mixed=combined?.discipline==='running'
+   ?connected360ObservedDayContinuity(observed,new Set(),options):combined;
+ const externalMixed=external?.discipline==='running'
+   ?connected360ObservedDayContinuity(externalDays,new Set(),options):external;
+ const addsEvidence=mixed&&(!canonical||mixed.days>canonical.days
+   ||(mixed.days===canonical.days&&mixed.periodEnd>canonical.periodEnd));
+ const runningCue=combined?.discipline==='running'?combined:null;
+ const activity=runningCue||(addsEvidence?mixed:canonical);
+ const sameWindow=(a,b)=>Boolean(a&&b&&a.days===b.days&&a.periodStart===b.periodStart&&a.periodEnd===b.periodEnd);
+ const asCue=(value,basis)=>Object.freeze({days:value.days,discipline:value.discipline,
+   periodStart:value.periodStart,periodEnd:value.periodEnd,basis});
+ const continuityCues=[];
+ // If running spans the entire mixed window, display only the specific cue.
+ if(addsEvidence&&!sameWindow(mixed,runningCue))
+   continuityCues.push(asCue(mixed,sameWindow(mixed,externalMixed)?'external':'combined'));
+ if(runningCue)continuityCues.push(asCue(runningCue,'external'));
  const disciplineCues=[];
  for(const sport of ['cycling','swimming','strength','hiit','walking']){
   const days=bySport.get(sport);
@@ -157,7 +173,7 @@ function continuityFromVerified(verified,confirmedRows,now){
   const run=connected360ObservedDayContinuity(days,new Set(),{now,source:'coach_authorized_activity'});
   if(run)disciplineCues.push(Object.freeze({sport,label:labels[sport],days:run.days,periodStart:run.periodStart,periodEnd:run.periodEnd}));
  }
- return {activity,external,disciplineCues:Object.freeze(disciplineCues)};
+ return {activity,external,continuityCues:Object.freeze(continuityCues),disciplineCues:Object.freeze(disciplineCues)};
 }
 export function connected360CoachContinuity(payload,{clientId,now=new Date(),confirmedRows=[]}={}){
  const verified=verifyConnected360CoachExerciseDays(payload,{clientId,now});
@@ -173,7 +189,7 @@ export function connected360CoachActivityView(payload,{clientId,now=new Date(),c
  // Distinguish union from an external-only sequence; never sum sessions,
  // infer inactivity or diagnose inadequate recovery from partial coverage.
  const cueBasis=cue?(activity.discipline==='running'||(context.external?.days===activity.days&&context.external?.periodEnd===activity.periodEnd)?'external':'combined'):null;
- return Object.freeze({days:Object.freeze(days),cue,cueBasis,disciplineCues:context.disciplineCues});
+ return Object.freeze({days:Object.freeze(days),cue,cueBasis,continuityCues:context.continuityCues,disciplineCues:context.disciplineCues});
 }
 
 /** Candidate, positive-only view of independently authorized provider responses.
@@ -204,7 +220,7 @@ export function connected360MultiProviderCoachActivityView(payloads,{clientId,no
  return Object.freeze({coverage:'partial',providers:Object.freeze([...providers].sort()),
   days:Object.freeze(ordered.map(([date,sports])=>Object.freeze({date,sports:Object.freeze([...sports.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([sport,sources])=>Object.freeze({sport,label:labels[sport],providers:Object.freeze([...sources].sort())})))}))),
   cue:activity?.source==='coach_authorized_activity'?Object.freeze({days:activity.days,discipline:activity.discipline,periodStart:activity.periodStart,periodEnd:activity.periodEnd}):null,
-  disciplineCues:context.disciplineCues,automaticPlanChange:false});
+  continuityCues:context.continuityCues,disciplineCues:context.disciplineCues,automaticPlanChange:false});
 }
 
 export function verifyConnected360AppleCoachTrendConsentReceipt(value,params){

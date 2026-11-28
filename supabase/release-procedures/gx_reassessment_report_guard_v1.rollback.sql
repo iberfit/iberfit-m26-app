@@ -1,9 +1,15 @@
 -- Refuse rollback after official reevaluation data exists.
 BEGIN;
 SET LOCAL lock_timeout='3s';
-LOCK TABLE public.reports IN SHARE ROW EXCLUSIVE MODE;
+LOCK TABLE public.domain_entities_v26,public.reports IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.iberfit_evolution_report_issuances_v1 IN SHARE ROW EXCLUSIVE MODE;
 DO $guard$ BEGIN
+ IF to_regprocedure('private.gx_document_read_visible_v1(uuid,uuid,jsonb)') IS NOT NULL
+ THEN RAISE EXCEPTION 'GX_REASSESSMENT_ROLLBACK_REQUIRES_DOCUMENT_BOUNDARY_ROLLBACK'; END IF;
+ IF EXISTS(SELECT 1 FROM public.reports r WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.content->'evidence')='array' THEN r.content->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%'))
+ OR EXISTS(SELECT 1 FROM public.domain_entities_v26 r WHERE r.entity_type='report' AND EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.body->'evidence')='array' THEN r.body->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%'))
+ OR EXISTS(SELECT 1 FROM public.iberfit_evolution_report_issuances_v1 r WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.source_snapshot->'evidence')='array' THEN r.source_snapshot->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%'))
+ THEN RAISE EXCEPTION 'GX_REASSESSMENT_ROLLBACK_REQUIRES_DOCUMENT_PROTECTION'; END IF;
  IF EXISTS(SELECT 1 FROM public.reports WHERE report_type='reassessment' OR content->>'reportType'='reassessment')
  OR EXISTS(SELECT 1 FROM public.iberfit_evolution_report_issuances_v1 WHERE source_snapshot->>'reportType'='reassessment') THEN RAISE EXCEPTION 'GX_REASSESSMENT_ROLLBACK_REQUIRES_RETAINED_HISTORY_PLAN'; END IF;
 END $guard$;

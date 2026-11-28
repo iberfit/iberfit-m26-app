@@ -24,3 +24,30 @@ test('Connected360 structured evidence is reserved and denied at shared report a
  assert.match(sql,/public\.reports r WHERE EXISTS[\s\S]*?LIKE 'connected360:%'/u);
  assert.match(sql,/public\.iberfit_evolution_report_issuances_v1 r WHERE EXISTS[\s\S]*?LIKE 'connected360:%'/u);
 });
+
+
+import {validateReportDraft,normalizeReportDraft,buildApproveReportDraftCommand} from '../src/m26/workflows/report-workflow.js';
+const approvalDraft={id:'report-1',clientId:'client-1',assessmentId:'iri-1',reportType:'monthly',title:'Informe de seguimiento',periodStart:'2026-10-01',periodEnd:'2026-10-31',summary:'Actividad confirmada',conclusions:'Revisión profesional',recommendations:'Mantener seguimiento',reviewAccepted:true};
+const reportRow={label:'Actividad registrada',text:'Cinco días observados',source:'sessionExecutions',quality:'confirmada'};
+test('Report approval rejects reserved Connected360 evidence before normalization, including overflow rows',()=>{
+ for(const type of ['iri','post-session','weekly','monthly','quarterly','year-in-iberfit',undefined]){
+  const draft={...approvalDraft,reportType:type,evidence:[reportRow]};
+  assert.equal(validateReportDraft(draft).ok,true);
+  assert.equal(normalizeReportDraft(draft).evidence[0].source,'sessionExecutions');
+  for(const source of ['connected360:apple-coach-trends','  CONNECTED360:health-connect','\tConnected360:future-source','\nconnected360:']){
+   for(const evidence of [[{...reportRow,source}],[...Array(12).fill(reportRow),{...reportRow,source}]]){
+    const blocked={...draft,evidence};
+    assert.ok(validateReportDraft(blocked).errors.includes('device-publication-not-authorized'));
+    assert.throws(()=>normalizeReportDraft(blocked),/device-publication-not-authorized/u);
+    assert.throws(()=>buildApproveReportDraftCommand(blocked),/device-publication-not-authorized/u);
+   }
+  }
+ }
+});
+test('Reassessment preview cannot become a remote approval command through the normalizer',()=>{
+ const preview={...approvalDraft,reportType:'reassessment',assessmentId:null,previewOnly:true,official:false,evidence:[{...reportRow,source:'gx-professional:11111111-1111-4111-8111-111111111111:1'}]};
+ for(const draft of [preview,{...preview,previewOnly:false,official:true},{...preview,evidence:[]}]){
+  assert.ok(validateReportDraft(draft).errors.includes('reassessment-preview-only'));
+  assert.throws(()=>buildApproveReportDraftCommand(draft),/reassessment-preview-only/u);
+ }
+});

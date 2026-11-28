@@ -195,10 +195,9 @@ async function open({user,service,body}:{
 }){
  const id=uuid(body.issuanceId,'M44_PDF_ISSUANCE_INVALID');
  const row=await callRpc<Access>(user,'iberfit_m44_authorize_evolution_report_pdf_v1',{p_issuance_id:id});
- if(!row?.ok||row.withdrawn||row.artifactBucket!==BUCKET)
-  throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
- return {kind:'opened',issuanceId:id,version:row.version,
-  artifactSha256:row.artifactSha256,delivery:'authenticated-pdf'};
+ const artifact=authorizedArtifactIdentity(row,id);
+ return {kind:'opened',issuanceId:artifact.issuanceId,version:artifact.version,
+  artifactSha256:artifact.sha256,delivery:'authenticated-pdf'};
 }
 async function latest({user,service,body}:{
  user:BrokerClient;
@@ -219,10 +218,10 @@ async function latest({user,service,body}:{
  const row=await callRpc<Access>(user,'iberfit_m44_authorize_evolution_report_pdf_v1',{
   p_issuance_id:found.data.id,
  });
- if(!row?.ok||row.withdrawn||row.artifactBucket!==BUCKET)
-  throw Error('M44_PDF_ISSUANCE_NOT_AVAILABLE');
- return {kind:'latest-issued',issuanceId:found.data.id,version:row.version,
-  artifactSha256:row.artifactSha256,
+ const artifact=authorizedArtifactIdentity(row,found.data.id);
+ if(artifact.reportId!==id)throw Error('M44_PDF_AUTHORIZATION_CHANGED');
+ return {kind:'latest-issued',issuanceId:artifact.issuanceId,version:artifact.version,
+  artifactSha256:artifact.sha256,
   delivery:'authenticated-pdf'};
 }
 async function downloadVerified({user,service,body}:{

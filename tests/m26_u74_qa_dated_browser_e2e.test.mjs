@@ -1,7 +1,8 @@
 import test from 'node:test';
+import {checkpointContainsValues,checkpointRevisionAdvanced} from '../src/m26/workflows/occurrence-workout-service.js';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {chooseUnoccupiedDatedSlot,chooseAppointmentlessDateOnlyQaSlot,buildQaAutonomousDateOnlyPair,u74PrescriptionFingerprint,verifyU74DatedReadback} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {chooseUnoccupiedDatedSlot,chooseAppointmentlessDateOnlyQaSlot,buildQaAutonomousDateOnlyPair,u74PrescriptionFingerprint,verifyU74DatedReadback,verifyU74OwnerCoachReadback} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 import {santiagoAppointmentInstant} from '../src/m26/workflows/agenda-workflow.js';
 import {isQaReadonlyDatedRequest,isQaScopedDatedSyntheticWrite} from '../qa/rc64/secure-current-source-auth.mjs';
 const CLIENT='10000000-0000-4000-8000-000000000001';
@@ -232,9 +233,22 @@ test('U74 verifies immutable original prescriptions, final feedback and untouche
  const fingerprint=u74PrescriptionFingerprint(snapshot,CLIENT,sessionId);
  const fixture={clientId:CLIENT,sessionId,occurrenceId:OCC,futureOccurrenceId:FOREIGN,localDate:'2026-11-28',futureDate:'2026-12-05',stepsExpected:1,appointmentless:true,firstPrescriptionHash:fingerprint,futurePrescriptionHash:fingerprint,futureRevision:1};
  const detail=(id,day,status,exec,body)=>({kind:'private-occurrence',occurrence:{id,clientId:CLIENT,sessionId,localDate:day,appointmentId:null,status,executionId:exec,revision:status==='confirmada'?1:3},prescriptionSnapshot:structuredClone(snapshot),executionBody:body});
- const first=detail(OCC,fixture.localDate,'completada',executionId,{id:executionId,clientId:CLIENT,sessionId,occurrenceId:OCC,status:'completada',sourceSnapshot:structuredClone(snapshot),results:{'squat:1':{reps:8}},skippedSets:{},feedback:{sessionRpe:7,comment:'IBERFIT U74 QA ejecución real sintética'}});
+ const first=detail(OCC,fixture.localDate,'completada',executionId,{id:executionId,revision:5,clientId:CLIENT,sessionId,occurrenceId:OCC,status:'completada',sourceSnapshot:structuredClone(snapshot),results:{'squat:1':{reps:8}},skippedSets:{},feedback:{sessionRpe:7,comment:'IBERFIT U74 QA ejecución real sintética'}});
  const future=detail(FOREIGN,fixture.futureDate,'confirmada',null,null);
  assert.equal(verifyU74DatedReadback(first,future,fixture),true);
+ const owner={first:structuredClone(first),future:structuredClone(future)};
+ const coach=structuredClone(owner);
+ const invalid=structuredClone(owner);delete invalid.first.executionBody.revision;
+ assert.throws(()=>verifyU74OwnerCoachReadback(invalid,invalid,fixture),/U71_UI_EXECUTION_REVISION_INVALID/);
+ assert.equal(verifyU74OwnerCoachReadback(owner,coach,fixture),true);
+ for(const alter of [
+  x=>{x.first.executionBody.results['squat:1'].reps=9;},
+  x=>{x.first.executionBody.results={'wrong:1':{reps:8}};},
+  x=>{x.first.executionBody.revision=99;},
+  x=>{x.first.executionBody.id=FOREIGN;x.first.occurrence.executionId=FOREIGN;},
+ ]){const bad=structuredClone(coach);alter(bad);assert.throws(
+  ()=>verifyU74OwnerCoachReadback(owner,bad,fixture),/U71_UI_OWNER_COACH_EXECUTION_DIVERGED/);}
+
  assert.equal(u74PrescriptionFingerprint({queue:snapshot.queue,blocks:snapshot.blocks,sessionId,clientId:CLIENT},CLIENT,sessionId),fingerprint);
  for(const mutate of [
   (a,b)=>{a.executionBody.sourceSnapshot.blocks[0].sets=2;},
@@ -246,4 +260,33 @@ test('U74 verifies immutable original prescriptions, final feedback and untouche
   (a,b)=>{a.executionBody.clientId=FOREIGN;},
   (a,b)=>{b.occurrence.appointmentId=executionId;}
  ]){const a=structuredClone(first),b=structuredClone(future);mutate(a,b);assert.throws(()=>verifyU74DatedReadback(a,b,fixture),/U71_UI_/);}
+});
+
+
+test('U74 encrypted checkpoint accepts reordered JSON fields but preserves array order and types',()=>{
+ const saved={set1:{reps:8,loadKg:20,details:{side:'left',sequence:[1,2]}}};
+ const remote={set2:{reps:9},set1:{details:{sequence:[1,2],side:'left'},loadKg:20,reps:8}};
+ assert.equal(checkpointContainsValues(saved,remote),true);
+ for(const mutate of [
+  x=>{x.set1.reps='8';},x=>{x.set1.loadKg=21;},
+  x=>{x.set1.details.sequence.reverse();},x=>{delete x.set1.details.side;},
+  x=>{delete x.set1;},x=>{x.set1.details.extra=true;},
+ ]){const wrong=structuredClone(remote);mutate(wrong);assert.equal(checkpointContainsValues(saved,wrong),false);}
+ assert.equal(checkpointContainsValues({set1:{reps:0}},{set1:{reps:0}}),true);
+ assert.equal(checkpointContainsValues({set1:{reps:0}},{set1:{reps:null}}),false);
+});
+
+test('U74 encrypted checkpoint never clears against an older or invalid private revision',()=>{
+ const local={occurrenceRevision:3,executionRevision:5};
+ assert.equal(checkpointRevisionAdvanced(local,{...local}),false);
+ assert.equal(checkpointRevisionAdvanced(local,{occurrenceRevision:3,executionRevision:6}),true);
+ assert.equal(checkpointRevisionAdvanced(local,{occurrenceRevision:4,executionRevision:5}),true);
+ assert.equal(checkpointRevisionAdvanced(local,{...local},true),true);
+ for(const remote of [{occurrenceRevision:2,executionRevision:6},{occurrenceRevision:4,executionRevision:4},{occurrenceRevision:2,executionRevision:4}]){
+  for(const completed of [false,true])assert.throws(()=>checkpointRevisionAdvanced(local,remote,completed),/U49_CHECKPOINT_REMOTE_REVISION_REGRESSED/);
+ }
+ for(const bad of [null,0,-1,1.5,'5',Infinity]){
+  assert.throws(()=>checkpointRevisionAdvanced({...local,executionRevision:bad},local),/U49_CHECKPOINT_REVISION_INVALID/);
+  assert.throws(()=>checkpointRevisionAdvanced(local,{...local,executionRevision:bad}),/U49_CHECKPOINT_REVISION_INVALID/);
+ }
 });

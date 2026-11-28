@@ -119,3 +119,13 @@ test('Connected360 swim discipline is localized for both Client and Coach',()=>{
   for(const [language,expected] of Object.entries({en:'Swimming',fr:'Natation',pt:'Natação'}))
     assert.equal(iberfitSurfaceTranslate('Natación',{language}),expected);
 });
+
+
+test('Connected360 Apple active and elapsed measurements are localized independently',()=>{
+ for(const language of ['en','fr','pt']){
+  const active=iberfitSurfaceTranslate('Duración activa',{language});
+  const elapsed=iberfitSurfaceTranslate('Duración total',{language});
+  assert.notEqual(active,'Duración activa');assert.notEqual(elapsed,'Duración total');assert.notEqual(active,elapsed);
+  assert.notEqual(iberfitSurfaceTranslate('Ritmo activo estimado',{language}),'Ritmo activo estimado');
+ }
+});

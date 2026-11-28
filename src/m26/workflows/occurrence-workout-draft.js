@@ -36,7 +36,7 @@ function validDate(value){
     fail('DATE_INVALID');
   return value;
 }
-function canonicalJson(value){
+export function canonicalJson(value){
   if(Array.isArray(value))return value.map(canonicalJson);
   if(value&&typeof value==='object'){
     return Object.fromEntries(Object.keys(value).sort()

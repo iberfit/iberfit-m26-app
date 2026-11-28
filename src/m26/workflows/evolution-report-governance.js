@@ -63,13 +63,16 @@ export function createEvolutionReportGovernanceService({runtime,fetchImpl=global
    throw error;
   }finally{globalThis.clearTimeout(timer);}
  }
- const opening=(value)=>{
-  const hash=clean(value.artifactSha256,64);
-  if(value.delivery!=='authenticated-pdf'||!SHA.test(hash))
+ const opening=(value,expectedIssuanceId=null)=>{
+  const hash=value.artifactSha256;
+  if(value.delivery!=='authenticated-pdf'||typeof hash!=='string'||!SHA.test(hash))
    throw Error('M44_PDF_AUTHENTICATED_DELIVERY_REQUIRED');
+  if(typeof value.issuanceId!=='string'||!UUID.test(value.issuanceId)
+    ||(expectedIssuanceId!==null&&value.issuanceId!==expectedIssuanceId)
+    ||!Number.isSafeInteger(value.version)||value.version<1)
+   throw Error('M44_PDF_ISSUANCE_INVALID_RESPONSE');
   return Object.freeze({
-   issuanceId:requireUuid(value.issuanceId,'M44_PDF_ISSUANCE_INVALID_RESPONSE'),
-   version:Number(value.version||0),sha256:hash,delivery:'authenticated-pdf',
+   issuanceId:value.issuanceId,version:value.version,sha256:hash,delivery:'authenticated-pdf',
   });
  };
  async function issue(token,{reportId}={}){
@@ -104,7 +107,7 @@ export function createEvolutionReportGovernanceService({runtime,fetchImpl=global
  }
  async function open(token,{issuanceId}={}){
   const id=requireUuid(issuanceId,'M44_PDF_ISSUANCE_INVALID');
-  return opening(await request(token,{action:'open',issuanceId:id}));
+  return opening(await request(token,{action:'open',issuanceId:id}),id);
  }
  async function download(token,{issuanceId,sha256}={}){
   const id=requireUuid(issuanceId,'M44_PDF_ISSUANCE_INVALID');

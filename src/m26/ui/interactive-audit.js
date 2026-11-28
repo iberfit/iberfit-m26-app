@@ -69,6 +69,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'complete-iri':{roles:['admin','coach'],domain:'workflow'},
   'save-iri-draft':{roles:['admin','coach'],domain:'workflow'},
   'save-report-draft':{roles:['admin','coach'],domain:'workflow'},
+  'prepare-document-draft':{roles:['coach'],domain:'workflow'},
   'iri-prev':{roles:['admin','coach'],domain:'workflow'},
   'iri-next':{roles:['admin','coach'],domain:'workflow'},
   'generate-client-iri-report':{roles:['admin','coach','client'],domain:'workflow'},

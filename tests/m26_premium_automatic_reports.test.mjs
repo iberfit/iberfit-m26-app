@@ -41,7 +41,7 @@ test('catálogo premium cubre siete informes sin duplicar diagnóstico y seguimi
   assert.deepEqual(PREMIUM_REPORT_TYPES.map((item)=>item.id),['iri','post-session','weekly','monthly','reassessment','quarterly','year-in-iberfit']);
 });
 
-test('todos los formatos premium, incluido semanal, son aprobables y preservan su tipo',()=>{
+test('seis formatos premium son aprobables; reevaluación conserva su contrato de vista previa privada',()=>{
   const base={clientId:'c1',assessmentId:'iri-new',title:'Informe basado en evidencia',
     periodStart:'2026-08-31',periodEnd:'2026-09-06',
     summary:'Resumen respaldado por datos canónicos confirmados.',
@@ -49,6 +49,12 @@ test('todos los formatos premium, incluido semanal, son aprobables y preservan s
     recommendations:'Revisar resultados con el coach antes de continuar.',reviewAccepted:true};
   for(const {id} of PREMIUM_REPORT_TYPES){
     const draft={...base,reportType:id};
+    if(id==='reassessment'){
+      assert.deepEqual(validateReportDraft(draft).errors,['reassessment-preview-only']);
+      assert.throws(()=>normalizeReportDraft(draft),/reassessment-preview-only/u);
+      assert.throws(()=>buildApproveReportDraftCommand(draft,0),/reassessment-preview-only/u);
+      continue;
+    }
     assert.deepEqual(validateReportDraft(draft).errors,[],id);
     assert.equal(normalizeReportDraft(draft).reportType,id);
     assert.equal(buildApproveReportDraftCommand(draft,0).payload.patch.reportType,id);

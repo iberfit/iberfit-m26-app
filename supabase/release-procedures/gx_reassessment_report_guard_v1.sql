@@ -2,7 +2,7 @@
 -- No data or public API. Existing five report types stay unchanged.
 BEGIN;
 SET LOCAL lock_timeout='3s';
-LOCK TABLE public.reports IN SHARE ROW EXCLUSIVE MODE;
+LOCK TABLE public.domain_entities_v26,public.reports IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.iberfit_evolution_report_issuances_v1 IN SHARE ROW EXCLUSIVE MODE;
 DO $guard$ BEGIN
  IF md5(pg_get_functiondef('private.iberfit_gx_report_body_current_v1(uuid,jsonb)'::regprocedure)) IS DISTINCT FROM 'e8c34e1e1937f57f5f3feafbe4c02f12'
@@ -13,6 +13,7 @@ DO $guard$ BEGIN
  OR EXISTS(SELECT 1 FROM public.iberfit_evolution_report_issuances_v1 WHERE source_snapshot->>'reportType'='reassessment')
  OR EXISTS(SELECT 1 FROM public.reports r WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.content->'evidence')='array' THEN r.content->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%'))
  OR EXISTS(SELECT 1 FROM public.iberfit_evolution_report_issuances_v1 r WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.source_snapshot->'evidence')='array' THEN r.source_snapshot->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%'))
+ OR EXISTS(SELECT 1 FROM public.domain_entities_v26 r WHERE r.entity_type='report' AND EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(r.body->'evidence')='array' THEN r.body->'evidence' ELSE '[]'::jsonb END) e WHERE lower(regexp_replace(coalesce(e->>'source',''),'^[[:space:]]+','','g')) LIKE 'connected360:%'))
  THEN RAISE EXCEPTION 'GX_REASSESSMENT_BASELINE_DRIFT'; END IF;
 END $guard$;
 ALTER TABLE public.reports ADD CONSTRAINT gx_reassessment_type_consistency CHECK (
