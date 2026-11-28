@@ -17,11 +17,11 @@ CREATE TABLE private.m26_wearable_coach_consent_v49(
   purpose text NOT NULL,
   CONSTRAINT m26_v49_consent_provider_purpose_check CHECK (
     (provider='health_connect' AND purpose='coaching-exercise-days-v1')
-    OR (provider='apple_health' AND purpose='coaching-apple-exercise-days-v1')
+    OR (provider='apple_health' AND purpose IN ('coaching-apple-exercise-days-v1','coaching-apple-trends-v1'))
   ),
   granted_at timestamptz NOT NULL DEFAULT now(),
   revoked_at timestamptz,
-  PRIMARY KEY(owner_user_id,client_id,coach_user_id,provider),
+  PRIMARY KEY(owner_user_id,client_id,coach_user_id,provider,purpose),
   CHECK(owner_user_id<>coach_user_id)
 );
 ALTER TABLE private.m26_wearable_coach_consent_v49 ENABLE ROW LEVEL SECURITY;
@@ -157,7 +157,7 @@ BEGIN
    END IF;
  END IF;
  SELECT * INTO v_old FROM private.m26_wearable_coach_consent_v49 g
-   WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.coach_user_id=p_coach AND g.provider='health_connect' FOR UPDATE;
+   WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.coach_user_id=p_coach AND g.provider='health_connect' AND g.purpose='coaching-exercise-days-v1' FOR UPDATE;
  IF coalesce(v_old.consent_revision,0)<>p_expected_revision THEN
    RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='M26_V49_CONSENT_STALE';
  END IF;
@@ -166,13 +166,13 @@ BEGIN
      RETURN pg_catalog.jsonb_build_object('ok',true,'shared',false,'revision',coalesce(v_old.consent_revision,0));
    END IF;
    UPDATE private.m26_wearable_coach_consent_v49 SET revoked_at=pg_catalog.now(),consent_revision=consent_revision+1
-    WHERE owner_user_id=v_owner AND client_id=v_client AND coach_user_id=p_coach AND provider='health_connect';
+    WHERE owner_user_id=v_owner AND client_id=v_client AND coach_user_id=p_coach AND provider='health_connect' AND purpose='coaching-exercise-days-v1';
  ELSE
    INSERT INTO private.m26_wearable_coach_consent_v49(owner_user_id,client_id,coach_user_id,assignment_id,
      assignment_revision,legacy_assignment_created_at,source_grant_id,source_cursor,consent_revision,provider,purpose)
    VALUES(v_owner,v_client,p_coach,v_b.id,v_b.revision,v_a.created_at,(v_auth->>'grantId')::uuid,
      (v_auth->>'revocationCursor')::bigint,p_expected_revision+1,'health_connect','coaching-exercise-days-v1')
-   ON CONFLICT(owner_user_id,client_id,coach_user_id,provider) DO UPDATE SET
+   ON CONFLICT(owner_user_id,client_id,coach_user_id,provider,purpose) DO UPDATE SET
      assignment_id=excluded.assignment_id,assignment_revision=excluded.assignment_revision,
      legacy_assignment_created_at=excluded.legacy_assignment_created_at,source_grant_id=excluded.source_grant_id,
      source_cursor=excluded.source_cursor,consent_revision=excluded.consent_revision,
@@ -200,7 +200,7 @@ BEGIN
    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='M26_V49_CONSENT_FORBIDDEN';
  END IF;
  SELECT * INTO v_g FROM private.m26_wearable_coach_consent_v49 g
- WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.coach_user_id=p_coach AND g.provider='health_connect';
+ WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.coach_user_id=p_coach AND g.provider='health_connect' AND g.purpose='coaching-exercise-days-v1';
  -- "recorded" describes the decision, not effective source authorization.
  RETURN pg_catalog.jsonb_build_object('ok',true,'recorded',v_g.consent_revision IS NOT NULL AND v_g.revoked_at IS NULL,
   'revision',coalesce(v_g.consent_revision,0),'purpose','coaching-exercise-days-v1');
@@ -244,7 +244,7 @@ BEGIN
    WHERE v_enabled AND e.coach_id<>v_owner
  ), decisions AS (
    SELECT g.* FROM private.m26_wearable_coach_consent_v49 g
-   WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.provider='health_connect'
+   WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.provider='health_connect' AND g.purpose='coaching-exercise-days-v1'
  ), recipients AS (
    SELECT coalesce(e.coach_id,g.coach_user_id) AS coach_id,e.assignment_id,
      coalesce(nullif(pg_catalog.btrim(pg_catalog.left(pg_catalog.regexp_replace(p.display_name,'[[:cntrl:]]','','g'),160)),''),'Entrenador') AS display_name,
@@ -326,7 +326,7 @@ BEGIN
  JOIN public.m26_wearable_authorization_sources_v3 s ON s.owner_user_id=g.owner_user_id AND s.client_id=g.client_id
    AND s.provider='health_connect' AND s.grant_id=g.source_grant_id AND s.revocation_cursor=g.source_cursor
    AND 'exerciseSessions'=ANY(s.scopes)
- WHERE g.owner_user_id=v_owner AND g.client_id=p_client AND g.coach_user_id=v_coach AND g.revoked_at IS NULL AND g.provider='health_connect'
+ WHERE g.owner_user_id=v_owner AND g.client_id=p_client AND g.coach_user_id=v_coach AND g.revoked_at IS NULL AND g.provider='health_connect' AND g.purpose='coaching-exercise-days-v1'
    AND EXISTS(SELECT 1 FROM private.m26_v49_eligible_assignments(p_client,(v_context->>'organizationId')::uuid,v_day) e WHERE e.coach_id=v_coach AND e.assignment_id=g.assignment_id)
    AND g.source_cursor>=coalesce((SELECT max(e.id) FROM public.m26_wearable_revocation_events_v2 e
        WHERE e.owner_user_id=g.owner_user_id AND e.client_id=g.client_id AND e.provider IN('health_connect','*')),0)

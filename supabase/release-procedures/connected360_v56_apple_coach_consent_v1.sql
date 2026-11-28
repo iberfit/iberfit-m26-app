@@ -10,9 +10,9 @@ DO $guard$ BEGIN
  OR NOT EXISTS(SELECT 1 FROM public.m26_wearable_v46_release_control_prod WHERE id=true AND apple_exercise_enabled=false)
  THEN RAISE EXCEPTION 'M26_V56_PREREQUISITES_REQUIRED'; END IF;
 END $guard$;
-CREATE FUNCTION private.m26_v56_set_apple_coach_consent(
- p_coach uuid,p_assignment uuid,p_expected_revision integer,p_allow boolean
-) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+CREATE FUNCTION private.m26_v56_apple_coach_decision(
+ p_purpose text,p_coach uuid,p_assignment uuid,p_expected_revision integer,p_allow boolean
+) RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path TO ''
 AS $f$
 DECLARE
  v_owner uuid:=auth.uid();
@@ -25,6 +25,7 @@ DECLARE
  v_context jsonb;
  v_day date:=(pg_catalog.now() AT TIME ZONE 'America/Santiago')::date;
 BEGIN
+ IF p_purpose IS NULL OR p_purpose NOT IN ('coaching-apple-exercise-days-v1','coaching-apple-trends-v1') THEN RAISE EXCEPTION 'M26_V56_PURPOSE_INVALID' USING ERRCODE='22023'; END IF;
  IF v_owner IS NULL OR v_client IS NULL OR p_coach IS NULL OR p_coach=v_owner
     OR p_allow IS NULL OR p_expected_revision IS NULL OR p_expected_revision<0 OR p_expected_revision>=2147483647 OR (p_allow AND p_assignment IS NULL) OR (NOT p_allow AND p_assignment IS NOT NULL)
     OR NOT private.m26_v49_live_session()
@@ -66,7 +67,7 @@ BEGIN
    END IF;
  END IF;
  SELECT * INTO v_old FROM private.m26_wearable_coach_consent_v49 g
-   WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.coach_user_id=p_coach AND g.provider='apple_health' FOR UPDATE;
+   WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.coach_user_id=p_coach AND g.provider='apple_health' AND g.purpose=p_purpose FOR UPDATE;
  IF coalesce(v_old.consent_revision,0)<>p_expected_revision THEN
    RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='M26_V56_CONSENT_STALE';
  END IF;
@@ -75,13 +76,13 @@ BEGIN
      RETURN pg_catalog.jsonb_build_object('ok',true,'provider','apple_health','shared',false,'revision',coalesce(v_old.consent_revision,0));
    END IF;
    UPDATE private.m26_wearable_coach_consent_v49 SET revoked_at=pg_catalog.now(),consent_revision=consent_revision+1
-    WHERE owner_user_id=v_owner AND client_id=v_client AND coach_user_id=p_coach AND provider='apple_health';
+    WHERE owner_user_id=v_owner AND client_id=v_client AND coach_user_id=p_coach AND provider='apple_health' AND purpose=p_purpose;
  ELSE
    INSERT INTO private.m26_wearable_coach_consent_v49(owner_user_id,client_id,coach_user_id,assignment_id,
      assignment_revision,legacy_assignment_created_at,source_grant_id,source_cursor,consent_revision,provider,purpose)
    VALUES(v_owner,v_client,p_coach,v_b.id,v_b.revision,v_a.created_at,(v_auth->>'grantId')::uuid,
-     (v_auth->>'revocationCursor')::bigint,p_expected_revision+1,'apple_health','coaching-apple-exercise-days-v1')
-   ON CONFLICT(owner_user_id,client_id,coach_user_id,provider) DO UPDATE SET
+     (v_auth->>'revocationCursor')::bigint,p_expected_revision+1,'apple_health',p_purpose)
+   ON CONFLICT(owner_user_id,client_id,coach_user_id,provider,purpose) DO UPDATE SET
      assignment_id=excluded.assignment_id,assignment_revision=excluded.assignment_revision,
      legacy_assignment_created_at=excluded.legacy_assignment_created_at,source_grant_id=excluded.source_grant_id,
      source_cursor=excluded.source_cursor,consent_revision=excluded.consent_revision,
@@ -90,8 +91,11 @@ BEGIN
  RETURN pg_catalog.jsonb_build_object('ok',true,'provider','apple_health','shared',p_allow,'revision',p_expected_revision+1);
 END;
 $f$;
-CREATE FUNCTION private.m26_v56_my_apple_coach_recipients()
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+REVOKE ALL ON FUNCTION private.m26_v56_apple_coach_decision(text,uuid,uuid,integer,boolean) FROM PUBLIC,anon,authenticated,service_role;
+CREATE FUNCTION private.m26_v56_set_apple_coach_consent(p_coach uuid,p_assignment uuid,p_expected_revision integer,p_allow boolean) RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path TO ''
+AS $f$ SELECT private.m26_v56_apple_coach_decision('coaching-apple-exercise-days-v1',p_coach,p_assignment,p_expected_revision,p_allow) $f$;
+CREATE FUNCTION private.m26_v56_apple_coach_recipient_projection(p_purpose text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path TO ''
 AS $f$
 DECLARE
  v_owner uuid:=auth.uid();
@@ -102,6 +106,7 @@ DECLARE
  v_day date:=(pg_catalog.now() AT TIME ZONE 'America/Santiago')::date;
  v_rows jsonb;
 BEGIN
+ IF p_purpose IS NULL OR p_purpose NOT IN ('coaching-apple-exercise-days-v1','coaching-apple-trends-v1') THEN RAISE EXCEPTION 'M26_V56_PURPOSE_INVALID' USING ERRCODE='22023'; END IF;
  IF v_owner IS NULL OR v_client IS NULL OR NOT private.m26_v49_live_session()
    OR NOT EXISTS(SELECT 1 FROM public.user_profiles p WHERE p.user_id=v_owner AND p.client_id=v_client AND p.role::text='client') THEN
    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='M26_V56_CONSENT_FORBIDDEN';
@@ -121,7 +126,7 @@ BEGIN
    WHERE v_enabled AND e.coach_id<>v_owner
  ), decisions AS (
    SELECT g.* FROM private.m26_wearable_coach_consent_v49 g
-   WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.provider='apple_health'
+   WHERE g.owner_user_id=v_owner AND g.client_id=v_client AND g.provider='apple_health' AND g.purpose=p_purpose
  ), recipients AS (
    SELECT coalesce(e.coach_id,g.coach_user_id) AS coach_id,e.assignment_id,
      coalesce(nullif(pg_catalog.btrim(pg_catalog.left(pg_catalog.regexp_replace(p.display_name,'[[:cntrl:]]','','g'),160)),''),'Entrenador') AS display_name,
@@ -147,12 +152,15 @@ BEGIN
  IF pg_catalog.jsonb_array_length(v_rows)>20 THEN
    RAISE EXCEPTION USING ERRCODE='54000',MESSAGE='M26_V56_RECIPIENT_LIMIT';
  END IF;
- RETURN pg_catalog.jsonb_build_object('ok',true,'schema','iberfit.connected360.apple-coach-recipients.v1','provider','apple_health',
-   'clientId',v_client,'purpose','coaching-apple-exercise-days-v1','recipients',v_rows);
+ RETURN pg_catalog.jsonb_build_object('ok',true,'schema',CASE WHEN p_purpose='coaching-apple-exercise-days-v1' THEN 'iberfit.connected360.apple-coach-recipients.v1' ELSE 'iberfit.connected360.apple-coach-trend-recipients.v1' END,'provider','apple_health',
+   'clientId',v_client,'purpose',p_purpose,'recipients',v_rows);
 END;
 $f$;
-CREATE FUNCTION private.m26_v56_apple_coach_exercise_days(p_client uuid)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+REVOKE ALL ON FUNCTION private.m26_v56_apple_coach_recipient_projection(text) FROM PUBLIC,anon,authenticated,service_role;
+CREATE FUNCTION private.m26_v56_my_apple_coach_recipients() RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path TO ''
+AS $f$ SELECT private.m26_v56_apple_coach_recipient_projection('coaching-apple-exercise-days-v1') $f$;
+CREATE FUNCTION private.m26_v56_apple_coach_access(p_client uuid,p_purpose text)
+RETURNS private.m26_wearable_coach_consent_v49 LANGUAGE plpgsql SECURITY INVOKER SET search_path TO ''
 AS $f$
 DECLARE
  v_coach uuid:=auth.uid();
@@ -160,8 +168,8 @@ DECLARE
  v_g private.m26_wearable_coach_consent_v49%rowtype;
  v_context jsonb; v_enabled boolean; v_auth jsonb;
  v_day date:=(pg_catalog.now() AT TIME ZONE 'America/Santiago')::date;
- v_rows jsonb;
 BEGIN
+ IF p_purpose IS NULL OR p_purpose NOT IN ('coaching-apple-exercise-days-v1','coaching-apple-trends-v1') THEN RAISE EXCEPTION 'M26_V56_PURPOSE_INVALID' USING ERRCODE='22023'; END IF;
  IF v_coach IS NULL OR p_client IS NULL OR NOT private.m26_v49_live_session()
     OR public.iberfit_current_role_v26() IS DISTINCT FROM 'coach' THEN
    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='M26_V56_COACH_FORBIDDEN';
@@ -205,7 +213,7 @@ BEGIN
  JOIN public.m26_wearable_authorization_sources_v3 s ON s.owner_user_id=g.owner_user_id AND s.client_id=g.client_id
    AND s.provider='apple_health' AND s.grant_id=g.source_grant_id AND s.revocation_cursor=g.source_cursor
    AND s.scopes=ARRAY['exerciseSessions']::text[]
- WHERE g.owner_user_id=v_owner AND g.client_id=p_client AND g.coach_user_id=v_coach AND g.revoked_at IS NULL AND g.provider='apple_health' AND g.purpose='coaching-apple-exercise-days-v1'
+ WHERE g.owner_user_id=v_owner AND g.client_id=p_client AND g.coach_user_id=v_coach AND g.revoked_at IS NULL AND g.provider='apple_health' AND g.purpose=p_purpose
    AND g.source_grant_id=(v_auth->>'grantId')::uuid AND g.source_cursor=(v_auth->>'revocationCursor')::bigint
    AND EXISTS(SELECT 1 FROM private.m26_v49_eligible_assignments(p_client,(v_context->>'organizationId')::uuid,v_day) e WHERE e.coach_id=v_coach AND e.assignment_id=g.assignment_id)
    AND g.source_cursor>=coalesce((SELECT max(e.id) FROM public.m26_wearable_revocation_events_v2 e
@@ -214,6 +222,21 @@ BEGIN
  IF v_g.owner_user_id IS NULL THEN
    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='M26_V56_COACH_UNAVAILABLE';
  END IF;
+ RETURN v_g;
+END;
+$f$;
+REVOKE ALL ON FUNCTION private.m26_v56_apple_coach_access(uuid,text) FROM PUBLIC,anon,authenticated,service_role;
+CREATE FUNCTION private.m26_v56_apple_coach_exercise_days(p_client uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+AS $f$
+DECLARE
+ v_g private.m26_wearable_coach_consent_v49%rowtype;
+ v_owner uuid;
+ v_day date:=(pg_catalog.now() AT TIME ZONE 'America/Santiago')::date;
+ v_rows jsonb;
+BEGIN
+ v_g:=private.m26_v56_apple_coach_access(p_client,'coaching-apple-exercise-days-v1');
+ v_owner:=v_g.owner_user_id;
  -- BEGIN MINIMAL PROJECTION
  WITH observed AS (
    SELECT DISTINCT (w.observed_started_at AT TIME ZONE 'America/Santiago')::date AS day,w.sport

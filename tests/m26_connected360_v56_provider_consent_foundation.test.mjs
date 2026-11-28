@@ -7,12 +7,12 @@ const v53=read('supabase/release-procedures/connected360_v53_apple_exercise_auth
 const rb=read('supabase/release-procedures/connected360_v53_apple_exercise_authorization_v1.rollback.sql');
 function fn(sql,name){const begin=sql.indexOf('CREATE FUNCTION private.'+name+'(');assert.ok(begin>=0);return sql.slice(begin,sql.indexOf('REVOKE ALL ON FUNCTION private.'+name,begin));}
 test('professional ledger separates provider grants and never inherits Health Connect consent',()=>{
- assert.match(v49,/PRIMARY KEY\(owner_user_id,client_id,coach_user_id,provider\)/u);
- assert.match(v49,/\(provider='apple_health' AND purpose='coaching-apple-exercise-days-v1'\)/u);
+ assert.match(v49,/PRIMARY KEY\(owner_user_id,client_id,coach_user_id,provider,purpose\)/u);
+ assert.match(v49,/\(provider='apple_health' AND purpose IN \('coaching-apple-exercise-days-v1','coaching-apple-trends-v1'\)\)/u);
  const set=fn(v49,'m26_v49_set_coach_consent'),status=fn(v49,'m26_v49_my_coach_consent_status'),recipients=fn(v49,'m26_v49_my_coach_recipients'),read=fn(v49,'m26_v49_coach_exercise_days');
- for(const body of [set,status,recipients,read])assert.match(body,/g\.provider='health_connect'/u);
+ for(const body of [set,status,recipients,read])assert.match(body,/g\.provider='health_connect' AND g\.purpose='coaching-exercise-days-v1'/u);
  assert.match(set,/coach_user_id=p_coach AND provider='health_connect'/u);
- assert.match(set,/ON CONFLICT\(owner_user_id,client_id,coach_user_id,provider\)/u);
+ assert.match(set,/ON CONFLICT\(owner_user_id,client_id,coach_user_id,provider,purpose\)/u);
  assert.match(set,/'health_connect','coaching-exercise-days-v1'/u);
  assert.match(read,/s\.provider='health_connect'/u);
  assert.match(read,/w\.provider='health_connect'/u);
