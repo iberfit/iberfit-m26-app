@@ -16,7 +16,7 @@ test('coach read is exact client, current civil window and minimized response',(
     {...valid(),provider:'apple_health'},{...valid(),extra:'secret'},
     {...valid(),days:[{date:'2026-11-28',sports:['running'],avgBpm:140}]},
     {...valid(),days:[{date:'2026-11-28',sports:['running','running']}]},
-    {...valid(),days:[{date:'2026-11-28',sports:['swimming']}]},
+    {...valid(),days:[{date:'2026-11-28',sports:['unknown']}]},
     {...valid(),days:[{date:'2026-11-29',sports:['running']}]},
     {...valid(),days:[...valid().days].reverse()},
     {...valid(),days:[...valid().days,valid().days[1]]},

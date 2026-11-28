@@ -39,7 +39,7 @@ function checkPulse(row,enabled,{samples='heartRateSamples',avg='avgBpm',min='mi
   if(row[avg]!==undefined&&row[min]!==undefined
     &&(row[avg]<row[min]||row[avg]>row[max]))fail();
 }
-function cleanEnvelope(raw,granted,at,{maxWorkouts=10}={}){
+function cleanEnvelope(raw,granted,at,{maxWorkouts=10,includeSwimming=false}={}){
   if(!Number.isInteger(maxWorkouts)||maxWorkouts<1||maxWorkouts>CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT)fail();
   if(!raw||typeof raw!=='object'||Array.isArray(raw)||!keys(raw,['schema','heartRateDaily','exerciseEvidence','dailyHealth'])
     ||raw.schema!==DATA_SCHEMA||!Array.isArray(raw.heartRateDaily)||!Array.isArray(raw.exerciseEvidence)
@@ -67,7 +67,7 @@ function cleanEnvelope(raw,granted,at,{maxWorkouts=10}={}){
       'observationKey','sport','startedAt','endedAt','acquiredAt',
       'heartRateSamples','avgBpm','minBpm','maxBpm','distanceMeters','steps','caloriesKcal'
     ])||!HASH.test(String(row.observationKey||''))||observations.has(row.observationKey)
-      ||!SPORTS.has(row.sport)||!iso(row.startedAt)||!iso(row.endedAt)||!iso(row.acquiredAt))fail();
+      ||!(SPORTS.has(row.sport)||includeSwimming===true&&row.sport==='swimming')||!iso(row.startedAt)||!iso(row.endedAt)||!iso(row.acquiredAt))fail();
     const start=Date.parse(row.startedAt),end=Date.parse(row.endedAt);
     if(start>=end||end-start>24*3600_000||end>at+5*60_000||
       Math.abs(Date.parse(row.acquiredAt)-at)>MAX_AGE)fail();
@@ -139,11 +139,12 @@ export function createConnected360V46ProdNativeChannel({
       throw new Error('M26_V46_PROD_SESSION_CHANGED');
     return Object.freeze({ownerId,clientId});
   }
-  async function readLocal({metrics=['generalHeartRate','exerciseSessions'],workoutHistoryDays=null,workoutCursor=null}={}){
+  async function readLocal({metrics=['generalHeartRate','exerciseSessions'],workoutHistoryDays=null,workoutCursor=null,includeSwimming=false}={}){
     if(reading)throw new Error('M26_V46_PROD_BUSY');
     const requested=Array.isArray(metrics)?[...new Set(metrics)]:[];
     if(!requested.length||requested.length>METRICS.size||requested.some(x=>!METRICS.has(x)))
       throw new Error('M26_V46_PROD_METRICS_INVALID');
+    if(typeof includeSwimming!=='boolean'||includeSwimming&&!requested.includes('exerciseSessions'))throw new Error('M26_V46_PROD_METRICS_INVALID');
     if((workoutHistoryDays!==null&&(![7,30].includes(workoutHistoryDays)||!requested.includes('exerciseSessions')))
       ||(workoutCursor!==null&&(workoutHistoryDays===null||typeof workoutCursor!=='string'||!WORKOUT_CURSOR.test(workoutCursor))))
       throw new Error('M26_V46_PROD_HISTORY_REQUEST_INVALID');
@@ -186,7 +187,7 @@ export function createConnected360V46ProdNativeChannel({
           }
           try{
             const envelope=cleanEnvelope(value.envelope,value.grantedMetrics,now(),
-              {maxWorkouts:requested.includes('exerciseSessions')?CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT:10});
+              {maxWorkouts:requested.includes('exerciseSessions')?CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT:10,includeSwimming});
             let workoutPage=null;
             if(value.workoutPage!==undefined){
               const page=value.workoutPage;
@@ -206,6 +207,7 @@ export function createConnected360V46ProdNativeChannel({
         try{channel.postMessage(JSON.stringify({schema:REQUEST_SCHEMA,requestId,
           action:'health.readV46',days:7,metrics:requested,
           ...(requested.includes('exerciseSessions')?{maxWorkouts:CONNECTED360_PRODUCTION_WORKOUT_BATCH_LIMIT}:{}),
+          ...(includeSwimming?{includeSwimming:true}:{}),
           ...(workoutHistoryDays!==null?{workoutHistoryDays}:{}),...(workoutCursor!==null?{workoutCursor}:{})}));}
         catch{finish(new Error('M26_V46_PROD_CHANNEL_UNAVAILABLE'));}
       });

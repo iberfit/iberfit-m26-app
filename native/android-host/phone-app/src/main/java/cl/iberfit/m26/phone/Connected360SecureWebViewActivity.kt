@@ -61,7 +61,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
     private data class WorkoutHistoryLease(
         val page: Connected360WorkoutReadOnlyQa.HistoryPage,
         val days: Int, val maxWorkouts: Int, val requested: Set<String>,
-        val allowed: Set<String>, val issuedAt: Long,
+        val allowed: Set<String>, val issuedAt: Long, val includeSwimming: Boolean,
     )
     private val workoutHistoryLeases = LinkedHashMap<String, WorkoutHistoryLease>()
     private val historyLeaseMs = 2L * 60L * 60L * 1000L
@@ -410,6 +410,11 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                 replyError(replyProxy, id, "M26_HEALTH_V46_REQUEST_INVALID")
                                 return
                             }
+                            val includeSwimming = request.opt("includeSwimming") == true
+                            if (request.has("includeSwimming") && (!includeSwimming || !production || "exerciseSessions" !in requested)) {
+                                replyError(replyProxy,id,"M26_HEALTH_V46_REQUEST_INVALID")
+                                return
+                            }
                             val historyDays = if (request.has("workoutHistoryDays"))
                                 request.optInt("workoutHistoryDays", -1) else null
                             val cursorHandle = if (request.has("workoutCursor"))
@@ -428,7 +433,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                             val historyLease=cursorHandle?.let { workoutHistoryLeases[it] }
                             if (cursorHandle != null && (historyLease == null ||
                                 historyLease.days != historyDays || historyLease.maxWorkouts != maxWorkouts ||
-                                historyLease.requested != requested)) {
+                                historyLease.requested != requested || historyLease.includeSwimming != includeSwimming)) {
                                 replyError(replyProxy,id,"M26_HEALTH_V46_CURSOR_INVALID")
                                 return
                             }
@@ -485,7 +490,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                         } else emptyList()
                                         val data = Connected360V46QaEnvelope.build(
                                             daily, sports, java.time.ZoneId.systemDefault(),
-                                            java.time.Instant.now(), maxWorkouts = maxWorkouts
+                                            java.time.Instant.now(), maxWorkouts = maxWorkouts, includeSwimming = includeSwimming
                                         )
                                         Triple(allowed, data, healthDaily) to workoutRead?.nextPage
                                     }
@@ -552,7 +557,7 @@ class Connected360SecureWebViewActivity : ComponentActivity() {
                                             workoutHistoryLeases[cursorHandle]=historyLease
                                         if(nextHandle != null && nextHistoryPage != null) {
                                             workoutHistoryLeases[nextHandle]=WorkoutHistoryLease(
-                                                nextHistoryPage,historyDays,maxWorkouts,requested,grantedMetrics,SystemClock.elapsedRealtime())
+                                                nextHistoryPage,historyDays,maxWorkouts,requested,grantedMetrics,SystemClock.elapsedRealtime(),includeSwimming)
                                         }
                                     }
                                     replyProxy.postMessage(response)

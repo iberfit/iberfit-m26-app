@@ -48,6 +48,7 @@ internal object Connected360V46QaEnvelope {
         aggregationZone: ZoneId,
         acquiredAt: Instant,
         maxWorkouts: Int = Connected360WorkoutReadOnlyQa.MAX_WORKOUTS,
+        includeSwimming: Boolean = false,
     ): Map<String, Any> {
         require(maxWorkouts in 1..Connected360WorkoutReadOnlyQa.PRODUCTION_MAX_WORKOUTS) { "M26_HEALTH_WORKOUT_BATCH_INVALID" }
         require(validZone(aggregationZone)) { "M26_V46_QA_INVALID_IANA_ZONE" }
@@ -105,7 +106,7 @@ internal object Connected360V46QaEnvelope {
                 // V46 backend only accepts the legacy vocabulary. Swimming
                 // is classified locally, but the wire contract must remain
                 // unchanged until a new coordinated release is certified.
-                val mode = w.sport.takeIf { it in sports } ?: "other"
+                val mode = w.sport.takeIf { it in sports || (includeSwimming && it == "swimming") } ?: "other"
                 mutableMapOf<String, Any>(
                     "observationKey" to key,
                     "sport" to mode,

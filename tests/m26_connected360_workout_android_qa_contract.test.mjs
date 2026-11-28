@@ -86,5 +86,16 @@ test('swimming is identified locally without changing the legacy production wire
   const vocabulary=wire.match(/private val sports = setOf\(([^\n]+)\)/u)?.[1];
   assert.ok(vocabulary);
   assert.doesNotMatch(vocabulary,/"swimming"/u);
-  assert.match(wire,/val mode = w\.sport\.takeIf \{ it in sports \} \?: "other"/u);
+  assert.match(wire,/val mode = w\.sport\.takeIf \{ it in sports \|\| \(includeSwimming && it == "swimming"\) \} \?: "other"/u);
+});
+
+test('extended sport vocabulary is negotiated, opt-in and bound to cursor',()=>{
+  const native=readFileSync(new URL(base+'src/main/java/cl/iberfit/m26/phone/Connected360SecureWebViewActivity.kt',import.meta.url),'utf8');
+  const wire=readFileSync(new URL(base+'src/main/java/cl/iberfit/m26/phone/Connected360V46QaEnvelope.kt',import.meta.url),'utf8');
+  const sync=readFileSync(new URL('../src/m26/wearables/v46-production-sync.js',import.meta.url),'utf8');
+  assert.match(wire,/includeSwimming: Boolean = false/u);
+  assert.match(native,/historyLease.includeSwimming != includeSwimming/u);
+  assert.match(native,/!includeSwimming \|\| !production/u);
+  assert.match(sync,/exerciseAuthorized&&flags.swimmingEnabled===true/u);
+  assert.match(sync,/M26_V52_SWIMMING_NOT_ENABLED/u);
 });

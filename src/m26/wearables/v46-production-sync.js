@@ -85,13 +85,16 @@ export function createConnected360ProductionSync({
       if(status?.authorized!==true||!UUID.test(String(status.grantId||''))
         ||!scopes.length){resetWorkoutSweep();return Object.freeze({skipped:'consent-required'});}
       const exerciseAuthorized=scopes.includes('exerciseSessions');
-      const sweepKey=JSON.stringify([expected.ownerId,expected.clientId,status.grantId,status.revocationCursor,scopes]);
+      // A capability change restarts the bounded sweep; never reuse a cursor
+      // created under a different native vocabulary. Legacy servers omit it.
+      const includeSwimming=exerciseAuthorized&&flags.swimmingEnabled===true;
+      const sweepKey=JSON.stringify([expected.ownerId,expected.clientId,status.grantId,status.revocationCursor,scopes,includeSwimming]);
       if(!exerciseAuthorized||workoutSweep?.key!==sweepKey)resetWorkoutSweep();
       if(exerciseAuthorized&&!workoutSweep)workoutSweep={key:sweepKey,days:30,cursor:null,failures:0};
       const sweep=workoutSweep;
       let read;
       try{
-        read=await native.readLocal({metrics:scopes,...(sweep?{workoutHistoryDays:sweep.days,
+        read=await native.readLocal({metrics:scopes,...(includeSwimming?{includeSwimming:true}:{}),...(sweep?{workoutHistoryDays:sweep.days,
           ...(sweep.cursor?{workoutCursor:sweep.cursor}:{})}:{})});
       }catch(error){
         if(!signal?.aborted&&version===generation&&sweep&&workoutSweep===sweep){
@@ -119,6 +122,8 @@ export function createConnected360ProductionSync({
           return clean;
         }):[],
       };
+      if(!includeSwimming&&rows.exerciseEvidence.some(x=>x.sport==='swimming'))
+        throw new Error('M26_V52_SWIMMING_NOT_ENABLED');
       const dailyHealth=read.envelope.dailyHealth||[];
       const page=exEnabled&&sweep?read.workoutPage:null;
       // Continuation only exists after the first page (including daily metrics)

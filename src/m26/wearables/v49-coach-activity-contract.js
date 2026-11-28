@@ -1,7 +1,7 @@
 import {reportCivilDate,parseCivilDate} from '../domain/civil-date.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
-const SPORTS=new Set(['running','interval_running','hiit','cycling','walking','strength','other']);
+const SPORTS=new Set(['running','interval_running','hiit','cycling','walking','strength','swimming','other']);
 const PURPOSE='coaching-exercise-days-v1';
 const revision=v=>Number.isInteger(v)&&v>=0&&v<=2147483647;
 const uuid=v=>typeof v==='string'&&UUID.test(v);
@@ -104,7 +104,7 @@ export function sameConnected360CoachScope(a,b){
 export function connected360CoachActivityView(payload,{clientId,now=new Date(),continuity=null}={}){
   const verified=verifyConnected360CoachExerciseDays(payload,{clientId,now});
   const labels=Object.freeze({running:'Carrera',interval_running:'Carrera por intervalos',
-    hiit:'HIIT',cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',other:'Otro entrenamiento'});
+    hiit:'HIIT',cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',swimming:'Natación',other:'Otro entrenamiento'});
   const days=verified.days.map(row=>Object.freeze({date:row.date,sports:Object.freeze(row.sports.map(s=>labels[s]))}));
   // Never promote external rows into adherence, diagnosis or report evidence.
   const cue=continuity?.source==='coach_authorized_activity'

@@ -4,7 +4,7 @@ const DAY=/^\d{4}-\d\d-\d\d$/u;
 const bpm=n=>typeof n==='number'&&Number.isFinite(n)&&n>=25&&n<=240?n:null;
 const WORKOUT_SPORTS=Object.freeze({
   running:'Carrera',interval_running:'Carrera por intervalos',hiit:'HIIT',
-  cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',other:'Otro entrenamiento',
+  cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',swimming:'Natación',other:'Otro entrenamiento',
 });
 const workoutDate=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/Santiago'});
 const decimal=new Intl.NumberFormat('es-CL',{maximumFractionDigits:2});
@@ -39,6 +39,11 @@ function observedElapsedRunningPaceSeconds(sport,ms,meters){
   if(!Number.isSafeInteger(secondsPerKm)||secondsPerKm<60||secondsPerKm>3600)return null;
   return secondsPerKm;
 }
+function observedElapsedSwimPaceSeconds(sport,ms,meters){
+  if(sport!=='swimming'||typeof meters!=='number'||!Number.isFinite(meters)||meters<100||meters>500000)return null;
+  const pace=Math.round(ms/(10*meters));
+  return Number.isSafeInteger(pace)&&pace>=15&&pace<=1200?pace:null;
+}
 function formatPace(secondsPerKm){
   return Math.floor(secondsPerKm/60)+':'+String(secondsPerKm%60).padStart(2,'0');
 }
@@ -63,12 +68,14 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
     const averageLabel=average!==null&&Number.isSafeInteger(row.heartRateSamples)&&row.heartRateSamples>0&&row.heartRateSamples<=200000
       ?'FC media '+decimal.format(average)+' lpm':null;
     const elapsedPaceSecondsPerKm=observedElapsedRunningPaceSeconds(row.sport,end-start,d);
+    const elapsedPaceSecondsPer100m=observedElapsedSwimPaceSeconds(row.sport,end-start,d);
     const metrics=[observedDuration(end-start),distance,averageLabel,
-      elapsedPaceSecondsPerKm===null?null:'Ritmo total estimado '+formatPace(elapsedPaceSecondsPerKm)+' min/km'].filter(Boolean);
+      elapsedPaceSecondsPerKm===null?null:'Ritmo total estimado '+formatPace(elapsedPaceSecondsPerKm)+' min/km',
+      elapsedPaceSecondsPer100m===null?null:'Ritmo total estimado '+formatPace(elapsedPaceSecondsPer100m)+' min/100 m'].filter(Boolean);
     rows.push({start,orderAt:start,source:'imported',authorizationState,label:WORKOUT_SPORTS[row.sport],
       measurements:Object.freeze({elapsedSeconds:(end-start)/1000,
         distanceMeters:distance===null?null:d,averageBpm:averageLabel===null?null:average,
-        elapsedPaceSecondsPerKm}),
+        elapsedPaceSecondsPerKm,...(row.sport==='swimming'?{elapsedPaceSecondsPer100m}:{})}),
       dayKey:localWorkoutDay(start),dayLabel:workoutDayLabel.format(start),
       dayDetail:[workoutTime.format(start),...metrics].join(' · '),
       detail:[workoutDate.format(start),...metrics].join(' · ')});
@@ -230,6 +237,7 @@ export function connected360WorkoutMix(rows){
     ['distanceMeters','Distancia registrada',0,500000,v=>decimal.format(v/1000)+' km'],
     ['elapsedSeconds','Duración total registrada',0.001,86400,v=>observedDuration(v*1000)],
     ['elapsedPaceSecondsPerKm','Ritmo total estimado',60,3600,v=>formatPace(v)+' min/km'],
+    ['elapsedPaceSecondsPer100m','Ritmo total estimado',15,1200,v=>formatPace(v)+' min/100 m'],
     ['averageBpm','FC media registrada',25,240,v=>decimal.format(v)+' lpm'],
   ];
   for(const row of rows){
@@ -241,6 +249,7 @@ export function connected360WorkoutMix(rows){
       const value=row.measurements?.[key];
       if(typeof value!=='number'||!Number.isFinite(value)||value<min||value>max)continue;
       if(key==='elapsedPaceSecondsPerKm'&&(!['Carrera','Carrera por intervalos'].includes(row.label)||!Number.isSafeInteger(value)))continue;
+      if(key==='elapsedPaceSecondsPer100m'&&(row.label!=='Natación'||!Number.isSafeInteger(value)))continue;
       if(!group.measures.has(key))group.measures.set(key,{label,min:value,max:value,days:new Set(),format});
       const metric=group.measures.get(key);
       metric.min=Math.min(metric.min,value);metric.max=Math.max(metric.max,value);metric.days.add(row.dayKey);

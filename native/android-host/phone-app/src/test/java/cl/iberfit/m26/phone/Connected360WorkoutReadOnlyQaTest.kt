@@ -48,6 +48,10 @@ class Connected360WorkoutReadOnlyQaTest {
         assertEquals(1,workouts.size)
         assertEquals("other",(workouts.single() as Map<*,*>)["sport"])
         assertEquals(1500.0,(workouts.single() as Map<*,*>)["distanceMeters"])
+        val extended=Connected360V46QaEnvelope.build(emptyList(),listOf(swim),
+            java.time.ZoneId.of("America/Santiago"),java.time.Instant.parse("2026-11-28T12:00:00Z"),
+            includeSwimming=true)
+        assertEquals("swimming",((extended["exerciseEvidence"] as List<*>).single() as Map<*,*>)["sport"])
     }
 
     @Test fun aRealRunShowsObservedDistanceAndGeneralPulseButNeverRestingHeartRate() {

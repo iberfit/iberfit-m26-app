@@ -503,3 +503,15 @@ test('V48 legacy Health Connect summary does not relabel records of future provi
   const summary=sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.m26_wearable_v46_my_summary_prod_v1()'));
   assert.match(summary,/FROM public\.m26_wearable_exercise_evidence_v46\s+WHERE owner_user_id=v_owner AND client_id=v_client\s+AND provider='health_connect' AND link_status='unlinked'/u);
 });
+
+test('swimming history exposes estimated elapsed pace in min/100 m, not min/km',()=>{
+  const now=new Date('2026-11-28T15:00:00Z');
+  const workout={sport:'swimming',startedAt:'2026-11-28T12:00:00Z',endedAt:'2026-11-28T12:30:00Z',distanceMeters:1500,linkedToTraining:false};
+  const result=connected360WorkoutHistory({ok:true,provider:'health_connect',exerciseEvidence:[workout]},{now});
+  assert.equal(result[0].label,'Natación');
+  assert.equal(result[0].measurements.elapsedPaceSecondsPer100m,120);
+  assert.equal(result[0].measurements.elapsedPaceSecondsPerKm,null);
+  assert.match(result[0].detail,/2:00 min\/100 m/u);
+  const unknown=connected360WorkoutHistory({ok:true,provider:'health_connect',exerciseEvidence:[{...workout,distanceMeters:null}]},{now});
+  assert.equal(unknown[0].measurements.elapsedPaceSecondsPer100m,null);
+});
