@@ -132,3 +132,6 @@ Follow [DEVICE_QA_PROTOCOL.md](DEVICE_QA_PROTOCOL.md) before any release
 decision. Keep `productionAllowed=false`, `automaticSyncCertified=false`
 and the Apple V45 writer closed until real-device tests and authorization,
 revocation, data provenance and account isolation are certified.
+
+## Apple Salud: actividades deportivas (QA local)
+El mismo host DEBUG dispone de una acción explícita independiente para consultar HKWorkout, hasta 60 observaciones en una ventana de 30 días. La lectura conserva duración activa de HealthKit y distancia únicamente si existe en las estadísticas asociadas. No consulta GPS, identificadores de reloj ni muestras adicionales. La lista avisa si el límite puede ocultar más registros; elimina duplicados por UUID solo en memoria; no infiere que dos fuentes sean la misma actividad. Se retiran resultados al borrar o pasar a background. No hay escritura ni puente nuevo a la web. El compilador Xcode y la aceptación física siguen siendo puertas obligatorias.

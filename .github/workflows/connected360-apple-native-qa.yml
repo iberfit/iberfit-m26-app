@@ -154,6 +154,11 @@ jobs:
           set -euo pipefail
           swiftc native/apple/IBERFITHealthKitDailySleepUnion.swift native/apple/Tests/IBERFITHealthKitDailySleepUnionSpec.swift -o /tmp/iberfit-sleep-union-qa
           /tmp/iberfit-sleep-union-qa
+      - name: Test bounded workout preview in native Swift toolchain
+        run: |
+          set -euo pipefail
+          swiftc native/apple/IBERFITIOSHealthKitWorkoutReader.swift native/apple/Tests/IBERFITLocalWorkoutSpec.swift -o /tmp/iberfit-workouts-qa
+          /tmp/iberfit-workouts-qa
       - name: Test one-shot HealthKit replies under concurrency
         run: |
           set -euo pipefail
