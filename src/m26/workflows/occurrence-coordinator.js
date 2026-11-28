@@ -246,12 +246,13 @@ export function createOccurrenceCoordinator({
       throw error('CALENDAR_RANGE_INVALID');
     const actor=await authenticate();canAccess(actor,owner);
     const all=[],seen=new Set(),cursors=new Set();
-    let afterDate=null,afterId=null,lastKey='';
+    let afterDate=null,afterId=null,lastKey='',pageActor=actor;
     for(let page=0;page<maxPages;page++){
       const query={clientId:owner,startDate:start,endDate:end,limit,
         ...(afterDate?{afterDate,afterId}:{})};
-      const response=await transport.occurrenceCalendar(actor.accessToken,query);
-      assertOwner(actor,await authenticate());
+      const response=await transport.occurrenceCalendar(pageActor.accessToken,query);
+      pageActor=await authenticate();
+      assertOwner(actor,pageActor);
       if(!response||response.kind!=='calendar'||
         uuid(response.clientId)!==owner||
         !Array.isArray(response.occurrences)||response.occurrences.length>limit||
@@ -316,21 +317,26 @@ export function createOccurrenceCoordinator({
         await journal.writePending(scopeKey,cmd);
         uncertain.set(scopeKey,{cmd,signature});
       }
-      assertOwner(actor,await authenticate());
+      const dispatchActor=await authenticate();
+      assertOwner(actor,dispatchActor);
       dispatched=true;
-      const reply=await transport.occurrenceCommand(actor.accessToken,cmd);
+      const reply=await transport.occurrenceCommand(dispatchActor.accessToken,cmd);
       assertOwner(actor,await authenticate());
       confirmed=verifiedResponse(reply,cmd);
+      let result=confirmed;
       try{
         await journal.clearPending(scopeKey,cmd.operationId);
         uncertain.delete(scopeKey);
-        return confirmed;
       }catch{
         // A remote ACK remains an ACK even if cleanup is unavailable.
         // No second command ID is permitted until recovery is reconciled.
         uncertain.set(scopeKey,{cmd,signature});
-        return immutable({...confirmed,localRecoveryPending:true});
+        result=immutable({...confirmed,localRecoveryPending:true});
       }
+      // Cleanup is asynchronous: never deliver the old actor's receipt to a
+      // replacement identity, even when the remote operation is confirmed.
+      assertOwner(actor,await authenticate());
+      return result;
     }catch(cause){
       if(dispatched&&confirmed===null)uncertain.set(scopeKey,{cmd,signature});
       throw cause;

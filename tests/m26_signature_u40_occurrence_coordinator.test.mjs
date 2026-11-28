@@ -302,3 +302,51 @@ test('U34 timed replacement accepts equal UTC instants and rejects a drifted clo
   const svc=make({transport:{...noop,occurrenceCommand:async()=>good}});
   assert.equal((await svc.send(command)).kind,'ack');
 });
+
+test('U40 uses refreshed credentials for subsequent calendar pages and durable dispatch',async()=>{
+  journalStore.clear();
+  actor={userId:COACH,role:'coach',accessToken:'initial'};
+  const tokens=[];
+  const svc=make({transport:{...noop,occurrenceCalendar:async(token)=>{
+    tokens.push(token);
+    if(tokens.length===1){
+      actor={...actor,accessToken:'refreshed'};
+      return {kind:'calendar',clientId:CLIENT,count:1,hasMore:true,
+        nextCursor:{localDate:'2026-10-27',id:A},occurrences:[item(A)]};
+    }
+    return {kind:'calendar',clientId:CLIENT,count:1,hasMore:false,
+      nextCursor:null,occurrences:[item(B,'2026-10-28')]};
+  }}});
+  assert.equal((await svc.calendar({clientId:CLIENT,startDate:'2026-10-25',endDate:'2026-11-01'})).count,2);
+  assert.deepEqual(tokens,['initial','refreshed']);
+  const refreshJournal={...journal,writePending:async(key,value)=>{
+    await journal.writePending(key,value);
+    actor={...actor,accessToken:'after-journal'};
+  }};
+  let sentToken;
+  const writer=make({recovery:refreshJournal,transport:{...noop,occurrenceCommand:async(token,c)=>{
+    sentToken=token;
+    return {kind:'ack',operationId:c.operationId,entityId:c.entityId,remoteRevision:1};
+  }}});
+  assert.equal((await writer.send(cmd())).kind,'ack');
+  assert.equal(sentToken,'after-journal');
+});
+
+test('U40 suppresses a confirmed receipt if identity changes during journal cleanup',async()=>{
+  for(const cleanupFails of [false,true]){
+    journalStore.clear();
+    actor={userId:COACH,role:'coach',accessToken:'jwt'};
+    const switchingJournal={...journal,clearPending:async(key)=>{
+      actor={userId:CLIENT_USER,role:'cliente',clientId:CLIENT,accessToken:'other'};
+      if(cleanupFails)throw new Error('cleanup unavailable');
+      await journal.clearPending(key);
+    }};
+    const svc=make({recovery:switchingJournal,transport:{...noop,occurrenceCommand:async(_token,c)=>({
+      kind:'ack',operationId:c.operationId,entityId:c.entityId,remoteRevision:1,
+    })}});
+    await assert.rejects(svc.send(cmd()),/U40_AUTH_IDENTITY_CHANGED/);
+    actor={userId:COACH,role:'coach',accessToken:'jwt'};
+    assert.equal(await svc.hasUncertain({clientId:CLIENT,occurrenceId:A}),cleanupFails);
+  }
+  journalStore.clear();
+});
