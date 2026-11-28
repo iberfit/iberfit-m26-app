@@ -1355,6 +1355,8 @@ export function createWearableController({
   function onForegroundVisibility(){
     const doc=root.ownerDocument||globalThis.document;
     if(doc?.visibilityState==='hidden'){
+      appleReadEpoch+=1;
+      root.querySelectorAll?.('[data-apple-qa-workouts]')?.forEach?.(node=>node.replaceChildren());
       nativeForegroundHeartbeat.stop();
       foregroundSync.invalidate();
       productionSync?.invalidate();
@@ -1371,6 +1373,8 @@ export function createWearableController({
 
   function onPageHide(){
     // Background/BFCache must not resume a stale health read or identity lease.
+    appleReadEpoch+=1;
+    root.querySelectorAll?.('[data-apple-qa-workouts]')?.forEach?.(node=>node.replaceChildren());
     nativeForegroundHeartbeat.stop();
     foregroundSync.invalidate();
     productionSync?.invalidate();
@@ -1537,6 +1541,7 @@ export function createWearableController({
   }
 
   function clearQaSensitiveSurface(){
+    root.querySelectorAll?.('[data-apple-qa-workouts]')?.forEach?.(node=>node.replaceChildren());
     root.querySelectorAll?.('[data-apple-qa-status]')?.forEach?.(node=>{
       node.textContent='';
     });
@@ -2029,7 +2034,11 @@ export function createWearableController({
         note.dataset.appleQaStatus='true';
         note.setAttribute('role','status');
         note.textContent='Autoriza una lectura local desde la app iPhone QA. No se guardarán ni sincronizarán registros.';
-        appleCard.append(button,note);
+        const workouts=document.createElement('button');workouts.type='button';
+        workouts.dataset.wearableAction='qa-apple-workouts-read';
+        workouts.textContent='Consultar actividades de Apple Salud (QA)';
+        const workoutList=document.createElement('div');workoutList.dataset.appleQaWorkouts='true';
+        appleCard.append(button,note,workouts,workoutList);
       }
     }
 
@@ -2112,6 +2121,42 @@ export function createWearableController({
           if(note)note.textContent='No se pudo completar la conexión. Tu autorización existente se conserva; puedes reintentar.';
           throw error;
         }finally{button.disabled=false;}
+      }else if(action==='qa-apple-workouts-read'){
+        const epoch=++appleReadEpoch,identityEpoch=nativeIdentityEpoch;
+        const card=button.closest?.('[data-provider="apple_health"]');
+        const list=card?.querySelector?.('[data-apple-qa-workouts]');
+        if(!list||button.disabled)return;
+        button.disabled=true;list.textContent='Consultando actividades de Apple Salud…';
+        const current=()=>mounted&&epoch===appleReadEpoch&&identityEpoch===nativeIdentityEpoch
+          &&button.isConnected&&list.isConnected&&root.ownerDocument?.visibilityState!=='hidden';
+        try{
+          const result=await appleQaNative.readWorkouts({days:30});
+          if(!current())return;
+          const document=list.ownerDocument;
+          const notice=document.createElement('p');
+          notice.textContent=result.mayHaveMore?'Vista local parcial: hasta 60 actividades de los últimos 30 días.':'Vista local de actividades de los últimos 30 días. No sincronizada.';
+          list.replaceChildren(notice);
+          if(!result.rows.length){
+            const empty=document.createElement('p');empty.textContent='Sin actividades disponibles o permiso no concedido.';list.append(empty);
+          }
+          let day=null,group=null;
+          for(const row of result.rows){
+            if(row.day!==day){
+              day=row.day;const heading=document.createElement('h5');heading.textContent=day;
+              group=document.createElement('ul');list.append(heading,group);
+            }
+            const item=document.createElement('li');
+            const details=[row.time,row.label,Math.round(row.activeSeconds/60)+' min'];
+            if(row.distanceMeters!==null)details.push((row.distanceMeters/1000).toFixed(2)+' km');
+            if(row.activePaceSeconds!==null){
+              const pace=Math.floor(row.activePaceSeconds/60)+':'+String(row.activePaceSeconds%60).padStart(2,'0');
+              details.push(pace+(row.paceUnitMeters===100?' min/100 m':' min/km'));
+            }
+            item.textContent=details.join(' · ');group.append(item);
+          }
+        }catch{
+          if(current())list.textContent='No se pudo consultar las actividades. Autoriza otra lectura local y reintenta.';
+        }finally{if(button.isConnected)button.disabled=false;}
       }else if(action==='qa-apple-health-read'){
         const epoch=++appleReadEpoch;
         const card=button.closest?.('[data-provider="apple_health"]');

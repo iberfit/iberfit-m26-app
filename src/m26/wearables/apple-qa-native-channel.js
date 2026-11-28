@@ -10,6 +10,7 @@ const HANDLER='iberfitConnected360AppleQa';
 const EVENT='iberfit:connected360-apple-qa';
 const REQUEST='iberfit.connected360.apple.qa.request.v1';
 const RESPONSE='iberfit.connected360.apple.qa.read.v1';
+const WORKOUT_RESPONSE='iberfit.connected360.apple.qa.workouts.v1';
 const ERROR='iberfit.connected360.apple.qa.error.v1';
 const METRICS=Object.freeze(['steps','sleepMinutes','restingHeartRate']);
 const ID=/^[A-Za-z0-9_-]{8,72}$/u;
@@ -71,6 +72,42 @@ function normalize(records,{at=Date.now()}={}){
   }));
 }
 
+const WORKOUT_SPORTS=Object.freeze({running:'Carrera',cycling:'Ciclismo',walking:'Caminata',strength:'Fuerza',hiit:'HIIT',swimming:'Natación',other:'Otro entrenamiento'});
+const workoutDay=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'});
+const workoutClock=new Intl.DateTimeFormat('es-CL',{timeZone:'America/Santiago',hour:'2-digit',minute:'2-digit'});
+function civilWorkoutDay(at){
+  const parts=Object.fromEntries(workoutDay.formatToParts(at).map(p=>[p.type,p.value]));
+  return parts.year+'-'+parts.month+'-'+parts.day;
+}
+const workoutFail=()=>{throw Error('M26_APPLE_QA_RESPONSE_INVALID');};
+export function normalizeAppleQaWorkouts(value,{at=Date.now(),days=30}={}){
+  if(!Number.isFinite(at)||!Number.isInteger(days)||days<1||days>30
+    ||value?.schema!==WORKOUT_RESPONSE||value.provider!=='apple_health'||value.days!==days
+    ||typeof value.mayHaveMore!=='boolean'||value.persisted!==false||value.linked!==false
+    ||value.readPermissionStatus!=='not_disclosed'||!Array.isArray(value.records)||value.records.length>60
+    ||Object.keys(value).some(k=>!['schema','requestId','provider','days','mayHaveMore','persisted','linked','readPermissionStatus','records'].includes(k)))workoutFail();
+  let previous=Infinity;
+  const rows=value.records.map(row=>{
+    if(!row||typeof row!=='object'||Array.isArray(row)
+      ||Object.keys(row).some(k=>!['sport','startedAt','endedAt','activeSeconds','distanceMeters'].includes(k))
+      ||!Object.hasOwn(WORKOUT_SPORTS,row.sport)
+      ||typeof row.startedAt!=='string'||typeof row.endedAt!=='string'
+      ||typeof row.activeSeconds!=='number'||!Number.isFinite(row.activeSeconds))workoutFail();
+    const start=Date.parse(row.startedAt),end=Date.parse(row.endedAt),elapsed=(end-start)/1000;
+    if(!Number.isFinite(start)||!Number.isFinite(end)||start<at-days*86400000-120000
+      ||end>at+5000||start>previous||elapsed<=0||elapsed>86400
+      ||row.activeSeconds<=0||row.activeSeconds>elapsed+1)workoutFail();
+    previous=start;
+    const distance=row.distanceMeters;
+    if(distance!==undefined&&(typeof distance!=='number'||!Number.isFinite(distance)||distance<0||distance>500000))workoutFail();
+    const unit=row.sport==='swimming'?100:row.sport==='running'?1000:null;
+    const pace=unit&&distance>=unit?Math.round(row.activeSeconds*unit/distance):null;
+    return Object.freeze({day:civilWorkoutDay(start),time:workoutClock.format(start),sport:row.sport,label:WORKOUT_SPORTS[row.sport],
+      activeSeconds:row.activeSeconds,distanceMeters:distance??null,activePaceSeconds:pace>0?pace:null,paceUnitMeters:unit});
+  });
+  return Object.freeze({rows:Object.freeze(rows),mayHaveMore:value.mayHaveMore,provider:'apple_health',
+    persisted:false,linked:false,readPermissionStatus:'not_disclosed'});
+}
 export function createAppleHealthQaNativeChannel({
   scope=globalThis,
   getIdentity,
@@ -100,10 +137,10 @@ export function createAppleHealthQaNativeChannel({
     if(current.ownerId!==expected.ownerId||current.clientId!==expected.clientId)
       throw Error('M26_APPLE_QA_SESSION_CHANGED');
   }
-  async function readLocal({days=7}={}){
+  async function read({days=7,workouts=false}={}){
     if(disposed)throw Error('M26_APPLE_QA_DISPOSED');
     if(running)throw Error('M26_APPLE_QA_BUSY');
-    if(!Number.isInteger(days)||days<1||days>7)
+    if(!Number.isInteger(days)||days<1||days>(workouts?30:7))
       throw Error('M26_APPLE_QA_REQUEST_INVALID');
     const owner=identity();
     const token=await getToken(); // NEVER forwarded to the native host.
@@ -138,6 +175,11 @@ export function createAppleHealthQaNativeChannel({
             finish(Error(/^M26_[A-Z0-9_]{4,72}$/u.test(code)?code:'M26_APPLE_QA_NATIVE_FAILED'));
             return;
           }
+          if(workouts){
+            try{finish(null,normalizeAppleQaWorkouts(parsed,{at:now(),days}));}
+            catch(error){finish(error);}
+            return;
+          }
           if(parsed.schema!==RESPONSE||parsed.provider!=='apple_health'||
              parsed.persisted!==false||parsed.linked!==false||
              parsed.readPermissionStatus!=='not_disclosed'){
@@ -157,11 +199,12 @@ export function createAppleHealthQaNativeChannel({
         scope.addEventListener(EVENT,onResponse);
         try{
           // Never include ownerId, clientId, access token, grant or user email.
-          sender.postMessage({schema:REQUEST,requestId,action:'health.readDaily',days});
+          sender.postMessage({schema:REQUEST,requestId,action:workouts?'health.readWorkouts':'health.readDaily',days});
         }catch{finish(Error('M26_APPLE_QA_NATIVE_UNAVAILABLE'));}
       });
       same(owner);
       if(disposed)throw Error('M26_APPLE_QA_DISPOSED');
+      if(workouts)return response;
       return Object.freeze({
         provider:'apple_health',rows:response,
         requestedMetrics:METRICS,readPermissionStatus:'not_disclosed',
@@ -170,7 +213,8 @@ export function createAppleHealthQaNativeChannel({
     }finally{running=false;}
   }
   return Object.freeze({
-    readLocal,
+    readLocal:({days=7}={})=>read({days}),
+    readWorkouts:({days=30}={})=>read({days,workouts:true}),
     available:()=>!disposed&&isAppleHealthQaNativeAvailable(scope),
     destroy:()=>{
       if(disposed)return;

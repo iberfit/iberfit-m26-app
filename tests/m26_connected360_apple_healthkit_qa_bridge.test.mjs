@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
   createAppleHealthQaNativeChannel,
+  normalizeAppleQaWorkouts,
   isAppleHealthQaNativeAvailable,
 } from '../src/m26/wearables/apple-qa-native-channel.js';
 
@@ -175,4 +176,42 @@ test('iPhone consent only stays valid for two minutes after the local native but
   assert.match(lease,/maxAgeSeconds: TimeInterval = 120/u);
   assert.match(lease,/elapsed >= 0 && elapsed <= maxAgeSeconds/u);
   assert.match(swift,/reader\.revokeLocalReadApproval\(\)/u);
+});
+
+
+const workoutAt=Date.parse('2026-11-28T15:00:00Z');
+const workoutReply={schema:'iberfit.connected360.apple.qa.workouts.v1',provider:'apple_health',
+  days:30,mayHaveMore:false,persisted:false,linked:false,readPermissionStatus:'not_disclosed',
+  records:[{sport:'running',startedAt:'2026-11-28T12:00:00Z',endedAt:'2026-11-28T12:40:00Z',activeSeconds:1800,distanceMeters:5000},
+  {sport:'swimming',startedAt:'2026-11-27T12:00:00Z',endedAt:'2026-11-27T12:40:00Z',activeSeconds:1200,distanceMeters:1000}]};
+test('Apple workout preview preserves civil days and active pace by discipline without source IDs',()=>{
+  const result=normalizeAppleQaWorkouts(workoutReply,{at:workoutAt,days:30});
+  assert.deepEqual(result.rows.map(r=>[r.day,r.activePaceSeconds,r.paceUnitMeters]),[['2026-11-28',360,1000],['2026-11-27',120,100]]);
+  assert.equal(result.persisted,false);
+  for(const invalid of [
+    {...workoutReply,persisted:true},
+    {...workoutReply,records:[{...workoutReply.records[0],id:'native-uuid'}]},
+    {...workoutReply,records:[{...workoutReply.records[0],averageHeartRate:148}]},
+    {...workoutReply,records:[{...workoutReply.records[0],activeSeconds:5000}]},
+    {...workoutReply,records:[...workoutReply.records].reverse()},
+    {...workoutReply,records:Array.from({length:61},()=>workoutReply.records[0])},
+  ])assert.throws(()=>normalizeAppleQaWorkouts(invalid,{at:workoutAt,days:30}),/RESPONSE_INVALID/u);
+});
+test('Apple workout bridge sends only local bounded action and rejects a daily response',async()=>{
+  const current={...workoutReply,records:[]};
+  const h=harness({answer:c=>({...current,requestId:c.requestId})});
+  const value=await h.channel.readWorkouts();
+  assert.equal(value.rows.length,0);
+  assert.deepEqual(h.sent[0],{schema:'iberfit.connected360.apple.qa.request.v1',requestId:'local-qa-request-20261011',action:'health.readWorkouts',days:30});
+  const bad=harness({answer:ok});await assert.rejects(bad.channel.readWorkouts(),/RESPONSE_INVALID/u);
+  await assert.rejects(h.channel.readWorkouts({days:31}),/REQUEST_INVALID/u);
+});
+test('native workout read uses independent approval and never sends source UUID or biometrics',()=>{
+  const source=readFileSync('native/apple/QAApp/IBERFITCanaryClientQAView.swift','utf8');
+  assert.match(source,/func authorizeWorkoutsOnce\(/u);
+  assert.match(source,/requestExplicitWorkoutAccess\(includeHeartRate: false\)/u);
+  assert.match(source,/case "health.readWorkouts":/u);
+  assert.match(source,/workoutReader.invalidate\(\)/u);
+  const read=source.slice(source.indexOf('func receiveWorkouts'),source.indexOf('func receiveRead'));
+  assert.doesNotMatch(read,/workout\.id|workout\.averageHeartRate|URLSession/u);
 });
