@@ -1,4 +1,5 @@
 export const WEARABLE_SURFACE_ROWS=Object.freeze([
+  ["Días con registros de este deporte","Days with records for this sport","Jours avec des données pour ce sport","Dias com registos deste desporto"],
   [" · Días consecutivos con entrenamiento IBERFIT confirmado. Revisa la recuperación antes de decidir."," · Consecutive days with confirmed IBERFIT training. Review recovery before deciding."," · Jours consécutifs avec entraînement IBERFIT confirmé. Examinez la récupération avant de décider."," · Dias consecutivos com treino IBERFIT confirmado. Revê a recuperação antes de decidir."],
   [" · Ejecución confirmada"," · Confirmed workout"," · Séance confirmée"," · Treino confirmado"],
   ["Continuidad de actividad","Activity continuity","Continuité de l’activité","Continuidade da atividade"],
