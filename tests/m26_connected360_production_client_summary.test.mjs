@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360ActivityPage,connected360ActivityPageParams,connected360WorkoutDays} from '../src/m26/wearables/v46-production-summary.js';
+import {formatConnected360ProductionSummary,connected360WorkoutHistory,createConnected360SummaryReader,connected360WorkoutMix,connected360ActivityPage,connected360ActivityPageParams,connected360WorkoutDays,connected360RecentTrainingRows,connected360RecentTimeline} from '../src/m26/wearables/v46-production-summary.js';
 
 const empty=()=>({ok:true,provider:'health_connect',heartRateDaily:[],exerciseEvidence:[]});
 
@@ -95,7 +95,7 @@ test('invalid, future, linked and malformed observations never become external w
 test('history shares the fenced production read, uses safe text nodes and never claims complete coverage',()=>{
   const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
   const section=controller.slice(controller.indexOf('async function refreshProductionSummary'),controller.indexOf('async function autoSyncNativeProviders'));
-  assert.match(section,/if\(stillCurrent\(\)\)\{[\s\S]*connected360WorkoutHistory\(response\)/u);
+  assert.match(section,/if\(stillCurrent\(\)\)\{[\s\S]*connected360WorkoutHistory\(response,\{now\}\)/u);
   assert.match(section,/document\.createTextNode/u);
   assert.match(section,/Hasta 10 actividades de los últimos 7 días/u);
   assert.doesNotMatch(section,/innerHTML|insertAdjacentHTML/u);
@@ -312,8 +312,52 @@ test('a day crossing a page boundary is explicitly continued, never merged or dr
 });
 test('recent and paginated activity UI reuse the day renderer, preserving the separate Evolution overview',()=>{
   const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
-  assert.match(controller,/children\.push\(heading,note,\.\.\.renderProductionWorkoutDays\(document,rows\)\)/u);
+  assert.match(controller,/children\.push\(heading,note,\.\.\.renderProductionWorkoutDays\(document,timelineRows\)\)/u);
   assert.match(controller,/renderProductionWorkoutDays\(document,page\.rows,cursor\?\.startedAt\?\?null\)/u);
   assert.match(controller,/group\.dataset\.prodConnected360Day=day\.dayKey/u);
   assert.match(controller,/connected360WorkoutMix\(rows\)/u);
+});
+
+test('combined recent chronology orders individual training and imported records without treating either as the other',()=>{
+  const now=new Date('2026-11-28T12:00:00Z');
+  const imported=connected360WorkoutHistory({...empty(),exerciseEvidence:[
+    {sport:'running',startedAt:'2026-11-27T12:00:00Z',endedAt:'2026-11-27T12:45:00Z',distanceMeters:5000,linkedToTraining:false},
+    {sport:'cycling',startedAt:'2026-11-26T12:00:00Z',endedAt:'2026-11-26T12:45:00Z',linkedToTraining:false},
+  ]},{now});
+  const confirmed=connected360RecentTrainingRows([
+    {completedAt:'2026-11-27T21:00:00Z',title:'Fuerza'},
+    {completedAt:'2026-11-27T11:00:00Z',title:'Movilidad'},
+    {completedAt:'2026-11-27T02:30:00Z',title:'Sesión nocturna'},
+    {completedAt:'2026-11-21T11:59:00Z',title:'Fuera de ventana'},
+    {completedAt:'2026-11-29T00:00:00Z',title:'Futura'},
+    {completedAt:'2026-11-27',title:'Sin hora'},
+    {completedAt:'2026-02-30T12:00:00Z',title:'Inválida'},
+  ],{now});
+  assert.equal(confirmed.length,3);
+  const timeline=connected360RecentTimeline(imported,confirmed);
+  const days=connected360WorkoutDays(timeline);
+  assert.deepEqual(days.map(d=>d.dayKey),['2026-11-27','2026-11-26']);
+  assert.deepEqual(days[0].rows.map(r=>[r.label,r.source]),[['Fuerza','iberfit'],['Carrera','imported'],['Movilidad','iberfit']]);
+  assert.deepEqual(days[1].rows.map(r=>r.source),['iberfit','imported']);
+  assert.match(days[0].rows[0].dayDetail,/Finalizado 18:00/u);
+  assert.match(days[0].rows[1].dayDetail,/09:00/u);
+  assert.equal(timeline.length,5);
+  assert.deepEqual(connected360RecentTimeline(confirmed,imported),[]);
+  assert.ok(Object.isFrozen(timeline)&&Object.isFrozen(confirmed[0]));
+});
+test('combined recent view is bounded and canonical confirmation remains mandatory',()=>{
+  const now=new Date('2026-11-28T12:00:00Z');
+  const confirmed=connected360RecentTrainingRows(Array.from({length:25},(_,i)=>({
+    completedAt:new Date(now.getTime()-i*60000).toISOString(),title:'Sesión '+i,
+  })),{now});
+  assert.equal(confirmed.length,20);
+  assert.equal(confirmed[0].label,'Sesión 0');
+  assert.equal(connected360WorkoutDays(connected360RecentTimeline([],confirmed))[0].rows.length,20);
+  const controller=readFileSync(new URL('../src/m26/wearables/controller.js',import.meta.url),'utf8');
+  assert.match(controller,/confirmedSessionExecutionsForClient\(store\.getState\(\),clientId,\{requireCompleted:true\}\)/u);
+  assert.match(controller,/sessionExecutionIsCompleted\(record,\{allowDatedFallback:false\}\)/u);
+  assert.match(controller,/completedAt:sessionExecutionCompletionDate\(record\)/u);
+  assert.match(controller,/combined\?connected360RecentTimeline\(rows,recentConfirmedTrainingRows\(expected\.clientId,now\)\):rows/u);
+  assert.match(controller,/row\.source==='iberfit'\?'Entrenamiento IBERFIT confirmado':'Actividad importada · Health Connect'/u);
+  assert.match(controller,/Los registros de dos fuentes pueden corresponder a una misma sesión/u);
 });
