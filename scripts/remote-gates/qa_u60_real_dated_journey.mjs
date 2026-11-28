@@ -461,6 +461,43 @@ async function authenticatedStage(ctx,certified=null){
  const fingerprint=hash(clientA+':'+chosen.id+':'+chosen.revision+':'+today+':'+future+':'+time);
  return {ctx,coach,a,b,clientA,clientB,chosen,appointments,commands,today,future,time,fingerprint};
 }
+// Bind the browser proof to the actual published prescription of EACH date.
+ // Hash only: no raw prescription or client feedback is written to artifacts.
+function canonicalU74(value){
+ if(Array.isArray(value))return value.map(canonicalU74);
+ if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonicalU74(value[key])]));
+ return value;
+}
+export function u74PrescriptionFingerprint(snapshot,clientId,sessionId){
+ assert(snapshot?.clientId===clientId&&snapshot?.sessionId===sessionId
+   &&Array.isArray(snapshot.queue)&&snapshot.queue.length>0
+   &&Array.isArray(snapshot.blocks)&&snapshot.blocks.length>0,'UI_PRESCRIPTION_SCOPE_INVALID');
+ return hash(JSON.stringify(canonicalU74({clientId,sessionId,queue:snapshot.queue,blocks:snapshot.blocks})));
+}
+export function verifyU74DatedReadback(first,future,fixture){
+ const f=fixture;
+ const scoped=(d,id,date)=>d?.kind==='private-occurrence'&&d.occurrence?.id===id
+   &&d.occurrence.clientId===f.clientId&&d.occurrence.sessionId===f.sessionId
+   &&d.occurrence.localDate===date&&(!f.appointmentless||d.occurrence.appointmentId===null);
+ assert(scoped(first,f.occurrenceId,f.localDate)&&scoped(future,f.futureOccurrenceId,f.futureDate),'UI_READBACK_SCOPE_INVALID');
+ assert(/^[0-9a-f]{64}$/.test(f.firstPrescriptionHash)&&/^[0-9a-f]{64}$/.test(f.futurePrescriptionHash)
+   &&u74PrescriptionFingerprint(first.prescriptionSnapshot,f.clientId,f.sessionId)===f.firstPrescriptionHash
+   &&u74PrescriptionFingerprint(future.prescriptionSnapshot,f.clientId,f.sessionId)===f.futurePrescriptionHash,'UI_PRESCRIPTION_CHANGED');
+ const e=first.executionBody;
+ assert(first.occurrence.status==='completada'&&e?.status==='completada'
+   &&UUID.test(e.id)&&e.id===first.occurrence.executionId&&e.clientId===f.clientId
+   &&e.sessionId===f.sessionId&&e.occurrenceId===f.occurrenceId
+   &&u74PrescriptionFingerprint(e.sourceSnapshot,f.clientId,f.sessionId)===f.firstPrescriptionHash,'UI_EXECUTION_LINEAGE_CHANGED');
+ assert(e.results&&typeof e.results==='object'&&!Array.isArray(e.results)
+   &&Object.keys(e.results).length===f.stepsExpected
+   &&Object.values(e.results).every(row=>row&&typeof row==='object'&&!Array.isArray(row)&&Object.keys(row).length>0)
+   &&e.skippedSets&&typeof e.skippedSets==='object'&&!Array.isArray(e.skippedSets)&&Object.keys(e.skippedSets).length===0,'UI_EXECUTION_RESULTS_INVALID');
+ assert(e.feedback?.sessionRpe===7&&e.feedback?.comment==='IBERFIT U74 QA ejecución real sintética','UI_FINAL_FEEDBACK_NOT_PERSISTED');
+ assert(future.occurrence.status==='confirmada'&&future.occurrence.revision===f.futureRevision
+   &&future.occurrence.executionId===null&&future.executionBody===null,'UI_FUTURE_EXECUTION_CHANGED');
+ return true;
+}
+
 async function verifyBrowserWorkout(ctx){
  // READ-ONLY after the real Chromium Client workout, never retry its writes.
  const proof=JSON.parse(await readFile(FILE,'utf8')),f=proof.fixture;
@@ -497,11 +534,19 @@ async function verifyBrowserWorkout(ctx){
   &&(!ctx.autonomous||detail.body?.occurrence?.appointmentId===null)
   &&Object.keys(detail.body?.executionBody?.results||{}).length===f.stepsExpected,
   'UI_COACH_EXECUTION_NOT_COMMITTED');
+ const futureDetail=await rpc(ctx,coach.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:f.clientId,p_occurrence_id:f.futureOccurrenceId});
+ assert(futureDetail.status===200,'UI_COACH_FUTURE_DETAIL_UNAVAILABLE');
+ verifyU74DatedReadback(detail.body,futureDetail.body,f);
+ const forbiddenDetail=await rpc(ctx,b.jwt,'iberfit_occurrence_detail_v1',{
+  p_client_id:f.clientId,p_occurrence_id:f.occurrenceId});
+ assert(denied(forbiddenDetail),'UI_CROSS_CLIENT_EXECUTION_DETAIL_EXPOSED');
  const forbidden=await u60(ctx,b.jwt,'CALENDARIO',{
   clientId:f.clientId,startDate:f.localDate,endDate:f.futureDate,limit:10});
  assert(denied(forbidden),'UI_CROSS_CLIENT_SCOPE_EXPOSED');
  proof.checks.push('real_chromium_u60_client_write_lifecycle',
-  'coach_readback_first_complete_second_untouched','other_client_denied');
+  'coach_readback_first_complete_second_untouched','other_client_denied',
+  'published_prescriptions_preserved','completion_feedback_persisted','future_detail_no_execution','cross_owner_execution_detail_denied');
  proof.status='QA_BROWSER_HOSTED_E2E_SUCCESS';
  await save(proof);
  process.stdout.write('IBERFIT_U74_QA_REAL_BROWSER_WRITE_COACH_READBACK_PASS\n');
@@ -647,9 +692,18 @@ async function runStage(ctx,mode){
    (n,item)=>n+Number(item?.sets||0),0);
   assert(Number.isSafeInteger(steps)&&steps>=1&&steps<=40,
    'UI_FIXTURE_STEPS_OUT_OF_BOUND');
+  const futureDetail=await rpc(ctx,a.jwt,'iberfit_occurrence_detail_v1',{p_client_id:clientA,p_occurrence_id:occ[1]});
+  assert(futureDetail.status===200&&futureDetail.body?.kind==='private-occurrence'
+    &&futureDetail.body?.occurrence?.id===occ[1]&&futureDetail.body?.occurrence?.clientId===clientA
+    &&futureDetail.body?.occurrence?.sessionId===chosen.id&&futureDetail.body?.occurrence?.status==='confirmada'
+    &&Number.isSafeInteger(futureDetail.body?.occurrence?.revision)&&futureDetail.body?.occurrence?.executionId===null
+    &&futureDetail.body?.executionBody===null,'UI_FUTURE_FIXTURE_NOT_PRISTINE');
   proof.fixture={clientId:clientA,sessionId:chosen.id,
    occurrenceId:occ[0],futureOccurrenceId:occ[1],
    localDate:today,futureDate:future,stepsExpected:steps,
+   firstPrescriptionHash:u74PrescriptionFingerprint(detail.body.prescriptionSnapshot,clientA,chosen.id),
+   futurePrescriptionHash:u74PrescriptionFingerprint(futureDetail.body.prescriptionSnapshot,clientA,chosen.id),
+   futureRevision:futureDetail.body.occurrence.revision,
    appointmentless:ctx.autonomous};
   proof.status='QA_BROWSER_FIXTURE_READY';proof.writesApplied=true;
   await save(proof);

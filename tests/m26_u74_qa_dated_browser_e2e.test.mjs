@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {chooseUnoccupiedDatedSlot,chooseAppointmentlessDateOnlyQaSlot,buildQaAutonomousDateOnlyPair} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
+import {chooseUnoccupiedDatedSlot,chooseAppointmentlessDateOnlyQaSlot,buildQaAutonomousDateOnlyPair,u74PrescriptionFingerprint,verifyU74DatedReadback} from '../scripts/remote-gates/qa_u60_real_dated_journey.mjs';
 import {santiagoAppointmentInstant} from '../src/m26/workflows/agenda-workflow.js';
 import {isQaReadonlyDatedRequest,isQaScopedDatedSyntheticWrite} from '../qa/rc64/secure-current-source-auth.mjs';
 const CLIENT='10000000-0000-4000-8000-000000000001';
@@ -224,4 +224,26 @@ test('U74 creates two independent date-only occurrences without fabricating time
  assert.match(runner,/dates:ctx\.autonomous\s*\?buildQaAutonomousDateOnlyPair\(today,future\)/u);
  assert.match(runner,/appointments\.map\(\(x,i\)=>\(\{localDate:x\.date,localTime:plan\.time,/u);
  assert.match(runner,/appointmentId:commands\[i\]\.entityId/u);
+});
+
+test('U74 verifies immutable original prescriptions, final feedback and untouched second date',()=>{
+ const sessionId='50000000-0000-4000-8000-000000000001',executionId='60000000-0000-4000-8000-000000000001';
+ const snapshot={clientId:CLIENT,sessionId,blocks:[{id:'b',exerciseId:'squat',sets:1}],queue:[{blockId:'b',exerciseId:'squat',sets:1}]};
+ const fingerprint=u74PrescriptionFingerprint(snapshot,CLIENT,sessionId);
+ const fixture={clientId:CLIENT,sessionId,occurrenceId:OCC,futureOccurrenceId:FOREIGN,localDate:'2026-11-28',futureDate:'2026-12-05',stepsExpected:1,appointmentless:true,firstPrescriptionHash:fingerprint,futurePrescriptionHash:fingerprint,futureRevision:1};
+ const detail=(id,day,status,exec,body)=>({kind:'private-occurrence',occurrence:{id,clientId:CLIENT,sessionId,localDate:day,appointmentId:null,status,executionId:exec,revision:status==='confirmada'?1:3},prescriptionSnapshot:structuredClone(snapshot),executionBody:body});
+ const first=detail(OCC,fixture.localDate,'completada',executionId,{id:executionId,clientId:CLIENT,sessionId,occurrenceId:OCC,status:'completada',sourceSnapshot:structuredClone(snapshot),results:{'squat:1':{reps:8}},skippedSets:{},feedback:{sessionRpe:7,comment:'IBERFIT U74 QA ejecución real sintética'}});
+ const future=detail(FOREIGN,fixture.futureDate,'confirmada',null,null);
+ assert.equal(verifyU74DatedReadback(first,future,fixture),true);
+ assert.equal(u74PrescriptionFingerprint({queue:snapshot.queue,blocks:snapshot.blocks,sessionId,clientId:CLIENT},CLIENT,sessionId),fingerprint);
+ for(const mutate of [
+  (a,b)=>{a.executionBody.sourceSnapshot.blocks[0].sets=2;},
+  (a,b)=>{a.executionBody.feedback.comment='';},
+  (a,b)=>{a.executionBody.results={'squat:1':null};},
+  (a,b)=>{b.occurrence.revision=2;},
+  (a,b)=>{b.executionBody={status:'en_curso'};},
+  (a,b)=>{b.prescriptionSnapshot.queue[0].sets=2;},
+  (a,b)=>{a.executionBody.clientId=FOREIGN;},
+  (a,b)=>{b.occurrence.appointmentId=executionId;}
+ ]){const a=structuredClone(first),b=structuredClone(future);mutate(a,b);assert.throws(()=>verifyU74DatedReadback(a,b,fixture),/U71_UI_/);}
 });
