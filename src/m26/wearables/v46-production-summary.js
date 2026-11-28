@@ -60,24 +60,51 @@ export function connected360WorkoutHistory(p,{now=new Date()}={}){
       ?'FC media '+decimal.format(average)+' lpm':null;
     const metrics=[observedDuration(end-start),distance,averageLabel,
       observedElapsedRunningPace(row.sport,end-start,d)].filter(Boolean);
-    rows.push({start,label:WORKOUT_SPORTS[row.sport],
+    rows.push({start,orderAt:start,source:'imported',label:WORKOUT_SPORTS[row.sport],
       dayKey:localWorkoutDay(start),dayLabel:workoutDayLabel.format(start),
       dayDetail:[workoutTime.format(start),...metrics].join(' · '),
       detail:[workoutDate.format(start),...metrics].join(' · ')});
   }
   return Object.freeze(rows.sort((a,b)=>b.start-a.start).map(({start,...row})=>Object.freeze(row)));
 }
+// The caller supplies only reconciled, confirmed canonical execution dates.
+// An imported record is not proof that it represents a different workout.
+// Keep provenance explicit and never calculate combined counts or adherence.
+export function connected360RecentTrainingRows(confirmed,{now=new Date()}={}){
+  if(!Array.isArray(confirmed)||!Number.isFinite(now?.getTime?.()))return Object.freeze([]);
+  const rows=[],end=now.getTime(),start=end-7*86400000;
+  for(const record of confirmed){
+    const at=observedInstant(record?.completedAt);
+    if(at===null||at<start||at>end)continue;
+    const label=typeof record.title==='string'&&record.title.trim()
+      ?record.title.trim().slice(0,120):'Entrenamiento IBERFIT';
+    rows.push(Object.freeze({source:'iberfit',orderAt:at,label,
+      dayKey:localWorkoutDay(at),dayLabel:workoutDayLabel.format(at),
+      dayDetail:'Finalizado '+workoutTime.format(at),
+      detail:workoutDate.format(at)+' · Ejecución confirmada'}));
+  }
+  return Object.freeze(rows.sort((a,b)=>b.orderAt-a.orderAt).slice(0,20));
+}
+export function connected360RecentTimeline(imported,confirmed){
+  if(!Array.isArray(imported)||imported.length>10||!Array.isArray(confirmed)||confirmed.length>20)
+    return Object.freeze([]);
+  if(imported.some(row=>row?.source!=='imported')||confirmed.some(row=>row?.source!=='iberfit'))
+    return Object.freeze([]);
+  return Object.freeze([...imported,...confirmed].sort((a,b)=>b.orderAt-a.orderAt));
+}
 // Group by the same Chilean civil date used for visible training timestamps.
 // A session spanning midnight belongs to its start day; never combine sessions.
 export function connected360WorkoutDays(rows,{beforeStartedAt=null}={}){
-  if(!Array.isArray(rows)||rows.length>20)return Object.freeze([]);
+  if(!Array.isArray(rows)||rows.length>30)return Object.freeze([]);
   const groups=new Map();
   const before=observedInstant(beforeStartedAt);
   const continuedDay=before===null?null:localWorkoutDay(before);
   for(const row of rows){
     if(!DAY.test(row?.dayKey||'')||typeof row.dayLabel!=='string'
       ||typeof row.dayDetail!=='string'||!row.dayDetail
-      ||!Object.values(WORKOUT_SPORTS).includes(row.label))return Object.freeze([]);
+      ||!(row.source==='imported'&&Object.values(WORKOUT_SPORTS).includes(row.label)
+        ||row.source==='iberfit'&&typeof row.label==='string'&&row.label.trim()&&row.label.length<=120))
+      return Object.freeze([]);
     if(!groups.has(row.dayKey))groups.set(row.dayKey,{
       dayKey:row.dayKey,label:row.dayLabel,continued:row.dayKey===continuedDay,rows:[],
     });
