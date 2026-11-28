@@ -133,12 +133,13 @@ export function createConnected360ProductionSync({
       if(!exEnabled)resetWorkoutSweep();
       if(page&&(![7,30].includes(page.days)||page.days!==sweep.days||
         !Object.hasOwn(page,'nextCursor')||(page.nextCursor!==null&&
-          (typeof page.nextCursor!=='string'||!UUID.test(page.nextCursor)||page.nextCursor===sweep.cursor))))
-        throw new Error('M26_V46_PROD_HISTORY_RESPONSE_INVALID');
-      // An opaque native continuation may cycle through several handles, not
-      // just repeat the current one. Reject before a write; keep previously
-      // acknowledged rows and restart the bounded reconciliation next time.
-      if(page?.nextCursor!==null&&page?.nextCursor&&sweep?.seen.has(page.nextCursor)){
+          (typeof page.nextCursor!=='string'||!UUID.test(page.nextCursor))))){
+        // Do not pin a continuation to a malformed page forever.
+        resetWorkoutSweep();throw new Error('M26_V46_PROD_HISTORY_RESPONSE_INVALID');
+      }
+      // Reject both immediate and non-adjacent loops before any write.
+      // The server retains earlier acknowledged rows for idempotent replay.
+      if(page?.nextCursor&&sweep.seen.has(page.nextCursor)){
         resetWorkoutSweep();throw new Error('M26_HEALTH_V46_CURSOR_INVALID');
       }
       if(sweep?.cursor&&exEnabled&&!page){resetWorkoutSweep();throw new Error('M26_HEALTH_V46_CURSOR_INVALID');}

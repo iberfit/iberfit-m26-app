@@ -507,3 +507,35 @@ test('Android history rejects a non-adjacent cursor cycle before any write and r
   assert.deepEqual(reads.at(-1),[7,null]);
   api.destroy();
 });
+
+test('Android history resets malformed or self-repeating page metadata without losing acknowledged progress',async()=>{
+  const cursor='11111111-aaaa-4aaa-8aaa-111111111111';
+  for(const mode of ['self','malformed']){
+    let invalid=true;
+    const reads=[],writes=[];
+    const api=createConnected360ProductionSync({
+      transport:{connected360ProductionCapabilities:async()=>({serverEnabled:true}),
+        connected360ProductionAuthorizationStatus:async()=>({authorized:true,grantId:GRANT,revocationCursor:0,scopes:['exerciseSessions']}),
+        importConnected360Production:async(_token,_grant,rows)=>{
+          writes.push(rows.exerciseEvidence[0].observationKey);
+          return {ok:true,persisted:true,inserted:1,updated:0,unchanged:0};
+        }},
+      native:{readLocal:async options=>{
+        const next=options.workoutCursor??null;reads.push(next);
+        return {provider:'health_connect',ownerId:OWNER,clientId:CLIENT,persisted:false,metrics:['exerciseSessions'],
+          envelope:{schema:'iberfit.connected360.v46.ingest.v1',heartRateDaily:[],exerciseEvidence:[{observationKey:(next?'b':'a').repeat(64)}]},
+          workoutPage:{days:options.workoutHistoryDays,nextCursor:next===null?cursor:invalid?(mode==='self'?cursor:'invalid-handle'):null}};
+      },invalidate(){}},
+      getIdentity:()=>({role:'client',ownerId:OWNER,clientId:CLIENT}),
+      getToken:async()=> 'synthetic-token-for-test',now:()=>clock,isOnline:()=>true,
+    });
+    assert.equal((await api.sync()).workoutHistoryPending,true);
+    await assert.rejects(api.sync(),mode==='self'?/M26_HEALTH_V46_CURSOR_INVALID/u:/M26_V46_PROD_HISTORY_RESPONSE_INVALID/u);
+    assert.deepEqual(writes,['a'.repeat(64)]);
+    invalid=false;
+    await api.sync();
+    assert.equal((await api.sync()).workoutHistoryPending,false);
+    assert.deepEqual(reads,[null,cursor,null,cursor]);
+    api.destroy();
+  }
+});
