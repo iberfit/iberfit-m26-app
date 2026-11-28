@@ -6,7 +6,9 @@ const path='scripts/data-safety/gx_document_consent_isolated_pg17.sh';
 const script=readFileSync(path,'utf8');
 const workflow=readFileSync('.github/workflows/m26-c-connected360-isolated-pg17.yml','utf8');
 const lifecycle=readFileSync('qa/sql/connected360-document/lifecycle.sql','utf8');
-const env={PATH:process.env.PATH,IBERFIT_PG17_SYNTHETIC_ONLY:'YES',PGHOST:'127.0.0.1',PGPORT:'5432',PGUSER:'postgres',PGDATABASE:'postgres',PGPASSWORD:'synthetic-local-only'};
+// Fixed disposable database credential, never an environment or hosted secret.
+const disposableDbCredential='synthetic-local-only';
+const env={PATH:process.env.PATH,IBERFIT_PG17_SYNTHETIC_ONLY:'YES',PGHOST:'127.0.0.1',PGPORT:'5432',PGUSER:'postgres',PGDATABASE:'postgres',PGPASSWORD:disposableDbCredential};
 test('document PG17 harness shell parses and refuses every non-synthetic connection parameter before docker',()=>{
  assert.equal(spawnSync('bash',['-n',path]).status,0);
  for(const key of Object.keys(env).filter(k=>k!=='PATH')){
